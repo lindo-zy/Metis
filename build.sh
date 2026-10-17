@@ -34,14 +34,34 @@ fi
 PACKAGE_ID="com.lindo.metis"
 CONTROL_FILE="$ROOT_DIR/control"
 CONTROL_VERSION="$(awk -F': ' '/^Version:/{print $2; exit}' "$CONTROL_FILE")"
+if [[ -z "$CONTROL_VERSION" || ! "$CONTROL_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    echo "error: Version must use MAJOR.MINOR.PATCH format in control: ${CONTROL_VERSION:-<missing>}" >&2
+    exit 1
+fi
+
+# 版本递增（参考 TypeX）：PATCH 0-10，满 10 进 MINOR，MINOR 满 10 进 MAJOR。
+NEXT_MAJOR="${BASH_REMATCH[1]}"
+NEXT_MINOR="${BASH_REMATCH[2]}"
+NEXT_PATCH="$((10#${BASH_REMATCH[3]} + 1))"
+if (( NEXT_PATCH > 10 )); then
+    NEXT_PATCH=0
+    NEXT_MINOR="$((10#${BASH_REMATCH[2]} + 1))"
+fi
+if (( NEXT_MINOR > 10 )); then
+    NEXT_MINOR=0
+    NEXT_MAJOR="$((10#${BASH_REMATCH[1]} + 1))"
+fi
+NEXT_VERSION="${NEXT_MAJOR}.${NEXT_MINOR}.${NEXT_PATCH}"
 
 usage() {
     cat >&2 <<'EOF'
 usage: ./build.sh [--target ios16|ios17|all] [--mode verify|release] [--version X.Y.Z]
   --target   构建目标，默认 all；开发可单目标验证，发布必须 all。
-  --mode     verify（默认）：主机测试+构建+包检查，不改 control、不发布 manifest。
-             release：需要 --version；集成分支干净检查；双平台全部通过后写回 control 与 manifest。
-  --version  release 必填，MAJOR.MINOR.PATCH。
+  --mode     verify（默认）：主机测试+构建+包检查。
+             release：集成分支干净检查；双平台全部通过后写 manifest。
+  --version  可选覆盖（MAJOR.MINOR.PATCH）。缺省按 TypeX 规则自动递增：
+             PATCH +1，满 10 进 MINOR，MINOR 满 10 进 MAJOR；构建全部成功后
+             写回 control（失败不写）。CI tag 构建用它钉住 tag 版本。
 环境变量：
   SKIP_TESTS=1                跳过主机测试（仅本地快速迭代，发布不建议）。
   METIS_SDK_ROOT=<dir>        覆盖 SDK 查找根（默认 $THEOS/sdks）。
@@ -73,11 +93,7 @@ case "$BUILD_MODE" in
     *) echo "error: invalid --mode: $BUILD_MODE" >&2; usage ;;
 esac
 if [[ "$BUILD_MODE" == "release" ]]; then
-    if [[ -z "$BUILD_VERSION" ]]; then
-        echo "error: release requires --version" >&2
-        usage
-    fi
-    if ! [[ "$BUILD_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    if [[ -n "$BUILD_VERSION" ]] && ! [[ "$BUILD_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
         echo "error: version must be MAJOR.MINOR.PATCH: $BUILD_VERSION" >&2
         exit 1
     fi
@@ -87,7 +103,7 @@ if [[ "$BUILD_MODE" == "release" ]]; then
     fi
 fi
 
-VERSION_TO_BUILD="${BUILD_VERSION:-$CONTROL_VERSION}"
+VERSION_TO_BUILD="${BUILD_VERSION:-$NEXT_VERSION}"
 SDK_ROOT="${METIS_SDK_ROOT:-$THEOS/sdks}"
 
 # ---- 进程级锁 ----
@@ -112,8 +128,8 @@ if [[ "$BUILD_MODE" == "release" ]]; then
         esac
     fi
     for label in ios16 ios17; do
-        if [[ -f "$ROOT_DIR/packages/$label/${PACKAGE_ID}_${BUILD_VERSION}_${label}_iphoneos-arm64e.deb" ]]; then
-            echo "error: version $BUILD_VERSION already built for $label; refusing to overwrite" >&2
+        if [[ -f "$ROOT_DIR/packages/$label/${PACKAGE_ID}_${VERSION_TO_BUILD}_${label}_iphoneos-arm64e.deb" ]]; then
+            echo "error: version $VERSION_TO_BUILD already built for $label; refusing to overwrite" >&2
             exit 1
         fi
     done
@@ -198,18 +214,46 @@ case "$BUILD_TARGET" in
     all) build_one ios16; build_one ios17 ;;
 esac
 
-# ---- release 收尾：manifest 与版本写回（全部检查通过之后） ----
+# ---- 版本写回（参考 TypeX：全部目标构建成功后才写，temp 文件 + trap 清理） ----
+CONTROL_TMP=""
+persist_control_version() {
+    [[ "$CONTROL_VERSION" == "$VERSION_TO_BUILD" ]] && return 0
+    CONTROL_TMP="$(mktemp "$ROOT_DIR/control.tmp.XXXXXX")"
+    awk -v next_version="$VERSION_TO_BUILD" '
+        BEGIN { updated = 0 }
+        /^Version:/ { print "Version: " next_version; updated = 1; next }
+        { print }
+        END { if (!updated) exit 1 }
+    ' "$CONTROL_FILE" > "$CONTROL_TMP"
+    mv "$CONTROL_TMP" "$CONTROL_FILE"
+    CONTROL_TMP=""
+    echo "==> control Version: ${CONTROL_VERSION} -> ${VERSION_TO_BUILD}"
+}
+finalize() {
+    local rc=$?
+    trap - EXIT
+    rm -rf "$LOCK_DIR"
+    rm -f "${CONTROL_TMP:-}"
+    if [[ $rc -eq 0 ]]; then
+        # 构建链全部成功才落版本号；任何失败保持 control 原值。
+        persist_control_version || true
+    fi
+    exit $rc
+}
+trap finalize EXIT
+
+# ---- release 收尾：manifest（全部检查通过之后） ----
 if [[ "$BUILD_MODE" == "release" ]]; then
     INTEGRATION_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
     GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     for label in ios16 ios17; do
-        deb="$ROOT_DIR/packages/$label/${PACKAGE_ID}_${BUILD_VERSION}_${label}_iphoneos-arm64e.deb"
+        deb="$ROOT_DIR/packages/$label/${PACKAGE_ID}_${VERSION_TO_BUILD}_${label}_iphoneos-arm64e.deb"
         sha="$(shasum -a 256 "$deb" | awk '{print $1}')"
         size="$(stat -f %z "$deb")"
-        cat > "$ROOT_DIR/packages/$label/manifest-${BUILD_VERSION}.json" <<EOF
+        cat > "$ROOT_DIR/packages/$label/manifest-${VERSION_TO_BUILD}.json" <<EOF
 {
   "package": "${PACKAGE_ID}",
-  "version": "${BUILD_VERSION}",
+  "version": "${VERSION_TO_BUILD}",
   "label": "${label}",
   "sdk": "iPhoneOS$(sdk_for_label "$label").sdk",
   "deploymentTarget": "$(deployment_for_label "$label")",
@@ -223,17 +267,7 @@ if [[ "$BUILD_MODE" == "release" ]]; then
 EOF
     done
 
-    if [[ "$CONTROL_VERSION" != "$BUILD_VERSION" ]]; then
-        CONTROL_TMP="$(mktemp "$ROOT_DIR/control.tmp.XXXXXX")"
-        awk -v next_version="$BUILD_VERSION" '
-            BEGIN { updated = 0 }
-            /^Version:/ { print "Version: " next_version; updated = 1; next }
-            { print }
-            END { if (!updated) exit 1 }
-        ' "$CONTROL_FILE" > "$CONTROL_TMP"
-        mv "$CONTROL_TMP" "$CONTROL_FILE"
-    fi
-    echo "==> release ${BUILD_VERSION} complete (control: ${CONTROL_VERSION} -> ${BUILD_VERSION})"
+    echo "==> release ${VERSION_TO_BUILD} complete"
 else
-    echo "==> verify build complete (control untouched at ${CONTROL_VERSION})"
+    echo "==> verify build complete: ${VERSION_TO_BUILD}"
 fi

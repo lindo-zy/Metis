@@ -13,9 +13,13 @@ Metis 是一个 iOS RootHide 插件：**一个安装包、一个系统设置入�
 
 ```bash
 ./build.sh --help
-./build.sh --target all --mode verify                 # 主机测试 + 双平台构建 + 包检查
-./build.sh --target all --mode release --version 0.1.0 # 发布构建（manifest + 版本写回）
+./build.sh --target all --mode verify   # 主机测试 + 双平台构建 + 包检查
+./build.sh --target all --mode release  # 发布构建（manifest + 版本写回）
 ```
+
+版本号按 TypeX 规则每次构建自动递增（PATCH +1，满 10 进 MINOR，MINOR 满 10
+进 MAJOR）；全部目标构建成功后写回 control，失败不写。`--version` 可选覆盖
+（CI tag 构建用）。
 
 要求：Theos（roothide fork，`THEOS` 环境变量或默认路径）与 iPhoneOS16.5/17.0 SDK。
 产物：`packages/ios16|ios17/com.lindo.metis_<版本>_<平台>_iphoneos-arm64e.deb`。
