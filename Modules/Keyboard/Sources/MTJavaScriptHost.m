@@ -38,6 +38,7 @@
 
 static MTJavaScriptHost *MTActiveJavaScriptHost;
 
+@implementation MTJavaScriptHost
 // 无输入框入口（全局面板/手势）启动 JS：仅支持 jsInput=clipboard 且
 // jsOutput=copy 的配置——输入明确来自系统剪切板，输出不需要输入会话。
 // 其他模式（auto/all 输入、replace/insert 输出）没有可靠前台文本，
@@ -122,7 +123,6 @@ static CGRect MTJSProbeKeyboardFrame(UIWindow *window) {
     } @catch (__unused NSException *exception) { return CGRectZero; }
 }
 
-@implementation MTJavaScriptHost
 + (void)cancelActive { [MTActiveJavaScriptHost cancel]; }
 - (void)cancel {
     if (self.cancelled) return;
