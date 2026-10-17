@@ -4,6 +4,14 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "MTCore.h"
+#import "common.h"
+
+// Metis 门控变化 → 走 TypeX 既有 prefschanged 重载链（幂等 reload）。
+static void MTUIKitPostPrefsChanged(void) {
+    CFNotificationCenterPostNotification(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        (CFStringRef)kPrefsChangedIdentifier, NULL, NULL, TRUE);
+}
 
 %ctor {
     MTProcessContext *context = [MTProcessContext currentContext];
@@ -14,6 +22,13 @@
     if (context.kind == MTProcessKindUnsupported) {
         return;
     }
+    [MTModuleGate addObserver:nil block:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            MTUIKitPostPrefsChanged();
+            MTLogInfo(MTLogModuleKeyboard, @"state=gate-applied enabled=%d",
+                      [MTModuleGate moduleEnabled:MTModuleKeyboard]);
+        });
+    }];
     setenv("METIS_UIKIT_LOADED", "1", 1);
     MTLogInfo(MTLogModuleCore,
               @"state=uikit-loaded version=%@ kind=%lu bundle=%@",

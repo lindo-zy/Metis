@@ -2,12 +2,17 @@ TWEAK_NAME = MetisUIKit
 
 # UIKit 宿主（filter 见 MetisUIKit.plist：com.apple.UIKit，含 SpringBoard；
 # constructor 内对 SpringBoard 立即 return，保证按进程最小注入）。
-# 承载 TypeX 键盘与 Kayoko Helper 的统一 hook（03-architecture §1）。
-MetisUIKit_FILES = MTUIKitEntry.xm
+# 承载 TypeX 键盘 hook 与 Kayoko Helper 的统一 hook（03-architecture §1）。
+MetisUIKit_FILES = MTUIKitEntry.xm \
+	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/TypeX.xm \
+	../../Modules/Keyboard/Sources/DXPasteChip.m \
 
 MetisUIKit_CFLAGS = -fobjc-arc
 MetisUIKit_CFLAGS += -I../../Core
+MetisUIKit_CFLAGS += -I../../Modules/Keyboard/Sources
 MetisUIKit_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
+MetisUIKit_FRAMEWORKS = UIKit CoreGraphics QuartzCore ImageIO SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
+MetisUIKit_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices SpringBoardServices
 
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tweak.mk
