@@ -12,3 +12,6 @@ docs/
 Tests/
 AGENTS.md
 DEVELOPMENT.md
+
+# 本地发布后处理（Bark/iCloud/坚果云），不入库。
+local/
