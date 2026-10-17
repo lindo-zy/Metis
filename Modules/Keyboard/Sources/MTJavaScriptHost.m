@@ -31,9 +31,74 @@
 @property (nonatomic, assign) BOOL cancelled;
 @property (nonatomic, assign) BOOL clipboardInput;
 @property (nonatomic, assign) NSInteger clipboardChange;
+// 无输入框会话：jsInput=clipboard + jsOutput=copy 的动作可在没有
+// UITextInput 的入口（全局面板/手势）运行（docs/development/03 §6）。
+@property (nonatomic, assign) BOOL sessionless;
 @end
 
 static MTJavaScriptHost *MTActiveJavaScriptHost;
+
+// 无输入框入口（全局面板/手势）启动 JS：仅支持 jsInput=clipboard 且
+// jsOutput=copy 的配置——输入明确来自系统剪切板，输出不需要输入会话。
+// 其他模式（auto/all 输入、replace/insert 输出）没有可靠前台文本，
+// 明确失败，不伪造输入框、不偷读其他 App 文字（03 §6）。
++ (void)startSessionlessEntry:(NSDictionary *)entry
+                         open:(void (^)(NSString *, NSString *))open
+                        error:(void (^)(NSString *))error {
+    [self cancelActive];
+    id inputMode = entry[@"jsInput"] ?: @"auto";
+    id outputMode = entry[@"jsOutput"] ?: @"replace";
+    if (![@[@"auto", @"all", @"clipboard"] containsObject:inputMode] ||
+        ![@[@"replace", @"insert", @"copy"] containsObject:outputMode]) {
+        if (error) error(@"Invalid JavaScript action configuration");
+        return;
+    }
+    if (![inputMode isEqual:@"clipboard"]) {
+        if (error) error(NSLocalizedStringFromTableInBundle(@"JS_INPUT_UNAVAILABLE", nil,
+            [NSBundle bundleWithPath:bundlePath], nil));
+        return;
+    }
+    if (![outputMode isEqual:@"copy"]) {
+        // replace/insert 必须有真实可验证的输入会话（03 §6）。
+        if (error) error(@"此操作需要当前输入框");
+        return;
+    }
+    MTJavaScriptHost *host = [self new];
+    host.sessionless = YES;
+    host.clipboardInput = YES;
+    host.clipboardChange = UIPasteboard.generalPasteboard.changeCount;
+    host.output = @"copy";
+    host.open = open; host.error = error;
+    host.started = [NSDate date]; host.engine = [MTJavaScriptEngine new];
+    __weak MTJavaScriptHost *weakHost = host;
+    host.engine.actionHandler = ^(NSDictionary *action) { [weakHost execute:action]; };
+    host.engine.resultHandler = ^(NSArray *actions, NSError *failure) {
+        MTJavaScriptHost *current = weakHost;
+        if (!current || current.cancelled) return;
+        if (![current valid]) { [current cancel]; return; }
+        if (failure) { [current fail:failure.localizedDescription]; return; }
+        if (!actions.count) [current cancel];
+        else if (actions.count == 1) [current execute:actions.firstObject];
+        else {
+            // 多结果选择菜单依赖输入会话锚点；无输入框入口按不支持处理
+            //（已知限制，登记于 feature-parity）。
+            [current fail:NSLocalizedStringFromTableInBundle(@"JS_INPUT_UNAVAILABLE", nil,
+                [NSBundle bundleWithPath:bundlePath], nil)];
+        }
+    };
+    MTActiveJavaScriptHost = host;
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    for (NSString *name in @[UIApplicationWillResignActiveNotification, UIDeviceOrientationDidChangeNotification])
+        [center addObserver:host selector:@selector(interrupted:) name:name object:nil];
+    host.timer = [NSTimer timerWithTimeInterval:0.15 repeats:YES block:^(__unused NSTimer *timer) {
+        MTJavaScriptHost *current = weakHost;
+        [current tick];
+    }];
+    [NSRunLoop.mainRunLoop addTimer:host.timer forMode:NSRunLoopCommonModes];
+    NSLog(@"[TypeXJS] sessionless session started");
+    NSString *input = UIPasteboard.generalPasteboard.string ?: @"";
+    [host.engine runSource:[entry[@"script"] isKindOfClass:NSString.class] ? entry[@"script"] : @"" input:input];
+}
 
 // Menu rows snap to whole heights so the panel edge never cuts through a
 // label; the cap keeps large menus scrollable instead of covering the screen.
@@ -103,14 +168,24 @@ static CGRect MTJSProbeKeyboardFrame(UIWindow *window) {
     } @catch (__unused NSException *exception) { return NO; }
 }
 - (BOOL)valid {
-    if (self.cancelled || !self.sourceWindow || self.sourceWindow.hidden || !self.sourceView ||
+    if (self.cancelled) return NO;
+    // 无输入框会话只校验剪切板稳定性：窗口/输入框检查不适用（03 §6）。
+    if (self.sessionless) {
+        return ![self clipboardStale];
+    }
+    if (!self.sourceWindow || self.sourceWindow.hidden || !self.sourceView ||
         self.sourceView.window != self.sourceWindow || self.sourceView.hidden ||
         !self.input || self.provider() != self.input) return NO;
     for (UIView *view = self.sourceView; view; view = view.superview) {
         if (view.hidden || view.alpha <= 0.01) return NO;
     }
     if (self.scene && self.scene.activationState != UISceneActivationStateForegroundActive) return NO;
-    if (self.clipboardInput && UIPasteboard.generalPasteboard.changeCount != self.clipboardChange) return NO;
+    return ![self clipboardStale] && [self inputMatchesSession];
+}
+- (BOOL)clipboardStale {
+    return self.clipboardInput && UIPasteboard.generalPasteboard.changeCount != self.clipboardChange;
+}
+- (BOOL)inputMatchesSession {
     NSString *text = nil; NSRange range;
     return [self readInputText:&text range:&range] && [text isEqual:self.text] && NSEqualRanges(range, self.selection);
 }

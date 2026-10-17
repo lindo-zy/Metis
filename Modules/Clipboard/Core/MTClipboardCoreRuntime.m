@@ -1402,10 +1402,10 @@ NS_ASSUME_NONNULL_END
 #pragma mark - Preferences
 
 - (void)readPasteTipPreferencesFromPreferences:(NSUserDefaults *)preferences {
-    // Metis 门控桥接：启停权威是 com.lindo.metis（MTModuleGate）；旧 Enabled
-    // 仅作为迁移导入源，运行端一律被门控值覆盖。
+    // Metis 门控桥接：唯一整体开关权威是 com.lindo.metis（MTModuleGate）；
+    // 旧模块键已退役，旧 Enabled 仅作为迁移导入源，运行端一律被总开关覆盖。
     [MTModuleGate reload];
-    self.enabled = [MTModuleGate moduleEnabled:MTModuleClipboard];
+    self.enabled = [MTModuleGate globalEnabled];
     self.pasteTipsDisabled = [[preferences objectForKey:kMTPreferenceKeyDisablePasteTips] boolValue];
 }
 
@@ -1425,7 +1425,7 @@ NS_ASSUME_NONNULL_END
     // 三项值。完整偏好应用（NSUserDefaults 套件初始化、40 项 registerDefaults、
     // 外观刷新）延后到主队列 / SB didFinishLaunching 的 loadPreferences。
     [MTModuleGate reload];
-    self.enabled = [MTModuleGate moduleEnabled:MTModuleClipboard];
+    self.enabled = [MTModuleGate globalEnabled];
 
     // 细节域（com.lindo.metis.clipboard）直读：SpringBoard 非沙盒，cfprefsd
     // 正常时即权威值；冷启动首解锁保护期读空时维持默认，后续 loadPreferences

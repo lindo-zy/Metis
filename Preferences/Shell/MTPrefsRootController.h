@@ -1,18 +1,20 @@
-// MTPrefsRootController —— Metis 唯一设置入口首页（02-settings-ux §2 线框）。
+// MTPrefsRootController —— Metis 唯一设置入口首页（docs/development/02 §1）。
+// 首页固定：启用 Metis 总开关 + 五个配置分类（全局/键盘/剪切板/截图/其他）
+// 直达实际配置页；没有模块开关、启用状态与计数（v3 P03）。
 #import <Preferences/Preferences.h>
 
-@interface MTPrefsRootController : PSListController
-- (NSString *)mtStatusLineText:(PSSpecifier *)specifier;
-@end
-
-/// 模块页元信息（标题/副标题/详细设置子包）。详细设置子包缺失时模块页
-/// 显示“此版本尚未提供”并禁止进入（02-settings-ux §3）。
-@interface MTPrefsModuleInfo : NSObject
-@property (nonatomic, copy) NSString *moduleID;
+/// 分类页元信息。分类只是页面组织，不制造依赖开关（P02/P03）。
+@interface MTPrefsCategoryInfo : NSObject
+@property (nonatomic, copy) NSString *categoryID;
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSString *subtitle;
-@property (nonatomic, copy) NSString *subBundle;      // MetisCapturePrefs 等
-@property (nonatomic, copy) NSString *subController;  // 子包根控制器类名
-+ (NSArray<MTPrefsModuleInfo *> *)allModules;
-- (BOOL)subBundleAvailable;
+@property (nonatomic, copy) NSString *iconName;              // SF Symbol 名
+@property (nonatomic, copy, nullable) NSString *subBundle;   // 详细页所在子包（nil = Shell 内控制器）
+@property (nonatomic, copy, nullable) NSString *subController;
++ (NSArray<MTPrefsCategoryInfo *> *)allCategories;
+@end
+
+@interface MTPrefsRootController : PSListController
+- (NSNumber *)globalEnabledForSpecifier:(PSSpecifier *)specifier;
+- (void)setGlobalEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier;
 @end

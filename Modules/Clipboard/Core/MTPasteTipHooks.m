@@ -16,16 +16,16 @@
 + (void)installHooks;
 @end
 
-// Metis：druid/pasted 最小目标内联判定——模块关闭时放行系统行为；
-// 模块开启且旧域 DisablePasteTips=ON 时抑制提示。
+// Metis：druid/pasted 最小目标内联判定——总开关关闭时放行系统行为；
+// 总开关开启且旧域 DisablePasteTips=ON 时抑制提示。旧模块键已退役。
 static BOOL MTClipboardPasteTipsSuppressed(void) {
-    if (![MTModuleGate moduleEnabled:MTModuleClipboard]) return NO;
+    if (![MTModuleGate globalEnabled]) return NO;
     NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kMTClipboardPreferencesIdentifier];
     return [preferences boolForKey:kMTPreferenceKeyDisablePasteTips];
 }
 
 static BOOL MTClipboardModuleBusinessAllowed(void) {
-    return [MTModuleGate moduleEnabled:MTModuleClipboard];
+    return [MTModuleGate globalEnabled];
 }
 
 CHDeclareClass(DRPasteAnnouncer);

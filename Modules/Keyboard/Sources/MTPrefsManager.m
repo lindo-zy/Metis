@@ -2,6 +2,9 @@
 #import "MTPrefsManager.h"
 #import "MTModuleGate.h"
 #import "MTPanelRegistry.h"
+#import "MTSharedResourceStore.h"
+#import "MTSharedResourceMigration.h"
+#import "MTSharedResourceLegacyBridge.h"
 
 static NSString *const MTSharedPrefsFormatKey = @"_typexSnapshotFormat";
 static NSString *const MTSharedPrefsPayloadKey = @"preferences";
@@ -83,13 +86,18 @@ static NSString *MTSharedPrefsPath(void) {
         // root-owned seed file staged by the package, which sticky would forbid.
         [fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:@{NSFilePosixPermissions: @0777} error:nil];
     }
+    // 资源键（动作/面板/绑定）不再镜像进键盘快照：沙盒宿主从
+    // /Library/Metis/Config/global-shared.plist 读取共享资源（世界可读），
+    // 键盘快照只承载宿主细节参数，避免双权威。
+    NSMutableDictionary *payload = [dictionary mutableCopy];
+    for (NSString *key in [MTSharedResourceLegacyBridge bridgedResourceKeys]) [payload removeObjectForKey:key];
     // The envelope makes an intentionally empty preference set distinguishable
     // from a missing/unreadable file.  Without that distinction an app could
     // render the six defaults while the real user configuration was simply
     // unavailable.
     NSDictionary *snapshot = @{
         MTSharedPrefsFormatKey: @(MTSharedPrefsFormatVersion),
-        MTSharedPrefsPayloadKey: dictionary
+        MTSharedPrefsPayloadKey: [payload copy]
     };
     [snapshot writeToFile:path atomically:YES];
     // Sandboxed app hosts read this snapshot; keep it world-readable whatever
@@ -120,7 +128,12 @@ static NSString *MTSharedPrefsPath(void) {
     if ([format isKindOfClass:[NSNumber class]] &&
         format.integerValue == MTSharedPrefsFormatVersion &&
         [payload isKindOfClass:[NSDictionary class]]) {
-        return MTPanelMigratePreferences(payload);
+        // 沙盒宿主的共享资源来源是 global-shared.plist 快照；与键盘细节
+        // 参数合并后返回完整 legacy 视图（04 §2：不在绑定页复制资源定义）。
+        NSMutableDictionary *merged = [MTPanelMigratePreferences(payload) mutableCopy];
+        [MTSharedResourceLegacyBridge applyStoreSnapshot:[MTSharedResourceStore readSnapshot]
+                                    toLegacyPreferences:merged];
+        return merged;
     }
 
     // 只接受当前信封格式：旧插件（2.7.44-2.7.65）的无信封快照一律视为
@@ -214,15 +227,24 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
     // PreferenceLoader/cfprefsd is the source of truth on iOS 17.  Keep the
     // plist fallback for old installs and for the short window before the
     // preferences daemon has materialized the domain.
+    NSMutableDictionary *dictionary;
     if ([preferences isKindOfClass:[NSDictionary class]] && preferences.count > 0) {
-        return MTPanelMigratePreferences(preferences);
+        dictionary = [MTPanelMigratePreferences(preferences) mutableCopy];
+    } else {
+        dictionary = [MTPanelMigratePreferences([NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{}) mutableCopy];
     }
-    NSMutableDictionary *dictionary = [MTPanelMigratePreferences([NSDictionary dictionaryWithContentsOfFile:kPrefsPath] ?: @{}) mutableCopy];
     if (!dictionary) dictionary = [NSMutableDictionary dictionary];
-    // Metis 门控桥接：启停权威是 com.lindo.metis（MTModuleGate）；旧域
-    // enabledBOOL 仅保存细节配置，运行端读取一律被门控值覆盖。
+    // Metis 门控桥接：唯一整体开关权威是 com.lindo.metis（MTModuleGate）；
+    // 旧模块键已退役，旧域 enabledBOOL 仅保存细节配置，运行端读取一律被
+    // 总开关覆盖（04-module-integration §2）。
     [MTModuleGate reload];
-    dictionary[kEnabledkey] = @([MTModuleGate moduleEnabled:MTModuleKeyboard]);
+    dictionary[kEnabledkey] = @([MTModuleGate globalEnabled]);
+    // 共享资源（动作/面板/分组/绑定）：非沙盒读取端惰性初始化共享库
+    // （首装或旧数据迁移，幂等），随后以 store 导出的 legacy 视图覆盖
+    // 键盘域中的同名键——键盘域不再承载资源定义（04 §6 单一配置源）。
+    [MTSharedResourceMigration ensureInstalledWithLegacyPreferences:dictionary];
+    [MTSharedResourceLegacyBridge applyStoreSnapshot:[MTSharedResourceStore readSnapshot]
+                                toLegacyPreferences:dictionary];
     return dictionary;
 }
 
@@ -234,6 +256,9 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
 // snapshot.  A sandboxed host can only reach the snapshot: it MERGES there,
 // because its readPrefs is empty and a blind replace would erase every other
 // preference (e.g. a dock toggle writing only toggledOnBOOL).
+// 资源键（动作/面板/分组/绑定）在非沙盒端改走共享 store 提交；键盘域与
+// 键盘快照都不再持久化这些键。沙盒端只写宿主参数，资源键不会出现在其
+// 写入路径上（沙盒无法成为资源写端）。
 - (void)writePrefs:(NSDictionary *)dictionary {
     if (![dictionary isKindOfClass:[NSDictionary class]]) return;
 
@@ -244,6 +269,22 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
         [merged addEntriesFromDictionary:dictionary];
         snapshot = merged;
     } else {
+        NSMutableDictionary *domainPart = [dictionary mutableCopy];
+        BOOL touchedResources = NO;
+        for (NSString *key in [MTSharedResourceLegacyBridge bridgedResourceKeys]) {
+            if (domainPart[key] != nil) {
+                [domainPart removeObjectForKey:key];
+                touchedResources = YES;
+            }
+        }
+        if (touchedResources) {
+            NSError *resourceError = nil;
+            if (![MTSharedResourceLegacyBridge applyLegacyPreferences:dictionary error:&resourceError]) {
+                // 资源提交失败（冲突/校验）不阻断宿主参数写入；下次整份
+                // 写入会重试。失败已由 store 层记录日志。
+                (void)resourceError;
+            }
+        }
         CFStringRef appID = (CFStringRef)kIdentifier;
         CFPreferencesAppSynchronize(appID);
 
@@ -253,17 +294,20 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
         NSMutableArray *keysToRemove = [NSMutableArray array];
         if (existingKeys) {
             for (NSString *existingKey in (__bridge NSArray *)existingKeys) {
-                if (!dictionary[existingKey]) [keysToRemove addObject:existingKey];
+                if (!domainPart[existingKey]) [keysToRemove addObject:existingKey];
             }
             CFRelease(existingKeys);
         }
-        CFPreferencesSetMultiple((__bridge CFDictionaryRef)dictionary,
+        // 旧安装域里残留的资源键也一并清除（store 已是唯一权威）。
+        [keysToRemove addObjectsFromArray:[MTSharedResourceLegacyBridge bridgedResourceKeys]];
+        CFPreferencesSetMultiple((__bridge CFDictionaryRef)domainPart,
                                  (__bridge CFArrayRef)keysToRemove,
                                  appID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         CFPreferencesAppSynchronize(appID);
 
         // Keep the on-disk representation available to legacy preference cells.
-        MTWritePrefsPlist(dictionary);
+        MTWritePrefsPlist(domainPart);
+        snapshot = domainPart;
     }
 
     self.prefs = [snapshot copy];

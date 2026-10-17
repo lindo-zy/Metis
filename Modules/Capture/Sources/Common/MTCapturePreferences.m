@@ -85,10 +85,11 @@ static MTConfig *_currentConfig = nil;
 + (void)reload {
     MTConfig *config = [[MTConfig alloc] initDefault];
 
-    // Metis 门控桥接：模块启停的唯一权威是 com.lindo.metis 域（MTModuleGate）。
+    // Metis 门控桥接：唯一整体开关权威是 com.lindo.metis 域（MTModuleGate）。
+    // 旧模块键（captureEnabled）已退役，截图核心能力随总开关首装默认可用。
     // 旧 Enabled key 仅在迁移 importer 中读取，运行端不再消费。
     [MTModuleGate reload];
-    config.enabled = [MTModuleGate moduleEnabled:MTModuleCapture];
+    config.enabled = [MTModuleGate globalEnabled];
     config.showResultBubble = MTPrefBool(MTKeyShowResultBubble, YES);
     config.floatingSnapShadow = MTPrefBool(MTKeyFloatingSnapShadow, YES);
     config.selectionSnapEdgeDistance = MAX(0.0, MIN(60.0, MTPrefDouble(MTKeySelectionSnapEdgeDistance, 12.0)));

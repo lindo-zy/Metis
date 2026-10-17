@@ -22,7 +22,7 @@ static void MTClipboardModuleAdapterLoad(void) {
                     NULL, NULL, TRUE);
                 MTLogInfo(MTLogModuleClipboard,
                           @"state=gate-applied enabled=%d",
-                          [MTModuleGate moduleEnabled:MTModuleClipboard]);
+                          [MTModuleGate globalEnabled]);
             });
         }];
     });

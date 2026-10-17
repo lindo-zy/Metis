@@ -162,7 +162,7 @@ static void MTSBDelayedAIPrefsHeal(void) {
                             CFNotificationCenterGetDarwinNotifyCenter(),
                             (CFStringRef)kPrefsChangedIdentifier, NULL, NULL, TRUE);
                         MTLogInfo(MTLogModuleKeyboard, @"state=sb-gate-applied enabled=%d",
-                                  [MTModuleGate moduleEnabled:MTModuleKeyboard]);
+                                  [MTModuleGate globalEnabled]);
                     });
                 }];
 
