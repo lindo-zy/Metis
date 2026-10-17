@@ -6,7 +6,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <string.h>
 
-NSString * const MTCaptureErrorDomain = @"com.lindo.metis.capture.capture";
+NSString * const MTCaptureErrorDomain = @"com.lindo.metis.capture.error";
 
 // 私有接口运行期解析，不做链接期依赖；全部不可用时走公开回退路径并标记 partial。
 // _UICreateScreenUIImage 按惯例声明返回 +1 对象（公开声明范例标注 NS_RETURNS_RETAINED）：
