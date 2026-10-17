@@ -7,6 +7,7 @@
 
 #import "MTClipboardCore.h"
 #import "MTClipboardCoreRuntime.h"
+#import "MTLegacyKayokoImporter.h"
 #import "MTNotificationKeys.h"
 #import "MTShortcutSnapshotProvider.h"
 #import "MTSpringBoardHooks.h"
@@ -256,6 +257,11 @@ static void mtCorePasteTipPreferencesReloadCallback(CFNotificationCenterRef cent
 #pragma mark - Installation
 
 + (void)installForSpringBoard {
+    // 旧 KayokoX 数据一次性接管（2026-10-17 用户授权）：必须在下方任何偏好
+    // 读取与历史库创建之前完成，故位于安装流程第一位。同步阶段只搬小体积
+    // 核心数据（数据库/动作定义/偏好），附件走后台队列；marker 保证幂等。
+    [MTLegacyKayokoImporter importLegacyDataIfNeeded];
+
     MTClipboardCoreRuntime *runtime = [MTClipboardCoreRuntime sharedRuntime];
     // dyld 加载期只做轻量读取（门控 + 决定 hook 形态的两项参数）；
     // 完整偏好应用（40 项 registerDefaults/外观等）延后到主队列与
