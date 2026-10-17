@@ -1,0 +1,1094 @@
+[
+  {
+    "project": "TypeX",
+    "source": "DXAIEngine.h",
+    "line": 7,
+    "declaration": "#define DXAIPrefKeyPrefix        @\"aiKey_\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 17,
+    "declaration": "#define bundlePath DX_ROOT_PATH_NS(@\"/Library/PreferenceBundles/TypeXPrefs.bundle\")"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 18,
+    "declaration": "//#define typexBundlePath @\"/Library/Application Support/TypeX.bundle\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 19,
+    "declaration": "#define LOCALIZED(str) [tweakBundle localizedStringForKey:str value:@\"\" table:nil]"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 21,
+    "declaration": "#define kIdentifier @\"com.lindo.typex\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 22,
+    "declaration": "#define kIPCCenterPrefsManager @\"com.lindo.typex.prefsmanager\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 23,
+    "declaration": "#define kIPCCenterTypeX @\"com.lindo.typex\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 24,
+    "declaration": "#define kPrefsChangedIdentifier @\"com.lindo.typex/prefschanged\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 25,
+    "declaration": "#define kPrefsPath @\"/var/mobile/Library/Preferences/com.lindo.typex.plist\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 27,
+    "declaration": "#define kEnabledkey @\"enabledBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 28,
+    "declaration": "#define kEnabledHaptickey @\"hapticBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 29,
+    "declaration": "#define kShortcutskey @\"shortcuts\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 30,
+    "declaration": "#define kTopShortcutskey @\"topshortcuts\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 31,
+    "declaration": "#define kColorEnabledkey @\"colorBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 32,
+    "declaration": "#define kToggledOnkey @\"toggledOnBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 33,
+    "declaration": "#define kDedicatedGestureButtonkey @\"gesturebutton\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 34,
+    "declaration": "#define kGestureTypekey @\"gesturetype\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 35,
+    "declaration": "#define kCustomActionskey @\"customactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 36,
+    "declaration": "#define kTopCustomActionskey @\"topcustomactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 37,
+    "declaration": "#define kTapCustomActionskey @\"tapactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 38,
+    "declaration": "#define kSwipeUpCustomActionskey @\"swipeupactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 39,
+    "declaration": "#define kSwipeDownCustomActionskey @\"swipedownactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 40,
+    "declaration": "#define kSwipeLeftCustomActionskey @\"swipeleftactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 41,
+    "declaration": "#define kSwipeRightCustomActionskey @\"swiperightactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 45,
+    "declaration": "#define kLinkActionskey @\"linkactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 46,
+    "declaration": "#define kLinkActionSelectorPrefix @\"__typex_link_action_\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 49,
+    "declaration": "#define kLinkActionGroupsKey @\"linkactiongroups\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 50,
+    "declaration": "#define kCustomActionGroupKey @\"group\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 51,
+    "declaration": "#define kLinkActionCollapsedGroupsKey @\"linkactioncollapsedgroups\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 60,
+    "declaration": "#define kCustomActionTypeKey @\"type\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 61,
+    "declaration": "#define kCustomActionInAppKey @\"inapp\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 62,
+    "declaration": "#define kCustomActionUsePullOverKey @\"pullover\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 63,
+    "declaration": "#define kCustomActionFloatingKey @\"floating\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 64,
+    "declaration": "#define kCustomActionCutReplaceKey @\"cutreplace\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 65,
+    "declaration": "#define kCustomActionTypeURLScheme @\"urlscheme\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 66,
+    "declaration": "#define kCustomActionTypeText @\"text\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 68,
+    "declaration": "#define kCustomActionTextRecordsKey @\"textrecords\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 69,
+    "declaration": "#define kCustomActionTypeURL @\"url\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 70,
+    "declaration": "#define kCustomActionTypeOpenApp @\"openapp\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 71,
+    "declaration": "#define kCustomActionTypeShortcut @\"shortcut\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 72,
+    "declaration": "#define kCustomActionTypeJavaScript @\"javascript\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 73,
+    "declaration": "#define kCustomActionTypeSystem @\"system\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 74,
+    "declaration": "#define kCustomActionSystemIdentifierKey @\"systemaction\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 76,
+    "declaration": "#define kCustomActionShortcutTypeKey @\"shortcuttype\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 77,
+    "declaration": "#define kCustomActionShortcutTitleKey @\"shortcuttitle\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 79,
+    "declaration": "#define kTapSubActionsEntryKey @\"tapsubactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 81,
+    "declaration": "#define kSubActionskey @\"subactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 82,
+    "declaration": "#define kTopSubActionskey @\"topsubactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 83,
+    "declaration": "#define kShortcutsTintEnabled @\"shortcutstintBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 84,
+    "declaration": "#define kShortcutsBackgroundTintEnabled @\"shortcutsbackgroundtintBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 85,
+    "declaration": "#define kPasteAndGoEnabledkey @\"pasteandgo\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 86,
+    "declaration": "#define kHeightOffsetkey @\"heightoffset\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 87,
+    "declaration": "#define kEnabledSmartDeleteForwardkey @\"smartdeleteforwardBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 88,
+    "declaration": "#define kShortLabelEnabledKey @\"shortLabelBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 89,
+    "declaration": "#define kCellHeightkey @\"shortcutheight\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 90,
+    "declaration": "#define kCellRadiuskey @\"shortcutradius\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 91,
+    "declaration": "#define kCellSpacingkey @\"shortcutspacing\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 92,
+    "declaration": "#define kBottomSpacingKey @\"bottomspacing\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 93,
+    "declaration": "#define kCellBorderEnabledkey @\"shortcutborderBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 94,
+    "declaration": "#define kCellBorderWidthkey @\"shortcutborderwidth\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 95,
+    "declaration": "#define kButtonWidthScalekey @\"shortcutwidthscale\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 96,
+    "declaration": "#define kSubActionPanelScaleKey @\"subactionpanelscale\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 98,
+    "declaration": "#define kFloatingCardMaxScaleKey @\"floatingcardmaxscale\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 100,
+    "declaration": "#define kFloatingCardPositionKey @\"floatingcardposition\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 102,
+    "declaration": "#define kFloatingShelfEnabledKey @\"floatingappshelfBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 105,
+    "declaration": "#define kKbdHandleEnabledKey @\"kbdhandleBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 107,
+    "declaration": "#define kKbdHandlePositionKey @\"kbdhandleposition\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 108,
+    "declaration": "#define kKbdHandleAnchorKey @\"kbdhandleanchor\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 109,
+    "declaration": "#define kKbdHandleNubbedKey @\"kbdhandlenubbed\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 113,
+    "declaration": "#define kKbdHandleAutoHideKey @\"kbdhandleautohideBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 115,
+    "declaration": "#define kKbdHandleAutoHideSecondsKey @\"kbdhandleautohidesecs\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 121,
+    "declaration": "#define kKbdHandleAppsKey @\"kbdhandleapps\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 126,
+    "declaration": "#define kButtonsPerRowKey @\"buttonsperrow\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 127,
+    "declaration": "#define kMultiRowSpacingKey @\"multirowspacing\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 135,
+    "declaration": "#define kSpongebobEntropyKey @\"spongebobEntropy\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 138,
+    "declaration": "#define kPasteImageChipKey @\"pasteimagechipBOOL\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 142,
+    "declaration": "#define kPasteImageChipAppsKey @\"pasteimagechipapps\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 179,
+    "declaration": "#define TypeXCachePath DX_ROOT_PATH_NS(@\"/Library/TypeX\")"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 180,
+    "declaration": "#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@\"/Library/TypeX/shared.plist\")"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 187,
+    "declaration": "#define TypeXQuickActionDomain @\"com.lindo.typex.quickactions\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 188,
+    "declaration": "#define TypeXQuickActionRequestKey @\"request-v3\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 189,
+    "declaration": "#define TypeXQuickActionStatusKey @\"status-v3\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 190,
+    "declaration": "#define TypeXQuickActionSnapshotKey @\"snapshot-v3\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 191,
+    "declaration": "#define kShortcutRefreshRequestIdentifier @\"com.lindo.typex/shortcutrefresh\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 192,
+    "declaration": "#define kShortcutSnapshotChangedIdentifier @\"com.lindo.typex/shortcutschanged\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 199,
+    "declaration": "#define TypeXAIChatRequestKey @\"ai-chat-request\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 200,
+    "declaration": "#define kAIChatRequestIdentifier @\"com.lindo.typex/aichat\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 262,
+    "declaration": "return [@\"top\" stringByAppendingString:baseKey];"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 269,
+    "declaration": "? preferences[DXScopedPreferenceKey(kButtonsPerRowKey, @\"top\")] : nil;"
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 373,
+    "declaration": "#define kNewButtonPendingIdentifier @\"__typex_pending_new_button__\""
+  },
+  {
+    "project": "TypeX",
+    "source": "common.h",
+    "line": 378,
+    "declaration": "#define kDraftActionPrefix @\"__typexdraft_\""
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 4,
+    "declaration": "NSString * const PXPreferencesDomain = @\"com.pixpin.screenshot\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 46,
+    "declaration": "NSString * const PXKeyEnabled = @\"Enabled\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 47,
+    "declaration": "NSString * const PXKeyDefaultResultAction = @\"DefaultResultAction\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 49,
+    "declaration": "NSString * const PXKeySaveAlsoCopy = @\"SaveAlsoCopy\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 50,
+    "declaration": "NSString * const PXKeyAutoSaveToPhotos = @\"AutoSaveToPhotos\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 51,
+    "declaration": "NSString * const PXKeyCopyToClipboard = @\"CopyToClipboard\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 52,
+    "declaration": "NSString * const PXKeyShowResultBubble = @\"ShowResultBubble\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 53,
+    "declaration": "NSString * const PXKeyFloatingSnapShadow = @\"FloatingSnapShadow\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 55,
+    "declaration": "NSString * const PXKeySelectionSnapEdgeDistance = @\"SelectionSnapEdgeDistance\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 56,
+    "declaration": "NSString * const PXKeyShowCompletionNotification = @\"ShowCompletionNotification\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 57,
+    "declaration": "NSString * const PXKeyMuteScreenshotSound = @\"MuteScreenshotSound\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 58,
+    "declaration": "NSString * const PXKeyScreenshotHaptic = @\"ScreenshotHaptic\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 59,
+    "declaration": "NSString * const PXKeyEditorDefaultColor = @\"EditorDefaultColor\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 60,
+    "declaration": "NSString * const PXKeyEditorDefaultLineWidth = @\"EditorDefaultLineWidth\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 61,
+    "declaration": "NSString * const PXKeyEditorActionOrder = @\"EditorActionOrder\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 62,
+    "declaration": "NSString * const PXKeyEditorToolOrder = @\"EditorToolOrder\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 63,
+    "declaration": "NSString * const PXKeyEditorActionHidden = @\"EditorActionHidden\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 64,
+    "declaration": "NSString * const PXKeyEditorToolHidden = @\"EditorToolHidden\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 65,
+    "declaration": "NSString * const PXKeyEditorActionNames = @\"EditorActionNames\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 66,
+    "declaration": "NSString * const PXKeyEditorToolNames = @\"EditorToolNames\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 67,
+    "declaration": "NSString * const PXKeyEditorActionIcons = @\"EditorActionIcons\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 68,
+    "declaration": "NSString * const PXKeyEditorToolIcons = @\"EditorToolIcons\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 69,
+    "declaration": "NSString * const PXKeyEditorButtonIconSize = @\"EditorButtonIconSize\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 70,
+    "declaration": "NSString * const PXKeySelectionButtonOrder = @\"SelectionButtonOrder\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 71,
+    "declaration": "NSString * const PXKeySelectionButtonHidden = @\"SelectionButtonHidden\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 72,
+    "declaration": "NSString * const PXKeySelectionButtonNames = @\"SelectionButtonNames\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 73,
+    "declaration": "NSString * const PXKeySelectionButtonIcons = @\"SelectionButtonIcons\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 74,
+    "declaration": "NSString * const PXKeySelectionButtonIconStyle = @\"SelectionButtonIconStyle\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 76,
+    "declaration": "NSString * const PXKeySelectionCustomButtons = @\"SelectionCustomButtons\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 77,
+    "declaration": "NSString * const PXKeyAreaRememberLastRect = @\"AreaRememberLastRect\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 79,
+    "declaration": "NSString * const PXKeyAreaLastSelectionRect = @\"AreaLastSelectionRect\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 81,
+    "declaration": "NSString * const PXKeyMarkupHandleOrigin = @\"MarkupHandleOrigin\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 82,
+    "declaration": "NSString * const PXKeyLongShotMode = @\"LongShotMode\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 83,
+    "declaration": "NSString * const PXKeyLongShotAutoScroll = @\"LongShotAutoScroll\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 84,
+    "declaration": "NSString * const PXKeyLongShotSampleInterval = @\"LongShotSampleInterval\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 85,
+    "declaration": "NSString * const PXKeyLongShotIdleInterval = @\"LongShotIdleInterval\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 86,
+    "declaration": "NSString * const PXKeyLongShotScrollDuration = @\"LongShotScrollDuration\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 87,
+    "declaration": "NSString * const PXKeyLongShotSettleDuration = @\"LongShotSettleDuration\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 88,
+    "declaration": "NSString * const PXKeyLongShotMaxSlices = @\"LongShotMaxSlices\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 89,
+    "declaration": "NSString * const PXKeyLongShotMaxCanvasHeight = @\"LongShotMaxCanvasHeight\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 90,
+    "declaration": "NSString * const PXKeyLongShotSliceQuality = @\"LongShotSliceQuality\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 91,
+    "declaration": "NSString * const PXKeyLongShotOutputQuality = @\"LongShotOutputQuality\";"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 112,
+    "declaration": "NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:@\"PixPinTasks\"];"
+  },
+  {
+    "project": "PixPin",
+    "source": "Sources/Common/PXConstants.m",
+    "line": 113,
+    "declaration": "path = PXCreateDirectoryIfNeeded(root, nil) ?: [NSTemporaryDirectory() stringByAppendingPathComponent:@\"PixPinTasks\"];"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 59,
+    "declaration": "static NSString *const kKayokoPreferencesIdentifier = @\"com.lindo.kayoko.preferences\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 61,
+    "declaration": "static NSString *const kKayokoPreferenceKeyEnabled = @\"Enabled\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 62,
+    "declaration": "static NSString *const kKayokoPreferenceKeyMaximumHistoryAmount = @\"MaximumHistoryAmount\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 63,
+    "declaration": "static NSString *const kKayokoPreferenceKeySaveText = @\"SaveText\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 64,
+    "declaration": "static NSString *const kKayokoPreferenceKeySaveImages = @\"SaveImages\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 65,
+    "declaration": "static NSString *const kKayokoPreferenceKeySwipeToSelectWords = @\"SwipeToSelectWords\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 66,
+    "declaration": "static NSString *const kKayokoPreferenceKeyActivationMethod = @\"ActivationMethod\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 67,
+    "declaration": "static NSString *const kKayokoPreferenceKeyPrivacyMode = @\"PrivacyMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 68,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreview = @\"FloatingPreview\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 69,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewDoubleTapAction = @\"FloatingPreviewDoubleTapAction\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 70,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewCountdownRing = @\"FloatingPreviewCountdownRing\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 71,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewSize = @\"FloatingPreviewSize\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 72,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewDuration = @\"FloatingPreviewDuration\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 73,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewColor = @\"FloatingPreviewColor\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 74,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewDockedRight = @\"FloatingPreviewDockedRight\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 75,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewVerticalPosition = @\"FloatingPreviewVerticalPosition\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 76,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPanelScale = @\"FloatingPanelScale\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 77,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPanelColor = @\"FloatingPanelColor\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 78,
+    "declaration": "static NSString *const kKayokoPreferenceKeyImageDoubleTapActionURL = @\"ImageDoubleTapActionURL\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 79,
+    "declaration": "static NSString *const kKayokoPreferenceKeyGestureRecognizerMode = @\"GestureRecognizerMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 80,
+    "declaration": "static NSString *const kKayokoPreferenceKeyAutomaticallyPaste = @\"AutomaticallyPaste\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 81,
+    "declaration": "static NSString *const kKayokoPreferenceKeyAutomaticPasteMode = @\"AutomaticPasteMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 82,
+    "declaration": "static NSString *const kKayokoPreferenceKeyAutomaticPromotionMode = @\"AutomaticPromotionMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 83,
+    "declaration": "static NSString *const kKayokoPreferenceKeyInitialViewMode = @\"InitialViewMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 84,
+    "declaration": "static NSString *const kKayokoPreferenceKeyAlwaysScrollToTop = @\"AlwaysScrollToTop\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 85,
+    "declaration": "static NSString *const kKayokoPreferenceKeyClearButtonMode = @\"ClearButtonMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 86,
+    "declaration": "static NSString *const kKayokoPreferenceKeyDismissOnOutsideTouch = @\"DismissOnOutsideTouch\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 87,
+    "declaration": "static NSString *const kKayokoPreferenceKeyDisablePasteTips = @\"DisablePasteTips\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 88,
+    "declaration": "static NSString *const kKayokoPreferenceKeyIgnoreRemoteReplication = @\"IgnoreRemoteReplication\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 89,
+    "declaration": "static NSString *const kKayokoPreferenceKeyApplicationBlacklist = @\"ApplicationBlacklist\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 90,
+    "declaration": "static NSString *const kKayokoPreferenceKeyPlaySoundEffects = @\"PlaySoundEffects\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 91,
+    "declaration": "static NSString *const kKayokoPreferenceKeyPlayHapticFeedback = @\"PlayHapticFeedback\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 92,
+    "declaration": "static NSString *const kKayokoPreferenceKeyPreviewLineCount = @\"PreviewLineCount\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 93,
+    "declaration": "static NSString *const kKayokoPreferenceKeyItemDetailsMode = @\"ItemDetailsMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 94,
+    "declaration": "static NSString *const kKayokoPreferenceKeyHeightInPoints = @\"HeightInPoints\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 95,
+    "declaration": "static NSString *const kKayokoPreferenceKeyOverlayWindowLevelMode = @\"OverlayWindowLevelMode\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 96,
+    "declaration": "static NSString *const kKayokoPreferenceKeyOverlayWindowLevel = @\"OverlayWindowLevel\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 97,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFavoritesFilterPanelVisible = @\"FavoritesFilterPanelVisible\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 98,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFavoritesFilterShowsCategories = @\"FavoritesFilterShowsCategories\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 99,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFavoritesFilterShowsTags = @\"FavoritesFilterShowsTags\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 100,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFavoritesFilterShowsApps = @\"FavoritesFilterShowsApps\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 101,
+    "declaration": "static NSString *const kKayokoPreferenceKeyGalleryModeEnabled = @\"GalleryModeEnabled\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 102,
+    "declaration": "static NSString *const kKayokoPreferenceKeyClipboardGalleryModeEnabled = @\"ClipboardGalleryModeEnabled\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 103,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFavoritesGalleryModeEnabled = @\"FavoritesGalleryModeEnabled\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 122,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPreviewColorDefaultValue = @\"#7FA6F8FF\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 128,
+    "declaration": "static NSString *const kKayokoPreferenceKeyFloatingPanelColorDefaultValue = @\"#30BFBFFF\";"
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/KayokoPreferenceKeys.h",
+    "line": 129,
+    "declaration": "static NSString *const kKayokoPreferenceKeyImageDoubleTapActionURLDefaultValue = @\"\";"
+  }
+]

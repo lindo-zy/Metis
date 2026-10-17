@@ -1,0 +1,290 @@
+{
+  "auditDate": "2026-10-17",
+  "timezone": "Asia/Shanghai",
+  "scope": "Read-only source audit; no source builds or device access",
+  "projects": [
+    {
+      "project": "TypeX",
+      "path": "/Users/xiao/dev/github/TypeX",
+      "branch": "dev",
+      "head": "dfc9a5b19924482272ba3a0e7f1282a9aad9a765",
+      "status": "",
+      "controlVersion": "4.8.7",
+      "trackedFileCount": 235,
+      "selectedFiles": [
+        {
+          "path": "Makefile",
+          "sha256": "a6c4dc4b34d11473721aff126b8f429df41a3983332cf8a579649f80323525a3",
+          "tracked": true
+        },
+        {
+          "path": "control",
+          "sha256": "96f51383b8c909120eb6ecaefe66ff92688892d6a6cdd1fd050ba4b2ffb62912",
+          "tracked": true
+        },
+        {
+          "path": "TypeX.plist",
+          "sha256": "45a2e0920c0ee087d47fdf640b03ffdae82050b4123c41e9521f1d6b2a16963f",
+          "tracked": true
+        },
+        {
+          "path": "common.h",
+          "sha256": "ccee5f0ae1f5c76cc7e44a1a1a14765ac4ddbcea7cbf3777e2b07014fe19b344",
+          "tracked": true
+        },
+        {
+          "path": "DXPrefsManager.m",
+          "sha256": "a824515cba5ebe3a5adcef09a4b479ce0c3c859de41069fbd53b5f7d501ccbf0",
+          "tracked": true
+        },
+        {
+          "path": "DXShortcutsGenerator.m",
+          "sha256": "52e71ff2497ecd22ea983f4d73de7d4cf446672e35d74df9ea0676c7e06f5352",
+          "tracked": true
+        },
+        {
+          "path": "DXPixPinIntegration.h",
+          "sha256": "55feb505c2f12893cd152977f0cedfc299c83d5a750133372eb99606132d1cca",
+          "tracked": true
+        },
+        {
+          "path": "DXSystemOpenBroker.m",
+          "sha256": "384d801c01a22f7c291ff0646e80f370c3a211eccbf49f920a26d3f8bd379651",
+          "tracked": true
+        },
+        {
+          "path": "DXDarwinOpenChannel.m",
+          "sha256": "bebf127e6580d56c244f729da2470161f3f1376acd1215ee130e22c553bad49c",
+          "tracked": true
+        },
+        {
+          "path": "DXKbdCollapseHandle.m",
+          "sha256": "a73f862a298753dd196a518e9a548f2e205d1a1f4208f09173522a58c50eb009",
+          "tracked": true
+        },
+        {
+          "path": "TypeX.xm",
+          "sha256": "c161181b90729ca7461265291180dff2296d017a3b45d308d13fa359a9c90cbf",
+          "tracked": true
+        },
+        {
+          "path": "typexprefs/Resources/Root.plist",
+          "sha256": "d3a6708d3e77107e51d0ddab55e8a4ec0885dea46272292dff651f5288ebfb1e",
+          "tracked": true
+        },
+        {
+          "path": "typexprefs/Makefile",
+          "sha256": "9c9fb1c1add90e20936d7a6c22c4c4aa5027b04f8735bab8c88c61b99e599572",
+          "tracked": true
+        },
+        {
+          "path": "build.sh",
+          "sha256": "0f5f695e677678a8a833739924de8086d818b15e9e582219a62bbb3792d3b364",
+          "tracked": true
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+          "tracked": true
+        }
+      ]
+    },
+    {
+      "project": "PixPin",
+      "path": "/Users/xiao/dev/github/PixPin",
+      "branch": "main",
+      "head": "973b1b1afe6d1e452d63cf90333f7337ddc4a003",
+      "status": "",
+      "controlVersion": "2.2.9",
+      "trackedFileCount": 136,
+      "selectedFiles": [
+        {
+          "path": "Makefile",
+          "sha256": "5f6021c11f7dd73544365426ab8a7130a243f364ac9c42a4aad92c7185b88f5b",
+          "tracked": true
+        },
+        {
+          "path": "control",
+          "sha256": "87658a5c8be89c34ec968c2b73fabc61cf8f6e4281d2cfe0fe19da8aeb5b45d4",
+          "tracked": true
+        },
+        {
+          "path": "PixPin.plist",
+          "sha256": "e7dc57a8e03d8bfbdcc532669806e91849452e5974645aad9dffde2d6e2a90d5",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Common/PXConstants.m",
+          "sha256": "7f812aeabab5f409d70820cad4b406ea1f93d2df511745aad641aa3f1aadfc8a",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Common/PXPreferences.m",
+          "sha256": "34fe78d18683d1e3c836894f814d6c50e4406bd782e33b68ba95b9573cef4e9a",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Capture/PXCaptureTask.h",
+          "sha256": "2a8c50a576e12a9b14c61c8d96f51b2da5b96e2cd50feff8d5f35921f4604cee",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Capture/PXCaptureCoordinator.m",
+          "sha256": "22e53d3e5e3d3be441e8bcb4685de5d1be88324b86c0ed4fb82a3f0319e780c2",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Overlay/PXSelectionView.m",
+          "sha256": "f656f67da41077e4dcadb6ef45fb6139ed1c3f277401d8b34e3866799e67b17b",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Capture/PXCaptureLayerExclusion.m",
+          "sha256": "b7ae5a6ddfa8de6583eccf6ab3e56d23821a79de9b9aa440efc3f9d72fcad792",
+          "tracked": true
+        },
+        {
+          "path": "Sources/Output/PXClipboardWriter.m",
+          "sha256": "771ca27ac66e09d28943947667835592bd9e362ad6362a9f3a77db5d86fa7541",
+          "tracked": true
+        },
+        {
+          "path": "Sources/SpringBoard/PXSpringBoardEntry.xm",
+          "sha256": "8965651688c1cd5438e1f295e15f346b69efd2022a1bc4ed37c26604f4c399c2",
+          "tracked": true
+        },
+        {
+          "path": "PixPinPrefs/Resources/Root.plist",
+          "sha256": "541c5fe82d769a0bf1b204f9abf4a0989c14b87a06edbeb1c4717d4493c52eb1",
+          "tracked": true
+        },
+        {
+          "path": "PixPinPrefs/Makefile",
+          "sha256": "33559fba484567f8c634a84944c1f954e83d7c2f20a59d28d765c141b0840f99",
+          "tracked": true
+        },
+        {
+          "path": "build.sh",
+          "sha256": "9e61086b39d20cf83e57dda4c6850f7788a91d680a9159a4c9e176e3296f50ea",
+          "tracked": true
+        },
+        {
+          "path": "Tests/run-host-tests.sh",
+          "sha256": "efbf88b41122502c2cc3a93bf55df59f74707764231ff29d234ee0b8450f143c",
+          "tracked": true
+        }
+      ]
+    },
+    {
+      "project": "KayokoX",
+      "path": "/Users/xiao/dev/github/KayokoX",
+      "branch": "main",
+      "head": "61b7a8d35274540068ddda3233df78d9d47f0046",
+      "status": "M build.sh\n?? .zcodeignore",
+      "controlVersion": "5.0.56",
+      "trackedFileCount": 304,
+      "selectedFiles": [
+        {
+          "path": "Makefile",
+          "sha256": "3a40cec5d110491882c0046ff83a5fdc9600627691a581aebef0e9225e31d9fd",
+          "tracked": true
+        },
+        {
+          "path": "control",
+          "sha256": "9892b6b31be37d77856276910db1e43ec2fa011e300e5de9820b6aeace10c952",
+          "tracked": true
+        },
+        {
+          "path": "Core/Makefile",
+          "sha256": "11996eaf1867be042af2ca3dba601a8d47144d4683320b918b24ff9bc640366f",
+          "tracked": true
+        },
+        {
+          "path": "Core/KayokoCore.plist",
+          "sha256": "6a33915c9f1fb69560aeb9b9cfeae912b3fa8a5846db42da318b5bae7d8cb88e",
+          "tracked": true
+        },
+        {
+          "path": "Helper/KayokoHelper.plist",
+          "sha256": "b66db0aa76a2e79f9a4d1123ecb1123c8ec3cad88e1cd8724f29d9fa8db49b6e",
+          "tracked": true
+        },
+        {
+          "path": "Helper/KayokoHelperProcessContext.m",
+          "sha256": "fd1175d65d051d57c16f94724913ec12047f4b9fb4db7ddb5885bd994d014980",
+          "tracked": true
+        },
+        {
+          "path": "Core/KayokoCore.m",
+          "sha256": "361f570fa2346e26a019c56605301fb6487367773a39b202e87db53775739828",
+          "tracked": true
+        },
+        {
+          "path": "Core/KayokoCoreRuntime.m",
+          "sha256": "a9b4f10369b06ab35e72dc0f36c856dce69fa8349b5a16239ddad34360a0c2ed",
+          "tracked": true
+        },
+        {
+          "path": "Core/Manager/KayokoHistoryStore.m",
+          "sha256": "2444ab83674a8d913c24777cee1a3153431ec1b88be2f3520beb80030d0cbd51",
+          "tracked": true
+        },
+        {
+          "path": "Core/Manager/KayokoHistoryMigrator.m",
+          "sha256": "17c4cb2cbceaf91d2cce7bf59457be46568ab0fb2875d1812bee521453d5d34b",
+          "tracked": true
+        },
+        {
+          "path": "Preferences/KayokoPreferenceKeys.h",
+          "sha256": "87c6f6454a9037039e2de9e3d31eab72b7107abf4dda945fd1a2bb82bfc2c3d4",
+          "tracked": true
+        },
+        {
+          "path": "Preferences/KayokoNotificationKeys.h",
+          "sha256": "6694578293c25dac5cdad4e2434a8b1eed14d56435c7dfd962a3c2c68ab84c63",
+          "tracked": true
+        },
+        {
+          "path": "Preferences/Resources/Root.plist",
+          "sha256": "cf06c97c7c959940507b03ee7468720b35ac7c02aff69920424e65399d4588da",
+          "tracked": true
+        },
+        {
+          "path": "Preferences/Resources/AdvancedOptions.plist",
+          "sha256": "8b4e760ab4797b3b3a6fa733cfb78d1f0ca0dd479d58f5664d4d8cc0816e630b",
+          "tracked": true
+        },
+        {
+          "path": "Preferences/Makefile",
+          "sha256": "79cf1c8826472df74633126a3e4d02797c0023368023b5ca466bbf4d48fca740",
+          "tracked": true
+        },
+        {
+          "path": "Updater/Makefile",
+          "sha256": "6781d511af22e97d10245cf8eb22f50c1987cc6cc860dcd735ae25dbd65f991e",
+          "tracked": true
+        },
+        {
+          "path": "layout/DEBIAN/postinst",
+          "sha256": "ea14aec117022b53a3070d55aca7c493116ef2758e5f6c11b603ca1b9058e621",
+          "tracked": true
+        },
+        {
+          "path": "build.sh",
+          "sha256": "e52585e0dede1e2e50eb0dc5a3e2244943694dc05ce0c50f75e815971493d720",
+          "tracked": true
+        },
+        {
+          "path": "COPYING",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "tracked": true
+        },
+        {
+          "path": "THIRD_PARTY_NOTICES.md",
+          "sha256": "0044d6743c2d02f63ce975647e215a3e42a7658ff71ca588032fc850e94643ff",
+          "tracked": true
+        }
+      ]
+    }
+  ]
+}

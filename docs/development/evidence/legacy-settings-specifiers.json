@@ -1,0 +1,987 @@
+[
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 1,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.typex",
+      "key": "enabledBOOL",
+      "label": "ENABLED"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 3,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "configuration": "top",
+      "detail": "DXPManageShortcutsController",
+      "id": "topToolbarSettings",
+      "label": "顶部设置"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 4,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "configuration": "bottom",
+      "detail": "DXPManageShortcutsController",
+      "id": "bottomToolbarSettings",
+      "label": "底部设置"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 5,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "DXPKeyboardPanelController",
+      "id": "keyboardPanelSettings",
+      "label": "KEYBOARD_PANEL_SETTINGS"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 6,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "DXPGestureSettingsController",
+      "id": "gestureSettings",
+      "label": "GESTURE_SETTINGS"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 7,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.typex",
+      "key": "hapticBOOL",
+      "label": "HAPTIC"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 9,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "DXPCustomActionsController",
+      "id": "customActions",
+      "label": "自定义动作"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 11,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "DXPFloatingAppController",
+      "id": "floatingAppSettings",
+      "label": "FLOATING_APP_SETTINGS"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 13,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "DXPAIChatController",
+      "id": "aiChat",
+      "label": "AI问答"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 15,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.typex",
+      "key": "smscodecopyBOOL",
+      "id": "smsCodeCopy",
+      "label": "SMS_CODE_COPY"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 17,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.typex",
+      "key": "browserredirectBOOL",
+      "id": "browserRedirect",
+      "label": "BROWSER_REDIRECT"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 19,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.typex",
+      "key": "pasteimagechipBOOL",
+      "label": "PASTE_CHIP"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 20,
+    "specifier": {
+      "PostNotification": "com.lindo.typex/prefschanged",
+      "cell": "PSLinkListCell",
+      "detail": "ATLApplicationListMultiSelectionController",
+      "id": "pasteChipApps",
+      "get": "dxp_pasteChipAppsRead:",
+      "set": "dxp_pasteChipAppsWrite:specifier:",
+      "defaults": "com.lindo.typex",
+      "key": "pasteimagechipapps",
+      "default": [],
+      "defaultApplicationSwitchValue": false,
+      "label": "PASTE_CHIP_APPS",
+      "sections": [
+        {
+          "sectionType": "User"
+        },
+        {
+          "sectionType": "System"
+        }
+      ],
+      "useSearchBar": true,
+      "hideSearchBarWhileScrolling": false,
+      "includeIdentifiersInSearch": true,
+      "showIdentifiersAsSubtitle": true
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 22,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "action": "backupConfig:",
+      "label": "BACKUP_CONFIG"
+    }
+  },
+  {
+    "project": "TypeX",
+    "source": "typexprefs/Resources/Root.plist",
+    "index": 23,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "action": "restoreConfig:",
+      "label": "RESTORE_CONFIG"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 1,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.pixpin.screenshot",
+      "key": "Enabled",
+      "label": "启用 PixPin",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 3,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.pixpin.screenshot",
+      "key": "AreaRememberLastRect",
+      "label": "记住上次区域选区",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 5,
+    "specifier": {
+      "cell": "PSSliderCell",
+      "defaults": "com.pixpin.screenshot",
+      "key": "SelectionSnapEdgeDistance",
+      "default": 12.0,
+      "min": 0.0,
+      "max": 60.0,
+      "showCancelButton": false,
+      "label": "选框吸附距离",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 7,
+    "specifier": {
+      "cell": "PSMultiValueSpecifier",
+      "defaults": "com.pixpin.screenshot",
+      "key": "DefaultResultAction",
+      "label": "默认结果动作",
+      "default": 0,
+      "values": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "titles": [
+        "保存到相册",
+        "复制到剪贴板",
+        "保存并复制",
+        "仅显示预览气泡"
+      ],
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 8,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.pixpin.screenshot",
+      "key": "SaveAlsoCopy",
+      "label": "保存同时复制",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 9,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.pixpin.screenshot",
+      "key": "ShowResultBubble",
+      "label": "显示结果气泡",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 11,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.pixpin.screenshot",
+      "key": "FloatingSnapShadow",
+      "label": "悬浮图阴影",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 12,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.pixpin.screenshot",
+      "key": "ScreenshotHaptic",
+      "label": "完成时震动反馈",
+      "PostNotification": "com.pixpin.screenshot/preferences/reload"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 14,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "全屏标记按钮",
+      "detail": "PXFullscreenButtonController",
+      "id": "fullscreenButtons"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 15,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "截图按钮",
+      "detail": "PXRegionButtonController",
+      "id": "regionButtons"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 16,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "自定义 URL 按钮",
+      "detail": "PXCustomURLController",
+      "id": "customUrlButtons"
+    }
+  },
+  {
+    "project": "PixPin",
+    "source": "PixPinPrefs/Resources/Root.plist",
+    "index": 17,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "编辑器按钮排序",
+      "detail": "PXEditorOrderController",
+      "id": "editorButtonOrder"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 1,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "IgnoreRemoteReplication",
+      "label": "Ignore Universal Clipboard",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 3,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "AlwaysScrollToTop",
+      "label": "Always Scroll to Top",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 5,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 1,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "ClearButtonMode",
+      "validValues": [
+        0,
+        1,
+        2
+      ],
+      "validTitles": [
+        "Off",
+        "History Only",
+        "Always"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 7,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 0,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "AutomaticPasteMode",
+      "validValues": [
+        2,
+        0,
+        1
+      ],
+      "validTitles": [
+        "Auto",
+        "Classic",
+        "Simulated"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 9,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 0,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "GestureRecognizerMode",
+      "label": "Gesture Recognizer",
+      "validValues": [
+        0,
+        1
+      ],
+      "validTitles": [
+        "Classic",
+        "System"
+      ]
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 11,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Restore Tags",
+      "action": "restoreTagsPrompt",
+      "isDestructive": true
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 12,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Reset Preferences",
+      "action": "resetPrompt",
+      "isDestructive": true
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 13,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Clear Favorites",
+      "action": "clearFavoritesPrompt",
+      "isDestructive": true
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 14,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Clear History",
+      "action": "clearHistoryPrompt",
+      "isDestructive": true
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 16,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Check Data Directory",
+      "action": "checkDataDirectory"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 17,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Reset Thumbnail Cache",
+      "action": "resetThumbnailCachePrompt"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 18,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Import from CopyLog",
+      "action": "importCopyLogPrompt"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/AdvancedOptions.plist",
+    "index": 19,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Import from CopyVault",
+      "action": "importCopyVaultPrompt"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 2,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "Enabled",
+      "label": "Enable KayokoX",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 4,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "PrivacyMode",
+      "label": "Privacy Mode",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 5,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoFloatingPreviewSettingsViewController",
+      "defaults": "com.lindo.kayoko.preferences",
+      "label": "Floating Preview"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 6,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoFloatingPanelSettingsViewController",
+      "defaults": "com.lindo.kayoko.preferences",
+      "label": "Floating Panel"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 7,
+    "specifier": {
+      "cell": "PSLinkListCell",
+      "default": 38,
+      "detail": "KayokoListItemsController",
+      "defaults": "com.lindo.kayoko.preferences",
+      "label": "ACTIVATION_METHODS",
+      "key": "ActivationMethod",
+      "validValues": [
+        1,
+        2,
+        4,
+        8,
+        16,
+        32
+      ],
+      "validTitles": [
+        "Prediction Bar",
+        "Dictation Key",
+        "Input Switcher",
+        "Edit Menu",
+        "One-Finger Swipe Up",
+        "⌘⇧V External Keyboard"
+      ]
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 10,
+    "specifier": {
+      "cellClass": "KayokoStepSliderCell",
+      "default": 200,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "MaximumHistoryAmount",
+      "stepValues": [
+        50,
+        100,
+        200,
+        300,
+        500,
+        1000,
+        2000,
+        3000,
+        4000,
+        5000
+      ],
+      "isContinuous": true,
+      "valueLabelWidth": 44,
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 11,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "SaveText",
+      "label": "Save Text",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 12,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "SaveImages",
+      "label": "Save Images",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 13,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoTagManagementViewController",
+      "label": "CUSTOM_TAGS"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 14,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoCustomJumpManagementViewController",
+      "label": "CUSTOM_JUMPS"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 15,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoImageActionManagementViewController",
+      "label": "IMAGE_ACTIONS"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 16,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "detail": "KayokoImageDoubleTapActionViewController",
+      "label": "IMAGE_DOUBLE_TAP_ACTION"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 18,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 2,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "InitialViewMode",
+      "validValues": [
+        1,
+        0,
+        2
+      ],
+      "validTitles": [
+        "Favorites",
+        "History",
+        "Previous"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 20,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 1,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "PreviewLineCount",
+      "label": "Preview Lines",
+      "validValues": [
+        1,
+        2,
+        3
+      ],
+      "validTitles": [
+        "Single Line",
+        "Double Line",
+        "Triple Line"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 22,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 1,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "ItemDetailsMode",
+      "validValues": [
+        0,
+        1,
+        2
+      ],
+      "validTitles": [
+        "Off",
+        "Images Only",
+        "All"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 24,
+    "specifier": {
+      "cellClass": "KayokoSliderCell",
+      "default": 420.0,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "HeightInPoints",
+      "min": 200.0,
+      "max": 600.0,
+      "showValue": true,
+      "isContinuous": true,
+      "isSegmented": false,
+      "valueLabelWidth": 44,
+      "PostNotification": "com.lindo.kayoko.preferences.height.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 25,
+    "specifier": {
+      "cell": "PSButtonCell",
+      "label": "Show KayokoX",
+      "action": "showKayoko"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 27,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 0,
+      "defaults": "com.lindo.kayoko.preferences",
+      "id": "OverlayWindowLevelMode",
+      "key": "OverlayWindowLevelMode",
+      "validValues": [
+        0,
+        1
+      ],
+      "validTitles": [
+        "Custom",
+        "Maximum"
+      ],
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 28,
+    "specifier": {
+      "cellClass": "KayokoSliderCell",
+      "default": 998.0,
+      "defaults": "com.lindo.kayoko.preferences",
+      "format": "%.0f",
+      "id": "OverlayWindowLevel",
+      "isContinuous": true,
+      "isSegmented": true,
+      "key": "OverlayWindowLevel",
+      "max": 2000.0,
+      "min": 10.0,
+      "PostNotification": "com.lindo.kayoko.preferences.reload",
+      "segmentCount": 1990,
+      "showValue": true,
+      "valueLabelWidth": 44
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 30,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "AutomaticallyPaste",
+      "label": "Automatically Paste",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 31,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "DismissOnOutsideTouch",
+      "label": "Touch Outside to Dismiss",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 32,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": false,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "DisablePasteTips",
+      "label": "Disable Paste Tips",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 34,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "SwipeToSelectWords",
+      "label": "Swipe to Select Words",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 36,
+    "specifier": {
+      "cell": "PSSegmentCell",
+      "default": 1,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "AutomaticPromotionMode",
+      "PostNotification": "com.lindo.kayoko.preferences.reload",
+      "validTitles": [
+        "Off",
+        "History Only",
+        "Always"
+      ],
+      "validValues": [
+        0,
+        1,
+        2
+      ]
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 38,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "PlaySoundEffects",
+      "label": "Play Sound Effects",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 39,
+    "specifier": {
+      "cell": "PSSwitchCell",
+      "default": true,
+      "defaults": "com.lindo.kayoko.preferences",
+      "key": "PlayHapticFeedback",
+      "label": "Play Haptic Feedback",
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 41,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "Advanced Options",
+      "detail": "KayokoAdvancedOptionsListController"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 42,
+    "specifier": {
+      "cell": "PSLinkListCell",
+      "default": [],
+      "defaults": "com.lindo.kayoko.preferences",
+      "detail": "ATLApplicationListMultiSelectionController",
+      "key": "ApplicationBlacklist",
+      "label": "Application Blacklist",
+      "sections": [
+        {
+          "sectionType": "User"
+        },
+        {
+          "sectionType": "System"
+        }
+      ],
+      "showIdentifiersAsSubtitle": true,
+      "defaultApplicationSwitchValue": false,
+      "useSearchBar": true,
+      "includeIdentifiersInSearch": true,
+      "PostNotification": "com.lindo.kayoko.preferences.reload"
+    }
+  },
+  {
+    "project": "KayokoX",
+    "source": "Preferences/Resources/Root.plist",
+    "index": 43,
+    "specifier": {
+      "cell": "PSLinkCell",
+      "label": "Acknowledgments & Licenses",
+      "detail": "KayokoCreditsListController"
+    }
+  }
+]
