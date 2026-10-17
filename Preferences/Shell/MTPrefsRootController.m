@@ -2,6 +2,7 @@
 #import "MTPrefsRootModel.h"
 #import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
+#import "MTLog.h"
 
 // 首页渲染：品牌头 + 搜索设置 + 卡片分区。模型与文案见 MTPrefsRootModel
 // （宿主测试权威）；本文件只做 UIKit 传输（02 §8：系统 grouped 风格）。
@@ -36,7 +37,8 @@
     [container addSubview:brandIcon];
 
     UILabel *brandSubtitle = [[UILabel alloc] init];
-    brandSubtitle.text = @"统一的效率工具";
+    // 副标题带当前版本号：关于页移除后主页即版本信息的唯一展示位。
+    brandSubtitle.text = [NSString stringWithFormat:@"统一的效率工具 · %@", MTCoreVersionString];
     brandSubtitle.font = [UIFont systemFontOfSize:15.0];
     brandSubtitle.textColor = UIColor.secondaryLabelColor;
     brandSubtitle.adjustsFontForContentSizeCategory = YES;
