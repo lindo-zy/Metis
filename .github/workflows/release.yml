@@ -1,0 +1,87 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release (iOS16/17)
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      THEOS: /Users/runner/work/_theos
+      METIS_ALLOW_DIRTY: '1'   # tag 检出为 detached HEAD，本地分支纪律检查不适用
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew install ldid dpkg make
+
+      - name: Set up Theos (roothide fork)
+        run: |
+          git clone --recursive https://github.com/roothide/theos.git "$THEOS"
+
+      - name: Prepare SDKs
+        run: |
+          # iPhoneOS16.5：theos/sdks 提供。
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          # iPhoneOS17.0：theos/sdks 未收录，使用 runner Xcode 的 iOS 17.x SDK
+          # 符号链接（部署线仍为 16.0；实际 SDK 小版本记录进 release 说明）。
+          XCODE_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          ln -s "$XCODE_SDK" "$THEOS/sdks/iPhoneOS17.0.sdk"
+          echo "Xcode iPhoneOS SDK: $XCODE_SDK"
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if ! [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "error: tag must be vMAJOR.MINOR.PATCH, got ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build release (both targets)
+        run: |
+          ./build.sh --target all --mode release --version "${{ steps.version.outputs.version }}"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp packages/ios16/*.deb packages/ios17/*.deb release-artifacts/
+          cp packages/ios16/manifest-*.json packages/ios17/manifest-*.json release-artifacts/ || true
+          ls -la release-artifacts/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          XCODE_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          cat > release-notes.md <<EOF
+          # Metis ${VERSION}
+
+          统一安装包：截图与标注（PixPin）· 键盘与操作（TypeX）· 剪贴板（KayokoX）。
+
+          - 系统设置唯一入口「Metis」；总开关默认开，三个模块默认关（按需启用）。
+          - 与旧包互斥（com.pixpin.screenshot / com.lindo.typex / com.lindo.kayokox），
+            安装前请先移除旧插件；旧配置不迁移不覆盖。
+          - iOS16 变体：iPhoneOS16.5 SDK，部署目标 16.0。
+          - iOS17 变体：${XCODE_SDK}（17.x），部署目标 16.0。
+          - 架构：arm64 / arm64e（RootHide）。
+          - SHA256 与构建元数据见 manifest JSON。
+          - 状态：package-verified（构建与包检查通过）；真机验收矩阵待验，见
+            docs/implementation/implementation-report.md。
+          EOF
+          gh release create "${GITHUB_REF_NAME}" \
+            release-artifacts/*.deb release-artifacts/*.json \
+            --title "Metis ${VERSION}" \
+            --notes-file release-notes.md
