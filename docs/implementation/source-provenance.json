@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-10-17",
+  "package": "com.lindo.metis",
+  "sources": [
+    {
+      "module": "capture",
+      "name": "PixPin",
+      "repository": "/Users/xiao/dev/github/PixPin",
+      "packageId": "com.pixpin.screenshot",
+      "baselineCommit": "973b1b1afe6d1e452d63cf90333f7337ddc4a003",
+      "controlVersion": "2.2.9",
+      "license": "no-root-license-file (见 LICENSE-NOTICE；发布前确认)",
+      "importedPaths": {
+        "Sources/": "Modules/Capture/Sources/",
+        "PixPinPrefs/": "Preferences/CapturePages/"
+      },
+      "localModifications": [
+        "PXPreferences.m: PXConfig.enabled 桥接 MTModuleGate（com.lindo.metis 权威）",
+        "Preferences/CapturePages/Resources/Root.plist: 移除旧 Enabled 开关行",
+        "Preferences/CapturePages/*.m: ../Sources/ 导入路径改指 Modules/Capture/Sources"
+      ]
+    },
+    {
+      "module": "keyboard",
+      "name": "TypeX",
+      "repository": "/Users/xiao/dev/github/TypeX",
+      "packageId": "com.lindo.typex",
+      "baselineCommit": "dfc9a5b19924482272ba3a0e7f1282a9aad9a765",
+      "controlVersion": "4.8.7",
+      "license": "AGPL-3.0 (根 LICENSE)",
+      "importedPaths": {
+        "*.{h,m,mm,xm}": "Modules/Keyboard/Sources/",
+        "typexprefs/": "Preferences/KeyboardPages/",
+        "typexprefs/AltList/": "Core/AltList/"
+      },
+      "localModifications": [
+        "TypeX.xm: ctor 改纯 App 路径（SB 立即返回），SB 分支迁至 MTKeyboardSpringBoardEntry.xm；AI/桌面可见性钩子迁出",
+        "DXGlobals.{h,m} 新增：跨文件全局唯一定义入 MetisCore",
+        "DXPrefsManager.m: readPrefs 覆盖 enabledBOOL（MTModuleGate）",
+        "DXShortcutsGenerator.m / DXFloatingAppRuntime.mm: 文件内 static tweakBundle 改名避免遮蔽冲突",
+        "common.h: bundlePath → MetisKeyboardPrefs.bundle",
+        "Preferences/KeyboardPages: ../ 导入展平、static tweakBundle 改名、Root.plist 移除旧 enable 行、共享源改为链接 MetisCore"
+      ]
+    },
+    {
+      "module": "clipboard",
+      "name": "KayokoX",
+      "repository": "/Users/xiao/dev/github/KayokoX",
+      "packageId": "com.lindo.kayokox",
+      "baselineCommit": "61b7a8d35274540068ddda3233df78d9d47f0046",
+      "controlVersion": "5.0.56",
+      "license": "GPL-3.0 (COPYING)；AltList MIT (THIRD_PARTY_NOTICES)",
+      "importedPaths": {
+        "Core/": "Modules/Clipboard/Core/",
+        "Helper/": "Modules/Clipboard/Helper/",
+        "Shared/": "Modules/Clipboard/Shared/",
+        "Preferences/{Cells,Controllers,Models,Utilities,Resources,*.h}": "Preferences/ClipboardPages/"
+      },
+      "excludedPaths": ["Updater/", "Preferences/Frameworks/", "Preferences/layout/", "Kayoko.xcodeproj/", "project.yml", "local.env"],
+      "localModifications": [
+        "KayokoCoreRuntime.m: self.enabled 桥接 MTModuleGate；KayokoPreferences.bundle 路径改 MetisClipboardPrefs.bundle",
+        "KayokoPasteTipHooks.m: 去除 KayokoCoreRuntime 依赖，内联门控判定（模块关闭放行系统行为）",
+        "KayokoPasteboardManager/HistoryStore/HistoryMigrator/HelperLocalization: bundle 路径字符串改指 MetisClipboardPrefs.bundle",
+        "Preferences/ClipboardPages/Resources/Root.plist: 移除旧 Enabled 开关行"
+      ]
+    }
+  ]
+}

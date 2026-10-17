@@ -19,6 +19,9 @@ include $(THEOS_MAKE_PATH)/bundle.mk
 internal-stage::
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences$(ECHO_END)
 	$(ECHO_NOTHING)cp Metis.plist $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis.plist$(ECHO_END)
+	$(ECHO_NOTHING)cp Resources/Metis.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis.png$(ECHO_END)
+	$(ECHO_NOTHING)cp Resources/Metis@2x.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis@2x.png$(ECHO_END)
+	$(ECHO_NOTHING)cp Resources/Metis@3x.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis@3x.png$(ECHO_END)
 	$(ECHO_NOTHING)test -n "$(PACKAGE_VERSION)" || { echo "error: PACKAGE_VERSION not set (use build.sh)" >&2; exit 1; }$(ECHO_END)
 	$(ECHO_NOTHING)plutil -replace CFBundleShortVersionString -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
 	$(ECHO_NOTHING)plutil -replace CFBundleVersion -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
