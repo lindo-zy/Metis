@@ -34,5 +34,36 @@ MetisSpringBoard_CFLAGS += -I../../Modules/Keyboard/Sources
 MetisSpringBoard_FRAMEWORKS += SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
 MetisSpringBoard_PRIVATE_FRAMEWORKS = AppSupport FrontBoardServices SpringBoardServices
 
+
+# Clipboard（KayokoX Core 迁入，04 §4）：面板/历史/采集/粘贴业务
+MetisSpringBoard_FILES += MTClipboardModuleAdapter.m \
+	$(wildcard ../../Modules/Clipboard/Core/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Manager/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Actions/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Controllers/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Coordinators/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Models/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Presentation/*.m) \
+	$(wildcard ../../Modules/Clipboard/Core/Views/*.m)
+
+MetisSpringBoard_CFLAGS += -I../../Modules/Clipboard/Core \
+	-I../../Modules/Clipboard/Core/Manager \
+	-I../../Modules/Clipboard/Core/Actions \
+	-I../../Modules/Clipboard/Shared/Actions \
+	-I../../Modules/Clipboard/Shared/Tags \
+	-I../../Modules/Clipboard/Core/Controllers \
+	-I../../Modules/Clipboard/Core/Coordinators \
+	-I../../Modules/Clipboard/Core/Models \
+	-I../../Modules/Clipboard/Core/Presentation \
+	-I../../Modules/Clipboard/Core/Views \
+	-I../../Modules/Clipboard/Helper \
+	-I../../Preferences/ClipboardPages
+MetisSpringBoard_FRAMEWORKS += AudioToolbox AVFoundation IOKit Security
+MetisSpringBoard_PRIVATE_FRAMEWORKS += CoreServices
+MetisSpringBoard_LIBRARIES += sqlite3 substrate
+ifeq ($(THEOS_PACKAGE_SCHEME),roothide)
+MetisSpringBoard_LIBRARIES += roothide
+endif
+
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tweak.mk

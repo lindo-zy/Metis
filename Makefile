@@ -21,6 +21,6 @@ SUBPROJECTS += Preferences/Shell
 # 模块迁入时逐个启用：
 SUBPROJECTS += Preferences/CapturePages
 SUBPROJECTS += Preferences/KeyboardPages
-# SUBPROJECTS += Preferences/ClipboardPages
+SUBPROJECTS += Preferences/ClipboardPages
 
 include $(THEOS_MAKE_PATH)/aggregate.mk

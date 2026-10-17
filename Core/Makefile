@@ -59,6 +59,14 @@ MetisCore_CFLAGS = -fobjc-arc
 MetisCore_CFLAGS += -Wno-tautological-pointer-compare
 MetisCore_CFLAGS += -DMETIS_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
 MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList
+
+# Clipboard（KayokoX）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
+CLIPBOARD = ../Modules/Clipboard
+MetisCore_FILES += $(CLIPBOARD)/Helper/KayokoSwipeUpGestureRecognizer.m \
+	$(wildcard $(CLIPBOARD)/Shared/Tags/*.m) \
+	$(wildcard $(CLIPBOARD)/Shared/Actions/*.m)
+MetisCore_CFLAGS += -I$(CLIPBOARD)/Shared/Tags -I$(CLIPBOARD)/Shared/Actions -I../Preferences/ClipboardPages
+
 MetisCore_FRAMEWORKS = Foundation CoreFoundation UIKit CoreGraphics QuartzCore ImageIO SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
 MetisCore_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices SpringBoardServices MobileCoreServices
 

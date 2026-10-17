@@ -1,6 +1,6 @@
 Package: com.lindo.metis
 Name: Metis
-Depends: mobilesubstrate, preferenceloader, firmware(>=16.0), com.opa334.altlist
+Depends: mobilesubstrate, preferenceloader, firmware(>=16.0)
 Version: 0.1.0
 Architecture: iphoneos-arm64
 Description: Metis —— 截图与标注（PixPin）、键盘与操作（TypeX）、剪贴板（KayokoX）三模块统一管理。
