@@ -9,7 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface MTSettingsSearchEntry : NSObject
 @property (nonatomic, copy) NSString *title;            ///< 配置项标题
-@property (nonatomic, copy) NSString *path;             ///< 分类路径（如「全局 · 入口绑定」）
+@property (nonatomic, copy) NSString *path;             ///< 分类路径（如「全局 · 面板管理」）
 @property (nonatomic, strong) MTSettingsRow *target;    ///< 目标行（route + 稳定 identifier）
 @end
 
