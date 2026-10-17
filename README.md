@@ -41,5 +41,6 @@ Metis 将 PixPin（截图与标注）、TypeX（键盘与操作）和 KayokoX（
 
 ## 许可
 
-TypeX（AGPL-3.0）、KayokoX（GPL-3.0）、AltList（MIT，vendored）；来源与许可清单
-见 [LICENSE-NOTICE](LICENSE-NOTICE)。
+本项目代码以 **GPL-3.0** 发布（全文见 [LICENSE](LICENSE)）：使用、修改或再分发
+本项目代码的作品必须以同等许可开源。来源组件许可（TypeX AGPL-3.0、KayokoX
+GPL-3.0、AltList MIT vendored）见 [LICENSE-NOTICE](LICENSE-NOTICE)。

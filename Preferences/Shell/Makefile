@@ -26,4 +26,5 @@ internal-stage::
 	$(ECHO_NOTHING)plutil -replace CFBundleShortVersionString -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
 	$(ECHO_NOTHING)plutil -replace CFBundleVersion -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/usr/share/doc/com.lindo.metis$(ECHO_END)
-	$(ECHO_NOTHING)cp LICENSE-NOTICE "$(THEOS_STAGING_DIR)/usr/share/doc/com.lindo.metis/LICENSE-NOTICE" 2>/dev/null || true$(ECHO_END)
+	$(ECHO_NOTHING)cp ../../LICENSE-NOTICE "$(THEOS_STAGING_DIR)/usr/share/doc/com.lindo.metis/LICENSE-NOTICE"$(ECHO_END)
+	$(ECHO_NOTHING)cp ../../LICENSE "$(THEOS_STAGING_DIR)/usr/share/doc/com.lindo.metis/LICENSE"$(ECHO_END)
