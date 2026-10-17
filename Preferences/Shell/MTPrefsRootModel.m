@@ -66,13 +66,8 @@ static NSArray *MTRootCategoryConfigs(void) {
     categorySection.headerTitle = @"功能模块";
     categorySection.rows = [self categoryRows];
 
-    MTSettingsRow *about = [MTSettingsRow linkRowWithIdentifier:@"about-metis" title:@"关于 Metis"];
-    about.routeKind = MTSettingsRouteShellClass;
-    about.className = @"MTPrefsAboutController";
-    MTSettingsSection *aboutSection = [MTSettingsSection sectionWithRows:@[about]];
-
     MTSettingsPageModel *model = [[MTSettingsPageModel alloc] init];
-    model.sections = @[toggleSection, categorySection, aboutSection];
+    model.sections = @[toggleSection, categorySection];
     model.footerText = @"按功能分类，统一配置";
     MTLogInfo(MTLogModulePrefs, @"state=root-model-ready paused=%@",
               [self globalEnabled] ? @"0" : @"1");

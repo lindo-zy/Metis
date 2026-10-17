@@ -46,10 +46,7 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
         add(category.title, @"首页", target);
     }
 
-    MTSettingsRow *about = [MTSettingsRow linkRowWithIdentifier:@"search-root-about" title:@"关于 Metis"];
-    about.routeKind = MTSettingsRouteInPage;
-    about.userInfo = @"about-metis";
-    add(@"关于 Metis", @"首页", about);
+    // 「关于 Metis」页已移除（2026-10-17 需求），首页索引不再收录该条目。
 
     // 全局分类范围：压栈到全局页并强调目标行。
     for (MTSettingsSection *section in [MTPrefsGlobalModel globalPageModel].sections) {

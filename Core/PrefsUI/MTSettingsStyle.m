@@ -20,8 +20,10 @@
     return fallback.length ? [UIImage systemImageNamed:fallback] : nil;
 }
 
++ (CGFloat)contentInset { return 16.0; }
 + (CGFloat)tileSide { return 29.0; }
 + (CGFloat)tileCornerRadius { return 6.5; }
 + (CGFloat)tileIconPointSize { return 16.0; }
++ (CGFloat)tileTextGap { return 12.0; }
 
 @end

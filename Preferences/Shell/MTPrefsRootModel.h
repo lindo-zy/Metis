@@ -1,7 +1,7 @@
 // MTPrefsRootModel —— 设置首页模型（docs/development/02 §1 + 设计稿 metis-settings-v3.png）。
 // Foundation-only：宿主测试编译本文件并断言页面结构；UIKit 渲染在
 // MTPrefsRootController。页面结构权威：品牌头 + 搜索 + 启用总开关 + 五分类 +
-// 关于 + 页脚；关闭总开关时追加一条整体暂停提示行（非模块状态行）。
+// 页脚；关闭总开关时追加一条整体暂停提示行（非模块状态行）。关于页已移除。
 #import <Foundation/Foundation.h>
 #import "MTSettingsModels.h"
 

@@ -7,6 +7,7 @@
     UILabel *_titleLabel;
     UILabel *_subtitleLabel;
     UIStackView *_textStack;
+    NSLayoutConstraint *_textLeadingConstraint;
     MTSettingsRow *_currentRow;
 }
 
@@ -37,15 +38,25 @@
         [self.contentView addSubview:_textStack];
 
         [NSLayoutConstraint activateConstraints:@[
-            [_tile.leadingAnchor constraintEqualToAnchor:self.contentView.layoutMarginsGuide.leadingAnchor],
+            // 瓦片贴行内容左边缘：设计稿里图标在最左，标题紧随其后。
+            // 不能绑到 layoutMarginsGuide——分隔线缩进会连带把图标推到标题位置。
+            [_tile.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor
+                                                constant:[MTSettingsStyle contentInset]],
             [_tile.centerYAnchor constraintEqualToAnchor:self.contentView.centerYAnchor],
             [_tile.widthAnchor constraintEqualToConstant:[MTSettingsStyle tileSide]],
             [_tile.heightAnchor constraintEqualToConstant:[MTSettingsStyle tileSide]],
-            [_textStack.leadingAnchor constraintEqualToAnchor:_tile.trailingAnchor constant:12.0],
-            [_textStack.trailingAnchor constraintLessThanOrEqualToAnchor:self.contentView.layoutMarginsGuide.trailingAnchor],
+            [_textStack.trailingAnchor constraintLessThanOrEqualToAnchor:self.contentView.trailingAnchor
+                                                               constant:-[MTSettingsStyle contentInset]],
             [_textStack.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:8.0],
             [_textStack.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-8.0],
         ]];
+        // 标题起点随行内是否有瓦片切换：有瓦片时接在瓦片右侧，无瓦片时回到 16pt 内边距。
+        _textLeadingConstraint =
+            [_textStack.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor
+                                                     constant:[MTSettingsStyle contentInset]
+                                                            + [MTSettingsStyle tileSide]
+                                                            + [MTSettingsStyle tileTextGap]];
+        _textLeadingConstraint.active = YES;
     }
     return self;
 }
@@ -59,10 +70,14 @@
     [_tile updateWithIconName:row.iconName colorName:row.colorName];
 
     // 分隔线随行内边距走：有瓦片时与标题对齐，无瓦片时用标准边距。
+    // 只调文本起点与分隔线，不动 cell.layoutMargins——否则会连带动到图标位置。
     BOOL hasTile = !(_tile.hidden);
-    self.layoutMargins = hasTile ? UIEdgeInsetsMake(0, 16.0 + [MTSettingsStyle tileSide] + 12.0, 0, 16.0)
-                                 : UIEdgeInsetsMake(0, 16.0, 0, 16.0);
-    self.separatorInset = self.layoutMargins;
+    CGFloat contentInset = [MTSettingsStyle contentInset];
+    _textLeadingConstraint.constant = hasTile
+        ? contentInset + [MTSettingsStyle tileSide] + [MTSettingsStyle tileTextGap]
+        : contentInset;
+    self.layoutMargins = UIEdgeInsetsMake(0, contentInset, 0, contentInset);
+    self.separatorInset = UIEdgeInsetsMake(0, _textLeadingConstraint.constant, 0, contentInset);
 
     switch (row.kind) {
         case MTSettingsRowKindToggle: {

@@ -12,9 +12,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// 系统图标；preferred 不可用时回退 fallback，两者都不可用返回 nil（行内隐藏瓦片）。
 + (nullable UIImage *)symbolPreferred:(NSString *)preferred fallback:(nullable NSString *)fallback;
 
++ (CGFloat)contentInset;        ///< 行内容左/右内边距 16pt（卡片内基准）
 + (CGFloat)tileSide;            ///< 图标瓦片边长 29pt（系统设置惯例）
 + (CGFloat)tileCornerRadius;    ///< 连续圆角半径
 + (CGFloat)tileIconPointSize;   ///< 瓦片内白色符号点数
++ (CGFloat)tileTextGap;         ///< 瓦片与标题间距
 @end
 
 NS_ASSUME_NONNULL_END
