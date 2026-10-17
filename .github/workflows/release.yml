@@ -63,7 +63,8 @@ jobs:
         run: |
           mkdir -p release-artifacts
           cp packages/ios16/*.deb packages/ios17/*.deb release-artifacts/
-          cp packages/ios16/manifest-*.json packages/ios17/manifest-*.json release-artifacts/ || true
+          cp packages/ios16/manifest-*.json "release-artifacts/manifest-${{ steps.version.outputs.version }}-ios16.json"
+          cp packages/ios17/manifest-*.json "release-artifacts/manifest-${{ steps.version.outputs.version }}-ios17.json"
           ls -la release-artifacts/
 
       - name: Create GitHub Release
