@@ -1,0 +1,10 @@
+Package: com.lindo.metis
+Name: Metis
+Depends: mobilesubstrate, preferenceloader, firmware(>=16.0), com.opa334.altlist
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: Metis —— 截图与标注（PixPin）、键盘与操作（TypeX）、剪贴板（KayokoX）三模块统一管理。
+Maintainer: lindo
+Author: lindo
+Section: Tweaks
+Conflicts: com.pixpin.screenshot, com.lindo.typex, com.lindo.kayokox, com.restiveconch.actionbar, com.udevs.dockx, com.lindo.dockx, codes.aurora.kayoko, dev.traurige.kayoko, com.82flex.kayoko, com.skypain.kayoko, com.dao.kayoko, xyz.cypwn.kayoko, com.mlgm.kayoko
