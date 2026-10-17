@@ -1,6 +1,7 @@
 #import "common.h"
 #import "MTHelper.h"
 #import "UIImage+Resize.h"
+#import "MTSettingsStyle.h"
 
 #define UIKitBundleArtwork @"/System/Library/PrivateFrameworks/UIKitCore.framework/Artwork.bundle"
 
@@ -290,17 +291,18 @@ static const CGFloat MTAppIconSide = 24.0;
 }
 
 // Resolves one raw icon config string (a link action's or shortcut's "icon"
-// field) into a UIImage: SF Symbol wins, then the app icon for bundle IDs,
-// then the named fallback symbol.
+// field) into a UIImage: SF Symbol wins (统一设置条目样式：22pt + AlwaysTemplate，
+// 蓝色 tint 由调用方 imageView 决定), then the app icon for bundle IDs (AlwaysOriginal
+// 原色), then the named fallback symbol.
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName{
     if (@available(iOS 13.0, *)) {
         if (icon.length > 0){
-            UIImage *symbol = [UIImage systemImageNamed:icon];
+            UIImage *symbol = [MTSettingsStyle settingsSymbolImageNamed:icon];
             if (symbol) return symbol;
             UIImage *appIcon = [self appIconImageForBundleID:icon];
             if (appIcon) return appIcon;
         }
-        return [UIImage systemImageNamed:defaultName];
+        return [MTSettingsStyle settingsSymbolImageNamed:defaultName];
     }
     return nil;
 }

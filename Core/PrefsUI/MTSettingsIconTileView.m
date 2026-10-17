@@ -7,10 +7,10 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
-        // 系统设置风格：无瓦片底色，symbol 直接渲染， tint 跟随 label 动态色。
+        // 系统设置风格：无瓦片底色，symbol 直接渲染；全库条目统一蓝色 tint。
         _glyph = [[UIImageView alloc] init];
         _glyph.contentMode = UIViewContentModeScaleAspectFit;
-        _glyph.tintColor = UIColor.labelColor;
+        _glyph.tintColor = UIColor.systemBlueColor;
         _glyph.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:_glyph];
         [NSLayoutConstraint activateConstraints:@[

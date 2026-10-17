@@ -424,6 +424,8 @@ static NSBundle *mtpLocalBundle;
         [MTPLinkActionEditorController displayNameForType:MTActionDisplayType(entry)]];
     cell.imageView.image = [MTHelper imageForIconConfig:icon defaultSymbolName:@"link"]
         ?: [UIImage systemImageNamed:@"link"];
+    // 与 MTPCustomActionsController 的显式蓝一致：符号统一蓝、App 图标 AlwaysOriginal 不受影响。
+    cell.imageView.tintColor = [UIColor systemBlueColor];
     BOOL checked = self.allowsMultipleSelection
         ? [self.pickedSelectors containsObject:selector]
         : [self.selectedSelector isEqualToString:selector];
@@ -442,6 +444,7 @@ static NSBundle *mtpLocalBundle;
         cell.textLabel.text = MTPanelString(panel[@"name"]);
         cell.detailTextLabel.text = nil;
         cell.imageView.image = [MTHelper imageForIconConfig:MTPanelDefaultIconName(panel[@"kind"]) defaultSymbolName:@"square.grid.2x2"];
+        cell.imageView.tintColor = [UIColor systemBlueColor];
         BOOL selected = self.allowsMultipleSelection ? [self.pickedSelectors containsObject:selector] : [self.selectedSelector isEqual:selector];
         cell.accessoryType = selected ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
         cell.textLabel.textColor = UIColor.labelColor;
