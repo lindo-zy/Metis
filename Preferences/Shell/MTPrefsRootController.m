@@ -10,7 +10,7 @@
     NSArray *configs = @[
         @[@"capture", @"截图与标注", @"模式、编辑、输出", @"MetisCapturePrefs", @"MTCaptureRootListController"],
         @[@"keyboard", @"键盘与操作", @"工具栏、面板、输入", @"MetisKeyboardPrefs", @"MTPRootListController"],
-        @[@"clipboard", @"剪贴板", @"历史、收藏、悬浮预览", @"MetisClipboardPrefs", @"MTPrefsClipboardRootController"],
+        @[@"clipboard", @"剪贴板", @"历史、收藏、悬浮预览", @"MetisClipboardPrefs", @"MTClipboardRootListController"],
     ];
     NSMutableArray *modules = [NSMutableArray array];
     for (NSArray *config in configs) {
@@ -52,7 +52,7 @@
         PSSpecifier *status = [PSSpecifier preferenceSpecifierNamed:@"状态"
             target:self
             set:@selector(mtNoopSetter:forSpecifier:)
-            get:@selector(mtStatusLineText)
+            get:@selector(mtStatusLineText:)
             detail:nil
             cell:PSTitleValueCell
             edit:nil];
@@ -67,7 +67,7 @@
             PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:info.title
                 target:self
                 set:@selector(mtNoopSetter:forSpecifier:)
-                get:@selector(mtModuleSubtitle:forSpecifier:)
+                get:@selector(mtModuleSubtitle:)
                 detail:moduleClass
                 cell:PSLinkCell
                 edit:nil];
@@ -82,18 +82,20 @@
         PSSpecifier *about = [PSSpecifier preferenceSpecifierNamed:@"关于"
             target:self
             set:@selector(mtNoopSetter:forSpecifier:)
-            get:@selector(aboutSummary)
+            get:@selector(aboutSummary:)
             detail:[MTPrefsAboutController class]
             cell:PSLinkCell
             edit:nil];
         [specs addObject:about];
 
         _specifiers = specs;
+        MTLogInfo(MTLogModulePrefs, @"state=root-specifiers-ready count=%lu", (unsigned long)specs.count);
     }
     return _specifiers;
 }
 
-- (NSString *)mtStatusLineText {
+- (NSString *)mtStatusLineText:(PSSpecifier *)specifier {
+    (void)specifier;
     NSUInteger enabled = [MTModuleGate enabledModuleCount];
     NSString *state = [MTModuleGate globalEnabled]
         ? [NSString stringWithFormat:@"已启用 %lu/3 模块", (unsigned long)enabled]
@@ -101,9 +103,9 @@
     return [state stringByAppendingString:@" · 等待运行状态"];
 }
 
-- (BOOL)globalEnabledForSpecifier:(PSSpecifier *)specifier {
+- (NSNumber *)globalEnabledForSpecifier:(PSSpecifier *)specifier {
     (void)specifier;
-    return [MTModuleGate globalEnabled];
+    return @([MTModuleGate globalEnabled]);
 }
 
 - (void)setGlobalEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier {
@@ -123,7 +125,8 @@
     (void)value; (void)specifier;
 }
 
-- (NSString *)aboutSummary {
+- (NSString *)aboutSummary:(PSSpecifier *)specifier {
+    (void)specifier;
     return [NSString stringWithFormat:@"版本 %@ · 三模块统一管理", MTCoreVersionString];
 }
 

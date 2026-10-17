@@ -2,7 +2,7 @@
 #import <Preferences/Preferences.h>
 
 @interface MTPrefsRootController : PSListController
-- (NSString *)mtStatusLineText;
+- (NSString *)mtStatusLineText:(PSSpecifier *)specifier;
 @end
 
 /// 模块页元信息（标题/副标题/详细设置子包）。详细设置子包缺失时模块页

@@ -4,6 +4,10 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh_CN</string>
+	<key>CFBundleExecutable</key>
+	<string>MetisCapturePrefs</string>
+	<key>NSPrincipalClass</key>
+	<string>MTCaptureRootListController</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.lindo.metis.prefs.capture</string>
 	<key>CFBundleInfoDictionaryVersion</key>

@@ -10,7 +10,7 @@
         PSSpecifier *version = [PSSpecifier preferenceSpecifierNamed:@"版本"
             target:self
             set:@selector(mtNoop:forSpecifier:)
-            get:@selector(mtVersionText)
+            get:@selector(mtVersionText:)
             detail:nil
             cell:PSTitleValueCell
             edit:nil];
@@ -19,7 +19,7 @@
         PSSpecifier *modules = [PSSpecifier preferenceSpecifierNamed:@"内置模块"
             target:self
             set:@selector(mtNoop:forSpecifier:)
-            get:@selector(mtModulesText)
+            get:@selector(mtModulesText:)
             detail:nil
             cell:PSTitleValueCell
             edit:nil];
@@ -31,7 +31,7 @@
         PSSpecifier *license = [PSSpecifier preferenceSpecifierNamed:@"许可来源"
             target:self
             set:@selector(mtNoop:forSpecifier:)
-            get:@selector(mtLicenseText)
+            get:@selector(mtLicenseText:)
             detail:nil
             cell:PSTitleValueCell
             edit:nil];
@@ -42,15 +42,18 @@
     return _specifiers;
 }
 
-- (NSString *)mtVersionText {
+- (NSString *)mtVersionText:(PSSpecifier *)specifier {
+    (void)specifier;
     return MTCoreVersionString;
 }
 
-- (NSString *)mtModulesText {
+- (NSString *)mtModulesText:(PSSpecifier *)specifier {
+    (void)specifier;
     return @"截图与标注\n键盘与操作\n剪贴板";
 }
 
-- (NSString *)mtLicenseText {
+- (NSString *)mtLicenseText:(PSSpecifier *)specifier {
+    (void)specifier;
     return @"完整许可与来源清单见包内 /usr/share/doc/com.lindo.metis/LICENSE-NOTICE。";
 }
 

@@ -37,7 +37,7 @@ static MTPrefsModuleInfo *MTPendingModuleInfo;
         PSSpecifier *status = [PSSpecifier preferenceSpecifierNamed:@"状态"
             target:self
             set:@selector(mtNoopSetter:forSpecifier:)
-            get:@selector(mtStatusLineText)
+            get:@selector(mtStatusLineText:)
             detail:nil
             cell:PSTitleValueCell
             edit:nil];
@@ -50,7 +50,7 @@ static MTPrefsModuleInfo *MTPendingModuleInfo;
         PSSpecifier *detailLink = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"%@ · 详细设置", _info.title]
             target:self
             set:@selector(mtNoopSetter:forSpecifier:)
-            get:@selector(mtDetailSummary)
+            get:@selector(mtDetailSummary:)
             detail:nil
             cell:PSLinkCell
             edit:nil];
@@ -68,14 +68,15 @@ static MTPrefsModuleInfo *MTPendingModuleInfo;
     return _info.title;
 }
 
-- (NSString *)mtStatusLineText {
+- (NSString *)mtStatusLineText:(PSSpecifier *)specifier {
+    (void)specifier;
     if (![MTModuleGate globalEnabled]) return @"Metis 总开关已关闭";
     return [MTModuleGate moduleEnabled:_info.moduleID] ? @"已启用 · 等待运行状态" : @"已关闭";
 }
 
-- (BOOL)moduleEnabledForSpecifier:(PSSpecifier *)specifier {
+- (NSNumber *)moduleEnabledForSpecifier:(PSSpecifier *)specifier {
     (void)specifier;
-    return [MTModuleGate moduleSwitchRaw:_info.moduleID];
+    return @([MTModuleGate moduleSwitchRaw:_info.moduleID]);
 }
 
 - (void)setModuleEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier {
@@ -85,7 +86,8 @@ static MTPrefsModuleInfo *MTPendingModuleInfo;
     [MTModuleGate reload];
 }
 
-- (NSString *)mtDetailSummary {
+- (NSString *)mtDetailSummary:(PSSpecifier *)specifier {
+    (void)specifier;
     if ([_info subBundleAvailable]) return _info.subController;
     return @"此版本尚未提供";
 }
@@ -119,6 +121,12 @@ static MTPrefsModuleInfo *MTPendingModuleInfo;
     }
     if (!controllerClass) {
         MTLogError(MTLogModulePrefs, @"state=detail-load-failed bundle=%@", _info.subBundle);
+        UIAlertController *alert = [UIAlertController
+            alertControllerWithTitle:_info.title
+                             message:@"无法载入详细设置，请重新安装当前版本后重试。"
+                      preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
         return;
     }
     id controller = [[controllerClass alloc] init];
