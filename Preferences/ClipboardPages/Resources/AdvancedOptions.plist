@@ -19,7 +19,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>IgnoreRemoteReplication</string>
 			<key>label</key>
@@ -42,7 +42,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>AlwaysScrollToTop</string>
 			<key>label</key>
@@ -65,7 +65,7 @@
 			<key>default</key>
 			<integer>1</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>ClearButtonMode</string>
 			<key>validValues</key>
@@ -98,7 +98,7 @@
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>AutomaticPasteMode</string>
 			<key>validValues</key>
@@ -131,7 +131,7 @@
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>GestureRecognizerMode</string>
 			<key>label</key>

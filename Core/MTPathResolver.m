@@ -19,3 +19,7 @@ NSString *MTPrivateDataRoot(void) {
 NSString *MTPublicConfigDirectory(void) {
     return MTResolvePath(@"/Library/Metis/Config/");
 }
+
+NSString *MTGateSnapshotPath(void) {
+    return [MTPublicConfigDirectory() stringByAppendingPathComponent:@"gate.plist"];
+}

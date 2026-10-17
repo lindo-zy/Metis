@@ -257,7 +257,11 @@ static void kayokoCorePasteTipPreferencesReloadCallback(CFNotificationCenterRef 
 
 + (void)installForSpringBoard {
     KayokoCoreRuntime *runtime = [KayokoCoreRuntime sharedRuntime];
-    [runtime loadPreferences];
+    // dyld 加载期只做轻量读取（门控 + 决定 hook 形态的两项参数）；
+    // 完整偏好应用（40 项 registerDefaults/外观等）延后到主队列与
+    // SB didFinishLaunching（KayokoSpringBoardHooks 侧）执行，遵守
+    // 「constructor 只做门控」的包内约定（03-architecture §3）。
+    [runtime loadHookShapePreferences];
     // Registered regardless of the enabled state: the preferences shortcut
     // picker needs the catalogue even while the tweak is switched off.
     [KayokoShortcutSnapshotProvider installObserver];
@@ -303,6 +307,10 @@ static void kayokoCorePasteTipPreferencesReloadCallback(CFNotificationCenterRef 
                           callback:kayokoCorePasteFeedbackCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kKayokoNotificationKeyPasteWillStart
                           callback:kayokoCorePasteWillStartCallback];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[KayokoCoreRuntime sharedRuntime] loadPreferences];
+    });
 }
 
 + (void)installForDruidOrPasted {

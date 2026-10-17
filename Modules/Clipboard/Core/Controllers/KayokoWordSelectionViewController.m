@@ -213,9 +213,12 @@ NS_ASSUME_NONNULL_END
                                                  allowsAutomaticPaste:YES];
     } else {
         KayokoPasteboardManager *pasteboardManager = [KayokoPasteboardManager sharedInstance];
-        if ([pasteboardManager copyPasteboardItemToPasteboard:selectedItem]) {
+        [pasteboardManager copyPasteboardItemToPasteboard:selectedItem completion:^(BOOL didUpdate) {
+            if (!didUpdate) {
+                return;
+            }
             [pasteboardManager addPasteboardItem:selectedItem toHistoryWithKey:kKayokoHistoryKeyHistory];
-        }
+        }];
     }
 
     [[self delegate] wordSelectionViewController:self didRequestHideContainerAfterDirectPaste:automaticallyPaste];

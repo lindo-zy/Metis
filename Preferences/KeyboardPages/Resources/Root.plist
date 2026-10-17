@@ -68,7 +68,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.typex</string>
+			<string>com.lindo.metis.keyboard</string>
 			<key>key</key>
 			<string>hapticBOOL</string>
 			<key>label</key>
@@ -132,7 +132,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.typex</string>
+			<string>com.lindo.metis.keyboard</string>
 			<key>id</key>
 			<string>smsCodeCopy</string>
 			<key>key</key>
@@ -156,7 +156,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.typex</string>
+			<string>com.lindo.metis.keyboard</string>
 			<key>id</key>
 			<string>browserRedirect</string>
 			<key>key</key>
@@ -178,7 +178,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.typex</string>
+			<string>com.lindo.metis.keyboard</string>
 			<key>key</key>
 			<string>pasteimagechipBOOL</string>
 			<key>label</key>
@@ -194,7 +194,7 @@
 			<key>defaultApplicationSwitchValue</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.typex</string>
+			<string>com.lindo.metis.keyboard</string>
 			<key>detail</key>
 			<string>ATLApplicationListMultiSelectionController</string>
 			<key>get</key>

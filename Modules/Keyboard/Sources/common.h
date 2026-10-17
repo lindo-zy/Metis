@@ -19,11 +19,14 @@
 //#define typexBundlePath @"/Library/Application Support/MetisKeyboard.bundle"
 #define LOCALIZED(str) [tweakBundle localizedStringForKey:str value:@"" table:nil]
 
-#define kIdentifier @"com.lindo.typex"
+// 细节配置域：Metis 自有域（com.lindo.metis.keyboard），不读取、不迁移旧
+// TypeX 插件域（com.lindo.typex）的任何旧值；模块启停权威在
+// com.lindo.metis（MTModuleGate），运行端 enabledBOOL 一律被门控值覆盖。
+#define kIdentifier @"com.lindo.metis.keyboard"
 #define kIPCCenterPrefsManager @"com.lindo.typex.prefsmanager"
 #define kIPCCenterKeyboard @"com.lindo.typex"
 #define kPrefsChangedIdentifier @"com.lindo.typex/prefschanged"
-#define kPrefsPath @"/var/mobile/Library/Preferences/com.lindo.typex.plist"
+#define kPrefsPath @"/var/mobile/Library/Preferences/com.lindo.metis.keyboard.plist"
 
 #define kEnabledkey @"enabledBOOL"
 #define kEnabledHaptickey @"hapticBOOL"
@@ -182,15 +185,19 @@
 // stages the directory world-writable (no sticky bit: mobile writers must be
 // able to atomically replace the root-owned seed file) so mobile processes
 // (Settings, SpringBoard) can refresh the snapshot without a helper daemon.
-#define TypeXCachePath DX_ROOT_PATH_NS(@"/Library/MetisKeyboard")
-#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@"/Library/MetisKeyboard/shared.plist")
+// Metis 布局：共享目录统一收口 /Library/Metis/Config/ 下（不使用旧插件包
+// 目录，避免读到旧插件残留的快照/缓存旧值；gate.plist 门控镜像同目录）。
+#define TypeXCachePath DX_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-cache")
+#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-shared.plist")
 
 // Settings and SpringBoard exchange quick-action data through an isolated
 // CFPreferences domain. On RootHide iOS 16, SpringBoard can read shared files
-// but its sandbox rejects direct writes under /Library/MetisKeyboard; cfprefsd provides
+// but its sandbox rejects direct writes under /Library/Metis; cfprefsd provides
 // the supported cross-process persistence path. Requests carry
 // {format: 3, requestID, bundles}; responses replace one complete generation.
-#define TypeXQuickActionDomain @"com.lindo.typex.quickactions"
+// 域名为 Metis 自有（com.lindo.metis.quickactions），与旧插件的
+// quickactions 域互不相通。
+#define TypeXQuickActionDomain @"com.lindo.metis.quickactions"
 #define MTQuickActionRequestKey @"request-v3"
 #define TypeXQuickActionStatusKey @"status-v3"
 #define TypeXQuickActionSnapshotKey @"snapshot-v3"

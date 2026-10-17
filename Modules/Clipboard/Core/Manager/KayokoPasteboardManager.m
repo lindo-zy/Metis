@@ -971,16 +971,24 @@ forPasteboardItem:(KayokoPasteboardItem *)item
                   automaticPasteMode:automaticPasteMode];
 }
 
-- (BOOL)copyPasteboardItemToPasteboard:(KayokoPasteboardItem *)item {
-    if (@available(iOS 16, *)) {
-        __block BOOL didUpdatePasteboard = NO;
-        dispatch_sync(_pasteboardQueue, ^{
-          didUpdatePasteboard = [self _reallyCopyPasteboardItemToPasteboard:item];
+- (void)copyPasteboardItemToPasteboard:(KayokoPasteboardItem *)item
+                             completion:(nullable void (^)(BOOL))completion {
+    void (^finish)(BOOL) = ^(BOOL didUpdatePasteboard) {
+        if (!completion) return;
+        dispatch_async(dispatch_get_main_queue(), ^{
+          completion(didUpdatePasteboard);
         });
-        return didUpdatePasteboard;
+    };
+    if (@available(iOS 16, *)) {
+        // 不做 dispatch_sync：主线程（面板/预览动作都在主线程）同步等待
+        // 剪贴板串行队列的 pasted IPC，pasted 忙/卡时无超时挂死主线程。
+        dispatch_async(_pasteboardQueue, ^{
+          finish([self _reallyCopyPasteboardItemToPasteboard:item]);
+        });
+        return;
     }
 
-    return [self _reallyCopyPasteboardItemToPasteboard:item];
+    finish([self _reallyCopyPasteboardItemToPasteboard:item]);
 }
 
 - (BOOL)_reallyCopyPasteboardItemToPasteboard:(KayokoPasteboardItem *)item {

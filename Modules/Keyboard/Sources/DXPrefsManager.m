@@ -123,10 +123,9 @@ static NSString *DXSharedPrefsPath(void) {
         return DXPanelMigratePreferences(payload);
     }
 
-    // Migrate snapshots written by MetisKeyboard 2.7.44-2.7.65.  A non-empty legacy
-    // dictionary is complete; an empty legacy file is ambiguous and is healed
-    // by Settings/SpringBoard instead of being treated as a valid default set.
-    return snapshot.count > 0 ? DXPanelMigratePreferences(snapshot) : nil;
+    // 只接受当前信封格式：旧插件（2.7.44-2.7.65）的无信封快照一律视为
+    // 不存在（Metis 不读取其他插件写下的旧值），由 heal 重建。
+    return nil;
 }
 
 // Seed the shared snapshot from the authoritative domain when it is missing or

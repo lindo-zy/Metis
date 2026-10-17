@@ -5,9 +5,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 // MARK: - 包元数据（唯一命名来源，工程内禁止再硬编码）
 
-/// 主 Bundle ID：com.pixpin.screenshot
+/// 主 Bundle ID：com.pixpin.screenshot（外部身份标识，URL scheme / 错误域）
 FOUNDATION_EXPORT NSString * const PXBundleID;
-/// 偏好域：com.pixpin.screenshot
+/// 偏好域：com.lindo.metis.capture（Metis 自有细节域；启停权威在 MTModuleGate）
 FOUNDATION_EXPORT NSString * const PXPreferencesDomain;
 
 // MARK: - Darwin 跨进程通知名（只发请求信号，不携带图片对象）

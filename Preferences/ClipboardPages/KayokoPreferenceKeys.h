@@ -56,7 +56,10 @@ typedef NS_ENUM(NSUInteger, KayokoOverlayWindowLevelMode) {
     kKayokoOverlayWindowLevelModeMaximum = 1
 };
 
-static NSString *const kKayokoPreferencesIdentifier = @"com.lindo.kayoko.preferences";
+// Clipboard（Kayoko）细节配置域：Metis 自有域，不读取、不迁移 KayokoX
+// 旧插件域（com.lindo.kayoko.preferences）的任何旧值；模块启停权威在
+// com.lindo.metis（MTModuleGate），本域只承载细节参数。
+static NSString *const kKayokoPreferencesIdentifier = @"com.lindo.metis.clipboard";
 
 static NSString *const kKayokoPreferenceKeyEnabled = @"Enabled";
 static NSString *const kKayokoPreferenceKeyMaximumHistoryAmount = @"MaximumHistoryAmount";

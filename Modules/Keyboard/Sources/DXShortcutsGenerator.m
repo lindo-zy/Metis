@@ -2,8 +2,6 @@
 #import "DXShortcutsGenerator.h"
 #import "DXCaptureIntegration.h"
 
-static const NSBundle *dxShortcutLocalBundle;
-
 @implementation DXShortcutsGenerator
 
 +(BOOL)isAvailableShortcutSelector:(NSString *)selector {
@@ -60,29 +58,9 @@ static const NSBundle *dxShortcutLocalBundle;
     return dylibPath.length > 0 && [[NSFileManager defaultManager] fileExistsAtPath:dylibPath];
 }
 
-+(void)load{
-    @autoreleasepool {
-        NSArray *args = [[NSClassFromString(@"NSProcessInfo") processInfo] arguments];
-        
-        if (args.count != 0) {
-            NSString *executablePath = args[0];
-            
-            if (executablePath) {
-                NSString *processName = [executablePath lastPathComponent];
-                
-                BOOL isSpringBoard = [processName isEqualToString:@"SpringBoard"];
-                BOOL isApplication = [executablePath rangeOfString:@"/Application"].location != NSNotFound;
-                
-                if (isSpringBoard || isApplication) {
-                    dxShortcutLocalBundle = [NSBundle bundleWithPath:bundlePath];
-                    [dxShortcutLocalBundle load];
-                    [DXShortcutsGenerator sharedInstance];
-                    
-                }
-            }
-        }
-    }
-}
+// 无 +load：本类随 MetisCore 进入每一个 UIKit 进程，加载期不做任何事。
+// 本地化/资源按需经 bundlePath 访问（NSBundle 资源读取不需要 load），
+// sharedInstance 首次使用时自然初始化。
 
 +(instancetype)sharedInstance{
     static dispatch_once_t predicate;

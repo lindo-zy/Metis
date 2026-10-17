@@ -32,15 +32,22 @@ static id MTReadPreferenceValue(NSString *key) {
         id result = (__bridge_transfer id)value;
         return result;
     }
-    // 沙盒进程 CFPreferences 取不到时的兜底：直接读偏好文件。
-    // 读不到就维持默认值（模块默认关，安全方向）。
+    // 兜底链（都读不到就维持默认值，模块默认关，安全方向）：
+    //   1. 偏好文件直读：cfprefsd 未就绪 / 首解锁前保护期的冷启动路径；
+    //   2. 门控快照 /Library/Metis/Config/gate.plist：沙盒宿主（app/键盘
+    //      扩展）既走不了 CFPreferences 权威域、也读不到 /var/mobile 文件，
+    //      由设置端 flush 写入的世界可读快照是它们唯一的门控来源。
     static NSString *plistPath = nil;
+    static NSString *gateSnapshotPath = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         plistPath = [MTResolvePath(@"/var/mobile/Library/Preferences/com.lindo.metis.plist") copy];
+        gateSnapshotPath = [MTGateSnapshotPath() copy];
     });
     NSDictionary *root = [NSDictionary dictionaryWithContentsOfFile:plistPath];
-    return root[key];
+    if (root[key]) return root[key];
+    NSDictionary *gate = [NSDictionary dictionaryWithContentsOfFile:gateSnapshotPath];
+    return gate[key];
 }
 
 static NSDictionary<NSString *, NSNumber *> *MTBuildSnapshot(void) {

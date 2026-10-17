@@ -148,8 +148,8 @@ static void DXSBDelayedAIPrefsHeal(void) {
 
         dispatch_async(dispatch_get_main_queue(), ^{
             @autoreleasepool {
-                NSBundle *bundle = [NSBundle bundleWithPath:bundlePath];
-                [bundle load];
+                // 不 load MetisKeyboardPrefs.bundle：其链接 SwiftUI/JSContext
+                // 等重框架，SB 无需其代码；资源访问用 NSBundle 按需读取即可。
 
                 CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, dxsbShortcutRefreshRequestCallback, (CFStringRef)kShortcutRefreshRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
                 CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, dxsbAIChatRequestCallback, (CFStringRef)kAIChatRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);

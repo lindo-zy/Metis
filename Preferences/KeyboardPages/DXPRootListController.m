@@ -238,8 +238,8 @@ static NSBundle *dxpLocalBundle;
 
 #pragma mark - 配置备份与恢复
 
-// 备份信封：preferences 才是配置本体，其余是元信息。无信封的裸字典也接受，
-// 兼容直接从 /var/mobile/Library/Preferences/com.lindo.typex.plist 拷出的旧备份。
+// 备份信封：preferences 才是配置本体，其余是元信息。恢复只接受本包导出的
+// 信封格式，不兼容旧 TypeX 插件域拷出的裸 plist（不读取其他插件的旧值）。
 static NSString *const DXPBackupFormatKey = @"_typexBackupFormat";
 static NSString *const DXPBackupDateKey = @"_typexBackupDate";
 static NSString *const DXPBackupPayloadKey = @"preferences";
@@ -327,9 +327,10 @@ static const NSInteger DXPBackupFormatVersion = 1;
         if ([format isKindOfClass:[NSNumber class]] && format.integerValue == DXPBackupFormatVersion &&
             [payload isKindOfClass:[NSDictionary class]]) {
             restored = payload;
-        } else if (file.count > 0) {
-            restored = file;
         }
+        // 只接受本包导出的信封格式：不再兼容裸字典（旧 TypeX 插件直接从
+        // /var/mobile/Library/Preferences 拷出的 plist），避免导入其他插件
+        // 的配置旧值。
     }
     if (restored.count == 0) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:LOCALIZED(@"RESTORE_FAILED_TITLE")
