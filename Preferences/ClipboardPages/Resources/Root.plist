@@ -199,7 +199,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Choose which list Kayoko opens when it is shown. “Previous” keeps the list you last used.</string>
+			<string>Choose which list Metis opens when it is shown. “Previous” keeps the list you last used.</string>
 			<key>label</key>
 			<string>Default View</string>
 		</dict>
@@ -325,7 +325,7 @@
 		</dict>
 		<dict>
 			<key>action</key>
-			<string>showKayoko</string>
+			<string>showMt</string>
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
@@ -597,22 +597,6 @@
 			<string>DidOpenHavocLink</string>
 			<key>label</key>
 			<string></string>
-		</dict>
-		<dict>
-			<key>cellClass</key>
-			<string>MTLinkCell</string>
-			<key>height</key>
-			<integer>54</integer>
-			<key>label</key>
-			<string>OwnGoal Studio Kayoko</string>
-			<key>markOpenedDefaults</key>
-			<string>com.lindo.metis.clipboard</string>
-			<key>markOpenedKey</key>
-			<string>DidOpenHavocLink</string>
-			<key>subtitle</key>
-			<string>Purchase Kayoko on Havoc Marketplace to support ongoing OwnGoal Studio maintenance.</string>
-			<key>url</key>
-			<string>https://havoc.app/package/kayoko</string>
 		</dict>
 		<dict>
 			<key>cell</key>

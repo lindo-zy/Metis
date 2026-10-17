@@ -1,6 +1,6 @@
 "%@ and %@" = "%@和%@";
 "%@ and %d others" = "%@和其他 %d 个";
-"%@ data was imported successfully. Restart SpringBoard now to finish the import and continue using Kayoko." = "%@ 数据已成功导入。你需要立即重启 SpringBoard，才能完成导入并继续使用 Kayoko。";
+"%@ data was imported successfully. Restart SpringBoard now to finish the import and continue using Metis." = "%@ 数据已成功导入。你需要立即重启 SpringBoard，才能完成导入并继续使用 Metis。";
 "ACTIVATION_METHODS" = "激活方法";
 "Acknowledgments & Licenses" = "致谢与许可";
 "Activation Method" = "激活方法";
@@ -20,7 +20,7 @@
 "Cancel" = "取消";
 "Choose how much text each clipboard item shows in the list. More lines make items easier to identify, but show fewer items at once." = "选择列表中每个剪贴板条目显示多少文字。行数越多越容易辨认内容，但同屏可见的条目会更少。";
 "Choose when a tapped item moves to the top. “History Only” keeps Favorites in your chosen order while still surfacing recently used history items." = "选择点选条目后何时将它移到顶部。“仅历史记录” 会保留收藏夹的现有顺序，同时让最近使用的历史记录浮到前面。";
-"Choose which list Kayoko opens when it is shown. “Previous” keeps the list you last used." = "选择唤醒 Kayoko 时打开哪个列表。“先前的选择” 会保留上次使用的列表。";
+"Choose which list Metis opens when it is shown. “Previous” keeps the list you last used." = "选择唤醒 Metis 时打开哪个列表。“先前的选择” 会保留上次使用的列表。";
 "Credits" = "致谢";
 "Default View" = "默认界面";
 "Dictation Key" = "听写键";
@@ -40,7 +40,7 @@
 "Item Details" = "条目详情";
 "Item details show when an item was last captured, along with its text length or image dimensions and file size." = "显示最近捕获时间，并附带文本字数，或图片尺寸和文件大小。";
 "MetisClipboard" = "MetisClipboard";
-"Kayoko entered maintenance mode before the import failed. Restart SpringBoard now to continue using Kayoko." = "导入失败前 Kayoko 已进入维护模式。你需要立即重启 SpringBoard，才能继续使用 Kayoko。";
+"Metis entered maintenance mode before the import failed. Restart SpringBoard now to continue using Metis." = "导入失败前 Metis 已进入维护模式。你需要立即重启 SpringBoard，才能继续使用 Metis。";
 "Made by OwnGoal Studio" = "「乌龙工作室」倾情献制";
 "Maximum Amount" = "最大数量";
 "mlgm" = "mlgm";
@@ -50,13 +50,12 @@
 "Off" = "关闭";
 "One-Finger Swipe Up" = "单指上划";
 "Open mlgm's GitHub profile." = "关注mglm66";
-"OwnGoal Studio Kayoko" = "乌龙工作室版Kayoko";
 "Play Haptic Feedback" = "播放触觉反馈";
 "Play Sound Effects" = "播放声音效果";
 "Please check the following: open Sileo → tap the avatar in the top-right corner → make sure the Havoc payment provider is signed in" = "请按如下步骤检查：打开 Sileo → 点选右上角头像 → 检查付款服务提供商 Havoc 是否处于已登录状态";
-"Please check the following: open Sileo → tap the avatar in the top-right corner → tap Havoc → make sure Kayoko is in your purchases" = "请按如下步骤检查：打开 Sileo → 点选右上角头像 → 点选 Havoc → 检查已购列表中是否有 Kayoko";
+"Please check the following: open Sileo → tap the avatar in the top-right corner → tap Havoc → make sure Metis is in your purchases" = "请按如下步骤检查：打开 Sileo → 点选右上角头像 → 点选 Havoc → 检查已购列表中是否有 Metis";
 "Please check the following: open Zebra → select the Sources tab → tap Havoc → make sure it is signed in" = "请按如下步骤检查：打开 Zebra → 选择 “软件源” 标签页 → 点选 “Havoc” → 检查是否处于已登录状态";
-"Please check the following: open Zebra → select the Sources tab → tap Havoc → tap My Account in the top-right corner → make sure Kayoko is in your purchases" = "请按如下步骤检查：打开 Zebra → 选择 “软件源” 标签页 → 点选 “Havoc” → 点选界面右上角 “我的帐户” → 检查已购列表中是否有 Kayoko";
+"Please check the following: open Zebra → select the Sources tab → tap Havoc → tap My Account in the top-right corner → make sure Metis is in your purchases" = "请按如下步骤检查：打开 Zebra → 选择 “软件源” 标签页 → 点选 “Havoc” → 点选界面右上角 “我的帐户” → 检查已购列表中是否有 Metis";
 "Prediction Bar" = "预测栏";
 "Preview" = "预览";
 "Preview Lines" = "预览行数";
@@ -74,7 +73,6 @@
 "Color" = "颜色";
 "Preview" = "预览";
 "The floating preview is always semi-transparent and stays fully visible at the screen edge." = "悬浮球始终保持半透明，并完整显示在屏幕边缘内。";
-"Purchase Kayoko on Havoc Marketplace to support ongoing OwnGoal Studio maintenance." = "在浩劫商店购买 Kayoko，支持乌龙工作室版后续的维护";
 "Respring" = "注销";
 "Respring Now" = "立即重启";
 "Respringing will restart SpringBoard and close all apps. Unsaved work may be lost." = "这会重新启动 SpringBoard，并关闭所有 App。未保存的内容可能会丢失。";
@@ -86,10 +84,10 @@
 "Show MetisClipboard" = "显示 MetisClipboard";
 "Single Line" = "单行";
 "Swipe to Select Words" = "滑动选词";
-"The data was imported successfully. Restart SpringBoard now to finish the import and continue using Kayoko." = "数据已成功导入。你需要立即重启 SpringBoard，才能完成导入并继续使用 Kayoko。";
+"The data was imported successfully. Restart SpringBoard now to finish the import and continue using Metis." = "数据已成功导入。你需要立即重启 SpringBoard，才能完成导入并继续使用 Metis。";
 "The network request failed." = "网络请求失败。";
 "The “Prediction Bar” method displays custom suggestions on the “More Keyboard Keyplane” (123)." = "“预测栏” 方法在 “更多键盘 (123)” 上显示自定义建议。";
-"This build was modified by lindo based on the OwnGoal Studio edition." = "当前版本由 lindo 基于 Kayoko (乌龙版本) + mlgm版本 进行修改";
+"This build was modified by lindo based on the OwnGoal Studio edition." = "当前版本由 lindo 基于 Metis (乌龙版本) + mlgm版本 进行修改";
 "This option requires restarting SpringBoard to apply. Do you want to restart now?" = "此选项需要重新启动 SpringBoard 才能生效。你现在要重新启动吗？";
 "Tools" = "工具";
 "Touch Outside to Dismiss" = "触摸外部收起";

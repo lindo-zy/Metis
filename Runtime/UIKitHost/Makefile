@@ -2,7 +2,7 @@ TWEAK_NAME = MetisUIKit
 
 # UIKit 宿主（filter 见 MetisUIKit.plist：com.apple.UIKit，含 SpringBoard；
 # constructor 内对 SpringBoard 立即 return，保证按进程最小注入）。
-# 承载 MetisKeyboard 键盘 hook 与 Kayoko Helper 的统一 hook（03-architecture §1）。
+# 承载 键盘 hook 与剪贴板 Helper 的统一 hook（03-architecture §1）。
 MetisUIKit_FILES = MTUIKitEntry.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTKeyboardHooks.xm \
 	../../Modules/Keyboard/Sources/MTPasteChip.m \
