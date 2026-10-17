@@ -17,9 +17,9 @@ static void MTCaptureModuleAdapterLoad(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         gConfigObserver = [MTModuleGate addObserver:nil block:^{
             [MTCapturePreferences reload];
-            MTLogInfo(MTLogModuleCapture,
-                      @"state=config-applied enabled=%d",
-                      [MTModuleGate moduleEnabled:MTModuleCapture]);
+                MTLogInfo(MTLogModuleCapture,
+                          @"state=config-applied enabled=%d",
+                          [MTModuleGate globalEnabled]);
         }];
     });
 }

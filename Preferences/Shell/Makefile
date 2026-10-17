@@ -1,13 +1,18 @@
 BUNDLE_NAME = MetisPrefs
 
-# 统一设置壳：系统设置里唯一的 Metis 入口（03-architecture §1）。
-# 只链接 MetisCore 与 Preferences 私有框架；不加载完整业务目标。
+# 统一设置壳：系统设置里唯一的 Metis 入口（docs/development/02/03）。
+# 首页五分类（全局/键盘/剪切板/截图/其他）直达实际配置；全局与其他分类页
+# 在壳内实现，键盘/剪切板/截图经 MTPrefsSubbundleLoader 复用子包控制器。
 MetisPrefs_FILES = MTPrefsRootController.m \
-	MTPrefsModuleController.m \
+	MTPrefsSubbundleLoader.m \
+	MTPrefsGlobalController.m \
+	MTPrefsBindingsController.m \
+	MTPrefsReferencesController.m \
+	MTPrefsOtherController.m \
 	MTPrefsAboutController.m
 
 MetisPrefs_CFLAGS = -fobjc-arc
-MetisPrefs_CFLAGS += -I../../Core
+MetisPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources
 MetisPrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisPrefs_INSTALL_PATH = /Library/PreferenceBundles
 MetisPrefs_FRAMEWORKS = UIKit CoreGraphics

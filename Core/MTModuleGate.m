@@ -15,12 +15,6 @@ NSString *const MTModuleCapture = @"capture";
 NSString *const MTModuleKeyboard = @"keyboard";
 NSString *const MTModuleClipboard = @"clipboard";
 
-NSArray<NSString *> *MTAllModuleIDs = nil;
-
-static NSString *MTModuleKey(NSString *moduleID) {
-    return [NSString stringWithFormat:@"%@Enabled", moduleID];
-}
-
 // 不可变快照 + 锁内替换；读取方只拿稳定引用，不会读到半份数据。
 static pthread_mutex_t gSnapshotLock = PTHREAD_MUTEX_INITIALIZER;
 static NSDictionary<NSString *, NSNumber *> *gSnapshot;
@@ -32,7 +26,7 @@ static id MTReadPreferenceValue(NSString *key) {
         id result = (__bridge_transfer id)value;
         return result;
     }
-    // 兜底链（都读不到就维持默认值，模块默认关，安全方向）：
+    // 兜底链（都读不到就维持缺省 YES：核心能力首装默认可用，v3 P05）：
     //   1. 偏好文件直读：cfprefsd 未就绪 / 首解锁前保护期的冷启动路径；
     //   2. 门控快照 /Library/Metis/Config/gate.plist：沙盒宿主（app/键盘
     //      扩展）既走不了 CFPreferences 权威域、也读不到 /var/mobile 文件，
@@ -50,15 +44,12 @@ static id MTReadPreferenceValue(NSString *key) {
     return gate[key];
 }
 
+// 快照只承载唯一整体开关；旧模块键（*Enabled）已退役，不再进入快照，
+// 也不再把缺省值固化成 NO（05-data-migration §1 默认值契约）。
 static NSDictionary<NSString *, NSNumber *> *MTBuildSnapshot(void) {
     NSMutableDictionary *snapshot = [NSMutableDictionary dictionary];
     id global = MTReadPreferenceValue(@"enabled");
-    snapshot[@"enabled"] = @([global boolValue]); // 缺省 YES 在读取侧处理
-    if (global == nil) snapshot[@"enabled"] = @YES;
-    for (NSString *module in MTAllModuleIDs) {
-        id value = MTReadPreferenceValue(MTModuleKey(module));
-        snapshot[MTModuleKey(module)] = @([value boolValue]);
-    }
+    snapshot[@"enabled"] = [global isKindOfClass:NSNumber.class] ? @([global boolValue]) : @YES;
     return snapshot;
 }
 
@@ -121,32 +112,9 @@ static void MTConfigChangedDarwinCallback(CFNotificationCenterRef center,
 
 @implementation MTModuleGate
 
-+ (void)initialize {
-    if (self == [MTModuleGate class]) {
-        MTAllModuleIDs = @[MTModuleCapture, MTModuleKeyboard, MTModuleClipboard];
-    }
-}
-
 + (BOOL)globalEnabled {
     NSNumber *value = MTCurrentSnapshot()[@"enabled"];
     return value ? value.boolValue : YES;
-}
-
-+ (BOOL)moduleEnabled:(NSString *)moduleID {
-    return [self globalEnabled] && [self moduleSwitchRaw:moduleID];
-}
-
-+ (BOOL)moduleSwitchRaw:(NSString *)moduleID {
-    NSNumber *value = MTCurrentSnapshot()[MTModuleKey(moduleID)];
-    return value ? value.boolValue : NO;
-}
-
-+ (NSUInteger)enabledModuleCount {
-    NSUInteger count = 0;
-    for (NSString *module in MTAllModuleIDs) {
-        if ([self moduleEnabled:module]) count++;
-    }
-    return count;
 }
 
 + (void)reload {

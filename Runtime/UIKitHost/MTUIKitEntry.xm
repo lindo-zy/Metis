@@ -26,7 +26,7 @@ static void MTUIKitPostPrefsChanged(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             MTUIKitPostPrefsChanged();
             MTLogInfo(MTLogModuleKeyboard, @"state=gate-applied enabled=%d",
-                      [MTModuleGate moduleEnabled:MTModuleKeyboard]);
+                      [MTModuleGate globalEnabled]);
         });
     }];
     setenv("METIS_UIKIT_LOADED", "1", 1);

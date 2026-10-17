@@ -77,96 +77,6 @@
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTPCustomActionsController</string>
-			<key>id</key>
-			<string>customActions</string>
-			<key>label</key>
-			<string>自定义动作</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTPFloatingAppController</string>
-			<key>id</key>
-			<string>floatingAppSettings</string>
-			<key>label</key>
-			<string>FLOATING_APP_SETTINGS</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTPAIChatController</string>
-			<key>id</key>
-			<string>aiChat</string>
-			<key>label</key>
-			<string>AI问答</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>SMS_CODE_FOOTER</string>
-			<key>label</key>
-			<string>SMS_CODE_SECTION</string>
-		</dict>
-		<dict>
-			<key>PostNotification</key>
-			<string>com.lindo.metis.keyboard/prefschanged</string>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.lindo.metis.keyboard</string>
-			<key>id</key>
-			<string>smsCodeCopy</string>
-			<key>key</key>
-			<string>smscodecopyBOOL</string>
-			<key>label</key>
-			<string>SMS_CODE_COPY</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>BROWSER_REDIRECT_FOOTER</string>
-			<key>label</key>
-			<string>BROWSER_REDIRECT_SECTION</string>
-		</dict>
-		<dict>
-			<key>PostNotification</key>
-			<string>com.lindo.metis.keyboard/prefschanged</string>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.lindo.metis.keyboard</string>
-			<key>id</key>
-			<string>browserRedirect</string>
-			<key>key</key>
-			<string>browserredirectBOOL</string>
-			<key>label</key>
-			<string>BROWSER_REDIRECT</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
 			<key>footerText</key>
 			<string>PASTE_CHIP_FOOTER</string>
 		</dict>
@@ -252,10 +162,6 @@
 			<string>PSButtonCell</string>
 			<key>label</key>
 			<string>RESTORE_CONFIG</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
 		</dict>
 		<dict>
 			<key>cell</key>

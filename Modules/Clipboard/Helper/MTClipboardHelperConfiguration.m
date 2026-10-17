@@ -26,13 +26,13 @@ NS_ASSUME_NONNULL_END
 @implementation MTClipboardHelperConfiguration
 
 + (instancetype)currentConfiguration {
-    // 模块启停唯一权威是 com.lindo.metis 门控（MTModuleGate）：门控关闭时
+    // 唯一整体开关权威是 com.lindo.metis 门控（MTModuleGate）：总开关关闭时
     // Helper 在任何宿主（app/键盘扩展/SpringBoard）一律不装 hook。沙盒宿主
-    // 读不到偏好文件时由 MTConfigService 的 gate.plist 快照兜底。
+    // 读不到偏好文件时由 MTConfigService 的 gate.plist 快照兜底（缺省 YES）。
     // 细节参数读 Metis 自有细节域（com.lindo.metis.clipboard）；沙盒宿主读
     // 不到时维持默认值——与旧版 MTX 行为一致，且绝不读旧插件域。
     [MTModuleGate reload];
-    if (![MTModuleGate moduleEnabled:MTModuleClipboard]) {
+    if (![MTModuleGate globalEnabled]) {
         MTClipboardHelperConfiguration *configuration = [[self alloc] init];
         configuration.enabled = NO;
         return configuration;

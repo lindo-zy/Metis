@@ -14,9 +14,9 @@ static void MTPostConfigChanged(void) {
 }
 
 // 沙盒宿主（app/键盘扩展）读不到权威域也读不到 /var/mobile 偏好文件；
-// flush 时把四个门控键镜像成世界可读快照，作为它们唯一的门控来源。
+// flush 时把唯一整体开关镜像成世界可读快照，作为它们唯一的门控来源。
 // 写失败不阻断 flush：Darwin 广播照发，非沙盒宿主不受影响，沙盒宿主
-// 维持上一次成功快照（首装无快照 = 默认关，安全方向）。
+// 维持上一次成功快照（首装无快照时读取侧按缺省 YES 处理，v3 P05）。
 static void MTWriteGateSnapshot(void) {
     NSString *directory = MTPublicConfigDirectory();
     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -31,14 +31,12 @@ static void MTWriteGateSnapshot(void) {
         }
     }
 
-    NSMutableDictionary<NSString *, NSNumber *> *snapshot = [NSMutableDictionary dictionary];
-    for (NSString *key in [@[@"enabled"] arrayByAddingObjectsFromArray:MTAllModuleIDs]) {
-        NSString *valueKey = [key isEqualToString:@"enabled"] ? key : [NSString stringWithFormat:@"%@Enabled", key];
-        CFPropertyListRef raw = CFPreferencesCopyAppValue(
-            (__bridge CFStringRef)valueKey, (__bridge CFStringRef)MTConfigDomain);
-        id value = raw ? (__bridge_transfer id)raw : nil;
-        snapshot[valueKey] = @([value respondsToSelector:@selector(boolValue)] && [value boolValue]);
-    }
+    CFPropertyListRef raw = CFPreferencesCopyAppValue(
+        (__bridge CFStringRef)@"enabled", (__bridge CFStringRef)MTConfigDomain);
+    id value = raw ? (__bridge_transfer id)raw : nil;
+    NSDictionary<NSString *, NSNumber *> *snapshot = @{
+        @"enabled" : @([value isKindOfClass:NSNumber.class] && [value boolValue])
+    };
 
     NSString *path = MTGateSnapshotPath();
     if (![snapshot writeToFile:path atomically:YES]) {
@@ -64,20 +62,8 @@ static void MTWriteGateSnapshot(void) {
     MTLogInfo(MTLogModulePrefs, @"state=global-set enabled=%d", enabled);
 }
 
-+ (void)setModule:(NSString *)moduleID enabled:(BOOL)enabled {
-    NSString *key = [NSString stringWithFormat:@"%@Enabled", moduleID];
-    CFPreferencesSetValue(
-        (__bridge CFStringRef)key,
-        (enabled ? kCFBooleanTrue : kCFBooleanFalse),
-        (__bridge CFStringRef)MTConfigDomain,
-        kCFPreferencesCurrentUser,
-        kCFPreferencesAnyHost);
-    MTLogInfo(MTLogModulePrefs, @"state=module-set module=%@ enabled=%d", moduleID, enabled);
-}
-
 + (void)flush {
-    // 触发 MTModuleGate +initialize（填充 MTAllModuleIDs）并刷新进程内快照，
-    // 随后快照镜像从这里重读权威域，保持单一事实源。
+    // 刷新进程内快照，随后快照镜像从这里重读权威域，保持单一事实源。
     [MTModuleGate reload];
     CFPreferencesSynchronize(
         (__bridge CFStringRef)MTConfigDomain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);

@@ -15,6 +15,15 @@ MetisCore_FILES = MTLog.m \
 	MTModuleGate.m \
 	MTConfigService.m
 
+# 共享资源层（docs/development/03）：动作/面板/绑定唯一权威 store、验证、
+# 迁移与键盘 legacy 桥接。Foundation-only，主机测试可直接编译。
+MetisCore_FILES += SharedResources/MTSharedResourceIDs.m \
+	SharedResources/MTSharedResourceValidator.m \
+	SharedResources/MTSharedResourceStore.m \
+	SharedResources/MTSharedResourceMigration.m \
+	SharedResources/MTSharedResourceLegacyBridge.m
+MetisCore_CFLAGS += -ISharedResources
+
 # Keyboard（MetisKeyboard）共享层：任一被两个以上镜像引用的 DX 类都在这里。
 KEYBOARD = ../Modules/Keyboard/Sources
 MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \

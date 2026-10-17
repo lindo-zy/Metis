@@ -1,5 +1,7 @@
-// MTModuleGate.h —— 模块启停门控的唯一读取入口（03-architecture §4）。
-// 权威域 com.lindo.metis：全局开关默认开，三个模块默认关（ADR-014）。
+// MTModuleGate —— Metis 整体启停门控的唯一读取入口（docs/development/03 §2）。
+// 权威域 com.lindo.metis：enabled 是唯一整体开关，缺省 YES。
+// 旧 captureEnabled/keyboardEnabled/clipboardEnabled 模块键已退役（v3 P03）：
+// 分类只是设置页面组织，不制造依赖开关；本类不再读取任何退役键。
 // 设置端是唯一写入者（MTConfigService）；运行端只读 + 监听 config-changed。
 #import <Foundation/Foundation.h>
 
@@ -8,26 +10,15 @@ NS_ASSUME_NONNULL_BEGIN
 extern NSString *const MTConfigDomain;
 extern NSString *const MTConfigChangedNotification;
 
+// 历史模块标识：仅供旧日志/迁移审计辨认来源，不参与任何启停判断。
 extern NSString *const MTModuleCapture;
 extern NSString *const MTModuleKeyboard;
 extern NSString *const MTModuleClipboard;
 
-/// 全部模块 ID，稳定顺序：截图 / 键盘 / 剪贴板。
-extern NSArray<NSString *> *MTAllModuleIDs;
-
 @interface MTModuleGate : NSObject
 
-/// 总开关（key: enabled，缺省 YES）。总开关关闭时一切模块业务都被门控。
+/// 唯一整体开关（key: enabled，缺省 YES）。关闭时所有入口按同一快照停止。
 + (BOOL)globalEnabled;
-
-/// 模块开关（key: <module>Enabled，缺省 NO）。结果同时受总开关约束。
-+ (BOOL)moduleEnabled:(NSString *)moduleID;
-
-/// 显式读取模块自身开关（不看总开关）。诊断页使用。
-+ (BOOL)moduleSwitchRaw:(NSString *)moduleID;
-
-/// 已启用模块数量（诊断/首页状态行）。
-+ (NSUInteger)enabledModuleCount;
 
 /// 强制从权威域重读快照（config-changed 后由内部回调触发，也可手动调用）。
 + (void)reload;

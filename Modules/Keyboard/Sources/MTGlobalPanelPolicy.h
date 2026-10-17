@@ -23,16 +23,28 @@ static inline BOOL MTDockPanelSwipeCompletes(double dx, double dy) {
 
 // SpringBoard cannot address another process's editor. Never silently replace
 // its text parameter with an empty string or execute against a stale responder.
+// jsInput=clipboard 的 JavaScript 输入来自系统剪切板，不算「需要输入框」
+//（docs/development/03 §6：明确的 clipboard 输入可从手势运行）。
 static inline BOOL MTGlobalPanelActionNeedsInput(NSDictionary *entry) {
     NSString *type = [entry[@"type"] isKindOfClass:NSString.class] ? entry[@"type"] : @"";
     NSString *link = [entry[@"link"] isKindOfClass:NSString.class] ? entry[@"link"] : @"";
-    return [type isEqual:@"text"] || [type isEqual:@"javascript"] || [link containsString:@"@@@"];
+    if ([type isEqual:@"javascript"]) {
+        id inputMode = entry[@"jsInput"] ?: @"auto";
+        return ![inputMode isEqual:@"clipboard"];
+    }
+    return [type isEqual:@"text"] || [link containsString:@"@@@"];
 }
 
 static inline BOOL MTGlobalCustomActionSupported(id entry) {
     if (![entry isKindOfClass:NSDictionary.class] || MTGlobalPanelActionNeedsInput(entry)) return NO;
     NSString *type = MTGlobalPanelString(entry[@"type"]);
     if ([type isEqual:@"system"]) return MTSystemActionDefinition(entry[@"systemaction"]) != nil;
+    // 无输入框 JS：jsInput=clipboard + jsOutput=copy 走无会话宿主执行。
+    if ([type isEqual:@"javascript"]) {
+        id inputMode = entry[@"jsInput"] ?: @"auto";
+        id outputMode = entry[@"jsOutput"] ?: @"replace";
+        return [inputMode isEqual:@"clipboard"] && [outputMode isEqual:@"copy"];
+    }
     NSString *payload = MTGlobalPanelNormalizedPayload(entry[@"link"]);
     if (!payload.length) return NO;
     if ([type isEqual:@"shortcut"]) return [MTGlobalPanelString(entry[@"shortcuttype"]) length] > 0;
