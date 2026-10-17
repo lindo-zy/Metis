@@ -4,5 +4,9 @@
 // 不提供「启用全局」或任何替代模块的开关。
 #import <Preferences/Preferences.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MTPrefsGlobalController : PSListController
 @end
+
+NS_ASSUME_NONNULL_END

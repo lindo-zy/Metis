@@ -3,5 +3,9 @@
 // 两处编辑的是同一份 binding（store 唯一权威）。
 #import <Preferences/Preferences.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MTPrefsBindingsController : PSListController
 @end
+
+NS_ASSUME_NONNULL_END
