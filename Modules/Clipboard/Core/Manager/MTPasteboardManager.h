@@ -19,7 +19,7 @@ typedef void (^MTPasteboardAppBundleIdentifiersCompletion)(NSArray<NSString *> *
 
 static NSString *const kMTHistoryKeyHistory = @"history";
 static NSString *const kMTHistoryKeyFavorites = @"favorites";
-static NSString *const kMTPasteboardManagerHistoryDidChangeNotification = @"com.lindo.kayoko.history.did-change";
+static NSString *const kMTPasteboardManagerHistoryDidChangeNotification = @"com.lindo.metis.clipboard.history.did-change";
 static NSString *const kMTPasteboardManagerHistoryChangeTypeKey = @"change_type";
 static NSString *const kMTPasteboardManagerHistoryChangeHistoryKeyKey = @"history_key";
 static NSString *const kMTPasteboardManagerHistoryChangeItemKey = @"item";

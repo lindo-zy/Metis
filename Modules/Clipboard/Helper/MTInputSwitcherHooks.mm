@@ -13,7 +13,7 @@
 #import <UIKit/UIKit.h>
 #import <substrate.h>
 
-static NSString *const kMTInputSwitcherItemIdentifier = @"com.lindo.kayoko.globe";
+static NSString *const kMTInputSwitcherItemIdentifier = @"com.lindo.metis.clipboard.globe";
 
 CHDeclareClass(UIInputSwitcherView);
 

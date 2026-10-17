@@ -8,9 +8,9 @@
 
 #import <roothide.h>
 
-NSString *const kMTCustomJumpStoreErrorDomain = @"com.lindo.kayoko.custom-jump-store";
+NSString *const kMTCustomJumpStoreErrorDomain = @"com.lindo.metis.clipboard.custom-jump-store";
 
-static NSString *const kMTCustomJumpStoreDataDirectoryPath = @"/var/mobile/Library/com.lindo.kayoko";
+static NSString *const kMTCustomJumpStoreDataDirectoryPath = @"/var/mobile/Library/com.lindo.metis.clipboard";
 static NSString *const kMTCustomJumpStoreFileName = @"custom-jumps-v1.plist";
 static NSString *const kMTImageActionStoreFileName = @"image-actions-v1.plist";
 

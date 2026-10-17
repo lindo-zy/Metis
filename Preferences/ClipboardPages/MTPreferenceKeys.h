@@ -57,7 +57,7 @@ typedef NS_ENUM(NSUInteger, MTOverlayWindowLevelMode) {
 };
 
 // Clipboard（Mt）细节配置域：Metis 自有域，不读取、不迁移 MTX
-// 旧插件域（com.lindo.kayoko.preferences）的任何旧值；模块启停权威在
+// 旧插件域（com.lindo.metis.clipboard.preferences）的任何旧值；模块启停权威在
 // com.lindo.metis（MTModuleGate），本域只承载细节参数。
 static NSString *const kMTClipboardPreferencesIdentifier = @"com.lindo.metis.clipboard";
 

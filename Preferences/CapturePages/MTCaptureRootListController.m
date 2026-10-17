@@ -1,7 +1,6 @@
 #import "MTCaptureRootListController.h"
 #import "../../Modules/Capture/Sources/Common/MTConstants.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
-#import "../../Modules/Capture/Sources/Common/MTExternalRequest.h"
 
 @interface MTCaptureRootListController ()
 @property (nonatomic, assign) NSInteger copyFeedbackGeneration;
@@ -138,27 +137,22 @@
     return nil;
 }
 
-- (NSString *)mtSchemeURLForPath:(NSString *)path {
-    return [NSString stringWithFormat:@"%@://%@", MTExternalURLScheme, path];
-}
-
-// 与 Sources/Common/MTExternalRequest.m 的路由表保持一致，全部指令逐行列出。
-// activate 与裸 pixpin:// 等价，不单独占行，见分组 footer。
+// 测试入口直发 Darwin 通知（外部 URL scheme 已移除）；名称与 SB 入口注册表一致。
 - (NSArray<NSArray<NSString *> *> *)mtSchemeEntries {
     return @[
-        @[@"启动（区域截图）", @"activate"],
-        @[@"全屏截图", @"capture/full"],
-        @[@"区域截图", @"capture/area"],
-        @[@"全屏标记", @"capture/markup"],
-        @[@"滚动截图", @"capture/long"],
+        @[@"启动（区域截图）", (__bridge NSString *)MTDarwinActivate],
+        @[@"全屏截图", (__bridge NSString *)MTDarwinCaptureFull],
+        @[@"区域截图", (__bridge NSString *)MTDarwinCaptureArea],
+        @[@"全屏标记", (__bridge NSString *)MTDarwinCaptureMarkup],
+        @[@"滚动截图", (__bridge NSString *)MTDarwinCaptureLong],
     ];
 }
 
 - (NSArray<PSSpecifier *> *)mtCaptureURLSchemeSpecifiers {
     NSMutableArray *specifiers = [NSMutableArray array];
     for (NSArray<NSString *> *entry in [self mtSchemeEntries]) {
-        NSString *url = [self mtSchemeURLForPath:entry[1]];
-        NSString *title = [NSString stringWithFormat:@"%@：%@", entry[0], url];
+        NSString *notificationName = entry[1];
+        NSString *title = entry[0];
         PSSpecifier *specifier = [PSSpecifier preferenceSpecifierNamed:title
                                                                 target:self
                                                                    set:NULL
@@ -168,7 +162,7 @@
                                                                    edit:Nil];
         // URL 行由 didSelectRowAtIndexPath 直接分发，避免系统按钮转发丢失动作，
         // 同时不注册第二条 buttonAction 路径，保证一次点击只发送一次请求。
-        [specifier setProperty:url forKey:@"mtCaptureURL"];
+        [specifier setProperty:notificationName forKey:@"mtCaptureNotification"];
         [specifier setProperty:title forKey:@"mtTitle"];
         [specifiers addObject:specifier];
     }
@@ -182,38 +176,32 @@
         return;
     }
     PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
-    if ([[specifier propertyForKey:@"mtCaptureURL"] isKindOfClass:NSString.class]) {
+    if ([[specifier propertyForKey:@"mtCaptureNotification"] isKindOfClass:NSString.class]) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
-        [self mtCopyAndRunURLScheme:specifier];
+        [self mtTriggerCaptureTest:specifier];
         return;
     }
     [super tableView:tableView didSelectRowAtIndexPath:indexPath];
 }
 
-- (void)mtCopyAndRunURLScheme:(PSSpecifier *)specifier {
-    NSString *url = [specifier propertyForKey:@"mtCaptureURL"];
+- (void)mtTriggerCaptureTest:(PSSpecifier *)specifier {
+    NSString *notificationName = [specifier propertyForKey:@"mtCaptureNotification"];
     NSString *title = [specifier propertyForKey:@"mtTitle"];
-    if (url.length == 0 || title.length == 0) {
-        MTCaptureLogWarn(@"prefs url-scheme specifier missing url/title");
+    if (notificationName.length == 0 || title.length == 0) {
+        MTCaptureLogWarn(@"prefs test specifier missing notification/title");
         return;
     }
-    NSString *notification = MTNotificationNameForExternalURL([NSURL URLWithString:url]);
-    if (!notification) {
-        MTCaptureLogWarn(@"prefs external entry rejected: invalid route");
-        return;
-    }
-    UIPasteboard.generalPasteboard.string = url;
-    // 与外部 URL 共用解析表，只发送一次请求；不同时 openURL 或追加超时重试。
+    // 直发一次 Darwin 请求；不 openURL、不复制、不重试。
     CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-                                         (__bridge CFStringRef)notification, NULL, NULL, YES);
-    MTCaptureLogInfo(@"prefs external entry copied and requested: %@", notification);
+                                         (__bridge CFStringRef)notificationName, NULL, NULL, YES);
+    MTCaptureLogInfo(@"prefs test entry requested: %@", notificationName);
     UISelectionFeedbackGenerator *haptic = [[UISelectionFeedbackGenerator alloc] init];
     [haptic selectionChanged];
 
     // 同一行连续点击时，仅最新一轮反馈恢复标题；切走设置页后只恢复模型。
     NSUInteger rowGeneration = [[specifier propertyForKey:@"mtFeedbackGeneration"] unsignedIntegerValue] + 1;
     [specifier setProperty:@(rowGeneration) forKey:@"mtFeedbackGeneration"];
-    specifier.name = @"已复制，已发送请求 ✓";
+    specifier.name = @"已发送请求 ✓";
     [self reloadSpecifier:specifier animated:NO];
     __weak typeof(self) weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
@@ -228,7 +216,7 @@
     NSInteger generation = self.copyFeedbackGeneration;
     PSSpecifier *group = [self mtExternalEntryGroupIn:_specifiers];
     if (!group) return;
-    NSString *feedbackFooter = @"已复制 URL，并发送对应功能请求。";
+    NSString *feedbackFooter = @"已发送测试请求。";
     if (![group propertyForKey:@"mtOriginalFooter"]) {
         [group setProperty:([group propertyForKey:@"footerText"] ?: @"") forKey:@"mtOriginalFooter"];
     }

@@ -25,7 +25,7 @@
 static NSTimeInterval const kMTPasteboardWriteConfirmationTimeout = 0.25;
 static NSTimeInterval const kMTSimulatedAutomaticPasteDelay = 0.2;
 static NSString *const kMTRemoteClipboardPasteboardType = @"com.apple.is-remote-clipboard";
-static NSString *const kMTPasteboardManagerErrorDomain = @"com.lindo.kayoko.pasteboard-manager";
+static NSString *const kMTPasteboardManagerErrorDomain = @"com.lindo.metis.clipboard.pasteboard-manager";
 
 @interface SBApplication : NSObject
 @property(nonatomic, copy, readonly) NSString *bundleIdentifier;
@@ -159,7 +159,7 @@ NS_ASSUME_NONNULL_END
     static NSString *mtHistoryPath = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-      mtHistoryPath = jbroot(@"/var/mobile/Library/com.lindo.kayoko/history.json");
+      mtHistoryPath = jbroot(@"/var/mobile/Library/com.lindo.metis.clipboard/history.json");
     });
     return mtHistoryPath;
 }
@@ -168,7 +168,7 @@ NS_ASSUME_NONNULL_END
     static NSString *mtHistoryImagesPath = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-      mtHistoryImagesPath = jbroot(@"/var/mobile/Library/com.lindo.kayoko/images/");
+      mtHistoryImagesPath = jbroot(@"/var/mobile/Library/com.lindo.metis.clipboard/images/");
     });
     return mtHistoryImagesPath;
 }
@@ -220,7 +220,7 @@ NS_ASSUME_NONNULL_END
     if (self) {
         _fileManager = [NSFileManager defaultManager];
         if (@available(iOS 16, *)) {
-            _pasteboardQueue = dispatch_queue_create("com.lindo.kayoko.queue.pasteboard",
+            _pasteboardQueue = dispatch_queue_create("com.lindo.metis.clipboard.queue.pasteboard",
                                                      DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
         }
         _thumbnailCache = [[MTThumbnailCache alloc] init];

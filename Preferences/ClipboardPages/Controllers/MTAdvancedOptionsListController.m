@@ -14,7 +14,7 @@
 #import <UIKit/UIKit.h>
 #import <roothide.h>
 
-static NSString *const kMTDataDirectoryPath = @"/var/mobile/Library/com.lindo.kayoko";
+static NSString *const kMTDataDirectoryPath = @"/var/mobile/Library/com.lindo.metis.clipboard";
 static NSString *const kMTCopyLogDataDirectoryPath = @"/var/mobile/Library/CopyLog";
 static NSString *const kMTCopyVaultDataDirectoryPath = @"/var/mobile/Documents/CopyVault";
 

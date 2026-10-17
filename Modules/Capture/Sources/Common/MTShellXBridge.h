@@ -39,7 +39,7 @@ typedef NS_ENUM(NSInteger, MTShellXAction) {
 /// URL 类动作对应的 prefs:// 路由（不检查可用性）；通知类动作返回 nil。
 + (nullable NSURL *)urlForAction:(MTShellXAction)action;
 /// 外调一个 SHELLX 动作：通知类 notify_post，URL 类经 SpringBoard 的 UIApplication
-/// openURL 打开（SHELLX 在 URL 分发层拦截；本方 URL hook 对非 pixpin:// 一律放行）。
+/// openURL 打开（SHELLX 在 URL 分发层拦截；外部 URL scheme 入口已移除）。
 /// 未装时只记日志不触发。
 + (void)notifyAction:(MTShellXAction)action;
 

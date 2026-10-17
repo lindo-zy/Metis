@@ -1,21 +1,20 @@
 #import "MTConstants.h"
 
 // MTBundleID 保留 PixPin 身份（外部 URL scheme / 错误域标识）；偏好域是
-// Metis 自有域，不读取、不迁移旧 PixPin 插件域（com.pixpin.screenshot）
+// Metis 自有域，不读取、不迁移旧 PixPin 插件域（com.lindo.metis.capture）
 // 的任何旧值；模块启停权威在 com.lindo.metis（MTModuleGate）。
-NSString * const MTBundleID = @"com.pixpin.screenshot";
+NSString * const MTBundleID = @"com.lindo.metis.capture";
 NSString * const MTCapturePreferencesDomain = @"com.lindo.metis.capture";
 
-NSString * const MTExternalURLScheme = @"pixpin";
-CFStringRef const MTDarwinActivate = CFSTR("com.pixpin.screenshot/activate");
-CFStringRef const MTDarwinCaptureFull = CFSTR("com.pixpin.screenshot/capture/full");
-CFStringRef const MTDarwinCaptureArea = CFSTR("com.pixpin.screenshot/capture/area");
-CFStringRef const MTDarwinCaptureFreeze = CFSTR("com.pixpin.screenshot/capture/freeze");
-CFStringRef const MTDarwinCaptureInstant = CFSTR("com.pixpin.screenshot/capture/instant");
-CFStringRef const MTDarwinCaptureMarkup = CFSTR("com.pixpin.screenshot/capture/markup");
-CFStringRef const MTDarwinCaptureLong = CFSTR("com.pixpin.screenshot/capture/long");
-CFStringRef const MTDarwinCaptureCancel = CFSTR("com.pixpin.screenshot/capture/cancel");
-CFStringRef const MTDarwinPreferencesReload = CFSTR("com.pixpin.screenshot/preferences/reload");
+CFStringRef const MTDarwinActivate = CFSTR("com.lindo.metis.capture/activate");
+CFStringRef const MTDarwinCaptureFull = CFSTR("com.lindo.metis.capture/full");
+CFStringRef const MTDarwinCaptureArea = CFSTR("com.lindo.metis.capture/area");
+CFStringRef const MTDarwinCaptureFreeze = CFSTR("com.lindo.metis.capture/freeze");
+CFStringRef const MTDarwinCaptureInstant = CFSTR("com.lindo.metis.capture/instant");
+CFStringRef const MTDarwinCaptureMarkup = CFSTR("com.lindo.metis.capture/markup");
+CFStringRef const MTDarwinCaptureLong = CFSTR("com.lindo.metis.capture/long");
+CFStringRef const MTDarwinCaptureCancel = CFSTR("com.lindo.metis.capture/cancel");
+CFStringRef const MTDarwinPreferencesReload = CFSTR("com.lindo.metis.capture/preferences/reload");
 
 CFStringRef const MTDarwinSnapperForceOpen = CFSTR("com.jontelang.snapper3.force.open");
 CFStringRef const MTDarwinSnapperForceInstantOpen = CFSTR("com.jontelang.snapper3.forceinstant.open");
@@ -44,7 +43,7 @@ CFStringRef const MTShellXRouteAI2 = CFSTR("prefs://root=shellx_ai2");
 CFStringRef const MTShellXRouteTranslate = CFSTR("prefs://root=shellx_translate");
 CFStringRef const MTShellXRouteScan = CFSTR("prefs://root=shellx_scan");
 
-NSString * const MTNotificationResultUpdated = @"com.pixpin.screenshot/result/updated";
+NSString * const MTNotificationResultUpdated = @"com.lindo.metis.capture/result/updated";
 
 NSString * const MTKeyEnabled = @"Enabled";
 NSString * const MTKeyDefaultResultAction = @"DefaultResultAction";

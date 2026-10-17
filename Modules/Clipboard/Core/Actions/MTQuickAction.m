@@ -11,8 +11,8 @@
 #import <objc/runtime.h>
 #import <roothide.h>
 
-static NSString *const kMTTextActionStorePath = @"/var/mobile/Library/com.lindo.kayoko/custom-jumps-v1.plist";
-static NSString *const kMTImageActionStorePath = @"/var/mobile/Library/com.lindo.kayoko/image-actions-v1.plist";
+static NSString *const kMTTextActionStorePath = @"/var/mobile/Library/com.lindo.metis.clipboard/custom-jumps-v1.plist";
+static NSString *const kMTImageActionStorePath = @"/var/mobile/Library/com.lindo.metis.clipboard/image-actions-v1.plist";
 
 static NSString *const kMTQuickActionDefaultIconName = @"link";
 

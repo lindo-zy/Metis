@@ -4,7 +4,7 @@
 #include <atomic>
 
 // 默认浏览器重定向：把经 SpringBoard 打开 Safari / Firefox / Chrome / Brave
-// 的请求改派给 Reynard。开关默认关闭，写入 com.lindo.typex 的
+// 的请求改派给 Reynard。开关默认关闭，写入 com.lindo.metis.keyboard 的
 // browserredirectBOOL，受总开关 enabledBOOL 约束。行为移植自 ReynardDefault
 // （FBSystemServiceOpenApplicationRequest 的 setBundleIdentifier: 换目标），
 // 偏好读取与安装时机沿用 MTSMSCodeHooks 的模式。

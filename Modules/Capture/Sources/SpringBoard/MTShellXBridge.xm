@@ -96,7 +96,7 @@ static NSString * const MTShellXMasterSwitchKey = @"GlobalEnabled";
     NSURL *url = [self urlForAction:action];
     if (!url) return;
     // SpringBoard 本身是 UIApplication 子类实例，openURL 走系统 URL 分发层；
-    // 本方 hook（MTCaptureSpringBoardEntry）对非 pixpin:// 一律放行，SHELLX 侧拦截触发。
+    // 外部 URL scheme 入口已移除；SHELLX 触发经其自身通知别名进入。
     // 回调线程不确定，只打日志。SHELLX 未拦截时系统会打开设置页对应面板，可据此排查。
     [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL success) {
         MTCaptureLogInfo(@"shellx url opened: %@ success=%d", url, success);

@@ -44,7 +44,7 @@ static useconds_t const kMTKeyboardShortcutKeyPressDelay = 50000;
 - (instancetype)initPrivate {
     self = [super init];
     if (self) {
-        _eventQueue = dispatch_queue_create("com.lindo.kayoko.queue.keyboard-shortcut",
+        _eventQueue = dispatch_queue_create("com.lindo.metis.clipboard.queue.keyboard-shortcut",
                                             DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
         _eventSystemClient = IOHIDEventSystemClientCreate(kCFAllocatorDefault);
     }

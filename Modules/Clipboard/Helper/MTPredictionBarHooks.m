@@ -73,7 +73,7 @@ static TIAutocorrectionList *mtCreateAutocorrectionList(void) {
         TIZephyrCandidate *candidate = [[objc_getClass("TIZephyrCandidate") alloc] init];
         [candidate setLabel:MTClipboardHelperLocalizedString(label)];
         [candidate setCandidate:[NSString stringWithFormat:@"{mt-%@}", label]];
-        [candidate setFromBundleId:@"com.lindo.kayoko"];
+        [candidate setFromBundleId:@"com.lindo.metis.clipboard"];
         [candidates addObject:candidate];
     }
 
@@ -101,7 +101,7 @@ CHOptimizedMethod1(self, void, UIKeyboardAutocorrectionController, setAutocorrec
 CHOptimizedMethod2(self, void, UIPredictionViewController, predictionView, TUIPredictionView *, predictionView,
                    didSelectCandidate, TIZephyrCandidate *, candidate) {
     if ([candidate respondsToSelector:@selector(fromBundleId)] &&
-        [[candidate fromBundleId] isEqualToString:@"com.lindo.kayoko"]) {
+        [[candidate fromBundleId] isEqualToString:@"com.lindo.metis.clipboard"]) {
         if ([[candidate candidate] isEqualToString:@"{mt-History}"]) {
             [[MTClipboardHelperRuntime sharedRuntime] activateMt];
         } else if ([[candidate candidate] isEqualToString:@"{mt-Copy}"]) {

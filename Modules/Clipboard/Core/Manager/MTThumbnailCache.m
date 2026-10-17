@@ -15,7 +15,7 @@ static NSUInteger const kMTThumbnailPendingWriteCountLimit = 16;
 static NSUInteger const kMTThumbnailPendingWriteCostLimit = 16 * 1024 * 1024;
 static CGFloat const kMTThumbnailDiskCacheJPEGQuality = 0.9;
 static NSString *const kMTThumbnailDefaultCacheDirectoryPath =
-    @"/var/mobile/Library/Caches/com.lindo.kayoko/thumbnails/v2";
+    @"/var/mobile/Library/Caches/com.lindo.metis.clipboard/thumbnails/v2";
 static NSString *const kMTThumbnailCacheRecipeVersion = @"2";
 static unsigned char const kMTThumbnailContainerMagic[] = {'K', 'Y', 'T', '2'};
 static NSUInteger const kMTThumbnailContainerHeaderLength =
@@ -48,8 +48,8 @@ static NSUInteger const kMTThumbnailContainerPayloadLimit = 32 * 1024 * 1024;
         _cacheDirectoryPath = [cacheDirectoryPath copy];
         _fileManager = [[NSFileManager alloc] init];
         _decodeQueue =
-            dispatch_queue_create("com.lindo.kayoko.queue.thumbnail", DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
-        _writeQueue = dispatch_queue_create("com.lindo.kayoko.queue.thumbnail-write",
+            dispatch_queue_create("com.lindo.metis.clipboard.queue.thumbnail", DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
+        _writeQueue = dispatch_queue_create("com.lindo.metis.clipboard.queue.thumbnail-write",
                                             DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
         _memoryCache = [[NSCache alloc] init];
         [_memoryCache setCountLimit:kMTThumbnailMemoryCacheCountLimit];

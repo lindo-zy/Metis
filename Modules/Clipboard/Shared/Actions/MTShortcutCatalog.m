@@ -7,12 +7,12 @@
 
 #import <CoreFoundation/CoreFoundation.h>
 
-NSString *const kMTShortcutDarwinNotificationRefreshRequest = @"com.lindo.kayoko.shortcut.refresh";
-NSString *const kMTShortcutDarwinNotificationSnapshotChanged = @"com.lindo.kayoko.shortcut.changed";
+NSString *const kMTShortcutDarwinNotificationRefreshRequest = @"com.lindo.metis.clipboard.shortcut.refresh";
+NSString *const kMTShortcutDarwinNotificationSnapshotChanged = @"com.lindo.metis.clipboard.shortcut.changed";
 
 // One domain for request, status and snapshot; values are replaced as whole
 // generations so removed apps and actions cannot survive an incremental merge.
-static NSString *const kMTShortcutCatalogDomain = @"com.lindo.kayoko.quickactions";
+static NSString *const kMTShortcutCatalogDomain = @"com.lindo.metis.clipboard.quickactions";
 static NSString *const kMTShortcutCatalogRequestKey = @"request-v1";
 static NSString *const kMTShortcutCatalogSnapshotKey = @"snapshot-v1";
 static NSInteger const kMTShortcutCatalogFormatVersion = 1;

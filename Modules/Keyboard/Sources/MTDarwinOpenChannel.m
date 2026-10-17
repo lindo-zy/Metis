@@ -8,7 +8,7 @@
 // and reply slot, so concurrent publishers cannot combine each other's bytes.
 // The doorbell is newest-wins (Darwin delivery can coalesce); a displaced sender
 // times out without resending. Registrations pin the words until reply/timeout.
-static const char *MTOpenDoorbell = "com.lindo.typex.open.v2";
+static const char *MTOpenDoorbell = "com.lindo.metis.keyboard.open.v2";
 static const NSUInteger MTOpenMaxPacketBytes = 8192;
 NSTimeInterval const MTSystemOpenRequestTTL = 8.0;
 static const NSTimeInterval MTOpenReplyTimeout = 10.0;
@@ -25,7 +25,7 @@ static const uint64_t MTOpenWireMagic = 0x5458020000000000ULL;
 static dispatch_queue_t MTOpenQueue(void) {
     static dispatch_queue_t queue;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.typex.open.transport", DISPATCH_QUEUE_SERIAL); });
+    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.metis.keyboard.open.transport", DISPATCH_QUEUE_SERIAL); });
     return queue;
 }
 

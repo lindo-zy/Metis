@@ -5,7 +5,6 @@
 #import <substrate.h>
 #import <dlfcn.h>
 #import "../Common/MTConstants.h"
-#import "../Common/MTExternalRequest.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Capture/MTCaptureCoordinator.h"
 #import "MTShellXPlugin.h"
@@ -45,74 +44,6 @@ static CFNotificationCenterRef MTDistributedCenter(void) {
     return mtDistributedCenter ? mtDistributedCenter() : NULL;
 }
 
-// withResult / withCompletion 为 FrontBoard 的 NSError * 回调；nil 表示请求已接收，
-// 不表示图片已保存。只消费自己的 scheme，且消费后绝不调用原方法或再发一次通知。
-typedef void (^MTOpenCompletion)(NSError *error);
-
-static BOOL MTConsumeExternalURL(NSURL *url, MTOpenCompletion completion) {
-    if (!MTIsExternalURL(url)) return NO;
-    NSString *name = MTNotificationNameForExternalURL(url);
-    if (name) {
-        MTDispatchExternalRequest(name, @"url");
-    } else {
-        MTCaptureLogWarn(@"external URL rejected: invalid command");
-    }
-    if (completion) {
-        completion(name ? nil : [NSError errorWithDomain:MTBundleID code:1
-            userInfo:@{NSLocalizedDescriptionKey: @"Invalid MetisCapture command"}]);
-    }
-    return YES;
-}
-
-// 普通 App 通过 FrontBoard 发来的 URL 请求；本地 PullOver-X 使用同一接收点。
-static id MTReadRequestObject(id object, NSString *selectorName) {
-    SEL selector = NSSelectorFromString(selectorName);
-    if (![object respondsToSelector:selector]) return nil;
-    return ((id (*)(id, SEL))objc_msgSend)(object, selector);
-}
-
-static NSURL *MTURLFromOpenRequest(id request) {
-    id options = MTReadRequestObject(request, @"options");
-    id value = MTReadRequestObject(options, @"url");
-    if ([value isKindOfClass:NSURL.class]) return value;
-    id dictionary = [options isKindOfClass:NSDictionary.class]
-        ? options : MTReadRequestObject(options, @"dictionary");
-    value = [dictionary isKindOfClass:NSDictionary.class] ? dictionary[@"__PayloadURL"] : nil;
-    if ([value isKindOfClass:NSURL.class]) return value;
-    return [value isKindOfClass:NSString.class] ? [NSURL URLWithString:value] : nil;
-}
-
-static void (*MTOriginalWorkspaceOpen)(id, SEL, id, id, MTOpenCompletion);
-static void MTWorkspaceOpen(id self, SEL cmd, id service, id request, MTOpenCompletion completion) {
-    if (MTConsumeExternalURL(MTURLFromOpenRequest(request), completion)) return;
-    MTOriginalWorkspaceOpen(self, cmd, service, request, completion);
-}
-
-// SpringBoard 自身及其他插件的直接 URL 请求。系统版本之间存在带/不带
-// notifyLSOnFailure 的两种入口，分别检查后安装，不猜测不存在的方法。
-static void (*MTOriginalSpringBoardOpen)(id, SEL, NSURL *, id, BOOL, id, id, MTOpenCompletion);
-static void MTSpringBoardOpen(id self, SEL cmd, NSURL *url, id app, BOOL animated,
-                             id settings, id origin, MTOpenCompletion result) {
-    if (MTConsumeExternalURL(url, result)) return;
-    MTOriginalSpringBoardOpen(self, cmd, url, app, animated, settings, origin, result);
-}
-
-static void (*MTOriginalSpringBoardOpenNotify)(id, SEL, NSURL *, id, BOOL, id, id, BOOL, MTOpenCompletion);
-static void MTSpringBoardOpenNotify(id self, SEL cmd, NSURL *url, id app, BOOL animated,
-                                   id settings, id origin, BOOL notifyLS, MTOpenCompletion result) {
-    if (MTConsumeExternalURL(url, result)) return;
-    MTOriginalSpringBoardOpenNotify(self, cmd, url, app, animated, settings, origin, notifyLS, result);
-}
-
-static void MTInstallURLHook(Class cls, NSString *selectorName, IMP replacement, IMP *original) {
-    SEL selector = NSSelectorFromString(selectorName);
-    if (cls && class_getInstanceMethod(cls, selector)) {
-        MSHookMessageEx(cls, selector, replacement, original);
-        MTCaptureLogInfo(@"external URL hook installed: %@", selectorName);
-    } else {
-        MTCaptureLogWarn(@"external URL hook unavailable: %@", selectorName);
-    }
-}
 
 %ctor {
     // 协调器构造会操作 UIDevice / 通知观察者，初始化也统一放到主线程。
@@ -176,17 +107,6 @@ static void MTInstallURLHook(Class cls, NSString *selectorName, IMP replacement,
                                                     CFNotificationSuspensionBehaviorDeliverImmediately);
                 }
             }
-
-            MTInstallURLHook(NSClassFromString(@"SBMainWorkspace"),
-                @"systemService:handleOpenApplicationRequest:withCompletion:",
-                (IMP)MTWorkspaceOpen, (IMP *)&MTOriginalWorkspaceOpen);
-            Class springBoard = NSClassFromString(@"SpringBoard");
-            MTInstallURLHook(springBoard,
-                @"applicationOpenURL:withApplication:animating:activationSettings:origin:withResult:",
-                (IMP)MTSpringBoardOpen, (IMP *)&MTOriginalSpringBoardOpen);
-            MTInstallURLHook(springBoard,
-                @"applicationOpenURL:withApplication:animating:activationSettings:origin:notifyLSOnFailure:withResult:",
-                (IMP)MTSpringBoardOpenNotify, (IMP *)&MTOriginalSpringBoardOpenNotify);
 
             MTCaptureLogInfo(@"loaded into SpringBoard");
         } @catch (NSException *exception) {

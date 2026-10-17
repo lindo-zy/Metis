@@ -152,7 +152,7 @@ typedef NS_ENUM(NSInteger, MTSelectionButtonStyle) {
 + (void)saveActionHiddenString:(nullable NSString *)csv fullscreenMarkup:(BOOL)fullscreen;
 + (void)saveToolHiddenString:(nullable NSString *)csv fullscreenMarkup:(BOOL)fullscreen;
 
-// MARK: 偏好读写（CFPreferences，域 com.pixpin.screenshot）
+// MARK: 偏好读写（CFPreferences，域 com.lindo.metis.capture）
 
 /// 当前生效顺序：读偏好并解析；未设置时返回默认。
 + (NSArray<NSString *> *)currentActionOrder;

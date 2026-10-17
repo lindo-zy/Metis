@@ -39,7 +39,7 @@ static NSBundle *mtpLocalBundle;
     self.title = LOCALIZED(@"SELECT_SHORTCUT");
     self.groups = @[];
     self.visibleGroups = @[];
-    self.readerQueue = dispatch_queue_create("com.lindo.typex.shortcut.picker", DISPATCH_QUEUE_SERIAL);
+    self.readerQueue = dispatch_queue_create("com.lindo.metis.keyboard.shortcut.picker", DISPATCH_QUEUE_SERIAL);
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
     self.tableView.delegate = self;
     self.tableView.dataSource = self;

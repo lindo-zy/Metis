@@ -2,12 +2,12 @@
 #include <math.h>
 #include <stdint.h>
 
-static NSString * const MTFloatInputSessionName = @"com.lindo.typex.floating-input.session-v1";
+static NSString * const MTFloatInputSessionName = @"com.lindo.metis.keyboard.floating-input.session-v1";
 static inline NSString *MTFloatInputName(uint32_t pid) {
-    return [NSString stringWithFormat:@"com.lindo.typex.floating-input.pinch-v1.%u", pid];
+    return [NSString stringWithFormat:@"com.lindo.metis.keyboard.floating-input.pinch-v1.%u", pid];
 }
 static inline NSString *MTFloatInputSceneName(uint32_t pid) {
-    return [NSString stringWithFormat:@"com.lindo.typex.floating-input.scene-v1.%u", pid];
+    return [NSString stringWithFormat:@"com.lindo.metis.keyboard.floating-input.scene-v1.%u", pid];
 }
 static inline uint64_t MTFloatInputSceneHash(NSString *identifier) {
     if (![identifier isKindOfClass:NSString.class] || !identifier.length) return 0;

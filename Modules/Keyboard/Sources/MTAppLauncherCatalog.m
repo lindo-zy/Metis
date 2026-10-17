@@ -38,7 +38,7 @@ static BOOL MTLauncherHiddenTags(id tags) {
 
 @implementation MTAppLauncherCatalog
 - (instancetype)init {
-    if ((self = [super init])) self.worker = dispatch_queue_create("com.lindo.typex.launcher.catalog", DISPATCH_QUEUE_SERIAL);
+    if ((self = [super init])) self.worker = dispatch_queue_create("com.lindo.metis.keyboard.launcher.catalog", DISPATCH_QUEUE_SERIAL);
     return self;
 }
 - (void)dealloc {

@@ -19,7 +19,7 @@
 @end
 
 static void MTFrameError(NSError **error, NSString *message) {
-    if (error) *error = [NSError errorWithDomain:@"com.pixpin.longshot.frames" code:1
+    if (error) *error = [NSError errorWithDomain:@"com.lindo.metis.capture.longshot.frames" code:1
                                        userInfo:@{NSLocalizedDescriptionKey:message}];
 }
 

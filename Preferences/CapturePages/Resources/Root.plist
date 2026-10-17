@@ -18,7 +18,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -40,7 +40,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSliderCell</string>
 			<key>default</key>
@@ -68,7 +68,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSMultiValueSpecifier</string>
 			<key>default</key>
@@ -96,7 +96,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -110,7 +110,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -130,7 +130,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -144,7 +144,7 @@
 		</dict>
 		<dict>
 			<key>PostNotification</key>
-			<string>com.pixpin.screenshot/preferences/reload</string>
+			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -208,9 +208,9 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>点击任意一行会复制对应 URL 并立即发送该功能请求。复制的 URL 也可供快捷指令或其他插件调用。“启动（区域截图）”与“区域截图”行为相同；pixpin://activate 可省略为 pixpin://。</string>
+			<string>点击对应行会立即发送该截图模式的测试请求，验证六种入口是否可达。</string>
 			<key>label</key>
-			<string>外部入口</string>
+			<string>测试</string>
 		</dict>
 	</array>
 	<key>title</key>

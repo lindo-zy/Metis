@@ -33,10 +33,10 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"brightness-down", @"SYSTEM_BRIGHTNESS_DOWN", @"sun.min.fill", @"control"],
             @[@"volume-up", @"SYSTEM_VOLUME_UP", @"speaker.plus.fill", @"control"],
             @[@"volume-down", @"SYSTEM_VOLUME_DOWN", @"speaker.minus.fill", @"control"],
-            @[@"pixpin-full", @"SYSTEM_CAPTURE_FULL", @"camera.viewfinder", @"pixpin", @"com.pixpin.screenshot/capture/full"],
-            @[@"pixpin-area", @"SYSTEM_CAPTURE_AREA", @"crop", @"pixpin", @"com.pixpin.screenshot/capture/area"],
-            @[@"pixpin-markup", @"SYSTEM_CAPTURE_MARKUP", @"pencil.tip.crop.circle", @"pixpin", @"com.pixpin.screenshot/capture/markup"],
-            @[@"pixpin-long", @"SYSTEM_CAPTURE_LONG", @"rectangle.expand.vertical", @"pixpin", @"com.pixpin.screenshot/capture/long"]
+            @[@"pixpin-full", @"SYSTEM_CAPTURE_FULL", @"camera.viewfinder", @"pixpin", @"com.lindo.metis.capture/full"],
+            @[@"pixpin-area", @"SYSTEM_CAPTURE_AREA", @"crop", @"pixpin", @"com.lindo.metis.capture/area"],
+            @[@"pixpin-markup", @"SYSTEM_CAPTURE_MARKUP", @"pencil.tip.crop.circle", @"pixpin", @"com.lindo.metis.capture/markup"],
+            @[@"pixpin-long", @"SYSTEM_CAPTURE_LONG", @"rectangle.expand.vertical", @"pixpin", @"com.lindo.metis.capture/long"]
         ];
         NSSet *destructive = [NSSet setWithArray:@[@"respring", @"respring-sb", @"safe-mode", @"shutdown", @"reboot", @"userspace-reboot"]];
         for (NSArray *row in rows) {

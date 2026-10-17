@@ -27,12 +27,10 @@
 }
 
 + (void)installApplicationHooksWithActivationMethod:(NSUInteger)activationMethod {
-    [self installURLOpenHooks];
     [self installActivationHooksWithActivationMethod:activationMethod];
 }
 
 + (void)installSpringBoardActivationHooksWithActivationMethod:(NSUInteger)activationMethod {
-    [self installURLOpenHooks];
     [self installActivationHooksWithActivationMethod:activationMethod];
 }
 

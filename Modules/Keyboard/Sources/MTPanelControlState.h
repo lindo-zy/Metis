@@ -19,7 +19,7 @@ static inline BOOL MTPanelControlRequestValid(id request) {
     return !request[@"value"] && ([action isEqual:@"state"] || [MTPanelToggleIdentifiers() containsObject:action]);
 }
 static inline NSString *MTPanelControlStateSlot(NSString *token) {
-    return [@"com.lindo.typex.panel-control.state." stringByAppendingString:token];
+    return [@"com.lindo.metis.keyboard.panel-control.state." stringByAppendingString:token];
 }
 static const uint64_t MTPanelControlPendingWord = 0x5459000000000000ULL;
 

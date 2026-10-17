@@ -11,7 +11,7 @@
 
 static NSString *const kMTMigratorHistoryKey = @"history";
 static NSString *const kMTMigratorFavoritesKey = @"favorites";
-static NSString *const kMTHistoryMigratorErrorDomain = @"com.lindo.kayoko.history-migrator";
+static NSString *const kMTHistoryMigratorErrorDomain = @"com.lindo.metis.clipboard.history-migrator";
 
 static NSString *MTHistoryMigratorLocalizedString(NSString *key) {
     static NSBundle *localizationBundle = nil;
@@ -75,9 +75,9 @@ NS_ASSUME_NONNULL_END
             sourceWithIdentifier:@"codes.aurora.mt"
                      historyPath:jbroot(@"/var/mobile/Library/codes.aurora.mt/history.json")
                       imagesPath:jbroot(@"/var/mobile/Library/codes.aurora.mt/images/")],
-        [MTHistoryMigrationSource sourceWithIdentifier:@"com.lindo.kayoko"
-                                               historyPath:jbroot(@"/var/mobile/Library/com.lindo.kayoko/history.json")
-                                                imagesPath:jbroot(@"/var/mobile/Library/com.lindo.kayoko/images/")]
+        [MTHistoryMigrationSource sourceWithIdentifier:@"com.lindo.metis.clipboard"
+                                               historyPath:jbroot(@"/var/mobile/Library/com.lindo.metis.clipboard/history.json")
+                                                imagesPath:jbroot(@"/var/mobile/Library/com.lindo.metis.clipboard/images/")]
     ];
 }
 

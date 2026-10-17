@@ -8,9 +8,9 @@
 
 #import <roothide.h>
 
-NSString *const kMTTagStoreErrorDomain = @"com.lindo.kayoko.tag-store";
+NSString *const kMTTagStoreErrorDomain = @"com.lindo.metis.clipboard.tag-store";
 
-static NSString *const kMTTagStoreDataDirectoryPath = @"/var/mobile/Library/com.lindo.kayoko";
+static NSString *const kMTTagStoreDataDirectoryPath = @"/var/mobile/Library/com.lindo.metis.clipboard";
 static NSString *const kMTTagStoreFileName = @"tags-v4.plist";
 
 @interface MTTagStore ()

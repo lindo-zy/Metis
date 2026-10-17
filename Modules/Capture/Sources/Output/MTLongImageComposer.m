@@ -31,7 +31,7 @@ const NSInteger MTLongShotCopyMaxPixelHeight = 8192;
 @end
 
 static NSError *MTLongShotError(NSString *message) {
-    return [NSError errorWithDomain:@"com.pixpin.screenshot.longshot"
+    return [NSError errorWithDomain:@"com.lindo.metis.capture.longshot"
                                code:1
                            userInfo:@{NSLocalizedDescriptionKey: message}];
 }

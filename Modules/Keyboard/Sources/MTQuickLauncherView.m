@@ -145,7 +145,7 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
         self.pages = [UIPageControl new]; self.pages.userInteractionEnabled = NO;
         self.pages.hidesForSinglePage = YES; [self addSubview:self.pages];
         self.keys = [UIView new]; [self addSubview:self.keys]; self.keyButtons = [NSMutableArray array];
-        self.catalog = [MTAppLauncherCatalog new]; self.searchQueue = dispatch_queue_create("com.lindo.typex.launcher.search", DISPATCH_QUEUE_SERIAL);
+        self.catalog = [MTAppLauncherCatalog new]; self.searchQueue = dispatch_queue_create("com.lindo.metis.keyboard.launcher.search", DISPATCH_QUEUE_SERIAL);
         __weak typeof(self) weakSelf = self;
         self.catalog.didInvalidate = ^{ if (weakSelf.active) [weakSelf loadCatalog]; };
         self.query = @""; self.results = @[]; self.entries = @[]; self.slots = 6;

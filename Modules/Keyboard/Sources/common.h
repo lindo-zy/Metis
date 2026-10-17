@@ -20,12 +20,12 @@
 #define LOCALIZED(str) [tweakBundle localizedStringForKey:str value:@"" table:nil]
 
 // 细节配置域：Metis 自有域（com.lindo.metis.keyboard），不读取、不迁移旧
-// TypeX 插件域（com.lindo.typex）的任何旧值；模块启停权威在
+// TypeX 插件域（com.lindo.metis.keyboard）的任何旧值；模块启停权威在
 // com.lindo.metis（MTModuleGate），运行端 enabledBOOL 一律被门控值覆盖。
 #define kIdentifier @"com.lindo.metis.keyboard"
-#define kIPCCenterPrefsManager @"com.lindo.typex.prefsmanager"
-#define kIPCCenterKeyboard @"com.lindo.typex"
-#define kPrefsChangedIdentifier @"com.lindo.typex/prefschanged"
+#define kIPCCenterPrefsManager @"com.lindo.metis.keyboard.prefsmanager"
+#define kIPCCenterKeyboard @"com.lindo.metis.keyboard"
+#define kPrefsChangedIdentifier @"com.lindo.metis.keyboard/prefschanged"
 #define kPrefsPath @"/var/mobile/Library/Preferences/com.lindo.metis.keyboard.plist"
 
 #define kEnabledkey @"enabledBOOL"
@@ -201,8 +201,8 @@
 #define MTQuickActionRequestKey @"request-v3"
 #define TypeXQuickActionStatusKey @"status-v3"
 #define TypeXQuickActionSnapshotKey @"snapshot-v3"
-#define kShortcutRefreshRequestIdentifier @"com.lindo.typex/shortcutrefresh"
-#define kShortcutSnapshotChangedIdentifier @"com.lindo.typex/shortcutschanged"
+#define kShortcutRefreshRequestIdentifier @"com.lindo.metis.keyboard/shortcutrefresh"
+#define kShortcutSnapshotChangedIdentifier @"com.lindo.metis.keyboard/shortcutschanged"
 
 // MetisKeyboard 自带 AI 面板通道：工具栏进程只写请求（{format:2, requestID, created,
 // mode: text|image|empty, origin: sb|app, text?}），SpringBoard 端收到 Darwin
@@ -210,7 +210,7 @@
 // 窗口会被限制在键盘宿主区域内（第三方键盘扩展里完全无法悬浮）。与快捷方式
 // 目录共用隔离域，避免再开共享面。
 #define MTAIChatRequestKey @"ai-chat-request"
-#define kAIChatRequestIdentifier @"com.lindo.typex/aichat"
+#define kAIChatRequestIdentifier @"com.lindo.metis.keyboard/aichat"
 
 // Complete SpringBoard-authored snapshot of each app's current static and
 // dynamic UIApplicationShortcutItems. The value is replaced as one generation,

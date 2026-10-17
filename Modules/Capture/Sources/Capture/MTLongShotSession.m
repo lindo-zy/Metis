@@ -19,7 +19,7 @@ typedef NS_ENUM(NSInteger, MTLongShotPhase) {
 static dispatch_queue_t MTLongShotImageQueue(void) {
     static dispatch_queue_t queue;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.pixpin.longshot.frames", DISPATCH_QUEUE_SERIAL); });
+    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.metis.capture.longshot.frames", DISPATCH_QUEUE_SERIAL); });
     return queue;
 }
 @interface MTLongShotSession () <MTLongShotHUDDelegate>

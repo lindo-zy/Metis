@@ -11,7 +11,6 @@ MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	../../Modules/Capture/Sources/Common/MTEditorOrder.m \
 	../../Modules/Capture/Sources/Common/MTSelectionToolbar.m \
 	../../Modules/Capture/Sources/Common/MTCaptureLog.m \
-	../../Modules/Capture/Sources/Common/MTExternalRequest.m \
 	../../Modules/Capture/Sources/Editor/MTEditorLayout.m
 
 MetisCapturePrefs_CFLAGS = -fobjc-arc

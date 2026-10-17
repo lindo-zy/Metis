@@ -19,7 +19,7 @@
 #include <signal.h>
 #include <errno.h>
 
-static NSString * const MTFloatRequester = @"com.lindo.typex.floating-app";
+static NSString * const MTFloatRequester = @"com.lindo.metis.keyboard.floating-app";
 static void *MTFloatLayerObservation = &MTFloatLayerObservation;
 static void *MTFloatContentObservation = &MTFloatContentObservation;
 // 卡片延迟显示窗口：期间挂接内容则直接带内容显示，超时才显示加载指示。

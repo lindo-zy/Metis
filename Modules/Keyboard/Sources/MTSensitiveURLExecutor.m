@@ -4,7 +4,7 @@ static dispatch_queue_t MTSensitiveURLQueue(void) {
     static dispatch_queue_t queue;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        queue = dispatch_queue_create("com.lindo.typex.open.sensitive-rpc", DISPATCH_QUEUE_SERIAL);
+        queue = dispatch_queue_create("com.lindo.metis.keyboard.open.sensitive-rpc", DISPATCH_QUEUE_SERIAL);
     });
     return queue;
 }

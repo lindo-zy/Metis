@@ -40,7 +40,7 @@
                     status:(PHAuthorizationStatus)status
                 completion:(void (^)(NSString *, NSError *))completion {
     if (status != PHAuthorizationStatusAuthorized) {
-        NSError *error = [NSError errorWithDomain:@"com.pixpin.screenshot.output"
+        NSError *error = [NSError errorWithDomain:@"com.lindo.metis.capture.output"
                                              code:1
                                          userInfo:@{NSLocalizedDescriptionKey: @"相册权限被拒绝"}];
         dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
@@ -54,7 +54,7 @@
     } completionHandler:^(BOOL success, NSError *changeError) {
         NSError *finalError = nil;
         if (!success) {
-            finalError = changeError ?: [NSError errorWithDomain:@"com.pixpin.screenshot.output"
+            finalError = changeError ?: [NSError errorWithDomain:@"com.lindo.metis.capture.output"
                                                             code:2
                                             userInfo:@{NSLocalizedDescriptionKey: @"相册保存失败"}];
         }
@@ -67,7 +67,7 @@
                         status:(PHAuthorizationStatus)status
                     completion:(void (^)(NSString *, NSError *))completion {
     if (status != PHAuthorizationStatusAuthorized) {
-        NSError *error = [NSError errorWithDomain:@"com.pixpin.screenshot.output"
+        NSError *error = [NSError errorWithDomain:@"com.lindo.metis.capture.output"
                                              code:1
                                          userInfo:@{NSLocalizedDescriptionKey: @"相册权限被拒绝"}];
         dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
@@ -85,7 +85,7 @@
     } completionHandler:^(BOOL success, NSError *changeError) {
         NSError *finalError = nil;
         if (!success) {
-            finalError = changeError ?: [NSError errorWithDomain:@"com.pixpin.screenshot.output"
+            finalError = changeError ?: [NSError errorWithDomain:@"com.lindo.metis.capture.output"
                                                             code:2
                                             userInfo:@{NSLocalizedDescriptionKey: @"相册保存失败"}];
         }

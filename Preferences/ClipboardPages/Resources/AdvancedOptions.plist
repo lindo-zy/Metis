@@ -25,7 +25,7 @@
 			<key>label</key>
 			<string>Ignore Universal Clipboard</string>
 			<key>PostNotification</key>
-			<string>com.lindo.kayoko.preferences.reload</string>
+			<string>com.lindo.metis.clipboard.preferences.reload</string>
 		</dict>
 
 		<dict>
@@ -48,7 +48,7 @@
 			<key>label</key>
 			<string>Always Scroll to Top</string>
 			<key>PostNotification</key>
-			<string>com.lindo.kayoko.preferences.reload</string>
+			<string>com.lindo.metis.clipboard.preferences.reload</string>
 		</dict>
 
 		<dict>
@@ -81,7 +81,7 @@
 				<string>Always</string>
 			</array>
 			<key>PostNotification</key>
-			<string>com.lindo.kayoko.preferences.reload</string>
+			<string>com.lindo.metis.clipboard.preferences.reload</string>
 		</dict>
 
 		<dict>
@@ -114,7 +114,7 @@
 				<string>Simulated</string>
 			</array>
 			<key>PostNotification</key>
-			<string>com.lindo.kayoko.preferences.reload</string>
+			<string>com.lindo.metis.clipboard.preferences.reload</string>
 		</dict>
 
 		<dict>

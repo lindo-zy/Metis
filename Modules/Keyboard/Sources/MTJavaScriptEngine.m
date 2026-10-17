@@ -112,7 +112,7 @@ invalid:
 }
 - (instancetype)init {
     if ((self = [super init])) {
-        _queue = dispatch_queue_create("com.lindo.typex.javascript", DISPATCH_QUEUE_SERIAL);
+        _queue = dispatch_queue_create("com.lindo.metis.keyboard.javascript", DISPATCH_QUEUE_SERIAL);
         _downloads = [NSMutableSet set];
     }
     return self;

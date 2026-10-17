@@ -114,7 +114,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureInstant]) mode = MTCaptureModeInstant;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureMarkup]) mode = MTCaptureModeMarkup;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureLong]) mode = MTCaptureModeLong;
-    // 启动入口（裸 pixpin://）：默认区域截图，与显式 capture/full 区分。
+    // 启动入口通知：默认区域截图，与显式 capture/full 区分。
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinActivate]) mode = MTCaptureModeArea;
     // Snapper3 兼容别名：force.open 是 Snapper3 的框选流程，对应区域截图。
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinSnapperForceOpen]) mode = MTCaptureModeArea;

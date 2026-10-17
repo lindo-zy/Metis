@@ -36,7 +36,6 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface MTClipboardHelperHookInstaller (URLOpen)
-+ (void)installURLOpenHooks;
 @end
 
 NS_ASSUME_NONNULL_END

@@ -21,7 +21,7 @@
 
 // 键盘显隐通道：纯信号 + 一个状态字（1=键盘可见，0=已收起）。键盘进程写、
 // SpringBoard 读；与 open/shelf 通道同风格，但不承载 payload。
-static char const *const MTKbdVisibilityChangedName = "com.lindo.typex/kbdvis";
+static char const *const MTKbdVisibilityChangedName = "com.lindo.metis.keyboard/kbdvis";
 static const uint64_t MTKbdVisibilityShownWord = 1;
 
 #pragma mark - 键盘进程上报

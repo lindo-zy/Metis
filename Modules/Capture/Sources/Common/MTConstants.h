@@ -5,23 +5,22 @@ NS_ASSUME_NONNULL_BEGIN
 
 // MARK: - 包元数据（唯一命名来源，工程内禁止再硬编码）
 
-/// 主 Bundle ID：com.pixpin.screenshot（外部身份标识，URL scheme / 错误域）
+/// 主 Bundle ID：com.lindo.metis.capture（外部身份标识，URL scheme / 错误域）
 FOUNDATION_EXPORT NSString * const MTBundleID;
 /// 偏好域：com.lindo.metis.capture（Metis 自有细节域；启停权威在 MTModuleGate）
 FOUNDATION_EXPORT NSString * const MTCapturePreferencesDomain;
 
 // MARK: - Darwin 跨进程通知名（只发请求信号，不携带图片对象）
 
-FOUNDATION_EXPORT NSString * const MTExternalURLScheme;        // pixpin
-FOUNDATION_EXPORT CFStringRef const MTDarwinActivate;          // com.pixpin.screenshot/activate（区域截图）
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFull;        // com.pixpin.screenshot/capture/full
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureArea;        // com.pixpin.screenshot/capture/area
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFreeze;      // com.pixpin.screenshot/capture/freeze
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureInstant;     // com.pixpin.screenshot/capture/instant
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureMarkup;      // com.pixpin.screenshot/capture/markup
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureLong;        // com.pixpin.screenshot/capture/long（全屏自动滚动，可切换手动）
-FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureCancel;      // com.pixpin.screenshot/capture/cancel
-FOUNDATION_EXPORT CFStringRef const MTDarwinPreferencesReload;  // com.pixpin.screenshot/preferences/reload
+FOUNDATION_EXPORT CFStringRef const MTDarwinActivate;          // com.lindo.metis.capture/activate（区域截图）
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFull;        // com.lindo.metis.capture/full
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureArea;        // com.lindo.metis.capture/area
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFreeze;      // com.lindo.metis.capture/freeze
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureInstant;     // com.lindo.metis.capture/instant
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureMarkup;      // com.lindo.metis.capture/markup
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureLong;        // com.lindo.metis.capture/long（全屏自动滚动，可切换手动）
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureCancel;      // com.lindo.metis.capture/cancel
+FOUNDATION_EXPORT CFStringRef const MTDarwinPreferencesReload;  // com.lindo.metis.capture/preferences/reload
 
 // MARK: - Snapper3 兼容别名（外部按 Snapper3 公开通知约定发信号即可触发 MetisCapture）
 
@@ -56,7 +55,7 @@ FOUNDATION_EXPORT CFStringRef const MTShellXTriggerAssistive; // com.iosdump.scr
 
 // MARK: - SHELLX 出向 URL 路由（SHELLX 插件文档第 3 节：prefs://root=shellx_*，
 // 快捷指令与其余插件同链路调用。文档未给这些功能的等价通知，只能走 URL：
-// 经 SpringBoard URL 分发层由 SHELLX 拦截，本方 URL hook 对非 pixpin:// 一律放行）
+// 经 SpringBoard URL 分发层由 SHELLX 拦截（外部 URL scheme 入口已移除）
 
 FOUNDATION_EXPORT CFStringRef const MTShellXRouteLong;      // prefs://root=shellx_long → 长截图
 FOUNDATION_EXPORT CFStringRef const MTShellXRouteFull;      // prefs://root=shellx_full → 整屏截一张
@@ -68,7 +67,7 @@ FOUNDATION_EXPORT CFStringRef const MTShellXRouteScan;      // prefs://root=shel
 
 // MARK: - 进程内通知名（同样不携带图片对象，只提示协调器刷新）
 
-FOUNDATION_EXPORT NSString * const MTNotificationResultUpdated; // com.pixpin.screenshot/result/updated
+FOUNDATION_EXPORT NSString * const MTNotificationResultUpdated; // com.lindo.metis.capture/result/updated
 
 // MARK: - 偏好键（集中定义）
 

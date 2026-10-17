@@ -127,7 +127,7 @@ static dispatch_queue_t MTShortcutRefreshQueue(void) {
     static dispatch_queue_t queue;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-      queue = dispatch_queue_create("com.lindo.kayoko.shortcut.snapshot", DISPATCH_QUEUE_SERIAL);
+      queue = dispatch_queue_create("com.lindo.metis.clipboard.shortcut.snapshot", DISPATCH_QUEUE_SERIAL);
     });
     return queue;
 }

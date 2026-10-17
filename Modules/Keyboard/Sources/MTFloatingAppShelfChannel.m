@@ -1,7 +1,7 @@
 #import "MTFloatingAppShelfChannel.h"
 #import <notify.h>
 
-const char *MTFloatingShelfChangedName = "com.lindo.typex.floating-shelf.v1";
+const char *MTFloatingShelfChangedName = "com.lindo.metis.keyboard.floating-shelf.v1";
 static const NSUInteger MTFloatingShelfMaxBytes = 8192;
 static NSMutableDictionary<NSString *, NSNumber *> *MTShelfPinned;
 static uint64_t MTShelfRevision;

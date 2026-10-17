@@ -6,7 +6,7 @@
 #import <CoreFoundation/CoreFoundation.h>
 #import "MTCore.h"
 
-static NSString *const MTClipboardPreferencesReloadName = @"com.lindo.kayoko.preferences.reload";
+static NSString *const MTClipboardPreferencesReloadName = @"com.lindo.metis.clipboard.preferences.reload";
 
 __attribute__((constructor))
 static void MTClipboardModuleAdapterLoad(void) {
