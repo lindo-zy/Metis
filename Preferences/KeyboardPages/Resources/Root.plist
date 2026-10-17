@@ -8,12 +8,6 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>TWEAK</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
 			<string>SHORTCUTS</string>
 		</dict>
 		<dict>
@@ -185,6 +179,6 @@
 		</dict>
 	</array>
 	<key>title</key>
-	<string>MetisKeyboard</string>
+	<string>键盘</string>
 </dict>
 </plist>
