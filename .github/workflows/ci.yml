@@ -25,11 +25,21 @@ jobs:
 
       - name: Prepare SDKs
         run: |
+          # iPhoneOS16.5：theos/sdks 提供（含私有框架 tbd）。
           git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
           mkdir -p "$THEOS/sdks"
           cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          # iPhoneOS17.0：theos/sdks 未收录；用 runner Xcode 的 iOS SDK 组装
+          # overlay（公开框架/ usr 链接 + 仓库内 vendored 私有框架 tbd 存根，
+          # 部署线仍为 16.0；实际 SDK 小版本写入 release 说明）。
           XCODE_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-          ln -s "$XCODE_SDK" "$THEOS/sdks/iPhoneOS17.0.sdk"
+          mkdir -p "$THEOS/sdks/iPhoneOS17.0.sdk/System/Library/PrivateFrameworks"
+          ln -s "$XCODE_SDK/System/Library/Frameworks" "$THEOS/sdks/iPhoneOS17.0.sdk/System/Library/Frameworks"
+          ln -s "$XCODE_SDK/usr" "$THEOS/sdks/iPhoneOS17.0.sdk/usr"
+          ln -s "$XCODE_SDK/SDKSettings.plist" "$THEOS/sdks/iPhoneOS17.0.sdk/SDKSettings.plist"
+          cp -R sdks/stubs/System/Library/PrivateFrameworks/* \
+            "$THEOS/sdks/iPhoneOS17.0.sdk/System/Library/PrivateFrameworks/"
+          echo "Xcode iPhoneOS SDK: $XCODE_SDK"
 
       - name: Host tests + verify build + package check
         run: |
