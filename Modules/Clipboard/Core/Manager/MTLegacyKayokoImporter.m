@@ -30,10 +30,6 @@ static NSArray<NSString *> *MTLegacyTakeoverFileNames(void) {
 
 #pragma mark - 文件操作辅助
 
-static BOOL MTFileExists(NSFileManager *fm, NSString *path, BOOL *isDirectory) {
-    return [fm fileExistsAtPath:path isDirectory:isDirectory];
-}
-
 // 单文件落位：先拷到 *.incoming 再原子改名，中断不会留下半份目标文件。
 // replaceExisting 时先备份旧目标（备份只保留最新一份）。
 static BOOL MTCopyFileToPath(NSString *source, NSString *destination, BOOL replaceExisting,
