@@ -27,23 +27,6 @@
     resourceSection.headerTitle = @"共享资源";
     resourceSection.rows = [self resourceRows];
 
-    MTSettingsRow *bindings = [MTSettingsRow linkRowWithIdentifier:@"global-bindings" title:@"入口绑定"];
-    bindings.subtitle = @"供键盘、剪切板和手势调用";
-    bindings.iconName = @"link";
-    bindings.colorName = @"green";
-    bindings.routeKind = MTSettingsRouteShellClass;
-    bindings.className = @"MTPrefsBindingsController";
-
-    MTSettingsRow *defaults = [MTSettingsRow linkRowWithIdentifier:@"global-defaults" title:@"默认行为"];
-    defaults.iconName = @"gearshape.fill";
-    defaults.colorName = @"orange";
-    defaults.routeKind = MTSettingsRouteShellClass;
-    defaults.className = @"MTPrefsDefaultsController";
-
-    MTSettingsSection *invocationSection = [[MTSettingsSection alloc] init];
-    invocationSection.headerTitle = @"调用配置";
-    invocationSection.rows = @[bindings, defaults];
-
     MTSettingsRow *references = [MTSettingsRow linkRowWithIdentifier:@"global-references" title:@"引用管理"];
     references.iconName = @"internaldrive";
     references.colorName = @"gray";
@@ -55,7 +38,7 @@
     maintenanceSection.rows = @[references];
 
     MTSettingsPageModel *model = [[MTSettingsPageModel alloc] init];
-    model.sections = @[resourceSection, invocationSection, maintenanceSection];
+    model.sections = @[resourceSection, maintenanceSection];
     model.footerText = @"创建一次，多个入口共用";
     return model;
 }

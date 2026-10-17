@@ -39,7 +39,7 @@
 "Invalid Response" = "无效响应";
 "Item Details" = "条目详情";
 "Item details show when an item was last captured, along with its text length or image dimensions and file size." = "显示最近捕获时间，并附带文本字数，或图片尺寸和文件大小。";
-"MetisClipboard" = "MetisClipboard";
+"MetisClipboard" = "剪切板";
 "Metis entered maintenance mode before the import failed. Restart SpringBoard now to continue using Metis." = "导入失败前 Metis 已进入维护模式。你需要立即重启 SpringBoard，才能继续使用 Metis。";
 "Made by OwnGoal Studio" = "「乌龙工作室」倾情献制";
 "Maximum Amount" = "最大数量";

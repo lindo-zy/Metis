@@ -8,7 +8,7 @@
 // configs 供 Tests/Host/run-prefs-shell-tests.sh 的结构检查解析，勿改元组形态。
 static NSArray *MTRootCategoryConfigs(void) {
     return @[
-        @[@"global",    @"全局",   @"自定义动作、面板与入口绑定", @"circle.hexagongrid.fill", @"indigo",
+        @[@"global",    @"全局",   @"自定义动作与面板管理", @"circle.hexagongrid.fill", @"indigo",
           [NSNull null], @"MTPrefsGlobalController"],
         @[@"keyboard",  @"键盘",   @"工具栏、输入与键盘手势", @"keyboard", @"blue",
           @"MetisKeyboardPrefs", @"MTPRootListController"],
