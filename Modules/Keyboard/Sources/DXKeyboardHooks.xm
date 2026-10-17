@@ -897,13 +897,17 @@ static void reloadPrefs(void);
     if (!allowAction) return;
     // UIAlertAction 的 handler 是私有 ivar：KVC 在 key 不存在（系统版本
     // 改名）时抛 NSUndefinedKeyException 会让宿主 app 必崩，必须保护。
+    // NSBlock 在 iOS SDK 头文件中未声明（运行时存在），经 objc_getClass 取。
+    static Class blockClass = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{ blockClass = objc_getClass("NSBlock"); });
     id handlerObject = nil;
     @try {
         handlerObject = [allowAction valueForKey:@"handler"];
     } @catch (__unused NSException *exception) {
         handlerObject = nil;
     }
-    if (![handlerObject isKindOfClass:[NSBlock class]]) return;
+    if (!blockClass || ![handlerObject isKindOfClass:blockClass]) return;
     void (^allowHandler)(UIAlertAction *) = handlerObject;
 
     allowHandler(allowAction);

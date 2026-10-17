@@ -7,7 +7,6 @@
 #endif
 
 @interface DXShortcutsGenerator : NSObject
-+(void)load;
 +(BOOL)isAvailableShortcutSelector:(NSString *)selector;
 +(BOOL)isVisibleShortcutSelector:(NSString *)selector;
 +(BOOL)isShellXScreenshotAvailable;
