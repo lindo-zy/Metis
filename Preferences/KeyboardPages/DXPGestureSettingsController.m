@@ -134,7 +134,7 @@ static NSString *DXToolbarActionName(PSSpecifier *specifier) {
     bindings[slot] = selector; preferences[kDXToolbarBindings] = bindings; [manager writePrefs:preferences];
     id latest = [manager readPrefs][kDXToolbarBindings];
     BOOL success = [latest isKindOfClass:NSDictionary.class] && [latest[slot] isEqual:selector];
-    NSLog(@"[TypeX][ToolbarSettings] save slot=%@ assigned=%d success=%d", slot, selector.length > 0, success);
+    NSLog(@"[MetisKeyboard][ToolbarSettings] save slot=%@ assigned=%d success=%d", slot, selector.length > 0, success);
     [self reloadSpecifiers]; return success;
 }
 - (void)chooseAction:(PSSpecifier *)specifier {

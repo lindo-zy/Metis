@@ -37,7 +37,7 @@ static BOOL DXStatusSlotValid(NSString *slot) {
 }
 static BOOL DXStatusSaveBinding(NSString *slot, NSString *field, id value) {
     if (!DXStatusSlotValid(slot) || !field.length) {
-        NSLog(@"[TypeX][StatusBarSettings] save rejected: invalid slot or field");
+        NSLog(@"[MetisKeyboard][StatusBarSettings] save rejected: invalid slot or field");
         return NO;
     }
     DXPrefsManager *manager = DXPrefsManager.sharedInstance;
@@ -52,7 +52,7 @@ static BOOL DXStatusSaveBinding(NSString *slot, NSString *field, id value) {
     [manager writePrefs:preferences];
     id saved = DXStatusBarBinding([manager readPrefs], slot)[field];
     BOOL success = value ? [saved isEqual:value] : saved == nil;
-    NSLog(@"[TypeX][StatusBarSettings] save slot=%@ field=%@ success=%d", slot, field, success);
+    NSLog(@"[MetisKeyboard][StatusBarSettings] save slot=%@ field=%@ success=%d", slot, field, success);
     return success;
 }
 

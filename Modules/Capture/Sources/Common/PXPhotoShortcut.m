@@ -5,7 +5,7 @@
 
 static NSString * const PXPhotosBundleIdentifier = @"com.apple.mobileslideshow";
 // 照片 App「最近照片」应用快捷方式 type：真机照片 App 静态 App Shortcut 实测
-// 取值（同机 TypeX 快捷动作选择器枚举出的同一条目）。
+// 取值（同机 MetisKeyboard 快捷动作选择器枚举出的同一条目）。
 static NSString * const PXPhotosRecentShortcutType = @"MOST_RECENT_PHOTO";
 
 @implementation PXPhotoShortcut
@@ -74,7 +74,7 @@ static NSString * const PXPhotosRecentShortcutType = @"MOST_RECENT_PHOTO";
         Class iconViewClass = NSClassFromString(@"SBIconView");
         SEL activate = NSSelectorFromString(@"activateShortcut:withBundleIdentifier:forIconView:");
         NSMethodSignature *signature = [iconViewClass methodSignatureForSelector:activate];
-        // 与 TypeX 一致：历史头文件对返回类型说法不一，运行时核对 void 返回 ABI。
+        // 与 MetisKeyboard 一致：历史头文件对返回类型说法不一，运行时核对 void 返回 ABI。
         if (iconViewClass && [iconViewClass respondsToSelector:activate] && signature &&
             signature.numberOfArguments == 5 && signature.methodReturnType &&
             strcmp(signature.methodReturnType, @encode(void)) == 0) {

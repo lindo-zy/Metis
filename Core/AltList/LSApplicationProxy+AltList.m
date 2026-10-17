@@ -3,7 +3,7 @@
 #import "CoreServices.h"
 #import "LSApplicationProxy+AltList.h"
 
-// TypeX vendor change: upstream defines this in AltList.x (the Logos %ctor
+// Metis vendor change: upstream defines this in AltList.x (the Logos %ctor
 // preheat file, not vendored here); the definition moved next to its only
 // remaining caller.
 NSString *safe_getExecutablePath(void)
@@ -174,7 +174,7 @@ BOOL tagArrayContainsTag(NSArray* tagArr, NSString* tag)
 		return nil;
 	}
 
-	// TypeX vendor change: primary acquisition follows the PullOver-X
+	// Metis vendor change: primary acquisition follows the PullOver-X
 	// QSFavoritesPickerController method — a single -allApplications pass.
 	// Classification never comes from the enumeration itself; every proxy is
 	// classified by its applicationType string inside the section predicates,

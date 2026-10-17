@@ -4,7 +4,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 经 SpringBoard 私有能力进入系统「照片」App 的最近照片。
 /// 优先激活照片 App 的应用快捷方式（App Shortcuts，MOST_RECENT_PHOTO，
-/// 获取方式与 TypeX DXQuickActionProvider 同源）；快捷方式缺失时回退为
+/// 获取方式与 MetisKeyboard DXQuickActionProvider 同源）；快捷方式缺失时回退为
 /// 直接拉起照片 App（停在图库页，即最近照片网格）。
 @interface PXPhotoShortcut : NSObject
 

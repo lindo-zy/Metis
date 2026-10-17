@@ -76,11 +76,9 @@ jobs:
           cat > release-notes.md <<EOF
           # Metis ${VERSION}
 
-          统一安装包：截图与标注（PixPin）· 键盘与操作（TypeX）· 剪贴板（KayokoX）。
+          截图与标注 · 键盘与操作 · 剪贴板，三模块合一。
 
           - 系统设置唯一入口「Metis」；总开关默认开，三个模块默认关（按需启用）。
-          - 与旧包互斥（com.pixpin.screenshot / com.lindo.typex / com.lindo.kayokox），
-            安装前请先移除旧插件；旧配置不迁移不覆盖。
           - iOS16 变体：iPhoneOS16.5 SDK，部署目标 16.0。
           - iOS17 变体：${XCODE_SDK}（17.x），部署目标 16.0。
           - 架构：arm64 / arm64e（RootHide）。

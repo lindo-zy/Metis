@@ -82,7 +82,7 @@ static inline UIResponder *DXKeyboardInputDelegate(UIKeyboardImpl *keyboard) {
 @property (nonatomic,retain) UIKeyboardDockItem * centerDockItem;
 //@property (retain, nonatomic) UIKeyboardDockItemButton *leftDockButton;
 //@property (retain, nonatomic) UIKeyboardDockItemButton *rightDockButton;
-@property (nonatomic, retain) DXCollectionView *typex;
+@property (nonatomic, retain) DXCollectionView *keyboardToolbar;
 @property (nonatomic, retain) DXFloatingAppShelfView *appShelf;
 
 -(void)shouldUpdateLayoutWithDelay:(float)delay;
@@ -121,7 +121,7 @@ static inline UIResponder *DXKeyboardInputDelegate(UIKeyboardImpl *keyboard) {
 -(BOOL)isEmpty;
 @end
 
-@interface UITextField (TypeX)
+@interface UITextField (MetisKeyboard)
 @property (nonatomic,copy) NSString * text;
 -(void)setAttributes:(id)arg1 range:(NSRange)arg2 ;
 @end

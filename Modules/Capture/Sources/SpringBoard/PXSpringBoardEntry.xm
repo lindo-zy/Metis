@@ -59,7 +59,7 @@ static BOOL PXConsumeExternalURL(NSURL *url, PXOpenCompletion completion) {
     }
     if (completion) {
         completion(name ? nil : [NSError errorWithDomain:PXBundleID code:1
-            userInfo:@{NSLocalizedDescriptionKey: @"Invalid PixPin command"}]);
+            userInfo:@{NSLocalizedDescriptionKey: @"Invalid MetisCapture command"}]);
     }
     return YES;
 }
@@ -135,7 +135,7 @@ static void PXInstallURLHook(Class cls, NSString *selectorName, IMP replacement,
                 PXDarwinCaptureLong,
                 PXDarwinCaptureCancel,
                 PXDarwinPreferencesReload,
-                // Snapper3 兼容别名：第三方按 Snapper3 公开约定发通知即可驱动 PixPin。
+                // Snapper3 兼容别名：第三方按 Snapper3 公开约定发通知即可驱动 MetisCapture。
                 PXDarwinSnapperForceOpen,
                 PXDarwinSnapperForceInstantOpen,
                 PXDarwinSnapperForceFreezeOpen,

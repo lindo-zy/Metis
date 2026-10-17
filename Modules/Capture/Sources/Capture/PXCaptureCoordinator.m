@@ -21,7 +21,7 @@ static const CGFloat PXFramesToWaitBeforeCapture = 2.0;
 static const CGFloat PXSelectionMinimumSize = 44.0;
 // 自发自收抑制（主线程读写）：工具栏外调 SHELLX 的官方触发名与本方 SHELLX/Snapper3
 // 兼容别名同名，Darwin 中心会把自发通知也投递回本进程，外调前按名武装一次，
-// 回环到达时吞掉，否则画板会双开（PixPin 一块、SHELLX 一块）。
+// 回环到达时吞掉，否则画板会双开（MetisCapture 一块、SHELLX 一块）。
 static NSString *_Nullable pxDarwinSelfPostArmedName = nil;
 
 @interface PXCaptureCoordinator () <PXSelectionViewDelegate, PXResultBubbleDelegate,
@@ -138,7 +138,7 @@ static PXCaptureCoordinator *_sharedCoordinator = nil;
 
     PXConfig *config = PXPreferences.config;
     if (!config.enabled) {
-        PXLogInfo(@"PixPin disabled, request ignored (%@)", PXStringFromCaptureMode(mode));
+        PXLogInfo(@"MetisCapture disabled, request ignored (%@)", PXStringFromCaptureMode(mode));
         return;
     }
 
@@ -198,7 +198,7 @@ static PXCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
 
-    // 抓屏前隐藏自有覆盖层，并等待两帧，确保合成器不再包含 PixPin 窗口。
+    // 抓屏前隐藏自有覆盖层，并等待两帧，确保合成器不再包含 MetisCapture 窗口。
     [self pxHideOwnOverlays];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(PXFramesToWaitBeforeCapture / 60.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
@@ -434,7 +434,7 @@ static PXCaptureCoordinator *_sharedCoordinator = nil;
     }
     // 武装自发自收抑制：区域/即时/冻结/关闭的官方触发名与本方 SHELLX 兼容别名同名
     // （Darwin 中心把自发通知也投递回本进程），外调前按名武装一次，回环到达时吞掉，
-    // 否则画板双开（PixPin 一块、SHELLX 一块）。记录/最近一张/整屏（AssistiveScreenshot
+    // 否则画板双开（MetisCapture 一块、SHELLX 一块）。记录/最近一张/整屏（AssistiveScreenshot
     // 通知）本方均未监听，无回环；套壳等 URL 类动作不经过通知中心，也无回环。
     switch (action) {
         case PXShellXActionArea:

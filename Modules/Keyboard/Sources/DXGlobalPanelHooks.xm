@@ -99,7 +99,7 @@ static void DXTryInstallGlobalPanelHooks(void);
     if (!DXDockPanelTouchIsBackground(self.dock, touch.view, point)) {
         if (!self.loggedRejectedTouch) {
             self.loggedRejectedTouch = YES;
-            NSLog(@"[TypeX][DockGesture] rejected icon/control hit=%@", NSStringFromClass(touch.view.class));
+            NSLog(@"[MetisKeyboard][DockGesture] rejected icon/control hit=%@", NSStringFromClass(touch.view.class));
         }
         return NO;
     }
@@ -110,7 +110,7 @@ static void DXTryInstallGlobalPanelHooks(void);
     if (!active) return NO;
     self.sourceWindow = self.dock.window;
     self.snapshot = [preferences copy]; self.sourceFrame = frame; self.sourceBounds = window.bounds;
-    NSLog(@"[TypeX][DockGesture] tracking request=%lu zone=%@ hit=%@", (unsigned long)self.generation,
+    NSLog(@"[MetisKeyboard][DockGesture] tracking request=%lu zone=%@ hit=%@", (unsigned long)self.generation,
         point.y > CGRectGetMaxY(frame) ? @"below" : @"inside", NSStringFromClass(touch.view.class));
     return YES;
 }
@@ -142,7 +142,7 @@ static void DXTryInstallGlobalPanelHooks(void);
 - (void)dockPan:(UIPanGestureRecognizer *)gesture {
     if (!NSThread.isMainThread || gesture != self.pan) return;
     if (gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
-        if (self.sourceWindow && !self.opened) NSLog(@"[TypeX][DockGesture] cancelled request=%lu state=%ld", (unsigned long)self.generation, (long)gesture.state);
+        if (self.sourceWindow && !self.opened) NSLog(@"[MetisKeyboard][DockGesture] cancelled request=%lu state=%ld", (unsigned long)self.generation, (long)gesture.state);
         [self invalidated:nil]; return;
     }
     if (gesture.state == UIGestureRecognizerStateEnded &&
@@ -154,7 +154,7 @@ static void DXTryInstallGlobalPanelHooks(void);
             self.opened = YES;
             NSString *direction = self.direction;
             NSUInteger request = self.generation;
-            NSLog(@"[TypeX][DockGesture] trigger request=%lu direction=%@ panel=%d", (unsigned long)request, direction, isPanel);
+            NSLog(@"[MetisKeyboard][DockGesture] trigger request=%lu direction=%@ panel=%d", (unsigned long)request, direction, isPanel);
             if (isPanel) {
                 NSDictionary *snapshot = self.snapshot;
                 CGRect frame = self.sourceFrame, bounds = self.sourceBounds;
@@ -171,7 +171,7 @@ static void DXTryInstallGlobalPanelHooks(void);
                         CGRectEqualToRect(frame, [handler.dock convertRect:handler.dock.bounds toView:window]) &&
                         CGRectEqualToRect(bounds, window.bounds) && [handler hasAction:direction preferences:snapshot];
                     if (!current) {
-                        NSLog(@"[TypeX][DockGesture] presentation cancelled request=%lu", (unsigned long)request);
+                        NSLog(@"[MetisKeyboard][DockGesture] presentation cancelled request=%lu", (unsigned long)request);
                         return;
                     }
                     [DXGlobalPanel.sharedInstance presentPanelSelector:selector fromWindow:window origin:@"dockgesture"];
@@ -185,7 +185,7 @@ static void DXTryInstallGlobalPanelHooks(void);
                         DXDockPanelGestureHandler *handler = weakSelf;
                         BOOL current = handler && handler.generation == request && source && handler.dock.window == source &&
                             [handler available] && [snapshot isEqual:DXPrefsManager.sharedInstance.prefs];
-                        NSLog(@"[TypeX][DockGesture] result request=%lu direction=%@ status=%llu current=%d",
+                        NSLog(@"[MetisKeyboard][DockGesture] result request=%lu direction=%@ status=%llu current=%d",
                             (unsigned long)request, direction, (unsigned long long)result, current);
                     });
                 });
@@ -224,7 +224,7 @@ static void DXInstallDockPanelGesture(UIView *dock) {
     objc_setAssociatedObject(pan, &DXDockRecognizerKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(dock, &DXDockPanelHandlerKey, handler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [dock.window addGestureRecognizer:pan];
-    NSLog(@"[TypeX][DockGesture] installed directions=up,left,right class=%@ window=%@", NSStringFromClass(dock.class), NSStringFromClass(dock.window.class));
+    NSLog(@"[MetisKeyboard][DockGesture] installed directions=up,left,right class=%@ window=%@", NSStringFromClass(dock.class), NSStringFromClass(dock.window.class));
 }
 
 %group TypeXGlobalDock
@@ -260,7 +260,7 @@ static void DXTryInstallGlobalPanelHooks(void) {
     if (!NSThread.isMainThread) return;
     static BOOL dockInstalled = NO, transitionInstalled = NO;
     Class dock = NSClassFromString(@"SBDockView");
-    if (!dockInstalled && !dock) NSLog(@"[TypeX][GlobalPanel] dock hook pending: SBDockView unavailable");
+    if (!dockInstalled && !dock) NSLog(@"[MetisKeyboard][GlobalPanel] dock hook pending: SBDockView unavailable");
     if (!dockInstalled && [dock instancesRespondToSelector:@selector(didMoveToWindow)]) {
         %init(TypeXGlobalDock, SBDockView = dock);
         dockInstalled = YES;

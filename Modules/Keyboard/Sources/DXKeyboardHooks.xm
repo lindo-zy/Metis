@@ -1,5 +1,5 @@
 #import "common.h"
-#import "TypeX.h"
+#import "DXKeyboardUIKit.h"
 #import "DXShared.h"
 #import "DXHelper.h"
 #import "DXQuickActionProvider.h"
@@ -211,10 +211,10 @@ static void DXApplyBottomToolbarVisibility(UIKeyboardDockView *dock) {
     BOOL stockHidden = DXStockDockRequiresHiding(dock);
     BOOL available = DXPrefsManager.sharedInstance.preferencesAvailable && preferencesBool(kEnabledkey, YES) &&
         toggledOn && !isLandscape && !isDictating && !stockHidden;
-    dock.typex.hidden = !available || shelfMode || !DXToolbarHasShortcuts(dock.typex);
+    dock.keyboardToolbar.hidden = !available || shelfMode || !DXToolbarHasShortcuts(dock.keyboardToolbar);
     // Keep the empty shelf as a swipe surface for the configured keyboard panels.
     dock.appShelf.hidden = !available || !shelfMode || !dock.appShelf.unlocked;
-    dock.typex.keyboardPanelGestureView = shelfMode ? dock.appShelf : nil;
+    dock.keyboardToolbar.keyboardPanelGestureView = shelfMode ? dock.appShelf : nil;
 }
 
 // An app can be injected before SpringBoard has finished seeding the shared
@@ -362,7 +362,7 @@ static void DXRefreshActiveTopToolbarWithConfiguration(BOOL reloadConfiguration)
     static dispatch_once_t onceDiagToken;
     dispatch_once(&onceDiagToken, ^{
         // 一次性体检：进程内第一次键盘刷新时把顶部工具栏全部门控值打到 syslog。
-        NSLog(@"[TypeX] diag: top refresh keyboard=%@ responder=%@ enabled=%d toggledOn=%d landscape=%d dictating=%d prefsAvail=%d",
+        NSLog(@"[MetisKeyboard] diag: top refresh keyboard=%@ responder=%@ enabled=%d toggledOn=%d landscape=%d dictating=%d prefsAvail=%d",
               keyboard, NSStringFromClass([responder class]),
               preferencesBool(kEnabledkey, YES), toggledOn, isLandscape, isDictating,
               [DXPrefsManager sharedInstance].preferencesAvailable);
@@ -409,7 +409,7 @@ static void DXRefreshActiveTopToolbar(void) {
 
 static DXTopToolbarLifecycleObserver *topToolbarLifecycleObserver;
 
-// TypeX 自带 AI 面板的 SpringBoard 端承载。键盘进程内建窗口会被限制在键盘宿主
+// MetisKeyboard 自带 AI 面板的 SpringBoard 端承载。键盘进程内建窗口会被限制在键盘宿主
 // 区域内（第三方键盘扩展里完全无法悬浮），所以工具栏只写 ai-chat-request 通道，
 // 面板统一在 SB 创建。origin=sb（桌面键盘工具栏）立即弹出；app 来源等回到桌面
 // 再显示（超 5 分钟丢弃）。桌面可见性由 %hook SBHomeScreenViewController 维护，
@@ -449,7 +449,7 @@ static BOOL DXIsPastePermissionAlert(UIAlertController *alert) {
 
 static void reloadPrefs(void);
 
-%group TypeX
+%group MetisKeyboard
 
 %hook UIKeyboardImpl
 
@@ -536,55 +536,55 @@ static void reloadPrefs(void);
 %hook UIKeyboardDockView
 //%property (retain, nonatomic) UIKeyboardDockItemButton *leftDockButton;
 //%property (retain, nonatomic) UIKeyboardDockItemButton *rightDockButton;
-%property (retain, nonatomic) DXCollectionView *typex;
+%property (retain, nonatomic) DXCollectionView *keyboardToolbar;
 %property (retain, nonatomic) DXFloatingAppShelfView *appShelf;
 
 - (instancetype)initWithFrame:(CGRect)frame {
     dockView = %orig;
     if (preferencesBool(kEnabledkey,YES) && dockView) {
-        self.typex = [[DXCollectionView alloc] initWithConfiguration:@"bottom"];
+        self.keyboardToolbar = [[DXCollectionView alloc] initWithConfiguration:@"bottom"];
         
-        //self.typex = [[DXCollectionView alloc] init];
+        //self.keyboardToolbar = [[DXCollectionView alloc] init];
         
-        self.typex.translatesAutoresizingMaskIntoConstraints = NO;
-        //self.typex.transform = CGAffineTransformMakeScale(-1, 1);
+        self.keyboardToolbar.translatesAutoresizingMaskIntoConstraints = NO;
+        //self.keyboardToolbar.transform = CGAffineTransformMakeScale(-1, 1);
         
-        [dockView addSubview:self.typex];
+        [dockView addSubview:self.keyboardToolbar];
         
         // Stock globe/dictation buttons always stay; the toolbar sits between
         // them (69/-60 clear both stock buttons).
         float leading = DXBottomToolbarLeadingInset;
         float trailing = -DXBottomToolbarTrailingInset;
 
-        NSLayoutConstraint *leadingConstraint = [NSLayoutConstraint constraintWithItem:self.typex attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeLeading multiplier:1.0 constant:leading];
-        leadingConstraint.identifier = @"TypeX";
+        NSLayoutConstraint *leadingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeLeading multiplier:1.0 constant:leading];
+        leadingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:leadingConstraint];
 
-        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.typex attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeTrailing multiplier:1.0 constant:trailing];
-        trailingConstraint.identifier = @"TypeX";
+        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeTrailing multiplier:1.0 constant:trailing];
+        trailingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:trailingConstraint];
 
-        NSLayoutConstraint *heightConstraint = [NSLayoutConstraint constraintWithItem:self.typex attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:heightOffset];
-        heightConstraint.identifier = @"TypeX";
+        NSLayoutConstraint *heightConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:heightOffset];
+        heightConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:heightConstraint];
 
         // Fixed lift above the dock's bottom edge (the former vertical-offset default).
-        NSLayoutConstraint *bottomConstraint = [NSLayoutConstraint constraintWithItem:self.typex attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeBottom multiplier:1.0 constant:-DXBottomToolbarBottomInset];
-        bottomConstraint.identifier = @"TypeX";
+        NSLayoutConstraint *bottomConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeBottom multiplier:1.0 constant:-DXBottomToolbarBottomInset];
+        bottomConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:bottomConstraint];
         self.appShelf = [[DXFloatingAppShelfView alloc] initWithFrame:CGRectZero];
         self.appShelf.translatesAutoresizingMaskIntoConstraints = NO;
         [dockView addSubview:self.appShelf];
         DXToolbarHorizontalGesture *shelfSwipe = [[DXToolbarHorizontalGesture alloc]
-            initWithTarget:self.typex action:@selector(toolbarHorizontalEnded:)];
+            initWithTarget:self.keyboardToolbar action:@selector(toolbarHorizontalEnded:)];
         shelfSwipe.cancelsTouchesInView = YES;
         shelfSwipe.delaysTouchesBegan = NO;
         [self.appShelf addGestureRecognizer:shelfSwipe];
         [NSLayoutConstraint activateConstraints:@[
-            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.typex.leadingAnchor],
-            [self.appShelf.trailingAnchor constraintEqualToAnchor:self.typex.trailingAnchor],
-            [self.appShelf.topAnchor constraintEqualToAnchor:self.typex.topAnchor],
-            [self.appShelf.bottomAnchor constraintEqualToAnchor:self.typex.bottomAnchor]
+            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.keyboardToolbar.leadingAnchor],
+            [self.appShelf.trailingAnchor constraintEqualToAnchor:self.keyboardToolbar.trailingAnchor],
+            [self.appShelf.topAnchor constraintEqualToAnchor:self.keyboardToolbar.topAnchor],
+            [self.appShelf.bottomAnchor constraintEqualToAnchor:self.keyboardToolbar.bottomAnchor]
         ]];
         __weak UIKeyboardDockView *weakDock = self;
         self.appShelf.contentChanged = ^{ DXApplyBottomToolbarVisibility(weakDock); };
@@ -603,9 +603,9 @@ static void reloadPrefs(void);
         
     }
         DXApplyBottomToolbarVisibility(self);
-        NSLog(@"[TypeX] diag: dock init typex=%@ enabled=%d toggledOn=%d shortcuts=%d",
-              self.typex, preferencesBool(kEnabledkey, YES), toggledOn,
-              DXToolbarHasShortcuts(self.typex));
+        NSLog(@"[MetisKeyboard] diag: dock init keyboardToolbar=%@ enabled=%d toggledOn=%d shortcuts=%d",
+              self.keyboardToolbar, preferencesBool(kEnabledkey, YES), toggledOn,
+              DXToolbarHasShortcuts(self.keyboardToolbar));
     
     
     return dockV = dockView;
@@ -714,14 +714,14 @@ static void reloadPrefs(void);
     if (preferencesBool(kEnabledHaptickey,YES)){
         [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
     }
-    toggledOn = DXBottomShelfMode() ? self.appShelf.hidden : self.typex.hidden;
+    toggledOn = DXBottomShelfMode() ? self.appShelf.hidden : self.keyboardToolbar.hidden;
     [[DXPrefsManager sharedInstance] setValue:[NSNumber numberWithBool:toggledOn] forKey:kToggledOnkey];
     
     DXApplyBottomToolbarVisibility(self);
-    if (self.typex.hidden) self.typex.alpha = 1.0f;
+    if (self.keyboardToolbar.hidden) self.keyboardToolbar.alpha = 1.0f;
     else {
-        self.typex.alpha = 0.0f;
-        [UIView animateWithDuration:0.2 animations:^{ self.typex.alpha = 1.0f; }];
+        self.keyboardToolbar.alpha = 0.0f;
+        [UIView animateWithDuration:0.2 animations:^{ self.keyboardToolbar.alpha = 1.0f; }];
     }
     DXRefreshActiveTopToolbar();
     [self layoutSubviews];
@@ -757,10 +757,10 @@ static void reloadPrefs(void);
 
 - (void)layoutSubviews{
     %orig;
-    if (self.typex && DXReloadPreferencesIfUnavailable()) {
-        [self.typex reloadShortcutConfiguration];
-        [self.typex.collectionViewLayout invalidateLayout];
-        [self.typex reloadData];
+    if (self.keyboardToolbar && DXReloadPreferencesIfUnavailable()) {
+        [self.keyboardToolbar reloadShortcutConfiguration];
+        [self.keyboardToolbar.collectionViewLayout invalidateLayout];
+        [self.keyboardToolbar reloadData];
     }
     DXApplyBottomToolbarVisibility(self);
     if (preferencesBool(kEnabledkey, YES) && toggledOn && !isLandscape && !isDictating) {
@@ -960,15 +960,15 @@ static void reloadPrefs(void) {
     // Settings changes arrive while the keyboard dock is still alive.  Refresh
     // its data source and visibility explicitly; iOS 17 no longer recreates the
     // dock view for every preferences update.
-    if (dockView.typex) {
-        [dockView.typex reloadShortcutConfiguration];
+    if (dockView.keyboardToolbar) {
+        [dockView.keyboardToolbar reloadShortcutConfiguration];
         [dockView.appShelf refresh];
         DXApplyBottomToolbarVisibility(dockView);
-        [dockView.typex.collectionViewLayout invalidateLayout];
-        [dockView.typex reloadData];
+        [dockView.keyboardToolbar.collectionViewLayout invalidateLayout];
+        [dockView.keyboardToolbar reloadData];
     }
     DXRefreshActiveTopToolbar();
-    NSLog(@"[TypeX] diag: prefs avail=%d count=%lu enabled=%d toggledOn=%d bottom=%@ top=%@",
+    NSLog(@"[MetisKeyboard] diag: prefs avail=%d count=%lu enabled=%d toggledOn=%d bottom=%@ top=%@",
           manager.preferencesAvailable, (unsigned long)prefs.count,
           preferencesBool(kEnabledkey, YES), toggledOn,
           DXDiagShortcutShape(prefs[DXScopedPreferenceKey(kShortcutskey, @"bottom")]),
@@ -976,9 +976,9 @@ static void reloadPrefs(void) {
     /*
      if (dockView){
      [UIView performWithoutAnimation:^{
-     [dockView.typex performBatchUpdates:^{
-     [dockView.typex reloadData];
-     [dockView.typex.collectionViewLayout invalidateLayout];
+     [dockView.keyboardToolbar performBatchUpdates:^{
+     [dockView.keyboardToolbar reloadData];
+     [dockView.keyboardToolbar.collectionViewLayout invalidateLayout];
      } completion:^(BOOL finished) {}];
      
      }];
@@ -987,7 +987,7 @@ static void reloadPrefs(void) {
     /*
      if (dockV){
      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-     [[DXPrefsManager sharedInstance] setValue:[NSKeyedArchiver archivedDataWithRootObject:dockV.typex] forKey:@"prevState" fromSandbox:!isSpringBoard];
+     [[DXPrefsManager sharedInstance] setValue:[NSKeyedArchiver archivedDataWithRootObject:dockV.keyboardToolbar] forKey:@"prevState" fromSandbox:!isSpringBoard];
      });
      }
      */
@@ -1002,7 +1002,7 @@ static void reloadPrefsNotificationCallback(CFNotificationCenterRef center,
                                              CFDictionaryRef userInfo) {
     // Darwin notifications may arrive while Settings is still unwinding the
     // preference write.  Always refresh on the process main queue so UIKit state
-    // and the TypeX view are updated serially and never from the posting thread.
+    // and the MetisKeyboard view are updated serially and never from the posting thread.
     dispatch_async(dispatch_get_main_queue(), ^{
         reloadPrefs();
     });
@@ -1032,7 +1032,7 @@ static void reloadPrefsNotificationCallback(CFNotificationCenterRef center,
 				}
                 //isApplication = [processName isEqualToString:@"MarkupPhotoExtension"] ?: isApplication;
                 isSafari = [processName isEqualToString:@"MobileSafari"];
-                NSLog(@"[TypeX] diag: ctor proc=%@ sb=%d app=%d", executablePath, isSpringBoard, isApplication);
+                NSLog(@"[MetisKeyboard] diag: ctor proc=%@ sb=%d app=%d", executablePath, isSpringBoard, isApplication);
 				
                 // Metis 拆分：SpringBoard 路径整体迁至 MetisSpringBoard 目标
                 // （MTKeyboardSpringBoardEntry.xm）；本镜像在 SB 中立即返回。
@@ -1041,8 +1041,8 @@ static void reloadPrefsNotificationCallback(CFNotificationCenterRef center,
                     [tweakBundle load];
                     firstInit = YES;
                     reloadPrefs();
-                    %init(TypeX);
-                    NSLog(@"[TypeX] diag: hooks installed");
+                    %init(MetisKeyboard);
+                    NSLog(@"[MetisKeyboard] diag: hooks installed");
                     topToolbarLifecycleObserver = [[DXTopToolbarLifecycleObserver alloc] init];
                     [[NSNotificationCenter defaultCenter] addObserver:topToolbarLifecycleObserver
                                                              selector:@selector(keyboardDidShow:)

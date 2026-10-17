@@ -77,7 +77,7 @@ static void DXBrowserRedirectSetRequestURL(id request, NSURL *url) {
         // The URL is never logged; it can carry tokens or other private data.
         NSURL *wrapped = DXBrowserRedirectWrapURL(DXBrowserRedirectRequestURL(self));
         if (wrapped) DXBrowserRedirectSetRequestURL(self, wrapped);
-        NSLog(@"[TypeX][BrowserRedirect] %@ -> %@ url=%@",
+        NSLog(@"[MetisKeyboard][BrowserRedirect] %@ -> %@ url=%@",
             bundleIdentifier, DXBrowserRedirectTarget, wrapped ? @"wrapped" : @"kept");
         %orig(DXBrowserRedirectTarget);
     } else {
@@ -105,7 +105,7 @@ static void DXBrowserRedirectTryInstallHooks(void) {
     if (installed) return;
     installed = YES;
     %init(DXBrowserRedirect, FBSystemServiceOpenApplicationRequest = cls);
-    NSLog(@"[TypeX][BrowserRedirect] hooks installed");
+    NSLog(@"[MetisKeyboard][BrowserRedirect] hooks installed");
 }
 
 static void DXBrowserRedirectPreferencesChanged(CFNotificationCenterRef center, void *observer,

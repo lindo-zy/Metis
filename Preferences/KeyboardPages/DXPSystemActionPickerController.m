@@ -1,7 +1,7 @@
 #import "DXPSystemActionPickerController.h"
 #import "DXSystemActionCatalog.h"
 #import "common.h"
-#import "DXPixPinIntegration.h"
+#import "DXCaptureIntegration.h"
 
 static NSBundle *dxpLocalBundle;
 
@@ -22,7 +22,7 @@ static NSBundle *dxpLocalBundle;
 }
 - (void)reloadActions {
     NSMutableArray *groups = [NSMutableArray array];
-    NSArray *catalog = DXVisibleSystemActionCatalog(DXPixPinInstalledAtPath(DX_ROOT_PATH_NS(DXPixPinDylibPath)));
+    NSArray *catalog = DXVisibleSystemActionCatalog(DXCaptureInstalledAtPath(DX_ROOT_PATH_NS(DXCaptureDylibPath)));
     for (NSString *group in @[@"media", @"device", @"control", @"pixpin"]) {
         NSMutableArray *rows = [NSMutableArray array];
         for (NSDictionary *action in catalog)
@@ -58,7 +58,7 @@ static NSBundle *dxpLocalBundle;
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     [table deselectRowAtIndexPath:path animated:YES];
     NSDictionary *action = self.groups[path.section][path.row];
-    if (action[@"pixpinNotification"] && !DXPixPinInstalledAtPath(DX_ROOT_PATH_NS(DXPixPinDylibPath))) {
+    if (action[@"pixpinNotification"] && !DXCaptureInstalledAtPath(DX_ROOT_PATH_NS(DXCaptureDylibPath))) {
         [self reloadActions];
         return;
     }

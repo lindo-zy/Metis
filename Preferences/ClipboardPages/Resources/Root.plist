@@ -16,7 +16,7 @@
 			<key>headerSubtitle</key>
 			<string>Feature-rich clipboard manager for iOS.</string>
 			<key>headerTitle</key>
-			<string>KayokoX</string>
+			<string>MetisClipboard</string>
 			<key>height</key>
 			<integer>92</integer>
 		</dict>
@@ -329,7 +329,7 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Show KayokoX</string>
+			<string>Show MetisClipboard</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -654,6 +654,6 @@
 		</dict>
 	</array>
 	<key>title</key>
-	<string>KayokoX</string>
+	<string>MetisClipboard</string>
 </dict>
 </plist>

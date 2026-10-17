@@ -60,7 +60,7 @@ static BOOL kayokoSendRelaunchActionWithOptions(SBSRelaunchActionOptions options
     NSBundle *bundle = [NSBundle bundleForClass:[self class]];
 
     UIAlertController *resetAlert = [UIAlertController
-        alertControllerWithTitle:[bundle localizedStringForKey:@"KayokoX" value:nil table:@"Root"]
+        alertControllerWithTitle:[bundle localizedStringForKey:@"MetisClipboard" value:nil table:@"Root"]
                          message:[bundle localizedStringForKey:@"This option requires restarting SpringBoard to apply. "
                                                                @"Do you want to restart now?"
                                                          value:nil

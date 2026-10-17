@@ -132,7 +132,7 @@ typedef NS_ENUM(NSInteger, DXOpenAppSection) {
                 [(isUser ? user : system) addObject:app];
             }
         } @catch (NSException *exception) {
-            NSLog(@"[TypeX] openapp picker: application enumeration failed (%@)", exception);
+            NSLog(@"[MetisKeyboard] openapp picker: application enumeration failed (%@)", exception);
         }
 
         NSComparator byName = ^NSComparisonResult(DXPAppInfo *left, DXPAppInfo *right) {
@@ -146,7 +146,7 @@ typedef NS_ENUM(NSInteger, DXOpenAppSection) {
             if (!strongSelf || generation != strongSelf.loadGeneration) return;
 
             [strongSelf applyUserApps:user systemApps:system];
-            NSLog(@"[TypeX] openapp picker: loaded %lu user, %lu system apps (current %@)",
+            NSLog(@"[MetisKeyboard] openapp picker: loaded %lu user, %lu system apps (current %@)",
                   (unsigned long)strongSelf.userApps.count, (unsigned long)strongSelf.systemApps.count,
                   strongSelf.currentApp.bundleID ?: @"none");
             strongSelf.isLoading = NO;

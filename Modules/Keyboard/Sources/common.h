@@ -16,12 +16,12 @@
 #import "DXGlobals.h"
 
 #define bundlePath DX_ROOT_PATH_NS(@"/Library/PreferenceBundles/MetisKeyboardPrefs.bundle")
-//#define typexBundlePath @"/Library/Application Support/TypeX.bundle"
+//#define typexBundlePath @"/Library/Application Support/MetisKeyboard.bundle"
 #define LOCALIZED(str) [tweakBundle localizedStringForKey:str value:@"" table:nil]
 
 #define kIdentifier @"com.lindo.typex"
 #define kIPCCenterPrefsManager @"com.lindo.typex.prefsmanager"
-#define kIPCCenterTypeX @"com.lindo.typex"
+#define kIPCCenterKeyboard @"com.lindo.typex"
 #define kPrefsChangedIdentifier @"com.lindo.typex/prefschanged"
 #define kPrefsPath @"/var/mobile/Library/Preferences/com.lindo.typex.plist"
 
@@ -182,27 +182,27 @@
 // stages the directory world-writable (no sticky bit: mobile writers must be
 // able to atomically replace the root-owned seed file) so mobile processes
 // (Settings, SpringBoard) can refresh the snapshot without a helper daemon.
-#define TypeXCachePath DX_ROOT_PATH_NS(@"/Library/TypeX")
-#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@"/Library/TypeX/shared.plist")
+#define TypeXCachePath DX_ROOT_PATH_NS(@"/Library/MetisKeyboard")
+#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@"/Library/MetisKeyboard/shared.plist")
 
 // Settings and SpringBoard exchange quick-action data through an isolated
 // CFPreferences domain. On RootHide iOS 16, SpringBoard can read shared files
-// but its sandbox rejects direct writes under /Library/TypeX; cfprefsd provides
+// but its sandbox rejects direct writes under /Library/MetisKeyboard; cfprefsd provides
 // the supported cross-process persistence path. Requests carry
 // {format: 3, requestID, bundles}; responses replace one complete generation.
 #define TypeXQuickActionDomain @"com.lindo.typex.quickactions"
-#define TypeXQuickActionRequestKey @"request-v3"
+#define MTQuickActionRequestKey @"request-v3"
 #define TypeXQuickActionStatusKey @"status-v3"
 #define TypeXQuickActionSnapshotKey @"snapshot-v3"
 #define kShortcutRefreshRequestIdentifier @"com.lindo.typex/shortcutrefresh"
 #define kShortcutSnapshotChangedIdentifier @"com.lindo.typex/shortcutschanged"
 
-// TypeX 自带 AI 面板通道：工具栏进程只写请求（{format:2, requestID, created,
+// MetisKeyboard 自带 AI 面板通道：工具栏进程只写请求（{format:2, requestID, created,
 // mode: text|image|empty, origin: sb|app, text?}），SpringBoard 端收到 Darwin
 // 通知后整包读取并在 SB 进程内创建 DXAIPanel 悬浮窗。面板不能在键盘进程承载：
 // 窗口会被限制在键盘宿主区域内（第三方键盘扩展里完全无法悬浮）。与快捷方式
 // 目录共用隔离域，避免再开共享面。
-#define TypeXAIChatRequestKey @"ai-chat-request"
+#define MTAIChatRequestKey @"ai-chat-request"
 #define kAIChatRequestIdentifier @"com.lindo.typex/aichat"
 
 // Complete SpringBoard-authored snapshot of each app's current static and

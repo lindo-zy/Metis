@@ -23,8 +23,8 @@ static void reloadPrefs(CFNotificationCenterRef center, void *observer, CFString
         NSArray *args = [[NSClassFromString(@"NSProcessInfo") processInfo] arguments];
         if (args.count == 0) return;
 
-        // This class is linked only into TypeX targets.  Initialise it in every
-        // host that loads TypeX so app extensions follow the same non-SpringBoard
+        // This class is linked only into MetisKeyboard targets.  Initialise it in every
+        // host that loads MetisKeyboard so app extensions follow the same non-SpringBoard
         // sandbox policy as +isRunningInSandbox.
         [DXPrefsManager sharedInstance];
     }
@@ -108,7 +108,7 @@ static NSString *DXSharedPrefsPath(void) {
         NSString *path = DXSharedPrefsPath();
         NSFileManager *fm = [NSFileManager defaultManager];
         NSDictionary *attrs = [fm attributesOfItemAtPath:path error:nil];
-        NSLog(@"[TypeX] diag: snapshot path=%@ exists=%d readable=%d size=%lu sandbox=%d",
+        NSLog(@"[MetisKeyboard] diag: snapshot path=%@ exists=%d readable=%d size=%lu sandbox=%d",
               path, [fm fileExistsAtPath:path], [fm isReadableFileAtPath:path],
               (unsigned long)attrs.fileSize, [DXPrefsManager isRunningInSandbox]);
     });
@@ -123,7 +123,7 @@ static NSString *DXSharedPrefsPath(void) {
         return DXPanelMigratePreferences(payload);
     }
 
-    // Migrate snapshots written by TypeX 2.7.44-2.7.65.  A non-empty legacy
+    // Migrate snapshots written by MetisKeyboard 2.7.44-2.7.65.  A non-empty legacy
     // dictionary is complete; an empty legacy file is ambiguous and is healed
     // by Settings/SpringBoard instead of being treated as a valid default set.
     return snapshot.count > 0 ? DXPanelMigratePreferences(snapshot) : nil;

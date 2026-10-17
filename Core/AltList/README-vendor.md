@@ -1,8 +1,9 @@
 # AltList (vendored)
 
 Vendored from https://github.com/opa334/AltList (upstream 1.0.11, MIT License,
-© Lars Fröder — see LICENSE.md) and compiled directly into the TypeXPrefs
-bundle instead of linking a runtime AltList.framework. The app-list pages
+© Lars Fröder — see LICENSE.md) and compiled directly into the MetisCore shared
+library (consumed by the settings bundles) instead of linking a runtime
+AltList.framework. The app-list pages
 (生效应用 multi-select, 打开应用 single-select picker) are AltList controllers.
 
 ## Files included
@@ -15,7 +16,7 @@ declaration shim. Not included: AltList.x (Logos %ctor display-name preheat),
 the subcontroller pair, ATLApplicationSelectionCell (unused link-cell preview),
 test preference projects.
 
-## TypeX modifications (kept minimal, marked `TypeX vendor` in code)
+## Metis modifications (kept minimal, marked `Metis vendor` in code)
 
 1. `CoreServices.h` — rewritten as a self-contained declaration shim; the theos
    SDKs used here do not ship the private
@@ -29,7 +30,7 @@ test preference projects.
    acquisition now follows the PullOver-X QSFavoritesPickerController method
    (single `allApplications` pass). Classification itself always happens per
    proxy via the `applicationType` string in the ATLApplicationSection
-   predicates (never from enumeration rounds) — that is what fixes TypeX's
+   predicates (never from enumeration rounds) — that is what fixes MetisKeyboard's
    swapped User/System sections. Upstream typed passes stay as fallback.
 4. `ATLApplicationListSelectionController` — added a public
    `selectedApplicationID` accessor so the programmatic picker can seed/read

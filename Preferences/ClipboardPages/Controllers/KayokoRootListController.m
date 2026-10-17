@@ -325,7 +325,7 @@ NS_ASSUME_NONNULL_END
     NSBundle *bundle = [NSBundle bundleForClass:[self class]];
 
     UIAlertController *respringAlert = [UIAlertController
-        alertControllerWithTitle:[bundle localizedStringForKey:@"KayokoX" value:nil table:@"Root"]
+        alertControllerWithTitle:[bundle localizedStringForKey:@"MetisClipboard" value:nil table:@"Root"]
                          message:[bundle localizedStringForKey:@"Respringing will restart SpringBoard and close all "
                                                                @"apps. Unsaved work may be lost."
                                                          value:nil

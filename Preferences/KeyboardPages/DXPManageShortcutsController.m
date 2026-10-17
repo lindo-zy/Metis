@@ -226,7 +226,7 @@ static void DXAppendUniqueShortcuts(NSArray *shortcuts,
     if (sender.isOn && [self enabledButtonCount] >= capacity) {
         [sender setOn:NO animated:YES];
         NSString *message = [NSString stringWithFormat:LOCALIZED(@"KEYBOARD_TOOLBAR_CAPACITY"), (long)capacity];
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"TypeX" message:message preferredStyle:UIAlertControllerStyleAlert];
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"MetisKeyboard" message:message preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_OK") style:UIAlertActionStyleCancel handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
         return;
@@ -349,7 +349,7 @@ static void DXAppendUniqueShortcuts(NSArray *shortcuts,
         self.toolbarPreviewDock.userInteractionEnabled = NO;
         [self.toolbarPreviewHeader addSubview:self.toolbarPreviewDock];
         // Stock dock controls provide visual context; only the shortcut strip
-        // is rendered by TypeX, and no keyboard controls are activated here.
+        // is rendered by MetisKeyboard, and no keyboard controls are activated here.
         UIImageSymbolConfiguration *symbol = [UIImageSymbolConfiguration configurationWithPointSize:26 weight:UIImageSymbolWeightRegular];
         self.toolbarPreviewGlobe = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"globe" withConfiguration:symbol]];
         self.toolbarPreviewDictation = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"mic" withConfiguration:symbol]];
@@ -370,7 +370,7 @@ static void DXAppendUniqueShortcuts(NSArray *shortcuts,
         self.toolbarPreview.backgroundColor = self.topConfiguration ? UIColor.secondarySystemGroupedBackgroundColor : UIColor.clearColor;
         [previewHost addSubview:self.toolbarPreview];
     } else {
-        NSLog(@"[TypeX][ToolbarPreview] unavailable renderer in Settings configuration=%@", configuration);
+        NSLog(@"[MetisKeyboard][ToolbarPreview] unavailable renderer in Settings configuration=%@", configuration);
     }
     [self.toolbarPreviewHeader bringSubviewToFront:self.toolbarPreviewStatus];
     self.tableView.tableHeaderView = self.toolbarPreviewHeader;
@@ -453,7 +453,7 @@ static void DXAppendUniqueShortcuts(NSArray *shortcuts,
 
 // The test field is the header of the button-settings section, i.e. the middle
 // of the page: the sliders being tuned and the field stay on screen together,
-// so tapping the field summons the keyboard (with the TypeX toolbar attached)
+// so tapping the field summons the keyboard (with the MetisKeyboard toolbar attached)
 // right below them for a live preview.
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
     if (section != 1) return nil;
@@ -905,7 +905,7 @@ static NSString *DXFormatSettingsValue(float value, float step, NSString *suffix
             ![DXShortcutsGenerator isShellXScreenshotAvailable]) {
             continue;
         }
-        // 剪贴板按钮只在检测到 Kayoko/KayokoX 已安装时进入目录
+        // 剪贴板按钮只在检测到 Kayoko/MetisClipboard 已安装时进入目录
         if ([defaultOrderSelector[i] isEqualToString:@"clipboardAction:"] &&
             ![DXShortcutsGenerator isKayokoInstalled]) {
             continue;

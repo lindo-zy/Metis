@@ -1,22 +1,15 @@
-Metis 许可与来源清单（LICENSE-NOTICE）
-=====================================
+Metis 许可声明（LICENSE-NOTICE）
+===============================
 
 **本项目代码以 GNU General Public License v3（GPL-3.0）发布，全文见仓库根
 [LICENSE](LICENSE)。使用、修改或再分发本项目代码的作品必须以同等许可开源。**
 
-Metis（com.lindo.metis）整合以下三个来源项目（固定来源 SHA 记录）。
-
-| 模块 | 来源项目 | 来源 HEAD | 许可（仓库内文件事实） |
-| --- | --- | --- | --- |
-| 截图与标注（Capture） | PixPin（com.pixpin.screenshot） | 973b1b1afe6d1e452d63cf90333f7337ddc4a003 | 根目录未发现许可文件；本仓库以 GPLv3 统一声明覆盖 |
-| 键盘与操作（Keyboard） | TypeX（com.lindo.typex） | dfc9a5b19924482272ba3a0e7f1282a9aad9a765 | AGPL-3.0（根 LICENSE）；本仓库以 GPLv3 统一声明覆盖，AGPL 条款事实不变 |
-| 剪贴板（Clipboard） | KayokoX（com.lindo.kayokox） | 61b7a8d35274540068ddda3233df78d9d47f0046 | GPL-3.0（COPYING/README）；THIRD_PARTY_NOTICES 另含 AltList MIT |
-
 第三方组件：
-- AltList（com.opa334.altlist，© Lars Fröder）：MIT。Metis 以 vendored 单副本
-  编入 MetisCore（含 TypeX 项目的最小修改，见 Core/AltList/README-TypeX-vendor.md）。
+- AltList（com.opa334.altlist，© Lars Fröder）：MIT。以 vendored 单副本编入
+  MetisCore（含本项目的最小适配修改，见 Core/AltList/README-vendor.md 与
+  Core/AltList/LICENSE.md）。
 - Theos 工具链与 roothide Theos：各自上游许可，构建期使用，不分发其二进制。
 
-保留原始版权头与许可声明。
+源码文件保留各自原始版权声明。
 
 本文件随包安装到 /usr/share/doc/com.lindo.metis/LICENSE-NOTICE。

@@ -1,4 +1,4 @@
-// DXGlobals.m —— TypeX 全局唯一定义（编译进 MetisCore，见 DXGlobals.h）。
+// DXGlobals.m —— MetisKeyboard 全局唯一定义（编译进 MetisCore，见 DXGlobals.h）。
 #import "DXGlobals.h"
 #import "common.h"
 

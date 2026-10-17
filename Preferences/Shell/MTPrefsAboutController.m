@@ -47,7 +47,7 @@
 }
 
 - (NSString *)mtModulesText {
-    return @"截图与标注 · PixPin\n键盘与操作 · TypeX\n剪贴板 · KayokoX";
+    return @"截图与标注\n键盘与操作\n剪贴板";
 }
 
 - (NSString *)mtLicenseText {

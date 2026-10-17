@@ -19,7 +19,7 @@
         [self setBackgroundColor:[UIColor clearColor]];
         UILayoutGuide *margins = [self layoutMarginsGuide];
 
-        UIImage *icon = [UIImage imageNamed:@"KayokoIcon" inBundle:bundle compatibleWithTraitCollection:nil];
+        UIImage *icon = [UIImage imageNamed:@"ClipboardIcon" inBundle:bundle compatibleWithTraitCollection:nil];
         [self setIconImageView:[[UIImageView alloc] initWithImage:icon]];
         [[self iconImageView] setContentMode:UIViewContentModeScaleAspectFit];
         [[self iconImageView] setClipsToBounds:YES];

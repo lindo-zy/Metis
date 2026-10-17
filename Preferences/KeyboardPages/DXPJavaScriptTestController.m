@@ -28,7 +28,7 @@
     UILabel *hint = [UILabel new]; hint.text = [self label:@"JS_TEST_HINT"]; hint.numberOfLines = 0;
     hint.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
     [stack addArrangedSubview:hint];
-    self.input = [UITextView new]; self.input.text = @"Hello TypeX";
+    self.input = [UITextView new]; self.input.text = @"Hello MetisKeyboard";
     self.input.backgroundColor = UIColor.secondarySystemBackgroundColor;
     self.input.font = [UIFont systemFontOfSize:16];
     [self.input.heightAnchor constraintEqualToConstant:90].active = YES;

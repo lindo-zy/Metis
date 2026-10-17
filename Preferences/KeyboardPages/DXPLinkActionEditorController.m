@@ -22,8 +22,8 @@ static NSBundle *dxpLocalBundle;
 //              the 剪切替换 switch (the box types that support @@@)
 // - text:      section 1 = ordered records and an Add row
 // - url:       3 = URL 设置 (field), 4 = APP内打开 switch, 5 = 剪切替换 switch
-// - openapp:   3 = installed-app picker, 4 = TypeX floating switch
-// - urlscheme: section 2 = TypeX floating switch
+// - openapp:   3 = installed-app picker, 4 = MetisKeyboard floating switch
+// - urlscheme: section 2 = MetisKeyboard floating switch
 // 剪切替换 appears wherever the payload supports @@@ (legacy / url /
 // urlscheme): ON clears the input field after its text is passed in (cut),
 // OFF keeps the field's content (copy, the default).

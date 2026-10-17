@@ -4,7 +4,7 @@
 
 static const NSUInteger DXJSMaxBytes = 1024 * 1024;
 static NSError *DXJSError(NSString *message) {
-    return [NSError errorWithDomain:@"TypeX.JavaScript" code:1
+    return [NSError errorWithDomain:@"MetisKeyboard.JavaScript" code:1
                           userInfo:@{NSLocalizedDescriptionKey: message ?: @"Script failed"}];
 }
 
@@ -273,7 +273,7 @@ static bool DXJSTerminate(JSContextRef context, void *data) {
             [self deliver:nil error:DXJSError(@"Empty or oversized script/input")]; return;
         }
         if (![self prepare]) return;
-        [self.context evaluateScript:source withSourceURL:[NSURL URLWithString:@"typex-script:///action.js"]];
+        [self.context evaluateScript:source withSourceURL:[NSURL URLWithString:@"metis-script:///action.js"]];
         if (self.executionLimitReached) [self deliver:nil error:DXJSError(@"Script exceeded the CPU time limit")];
         if (!self.evaluating || self.context.exception) return;
         [self.invoke callWithArguments:@[self.context[@"main"], @[input ?: @""]]];

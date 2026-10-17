@@ -41,7 +41,7 @@ BOOL DXPublishFloatingShelf(NSDictionary *snapshot) {
     @try {
         data = [NSPropertyListSerialization dataWithPropertyList:snapshot format:NSPropertyListBinaryFormat_v1_0 options:0 error:nil];
     } @catch (NSException *exception) {
-        NSLog(@"[TypeX][FloatingShelf] snapshot serialization exception=%@", exception.name);
+        NSLog(@"[MetisKeyboard][FloatingShelf] snapshot serialization exception=%@", exception.name);
         return NO;
     }
     if (!data.length || data.length > DXFloatingShelfMaxBytes) return NO;

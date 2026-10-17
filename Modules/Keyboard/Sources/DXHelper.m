@@ -24,9 +24,9 @@ static const CGFloat DXAppIconSide = 24.0;
 
 +(UIImage *)imageForTypeXWithPlaceholder:(BOOL)placeholder{
     if (placeholder){
-        return [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"TypeX_Placeholder.png"]];
+        return [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"KeyboardPlaceholder.png"]];
     }
-    return [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"TypeX.png"]];
+    return [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"MetisKeyboard.png"]];
 }
 
 +(UIImage *)imageForName:(NSString *)imageName withSystemColor:(BOOL)withSystemColor completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{

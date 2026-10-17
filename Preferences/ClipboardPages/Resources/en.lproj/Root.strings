@@ -27,7 +27,7 @@
 "Disable Paste Tips" = "Disable Paste Tips";
 "Double Line" = "Double Line";
 "Edit Menu" = "Edit Menu";
-"Enable KayokoX" = "Enable KayokoX";
+"Enable MetisClipboard" = "Enable MetisClipboard";
 "Favorites" = "Favorites";
 "Feature-rich clipboard manager for iOS." = "Feature-rich clipboard manager for iOS.";
 "Feedbacks" = "Feedbacks";
@@ -39,7 +39,7 @@
 "Invalid Response" = "Invalid Response";
 "Item Details" = "Item Details";
 "Item details show when an item was last captured, along with its text length or image dimensions and file size." = "Item details show when an item was last captured, along with its text length or image dimensions and file size.";
-"KayokoX" = "KayokoX";
+"MetisClipboard" = "MetisClipboard";
 "Kayoko entered maintenance mode before the import failed. Restart SpringBoard now to continue using Kayoko." = "Kayoko entered maintenance mode before the import failed. Restart SpringBoard now to continue using Kayoko.";
 "Made by OwnGoal Studio" = "Made by OwnGoal Studio";
 "Maximum Amount" = "Maximum Amount";
@@ -83,7 +83,7 @@
 "Save Text" = "Save Text";
 "Server returned an invalid response. Tap the screen to retry: %@" = "Server returned an invalid response. Tap the screen to retry: %@";
 "Sharing some tweaks and apps I use myself." = "Sharing some tweaks and apps I use myself.";
-"Show KayokoX" = "Show KayokoX";
+"Show MetisClipboard" = "Show MetisClipboard";
 "Single Line" = "Single Line";
 "Swipe to Select Words" = "Swipe to Select Words";
 "The data was imported successfully. Restart SpringBoard now to finish the import and continue using Kayoko." = "The data was imported successfully. Restart SpringBoard now to finish the import and continue using Kayoko.";

@@ -13,7 +13,7 @@
 "FOOTER_DISPLAY_STYLE" = "设置快捷方式的显示样式。";
 "ANSWER_YES" = "是";
 "ANSWER_NO" = "否";
-"FOOTER_TOGGLE_BUTTON" = "设置用于切换 TypeX 的按钮。";
+"FOOTER_TOGGLE_BUTTON" = "设置用于切换 MetisKeyboard 的按钮。";
 "GLOBE" = "地球键";
 "DICTATION" = "听写";
 "BOTH" = "两者";
@@ -29,10 +29,10 @@
 "PASTE_CHIP_APPS" = "生效应用";
 "SMS_CODE_SECTION" = "短信验证码";
 "SMS_CODE_COPY" = "自动复制验证码";
-"SMS_CODE_FOOTER" = "默认关闭。开启后，从新收到的信息通知正文中识别明确的 4–8 位数字验证码并复制到剪贴板，会替换原有剪贴板内容。仅本机使用，3 分钟后过期。普通短信或无法明确识别的内容会跳过；通知关闭或没有正文时可能无法获取。受 TypeX 总开关控制。";
+"SMS_CODE_FOOTER" = "默认关闭。开启后，从新收到的信息通知正文中识别明确的 4–8 位数字验证码并复制到剪贴板，会替换原有剪贴板内容。仅本机使用，3 分钟后过期。普通短信或无法明确识别的内容会跳过；通知关闭或没有正文时可能无法获取。受 MetisKeyboard 总开关控制。";
 "BROWSER_REDIRECT_SECTION" = "默认浏览器";
 "BROWSER_REDIRECT" = "链接改用 Reynard 打开";
-"BROWSER_REDIRECT_FOOTER" = "默认关闭。开启后，原本会打开 Safari、Firefox、Chrome 或 Brave 的链接改为在 Reynard 浏览器中打开；http/https 链接会以 reynard:// 形式转交并由 Reynard 解码还原，其他类型链接保持不变。需要设备已安装 Reynard，且受 TypeX 总开关控制。";
+"BROWSER_REDIRECT_FOOTER" = "默认关闭。开启后，原本会打开 Safari、Firefox、Chrome 或 Brave 的链接改为在 Reynard 浏览器中打开；http/https 链接会以 reynard:// 形式转交并由 Reynard 解码还原，其他类型链接保持不变。需要设备已安装 Reynard，且受 MetisKeyboard 总开关控制。";
 
 // 配置备份
 "BACKUP_SECTION" = "配置备份";

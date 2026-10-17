@@ -5,5 +5,5 @@ void PXLog(NSString *level, NSString *format, ...) {
     va_start(args, format);
     NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
-    NSLog(@"[PixPin][%@] %@", level, message);
+    NSLog(@"[MetisCapture][%@] %@", level, message);
 }

@@ -3,7 +3,7 @@
 #import "DXSystemActionCompatibility.h"
 #import "DXSystemRecordingSession.h"
 #import "common.h"
-#import "DXPixPinIntegration.h"
+#import "DXCaptureIntegration.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
@@ -48,7 +48,7 @@ BOOL DXConfirmSystemExitAction(NSString *action, NSProgress *operation) {
             if (!current || operation.cancelled || !source || source.hidden || DXKeyWindow() != source ||
                 originalPresenter.view.window != source || NSDate.date.timeIntervalSince1970 > deadline) return;
             DXSystemOpenResult result = DXPerformSystemAction(action);
-            NSLog(@"[TypeX][SystemAction] confirmed id=%@ result=%llu", action, (unsigned long long)result);
+            NSLog(@"[MetisKeyboard][SystemAction] confirmed id=%@ result=%llu", action, (unsigned long long)result);
             if (result != DXSystemOpenSucceeded) {
                 UIAlertController *error = [UIAlertController alertControllerWithTitle:title
                     message:[bundle localizedStringForKey:@"SYSTEM_ACTION_UNAVAILABLE" value:@"Unavailable" table:nil]
@@ -82,7 +82,7 @@ static void DXLoadSystemActionFrameworks(void) {
         for (NSString *name in @[@"BluetoothManager", @"DoNotDisturb", @"DoNotDisturbKit", @"AVFCapture"]) {
             NSString *path = [NSString stringWithFormat:@"/System/Library/PrivateFrameworks/%@.framework/%@", name, name];
             if (!dlopen(path.fileSystemRepresentation, RTLD_LAZY | RTLD_GLOBAL))
-                NSLog(@"[TypeX][SystemAction] framework unavailable name=%@", name);
+                NSLog(@"[MetisKeyboard][SystemAction] framework unavailable name=%@", name);
         }
         dlopen("/System/Library/Frameworks/CoreTelephony.framework/CoreTelephony", RTLD_LAZY | RTLD_GLOBAL);
     });
@@ -103,7 +103,7 @@ void DXPerformSystemRecordingAction(NSString *action, DXSystemOpenReply reply) {
     static DXSystemRecordingSession *session;
     dispatch_once(&once, ^{
         if (!dlopen("/System/Library/Frameworks/ReplayKit.framework/ReplayKit", RTLD_LAZY | RTLD_GLOBAL))
-            NSLog(@"[TypeX][SystemRecording] framework unavailable name=ReplayKit");
+            NSLog(@"[MetisKeyboard][SystemRecording] framework unavailable name=ReplayKit");
         session = [DXSystemRecordingSession new];
     });
     [session toggleRecorder:DXSystemShared(@"RPScreenRecorder", @"sharedRecorder")
@@ -184,9 +184,9 @@ DXSystemOpenResult DXPerformSystemAction(NSString *action) {
     if (!DXSystemActionDefinition(action)) return DXSystemOpenInvalid;
     if (![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"] || !NSThread.isMainThread) return DXSystemOpenUnavailable;
     if (DXSystemActionDefinition(action)[@"pixpinNotification"])
-        return DXPostPixPinSystemAction(action, DX_ROOT_PATH_NS(DXPixPinDylibPath));
+        return DXPostCaptureSystemAction(action, DX_ROOT_PATH_NS(DXCaptureDylibPath));
     DXLoadSystemActionFrameworks();
-    NSLog(@"[TypeX][SystemAction] execute id=%@", action);
+    NSLog(@"[MetisKeyboard][SystemAction] execute id=%@", action);
     if ([action isEqual:@"previous-track"] || [action isEqual:@"next-track"]) {
         return DXSystemCall(DXSystemShared(@"SBMediaController", @"sharedInstance"), @"changeTrack:eventSource:",
             @[@([action isEqual:@"next-track"] ? 1 : -1), @0]);

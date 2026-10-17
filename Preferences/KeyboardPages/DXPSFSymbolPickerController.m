@@ -135,7 +135,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
     }
     [self setupSearchController];
     [self refreshBackground];
-    NSLog(@"[TypeX][SFSymbol] picker open category=%@ rows=%lu", self.category.identifier ?: @"library",
+    NSLog(@"[MetisKeyboard][SFSymbol] picker open category=%@ rows=%lu", self.category.identifier ?: @"library",
           (unsigned long)(self.category ? self.symbols.count : self.categories.count));
 }
 
@@ -152,7 +152,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
     [self.collection registerClass:DXPSFSymbolCell.class forCellWithReuseIdentifier:@"DXPSFSymbolCell"];
 }
 
-// 搜索框内嵌导航栏（与 TypeX 首页同款挂载，同导航栈设备长期验证）：裸
+// 搜索框内嵌导航栏（与 MetisKeyboard 首页同款挂载，同导航栈设备长期验证）：裸
 // UISearchBar 直接挂 PSViewController.view 在设置进程不响应点击（4.0.7 起两页
 // 皆然），文本回调仍走 UISearchBarDelegate，不引入 resultsUpdater。
 - (void)setupSearchController {
@@ -266,7 +266,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
     if (anchor && anchor.item < (NSInteger)self.symbols.count) {
         [self.collection scrollToItemAtIndexPath:anchor atScrollPosition:UICollectionViewScrollPositionTop animated:NO];
     }
-    NSLog(@"[TypeX][SFSymbol] layout category=%@ columns=%ld rows=%lu", self.category.identifier,
+    NSLog(@"[MetisKeyboard][SFSymbol] layout category=%@ columns=%ld rows=%lu", self.category.identifier,
           (long)columns, (unsigned long)self.symbols.count);
 }
 
@@ -308,7 +308,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 typeof(weakSelf) owner = weakSelf;
                 if (!owner || !owner.loading || generation != owner.loadGeneration) return;
-                NSLog(@"[TypeX][SFSymbol] catalog sources=%@ candidates=%lu", sources,
+                NSLog(@"[MetisKeyboard][SFSymbol] catalog sources=%@ candidates=%lu", sources,
                       (unsigned long)candidates.count);
                 [owner validateCandidates:candidates offset:0 available:[NSMutableArray array] generation:generation];
             });
@@ -351,7 +351,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
                     // A home search may be waiting on the catalog results.
                     [owner.collection reloadData];
                     [owner refreshBackground];
-                    NSLog(@"[TypeX][SFSymbol] catalog ready available=%lu candidates=%lu categories=%lu sources=%@ elapsed=%.3f",
+                    NSLog(@"[MetisKeyboard][SFSymbol] catalog ready available=%lu candidates=%lu categories=%lu sources=%@ elapsed=%.3f",
                           (unsigned long)validNames.count, (unsigned long)candidates.count,
                           (unsigned long)categories.count, sources,
                           [NSDate timeIntervalSinceReferenceDate] - owner.loadStarted);
@@ -439,7 +439,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
     [self.collection reloadData];
     [self.collection setContentOffset:CGPointZero animated:NO];
     [self refreshBackground];
-    NSLog(@"[TypeX][SFSymbol] library search length=%lu results=%lu",
+    NSLog(@"[MetisKeyboard][SFSymbol] library search length=%lu results=%lu",
           (unsigned long)query.length, (unsigned long)self.symbols.count);
 }
 
@@ -565,7 +565,7 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
         // Home has no parent to fall back on: rebuild catalog and categories
         // right away so clearing the query cannot strand an empty list.
         if (!self.category && !self.loading) [self loadSymbolCatalog];
-        NSLog(@"[TypeX][SFSymbol] selection unavailable name=%@", name);
+        NSLog(@"[MetisKeyboard][SFSymbol] selection unavailable name=%@", name);
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:self.title
             message:LOCALIZED(@"SF_SYMBOL_UNAVAILABLE") preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_OK")
@@ -580,12 +580,12 @@ static NSString *DXPSymbolCategoryTitle(DXPSFSymbolCategory *category) {
     NSArray<UIViewController *> *controllers = navigation.viewControllers;
     NSUInteger libraryIndex = [controllers indexOfObjectIdenticalTo:library];
     UIViewController *returnController = (libraryIndex != NSNotFound && libraryIndex > 0) ? controllers[libraryIndex - 1] : nil;
-    NSLog(@"[TypeX][SFSymbol] picked name=%@ completion=%d", name, self.completion != nil);
+    NSLog(@"[MetisKeyboard][SFSymbol] picked name=%@ completion=%d", name, self.completion != nil);
     if (self.completion) self.completion(name);
     if (returnController && [navigation.viewControllers containsObject:returnController]) {
         [navigation popToViewController:returnController animated:YES];
     } else {
-        NSLog(@"[TypeX][SFSymbol] return controller unavailable");
+        NSLog(@"[MetisKeyboard][SFSymbol] return controller unavailable");
         [navigation popViewControllerAnimated:YES];
     }
 }

@@ -124,7 +124,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 //=====================KEYBOARD INPUT BEHAVIOR=====================
 "DISABLED_INPUT_TYPE" = "Disabled Input Type";
 "ENABLED_INPUT_TYPE" = "Enabled Input Type";
-"FOOTER_ENABLED" = "Enabled input will be cycled when shorcut is tapped. \"Default\" type will be skipped if it is same as \"Original\". Set a minimum of 2 items, including Original.\n\nNOTE: Some input doesn't support changing input type, TypeX indicates it by changing the current icon to hollow/grey/strikethrough.";
+"FOOTER_ENABLED" = "Enabled input will be cycled when shorcut is tapped. \"Default\" type will be skipped if it is same as \"Original\". Set a minimum of 2 items, including Original.\n\nNOTE: Some input doesn't support changing input type, MetisKeyboard indicates it by changing the current icon to hollow/grey/strikethrough.";
 "RESET_TO_DEFAULT_MESSAGE" = "Reset to default?";
 
 //=====================GESTURES PAGE=====================
@@ -172,7 +172,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "TYPE_FOOTER_URL_SCHEME" = "Floating is off by default, so the URL Scheme opens normally. Turn on Open in a floating window to host the handling app and deliver the original link. Keep floating off for system commands without a hostable app. @@@ passes the current input text.";
 "TYPE_FOOTER_TEXT" = "Manage literal text records. One record is inserted directly; multiple records open a floating list. Tap a record to insert it and close the panel. Text, spaces and line breaks are preserved. Use Edit to delete or reorder records.";
 "TYPE_FOOTER_URL" = "Opens the web URL, either inside this app or outside. Use @@@ to pass the current input field's text as a parameter. With Cut & Replace on, the field is cleared as its text is passed in; off keeps the field's content.";
-"TYPE_FOOTER_OPEN_APP" = "TypeX opens the selected app in an interactive floating window by default. Drag its title bar or tap close to end hosting. Turn this off for normal full-screen opening. PullOver-X is not required.";
+"TYPE_FOOTER_OPEN_APP" = "MetisKeyboard opens the selected app in an interactive floating window by default. Drag its title bar or tap close to end hosting. Turn this off for normal full-screen opening. PullOver-X is not required.";
 
 //=====================APP / SHORTCUT PICKERS=====================
 "OPEN_APP" = "Open App";
@@ -240,12 +240,12 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "TEST_INPUT_FIELD_PLACEHOLDER" = "Type here to test the toolbar…";
 "TOOLBAR_PREVIEW" = "Toolbar Preview";
 "TOOLBAR_PREVIEW_EMPTY" = "No enabled buttons";
-"TOOLBAR_PREVIEW_UNAVAILABLE" = "Preview unavailable. Restart Settings after installing TypeX.";
+"TOOLBAR_PREVIEW_UNAVAILABLE" = "Preview unavailable. Restart Settings after installing MetisKeyboard.";
 
 "LONG_SHELLX_SCREENSHOT" = "ShellX Screenshot";
 "SHORT_SHELLX_SCREENSHOT" = "Shot";
-"LONG_PIXPIN_SCREENSHOT" = "PixPin Screenshot";
-"SHORT_PIXPIN_SCREENSHOT" = "PixPin";
+"LONG_PIXPIN_SCREENSHOT" = "MetisCapture Screenshot";
+"SHORT_PIXPIN_SCREENSHOT" = "MetisCapture";
 "LONG_AI_CHAT" = "AI Chat";
 "SHORT_AI_CHAT" = "AI";
 "LONG_CLIPBOARD" = "Clipboard";
@@ -253,7 +253,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "LONG_PULLOVER_WAKE" = "PullOver Handle";
 "SHORT_PULLOVER_WAKE" = "Handle";
 
-/* Custom actions management page (KayokoX-style layout) */
+/* Custom actions management page (MetisClipboard-style layout) */
 "NO_CUSTOM_ACTIONS" = "No custom actions yet";
 "UNGROUPED" = "Ungrouped";
 "GROUP_ACTIONS_COUNT" = "%lu actions";
@@ -280,8 +280,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "AI_CARD_CAMERA" = "Camera";
 "AI_CARD_FILES" = "Files";
 "AI_CARD_IMAGE" = "Image";
-"AI_CARD_NO_KEY_ALERT" = "Configure an API Key in TypeX Settings → AI Chat first";
-"AI_CARD_NO_MODEL_ALERT" = "Configure a model in TypeX Settings → AI Chat first";
+"AI_CARD_NO_KEY_ALERT" = "Configure an API Key in MetisKeyboard Settings → AI Chat first";
+"AI_CARD_NO_MODEL_ALERT" = "Configure a model in MetisKeyboard Settings → AI Chat first";
 "AI_CARD_REQUEST_FAILED" = "Request failed";
 "AI_CARD_FILE_UNREADABLE" = "Unable to read this file";
 "AI_CARD_REPLY_COPIED" = "Reply copied — paste it in your app";
@@ -336,7 +336,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "PASTE_CHIP" = "Paste Chip";
 "PASTE_CHIP_FOOTER" = "Shows a floating paste chip above the keyboard when the clipboard holds new content, and auto-answers the system paste-permission alert.";
 "PASTE_CHIP_APPS" = "Enabled Apps";
-"FOOTER_CREDITS" = "TypeX by lindo. Thanks for your support.";
+"FOOTER_CREDITS" = "MetisKeyboard by lindo. Thanks for your support.";
 
 // App quick actions
 "ACTION_TYPE_SHORTCUT" = "App Shortcut";
@@ -383,7 +383,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "RESTORE_CONFIRM_MESSAGE" = "The backup contains %lu settings.\nRestoring overwrites the entire current configuration and cannot be undone. Continue?";
 "RESTORE_DONE" = "Configuration restored";
 "RESTORE_FAILED_TITLE" = "Restore Failed";
-"RESTORE_FAILED_MESSAGE" = "The file is not a valid TypeX backup";
+"RESTORE_FAILED_MESSAGE" = "The file is not a valid MetisKeyboard backup";
 
 // Keyboard-covering swipe panels
 "GESTURE_SETTINGS" = "Gesture Settings";
@@ -433,12 +433,12 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_GROUP_MEDIA" = "Media";
 "SYSTEM_GROUP_DEVICE" = "Device";
 "SYSTEM_GROUP_CONTROL" = "Control Center";
-"SYSTEM_GROUP_PIXPIN" = "PixPin Screenshots";
-"SYSTEM_PIXPIN_FULL" = "PixPin Full-Screen Capture";
-"SYSTEM_PIXPIN_AREA" = "PixPin Area Capture";
-"SYSTEM_PIXPIN_MARKUP" = "PixPin Full-Screen Markup";
-"SYSTEM_PIXPIN_LONG" = "PixPin Scrolling Capture";
-"SYSTEM_PIXPIN_FOOTER" = "Shown only when PixPin is installed. Uses PixPin's current settings; disabled features, a busy task, or missing injection may prevent a response. Sending a request does not confirm capture or saving.";
+"SYSTEM_GROUP_PIXPIN" = "MetisCapture Screenshots";
+"SYSTEM_PIXPIN_FULL" = "MetisCapture Full-Screen Capture";
+"SYSTEM_PIXPIN_AREA" = "MetisCapture Area Capture";
+"SYSTEM_PIXPIN_MARKUP" = "MetisCapture Full-Screen Markup";
+"SYSTEM_PIXPIN_LONG" = "MetisCapture Scrolling Capture";
+"SYSTEM_PIXPIN_FOOTER" = "Shown only when MetisCapture is installed. Uses MetisCapture's current settings; disabled features, a busy task, or missing injection may prevent a response. Sending a request does not confirm capture or saving.";
 "SYSTEM_DEVICE_FOOTER" = "Respring restarts the interface service; Respring (SB) exits SpringBoard. Safe mode requires jailbreak support and userspace reboot requires system permission. Exit and power actions require confirmation.";
 "SYSTEM_ACTION_CONFIRM" = "This action interrupts the current session. Continue?";
 "SYSTEM_ACTION_UNAVAILABLE" = "No supported system interface is available";
@@ -627,8 +627,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FLOATING_HANDLE_AUTO_HIDE_SECONDS" = "Auto Hide Delay";
 "FLOATING_HANDLE_AUTO_HIDE_FORMAT" = "%.1fs";
 "FLOATING_HANDLE_APPS" = "Panel App List";
-"FLOATING_HANDLE_ACCESSIBILITY" = "TypeX collapsed keyboard handle";
-"FLOATING_HANDLE_FOOTER" = "When enabled, the small TypeX handle appears while the keyboard is hidden. It hides as the keyboard opens and returns to its saved position after the keyboard closes. Drag to move it and snap to either edge; drag outward to tuck it into the edge, then tap or drag inward to reveal it. Tap to open the app panel and tap an app icon to open or switch the floating window; pick pinned apps in “Panel App List” (sorted by name), otherwise up to six recently floated apps are shown. With Auto Hide on, the handle slides into the screen edge after the configured idle delay, leaving only a small nub visible (same as a manual tuck); tap or drag inward to bring it back — it never disappears completely. Locking or turning off the screen hides it; unlocking restores it. Position and edge state are saved, and the recency list clears when SpringBoard restarts.";
+"FLOATING_HANDLE_ACCESSIBILITY" = "MetisKeyboard collapsed keyboard handle";
+"FLOATING_HANDLE_FOOTER" = "When enabled, the small MetisKeyboard handle appears while the keyboard is hidden. It hides as the keyboard opens and returns to its saved position after the keyboard closes. Drag to move it and snap to either edge; drag outward to tuck it into the edge, then tap or drag inward to reveal it. Tap to open the app panel and tap an app icon to open or switch the floating window; pick pinned apps in “Panel App List” (sorted by name), otherwise up to six recently floated apps are shown. With Auto Hide on, the handle slides into the screen edge after the configured idle delay, leaving only a small nub visible (same as a manual tuck); tap or drag inward to bring it back — it never disappears completely. Locking or turning off the screen hides it; unlocking restores it. Position and edge state are saved, and the recency list clears when SpringBoard restarts.";
 
 // Single-hand launcher
 "QUICK_TITLE" = "Quick Launcher";

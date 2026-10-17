@@ -125,7 +125,7 @@
 //=====================KEYBOARD INPUT BEHAVIOR=====================
 "DISABLED_INPUT_TYPE" = "已禁用的输入法";
 "ENABLED_INPUT_TYPE" = "已启用的输入法";
-"FOOTER_ENABLED" = "启用后，点击快捷方式即可循环切换输入法。如果“默认”与“原始”相同，将跳过“默认”。请至少选择两个项目，并包含“原始”。\n\n注意：某些输入法不支持切换输入类型，TypeX 会将当前图标显示为空心、灰色或带删除线，以表示该状态。";
+"FOOTER_ENABLED" = "启用后，点击快捷方式即可循环切换输入法。如果“默认”与“原始”相同，将跳过“默认”。请至少选择两个项目，并包含“原始”。\n\n注意：某些输入法不支持切换输入类型，MetisKeyboard 会将当前图标显示为空心、灰色或带删除线，以表示该状态。";
 "RESET_TO_DEFAULT_MESSAGE" = "恢复为默认设置？";
 
 //=====================GESTURES PAGE=====================
@@ -173,7 +173,7 @@
 "TYPE_FOOTER_URL_SCHEME" = "默认关闭悬浮，按 URL Scheme 正常跳转。开启“悬浮打开应用”后，将对应应用悬浮打开并投递原始链接。不对应应用的系统命令请保持悬浮关闭。支持 @@@ 传入输入框内容。";
 "TYPE_FOOTER_TEXT" = "管理多条纯文本记录。一条时直接插入，多条时打开悬浮列表，点选记录后插入并关闭。原样保留文本、空格和换行。点击“编辑”可删除记录或拖动排序。";
 "TYPE_FOOTER_URL" = "点击后打开该网址，可选择在 APP 内或 APP 外打开；url 支持入参替换，使用 @@@ 传入当前输入框的内容。开启「剪切替换」后，@@@ 传入内容的同时清空输入框；关闭则保留输入框内容。";
-"TYPE_FOOTER_OPEN_APP" = "默认以 TypeX 小窗悬浮打开所选应用，可直接操作、拖动标题栏，并点击关闭按钮结束悬浮。关闭此开关可正常全屏打开。无需安装 PullOver-X。";
+"TYPE_FOOTER_OPEN_APP" = "默认以 MetisKeyboard 小窗悬浮打开所选应用，可直接操作、拖动标题栏，并点击关闭按钮结束悬浮。关闭此开关可正常全屏打开。无需安装 PullOver-X。";
 
 //=====================APP / SHORTCUT PICKERS=====================
 "OPEN_APP" = "打开应用";
@@ -239,12 +239,12 @@
 "TEST_INPUT_FIELD_PLACEHOLDER" = "输入文本试试工具栏按钮…";
 "TOOLBAR_PREVIEW" = "工具栏预览";
 "TOOLBAR_PREVIEW_EMPTY" = "暂无已开启的按钮";
-"TOOLBAR_PREVIEW_UNAVAILABLE" = "预览暂不可用，请安装 TypeX 后重新打开设置。";
+"TOOLBAR_PREVIEW_UNAVAILABLE" = "预览暂不可用，请安装 MetisKeyboard 后重新打开设置。";
 
 "LONG_SHELLX_SCREENSHOT" = "ShellX 截图";
 "SHORT_SHELLX_SCREENSHOT" = "截图";
-"LONG_PIXPIN_SCREENSHOT" = "PixPin 截图";
-"SHORT_PIXPIN_SCREENSHOT" = "PixPin";
+"LONG_PIXPIN_SCREENSHOT" = "MetisCapture 截图";
+"SHORT_PIXPIN_SCREENSHOT" = "MetisCapture";
 "LONG_AI_CHAT" = "AI问答";
 "SHORT_AI_CHAT" = "AI";
 "LONG_CLIPBOARD" = "剪切板";
@@ -252,7 +252,7 @@
 "LONG_PULLOVER_WAKE" = "小把手";
 "SHORT_PULLOVER_WAKE" = "把手";
 
-/* Custom actions management page (KayokoX-style layout) */
+/* Custom actions management page (MetisClipboard-style layout) */
 "NO_CUSTOM_ACTIONS" = "暂无自定义动作";
 "UNGROUPED" = "未分组";
 "GROUP_ACTIONS_COUNT" = "%lu 个动作";
@@ -279,8 +279,8 @@
 "AI_CARD_CAMERA" = "相机";
 "AI_CARD_FILES" = "文件";
 "AI_CARD_IMAGE" = "图片";
-"AI_CARD_NO_KEY_ALERT" = "请先在 TypeX 设置 → AI问答 中配置 API Key";
-"AI_CARD_NO_MODEL_ALERT" = "请先在 TypeX 设置 → AI问答 中配置模型";
+"AI_CARD_NO_KEY_ALERT" = "请先在 MetisKeyboard 设置 → AI问答 中配置 API Key";
+"AI_CARD_NO_MODEL_ALERT" = "请先在 MetisKeyboard 设置 → AI问答 中配置模型";
 "AI_CARD_REQUEST_FAILED" = "请求失败";
 "AI_CARD_FILE_UNREADABLE" = "无法读取该文件内容";
 "AI_CARD_REPLY_COPIED" = "回复已复制，回到应用后粘贴";
@@ -335,7 +335,7 @@
 "PASTE_CHIP" = "粘贴悬浮窗";
 "PASTE_CHIP_FOOTER" = "剪贴板有新内容时在键盘上方弹出悬浮粘贴窗，并自动放行系统「允许粘贴」弹窗。";
 "PASTE_CHIP_APPS" = "生效应用";
-"FOOTER_CREDITS" = "TypeX 由 lindo 开发，感谢使用与支持";
+"FOOTER_CREDITS" = "MetisKeyboard 由 lindo 开发，感谢使用与支持";
 
 // App quick actions
 "ACTION_TYPE_SHORTCUT" = "快捷方式";
@@ -382,7 +382,7 @@
 "RESTORE_CONFIRM_MESSAGE" = "备份包含 %lu 项配置。\n恢复将覆盖当前全部配置且无法撤销，确定继续吗？";
 "RESTORE_DONE" = "配置已恢复";
 "RESTORE_FAILED_TITLE" = "恢复失败";
-"RESTORE_FAILED_MESSAGE" = "无法读取有效的 TypeX 备份文件";
+"RESTORE_FAILED_MESSAGE" = "无法读取有效的 MetisKeyboard 备份文件";
 
 // Keyboard-covering swipe panels
 "GESTURE_SETTINGS" = "手势设置";
@@ -432,12 +432,12 @@
 "SYSTEM_GROUP_MEDIA" = "媒体控制";
 "SYSTEM_GROUP_DEVICE" = "设备操作";
 "SYSTEM_GROUP_CONTROL" = "控制中心";
-"SYSTEM_GROUP_PIXPIN" = "PixPin 截图";
-"SYSTEM_PIXPIN_FULL" = "PixPin 全屏截图";
-"SYSTEM_PIXPIN_AREA" = "PixPin 区域截图";
-"SYSTEM_PIXPIN_MARKUP" = "PixPin 全屏标记";
-"SYSTEM_PIXPIN_LONG" = "PixPin 滚动截图";
-"SYSTEM_PIXPIN_FOOTER" = "仅在已安装 PixPin 时显示。按 PixPin 当前设置执行；关闭功能、任务忙碌或尚未注入时可能不响应。请求已发送不代表截图或保存完成。";
+"SYSTEM_GROUP_PIXPIN" = "MetisCapture 截图";
+"SYSTEM_PIXPIN_FULL" = "MetisCapture 全屏截图";
+"SYSTEM_PIXPIN_AREA" = "MetisCapture 区域截图";
+"SYSTEM_PIXPIN_MARKUP" = "MetisCapture 全屏标记";
+"SYSTEM_PIXPIN_LONG" = "MetisCapture 滚动截图";
+"SYSTEM_PIXPIN_FOOTER" = "仅在已安装 MetisCapture 时显示。按 MetisCapture 当前设置执行；关闭功能、任务忙碌或尚未注入时可能不响应。请求已发送不代表截图或保存完成。";
 "SYSTEM_DEVICE_FOOTER" = "注销会重启界面服务，注销（SB）仅退出 SpringBoard。安全模式依赖越狱环境，重启用户空间需要系统权限。注销、安全模式、关机和重启执行前需要确认。";
 "SYSTEM_ACTION_CONFIRM" = "此操作会中断当前会话。确定继续？";
 "SYSTEM_ACTION_UNAVAILABLE" = "当前系统没有可用的动作接口";
@@ -626,7 +626,7 @@
 "FLOATING_HANDLE_AUTO_HIDE_SECONDS" = "自动隐藏时间";
 "FLOATING_HANDLE_AUTO_HIDE_FORMAT" = "%.1f 秒";
 "FLOATING_HANDLE_APPS" = "面板应用列表";
-"FLOATING_HANDLE_ACCESSIBILITY" = "TypeX 键盘收起把手";
+"FLOATING_HANDLE_ACCESSIBILITY" = "MetisKeyboard 键盘收起把手";
 "FLOATING_HANDLE_FOOTER" = "开启后，键盘收起时显示小把手，键盘弹出时自动隐藏，完全收起后恢复原位置。拖动可移动并吸附左右边缘；向外拖可缩入边缘，点按或向内拖恢复。点按展开 App 面板，点 App 图标打开或切换悬浮窗口；在「面板应用列表」里选择固定展示的 App（按名称排序），不选则显示最近悬浮的 App（最多 6 个）。开启「自动隐藏」后，把手静置超过设定时间自动缩入屏幕边缘、只露一小截（与手动缩边一致），点按或向内拖出即可恢复，不会完全消失。锁屏、息屏时隐藏，解锁亮屏后恢复。位置和缩边状态会保存；最近列表在 SpringBoard 重启后清空。";
 
 // Single-hand launcher

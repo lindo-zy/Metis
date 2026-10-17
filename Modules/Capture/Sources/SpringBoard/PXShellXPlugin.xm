@@ -55,11 +55,11 @@
 
 // Snapper3 约定：name 不可为 nil。
 - (NSString *)name {
-    return @"PixPin";
+    return @"MetisCapture";
 }
 
 - (NSString *)info {
-    return @"接收 SHELLX 截图，交给 PixPin 悬浮展示与编辑。";
+    return @"接收 SHELLX 截图，交给 MetisCapture 悬浮展示与编辑。";
 }
 
 - (BOOL)shouldRegister {
@@ -74,7 +74,7 @@
     return NO;
 }
 
-// 图片已由 PixPin 接管展示，SHELLX 侧快照随之收起，避免同一张图两处悬浮。
+// 图片已由 MetisCapture 接管展示，SHELLX 侧快照随之收起，避免同一张图两处悬浮。
 - (BOOL)removeSnapAfterProcessing {
     return YES;
 }
@@ -106,9 +106,9 @@
 
 - (nullable UIImage *)pxPluginIcon {
 #if defined(THEOS_PACKAGE_SCHEME_ROOTHIDE)
-    NSString *path = jbroot(@"/Library/PreferenceBundles/PixPinPrefs.bundle/PixPin@2x.png");
+    NSString *path = jbroot(@"/Library/PreferenceBundles/PixPinPrefs.bundle/MetisCapture@2x.png");
 #else
-    NSString *path = ROOT_PATH_NS(@"/Library/PreferenceBundles/PixPinPrefs.bundle/PixPin@2x.png");
+    NSString *path = ROOT_PATH_NS(@"/Library/PreferenceBundles/PixPinPrefs.bundle/MetisCapture@2x.png");
 #endif
     if (!path.length) return nil;
     UIImage *loaded = [UIImage imageWithContentsOfFile:path];
@@ -117,7 +117,7 @@
     return [UIImage imageWithCGImage:loaded.CGImage scale:2.0 orientation:UIImageOrientationUp];
 }
 
-// SHELLX 截图操作菜单点击 PixPin 时的回调：走外部图片编辑入口（isReedit 路径，
+// SHELLX 截图操作菜单点击 MetisCapture 时的回调：走外部图片编辑入口（isReedit 路径，
 // 取消即结束，不回写输出动作）。遵守总开关；不占用截图模式开关——没有发生抓屏。
 - (void)processImage:(UIImage *)image {
     if (![NSThread isMainThread]) {

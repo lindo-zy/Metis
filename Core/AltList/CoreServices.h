@@ -1,7 +1,7 @@
-// TypeX vendor shim for AltList (com.opa334.altlist, MIT, © Lars Fröder).
+// Metis vendor shim for AltList (com.opa334.altlist, MIT, © Lars Fröder).
 // Upstream imports <MobileCoreServices/LSApplicationProxy.h> and
 // <MobileCoreServices/LSApplicationWorkspace.h>, but the theos SDKs used by
-// this project do not ship those private headers (TypeX declares these classes
+// this project do not ship those private headers (MetisKeyboard declares these classes
 // by hand everywhere else, e.g. DXPAppInfo.m). This shim is self-contained:
 // declarations only, the real implementations come from the framework at
 // runtime. Merge upstream changes into the declarations below if AltList is

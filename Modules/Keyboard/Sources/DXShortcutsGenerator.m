@@ -1,6 +1,6 @@
 #import "common.h"
 #import "DXShortcutsGenerator.h"
-#import "DXPixPinIntegration.h"
+#import "DXCaptureIntegration.h"
 
 static const NSBundle *dxShortcutLocalBundle;
 
@@ -18,7 +18,7 @@ static const NSBundle *dxShortcutLocalBundle;
 
 +(BOOL)isVisibleShortcutSelector:(NSString *)selector {
     if (![self isAvailableShortcutSelector:selector]) return NO;
-    if ([selector isEqualToString:@"pixpinScreenshotAction:"] && ![self isPixPinScreenshotAvailable]) return NO;
+    if ([selector isEqualToString:@"pixpinScreenshotAction:"] && ![self isCaptureScreenshotAvailable]) return NO;
 
     // These actions remain executable for existing preferences, but stay out of
     // the shortcut/action picker for new configurations.
@@ -37,13 +37,13 @@ static const NSBundle *dxShortcutLocalBundle;
     return dylibPath.length > 0 && [[NSFileManager defaultManager] fileExistsAtPath:dylibPath];
 }
 
-+(BOOL)isPixPinScreenshotAvailable{
-    return DXPixPinInstalledAtPath(DX_ROOT_PATH_NS(DXPixPinDylibPath));
++(BOOL)isCaptureScreenshotAvailable{
+    return DXCaptureInstalledAtPath(DX_ROOT_PATH_NS(DXCaptureDylibPath));
 }
 
-// Kayoko / KayokoX（剪贴板管理器）安装探测，惯例同上不用偏好域（卸载可能残留）。
+// Kayoko / MetisClipboard（剪贴板管理器）安装探测，惯例同上不用偏好域（卸载可能残留）。
 // 不逐名硬编码：枚举注入目录，文件名大小写不敏感地以 kayoko 开头即算已安装，
-// 一并覆盖 Kayoko.dylib / KayokoCore.dylib / KayokoHelper.dylib / KayokoX.dylib。
+// 一并覆盖 Kayoko.dylib / KayokoCore.dylib / KayokoHelper.dylib / MetisClipboard.dylib。
 +(BOOL)isKayokoInstalled{
     NSString *dir = DX_ROOT_PATH_NS(@"/Library/MobileSubstrate/DynamicLibraries");
     if (dir.length == 0) return NO;
@@ -94,7 +94,7 @@ static const NSBundle *dxShortcutLocalBundle;
 -(instancetype)init{
     self = [super init];
     if (self) {
-        // TypeX only exposes its built-in keyboard actions.
+        // MetisKeyboard only exposes its built-in keyboard actions.
     }
     return self;
 }

@@ -1,4 +1,4 @@
-// MTCaptureModuleAdapter —— Capture（PixPin）模块的 Metis 挂接层。
+// MTCaptureModuleAdapter —— Capture（MetisCapture）模块的 Metis 挂接层。
 // 职责（04-module-integration §3 的 v1 切片）：
 //   1. 监听 com.lindo.metis/config-changed，把门控变化转成 PXPreferences reload；
 //   2. 模块开关关闭时拒绝新任务由 PXConfig.enabled 既有语义承担（迁入保持）。

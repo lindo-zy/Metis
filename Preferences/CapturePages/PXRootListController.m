@@ -24,11 +24,11 @@
         return;
     }
     NSBundle *bundle = [NSBundle bundleForClass:[PXRootListController class]];
-    NSString *imagePath = [bundle pathForResource:@"PixPinHeader" ofType:@"png"];
+    NSString *imagePath = [bundle pathForResource:@"CaptureHeader" ofType:@"png"];
     UIImage *logo = imagePath.length ? [UIImage imageWithContentsOfFile:imagePath] : nil;
     if (!logo) {
         PXLogWarn(@"prefs branding logo missing; using bundle icon");
-        logo = [UIImage imageNamed:@"PixPin" inBundle:bundle compatibleWithTraitCollection:self.traitCollection];
+        logo = [UIImage imageNamed:@"MetisCapture" inBundle:bundle compatibleWithTraitCollection:self.traitCollection];
     }
     id versionValue = [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
     NSString *version = [versionValue isKindOfClass:NSString.class] ? versionValue : nil;
@@ -53,7 +53,7 @@
     [iconContainer addSubview:imageView];
 
     UILabel *nameLabel = [[UILabel alloc] init];
-    nameLabel.text = @"PixPin";
+    nameLabel.text = @"MetisCapture";
     UIFontDescriptor *rounded = [[UIFont systemFontOfSize:36 weight:UIFontWeightRegular].fontDescriptor
         fontDescriptorWithDesign:UIFontDescriptorSystemDesignRounded];
     nameLabel.font = rounded ? [UIFont fontWithDescriptor:rounded size:36] : [UIFont systemFontOfSize:36];

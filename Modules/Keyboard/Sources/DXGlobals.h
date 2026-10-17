@@ -1,9 +1,9 @@
-// DXGlobals.h —— 原 TypeX.xm 顶层的跨文件全局（Metis 迁移说明）。
+// DXGlobals.h —— 原 DXKeyboardHooks.xm 顶层的跨文件全局（Metis 迁移说明）。
 // 这些符号被 Core 共享类与 SB/UIKit 两侧入口同时读写；为保证与原单镜像
 // 行为一致，定义唯一化到 MetisCore 的 DXGlobals.m，各镜像只持 extern。
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import "TypeX.h"
+#import "DXKeyboardUIKit.h"
 
 extern id delegate;
 extern UIKeyboardImpl *kbImpl;

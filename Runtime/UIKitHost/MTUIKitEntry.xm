@@ -6,7 +6,7 @@
 #import "MTCore.h"
 #import "common.h"
 
-// Metis 门控变化 → 走 TypeX 既有 prefschanged 重载链（幂等 reload）。
+// Metis 门控变化 → 走 MetisKeyboard 既有 prefschanged 重载链（幂等 reload）。
 static void MTUIKitPostPrefsChanged(void) {
     CFNotificationCenterPostNotification(
         CFNotificationCenterGetDarwinNotifyCenter(),

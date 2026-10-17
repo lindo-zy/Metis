@@ -1,4 +1,4 @@
-// TypeX vendor: the theos SDK does not ship the private MobileCoreServices
+// Metis vendor: the theos SDK does not ship the private MobileCoreServices
 // headers upstream imports, so the class declarations live in the shim.
 #import "CoreServices.h"
 

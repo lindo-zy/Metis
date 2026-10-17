@@ -13,7 +13,7 @@ MetisCore_FILES = MTLog.m \
 	MTModuleGate.m \
 	MTConfigService.m
 
-# Keyboard（TypeX）共享层：任一被两个以上镜像引用的 DX 类都在这里。
+# Keyboard（MetisKeyboard）共享层：任一被两个以上镜像引用的 DX 类都在这里。
 KEYBOARD = ../Modules/Keyboard/Sources
 MetisCore_FILES += $(KEYBOARD)/DXGlobals.m \
 	$(KEYBOARD)/DXAIEngine.m \
@@ -52,7 +52,7 @@ MetisCore_FILES += $(KEYBOARD)/DXGlobals.m \
 	$(KEYBOARD)/DXSystemRecordingSession.m \
 	$(KEYBOARD)/UIImage+Resize.m
 
-# vendored AltList（MIT，来源见 Core/AltList/README-TypeX-vendor.md）
+# vendored AltList（MIT，来源见 Core/AltList/README-MetisKeyboard-vendor.md）
 MetisCore_FILES += $(wildcard AltList/*.m)
 
 MetisCore_CFLAGS = -fobjc-arc
@@ -60,7 +60,7 @@ MetisCore_CFLAGS += -Wno-tautological-pointer-compare
 MetisCore_CFLAGS += -DMETIS_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
 MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList
 
-# Clipboard（KayokoX）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
+# Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
 CLIPBOARD = ../Modules/Clipboard
 MetisCore_FILES += $(CLIPBOARD)/Helper/KayokoSwipeUpGestureRecognizer.m \
 	$(wildcard $(CLIPBOARD)/Shared/Tags/*.m) \

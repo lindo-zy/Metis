@@ -10,7 +10,7 @@
 #import "DXSystemOpenBroker.h"
 #import "DXFloatingAppSession.h"
 #import "DXJavaScriptHost.h"
-#import "DXPixPinIntegration.h"
+#import "DXCaptureIntegration.h"
 
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -1190,16 +1190,16 @@ static BOOL DXIsHiddenShortcutSelector(NSString *selector) {
     notify_post("com.iosdump.screenshotshell/AssistiveScreenshot");
 }
 
-// PixPin's native area-capture notification is shared with the system action.
-// Posting succeeds independently of PixPin's enabled/busy state; never retry.
+// MetisCapture's native area-capture notification is shared with the system action.
+// Posting succeeds independently of MetisCapture's enabled/busy state; never retry.
 -(void)pixpinScreenshotAction:(UIButton*)sender{
     if (!NSThread.isMainThread || !self.window || self.hidden ||
-        ![DXShortcutsGenerator isPixPinScreenshotAvailable]) return;
+        ![DXShortcutsGenerator isCaptureScreenshotAvailable]) return;
     [self triggerImpactAndAnimationWithButton:sender];
-    DXPostPixPinSystemAction(@"pixpin-area", DX_ROOT_PATH_NS(DXPixPinDylibPath));
+    DXPostCaptureSystemAction(@"pixpin-area", DX_ROOT_PATH_NS(DXCaptureDylibPath));
 }
 
-// 剪贴板按钮：Kayoko/KayokoX 只在自己注入的进程里挂 Darwin 观察者，键盘进程内
+// 剪贴板按钮：Kayoko/MetisClipboard 只在自己注入的进程里挂 Darwin 观察者，键盘进程内
 // 没有可调用的类，dev.traurige.kayoko.core.show 就是它官方的唤起入口（同 ShellX
 // 截图按钮的跨进程套路）。未安装时通知无人接收，无害。
 -(void)clipboardAction:(UIButton*)sender{
@@ -1216,11 +1216,11 @@ static BOOL DXIsHiddenShortcutSelector(NSString *selector) {
 }
 
 // AI 问答按钮，按承载能力分派（第一版 + ShellX 时代两套验证过的路径）：
-// 系统键盘——TypeX 跑在宿主 app / SpringBoard 进程内（工具栏就长在 UIKeyboardImpl
+// 系统键盘——MetisKeyboard 跑在宿主 app / SpringBoard 进程内（工具栏就长在 UIKeyboardImpl
 // 上），面板第一版同款进程内承载，点按钮立即弹出，不依赖跨进程通道；
 // 第三方键盘扩展——扩展进程的窗口逃不出键盘宿主区域，只能走 cfprefsd+Darwin
 // 通道交 SpringBoard 弹出（种子：输入框全文 > 剪贴板文本 > 剪贴板图片；app
-// 来源等回桌面再显示）。SB 端解析与桌面门控在 TypeX.xm。
+// 来源等回桌面再显示）。SB 端解析与桌面门控在 DXKeyboardHooks.xm。
 -(void)aiChatAction:(UIButton*)sender{
     [self triggerImpactAndAnimationWithButton:sender];
 
@@ -1263,7 +1263,7 @@ static BOOL DXIsHiddenShortcutSelector(NSString *selector) {
                               @"mode": mode,
                               @"origin": isSpringBoard ? @"sb" : @"app",
                               @"text": seed ?: @""};
-    DXSetQuickActionSharedValue(request, TypeXAIChatRequestKey);
+    DXSetQuickActionSharedValue(request, MTAIChatRequestKey);
     notify_post(kAIChatRequestIdentifier.UTF8String);
 }
 
@@ -1735,7 +1735,7 @@ static BOOL DXIsHiddenShortcutSelector(NSString *selector) {
     if (subActions.count == 0) return;
 
     self.hapticType = gesture == DXShortcutGestureTap ? 1 : 2;
-    NSLog(@"[TypeX][Gesture] trigger gesture=%ld count=%lu configuration=%@", (long)gesture, (unsigned long)subActions.count, self.configuration);
+    NSLog(@"[MetisKeyboard][Gesture] trigger gesture=%ld count=%lu configuration=%@", (long)gesture, (unsigned long)subActions.count, self.configuration);
 
     if (subActions.count == 1) {
         [self dispatchSubActionSelector:subActions.firstObject sender:button];
@@ -1887,19 +1887,19 @@ static BOOL DXIsHiddenShortcutSelector(NSString *selector) {
     // PullOver hosting the target) never triggers another open or a timeout toast.
     __block BOOL completionDelivered = NO;
     NSString *scheme = url.scheme.lowercaseString;
-    NSLog(@"[TypeX] URL scheme single-shot dispatch: scheme=%@ sb=%d", scheme, isSpringBoard);
+    NSLog(@"[MetisKeyboard] URL scheme single-shot dispatch: scheme=%@ sb=%d", scheme, isSpringBoard);
     void (^finish)(BOOL) = ^(BOOL success) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (completionDelivered) return;
             completionDelivered = YES;
-            NSLog(@"[TypeX] URL scheme single-shot completion: scheme=%@ success=%d", scheme, success);
+            NSLog(@"[MetisKeyboard] URL scheme single-shot completion: scheme=%@ success=%d", scheme, success);
             [self finishCustomActionOpen:completion success:success];
         });
     };
     @try {
         ((void (*)(id, SEL, id, id, id))objc_msgSend)(application, openSelector, url, @{}, finish);
     } @catch (NSException *exception) {
-        NSLog(@"[TypeX] URL scheme single-shot exception: scheme=%@ exception=%@", scheme, exception.name);
+        NSLog(@"[MetisKeyboard] URL scheme single-shot exception: scheme=%@ exception=%@", scheme, exception.name);
         finish(NO);
     }
 }
@@ -2442,7 +2442,7 @@ static UIWindow *DXSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     // write into a different input session after animation or another tap.
     [self dismissSubActionPanelAnimated:NO completion:nil];
     if (!valid) {
-        NSLog(@"[TypeX] text-record: selection cancelled after input/window change");
+        NSLog(@"[MetisKeyboard] text-record: selection cancelled after input/window change");
         return;
     }
     [self insertTextIntoInputField:text];
@@ -2469,7 +2469,7 @@ static UIWindow *DXSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
         UIWindow *floating = DXSubActionPanelCreateHostWindow(sourceWindow);
         if (floating) hostWindow = floating;
     }
-    NSLog(@"[TypeX] panel: presenting %lu %@ (floating host: %d)",
+    NSLog(@"[MetisKeyboard] panel: presenting %lu %@ (floating host: %d)",
           (unsigned long)itemCount, textMode ? @"text records" : @"sub-actions", hostWindow != sourceWindow);
 
     UIControl *overlay = [[UIControl alloc] initWithFrame:hostWindow.bounds];
@@ -2609,7 +2609,7 @@ static UIWindow *DXSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
         NSString *enabledKey = [self.configuration isEqual:@"top"] ? kDXPanelTopEnabled : kDXPanelBottomEnabled;
         NSString *selector = DXToolbarAction(prefs, self.configuration, result < 0 ? @"left" : @"right");
         if (selector.length && DXKeyboardPanelBool(prefs, enabledKey, YES)) {
-            NSLog(@"[TypeX][KeyboardPanel] long swipe toolbar=%@ source=%@ direction=%@",
+            NSLog(@"[MetisKeyboard][KeyboardPanel] long swipe toolbar=%@ source=%@ direction=%@",
                 self.configuration, surface == self ? @"actions" : @"floating-shelf", result < 0 ? @"left" : @"right");
             [self dispatchKeyboardPanelSelector:selector sender:surface == self ? gesture.sourceButton : nil];
         }

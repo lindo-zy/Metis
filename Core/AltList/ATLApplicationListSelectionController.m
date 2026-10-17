@@ -8,7 +8,7 @@
 
 @implementation ATLApplicationListSelectionController
 
-// TypeX vendor addition, see header.
+// Metis vendor addition, see header.
 - (NSString *)selectedApplicationID
 {
 	return _selectedApplicationID;

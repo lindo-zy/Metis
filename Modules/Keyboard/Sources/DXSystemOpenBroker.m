@@ -99,10 +99,10 @@ static void DXPerformSystemOpen(NSDictionary *request, DXSystemOpenReply reply) 
         [manager reload];
         NSString *selector = manager.preferencesAvailable ? DXStatusBarRequestSelector(manager.prefs, binding, kEnabledkey) : nil;
         if (!selector || ![DXGlobalPanel deviceUnlocked] || [DXGlobalPanel.sharedInstance isVisible]) {
-            NSLog(@"[TypeX][StatusBarGesture] dispatch rejected slot=%@ gate=binding/lock/panel", binding[@"slot"]);
+            NSLog(@"[MetisKeyboard][StatusBarGesture] dispatch rejected slot=%@ gate=binding/lock/panel", binding[@"slot"]);
             reply(DXSystemOpenUnavailable); return;
         }
-        NSLog(@"[TypeX][StatusBarGesture] dispatch slot=%@", binding[@"slot"]);
+        NSLog(@"[MetisKeyboard][StatusBarGesture] dispatch slot=%@", binding[@"slot"]);
         BOOL isPanel = DXPanelAllowed(manager.prefs, selector, DXPanelGestureKind);
         if (isPanel) {
             [DXGlobalPanel.sharedInstance presentPanelSelector:selector fromWindow:nil origin:@"statusbar"];
@@ -146,7 +146,7 @@ static void DXPerformSystemOpen(NSDictionary *request, DXSystemOpenReply reply) 
                 result = DXSystemOpenUnavailable;
         } @finally { notify_cancel(token); }
         if (![control[@"action"] isEqual:@"state"] || result != DXSystemOpenSucceeded)
-            NSLog(@"[TypeX][PanelControl] action=%@ result=%llu", control[@"action"], (unsigned long long)result);
+            NSLog(@"[MetisKeyboard][PanelControl] action=%@ result=%llu", control[@"action"], (unsigned long long)result);
         reply(result);
         return;
     }
@@ -175,7 +175,7 @@ static void DXPerformSystemOpen(NSDictionary *request, DXSystemOpenReply reply) 
             reply(DXConfirmSystemExitAction(payload, operation) ? DXSystemOpenSucceeded : DXSystemOpenUnavailable);
         } else {
             DXSystemOpenResult result = DXPerformSystemAction(payload);
-            NSLog(@"[TypeX][SystemAction] id=%@ result=%llu", payload, (unsigned long long)result);
+            NSLog(@"[MetisKeyboard][SystemAction] id=%@ result=%llu", payload, (unsigned long long)result);
             reply(result);
         }
         return;

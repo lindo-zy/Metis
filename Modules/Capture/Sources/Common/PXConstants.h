@@ -23,7 +23,7 @@ FOUNDATION_EXPORT CFStringRef const PXDarwinCaptureLong;        // com.pixpin.sc
 FOUNDATION_EXPORT CFStringRef const PXDarwinCaptureCancel;      // com.pixpin.screenshot/capture/cancel
 FOUNDATION_EXPORT CFStringRef const PXDarwinPreferencesReload;  // com.pixpin.screenshot/preferences/reload
 
-// MARK: - Snapper3 兼容别名（外部按 Snapper3 公开通知约定发信号即可触发 PixPin）
+// MARK: - Snapper3 兼容别名（外部按 Snapper3 公开通知约定发信号即可触发 MetisCapture）
 
 FOUNDATION_EXPORT CFStringRef const PXDarwinSnapperForceOpen;        // com.jontelang.snapper3.force.open → 区域截图
 FOUNDATION_EXPORT CFStringRef const PXDarwinSnapperForceInstantOpen; // com.jontelang.snapper3.forceinstant.open → 即时区域截图
@@ -39,7 +39,7 @@ FOUNDATION_EXPORT CFStringRef const PXDarwinShellXOpenInstant; // com.iosdump.sc
 FOUNDATION_EXPORT CFStringRef const PXDarwinShellXOpenFreeze;  // com.iosdump.screenshotshell.open.freeze → 冻结截图
 FOUNDATION_EXPORT CFStringRef const PXDarwinShellXClose;       // com.iosdump.screenshotshell.close → 取消当前任务
 
-// MARK: - SHELLX 出向触发名（SHELLX 自己注册的观察者，PixPin 工具栏按钮 notify_post 外调用。
+// MARK: - SHELLX 出向触发名（SHELLX 自己注册的观察者，MetisCapture 工具栏按钮 notify_post 外调用。
 // 官方名逐字取自 SHELLX 插件文档第 2 节，文档保证 SHELLX 监听；其中区域/即时/冻结/关闭
 // 与上方兼容别名同名，自发通知会被本方观察者收到，外调方必须做自发自收抑制。
 // 历史版本走 Snapper3 别名（com.jontelang.snapper3.*），现按官方文档统一切换；

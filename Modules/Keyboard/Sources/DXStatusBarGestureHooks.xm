@@ -104,7 +104,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
 }
 - (BOOL)reject:(NSString *)reason {
     if (![self.lastRejection isEqual:reason])
-        NSLog(@"[TypeX][StatusBarGesture] rejected host=%@ gate=%@", NSProcessInfo.processInfo.processName, reason);
+        NSLog(@"[MetisKeyboard][StatusBarGesture] rejected host=%@ gate=%@", NSProcessInfo.processInfo.processName, reason);
     self.lastRejection = reason;
     return NO;
 }
@@ -172,7 +172,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
         DXStatusBarFlag(preferences[kDXStatusBarEnabled]), (unsigned long)configured];
     if (![self.lastConfiguration isEqual:summary]) {
         self.lastConfiguration = summary;
-        NSLog(@"[TypeX][StatusBarGesture] config host=%@ available=%d enabled=%d slots=%lu", NSProcessInfo.processInfo.processName,
+        NSLog(@"[MetisKeyboard][StatusBarGesture] config host=%@ available=%d enabled=%d slots=%lu", NSProcessInfo.processInfo.processName,
             DXPrefsManager.sharedInstance.preferencesAvailable, DXStatusBarFlag(preferences[kDXStatusBarEnabled]), (unsigned long)configured);
     }
     for (UIGestureRecognizer *gesture in self.recognizers) {
@@ -232,7 +232,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
     session.region = region; session.window = host; session.receiver = receiver; session.touchView = touch.view; session.preferences = [preferences copy];
     session.frame = self.aperture ? touch.window.bounds : [self.anchor convertRect:self.anchor.bounds toView:host];
     objc_setAssociatedObject(gesture, &DXStatusSessionKey, session, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    NSLog(@"[TypeX][StatusBarGesture] touch host=%@ slot=%@ view=%@ receiver=%@ window=%@", NSProcessInfo.processInfo.processName,
+    NSLog(@"[MetisKeyboard][StatusBarGesture] touch host=%@ slot=%@ view=%@ receiver=%@ window=%@", NSProcessInfo.processInfo.processName,
         DXStatusBarSlot(region, kind) ?: [region stringByAppendingString:@".horizontal"], NSStringFromClass(touch.view.class),
         NSStringFromClass(receiver.class), NSStringFromClass(touch.window.class));
     return YES;
@@ -277,7 +277,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
     if (!configured) return NO;
     // UIKit evaluates this per touch, including descendant taps and recognizers
     // installed after ours. Unconfigured/native-control touches never get here.
-    NSLog(@"[TypeX][StatusBarGesture] priority host=%@ slot=%@ native=%@", NSProcessInfo.processInfo.processName,
+    NSLog(@"[MetisKeyboard][StatusBarGesture] priority host=%@ slot=%@ native=%@", NSProcessInfo.processInfo.processName,
         DXStatusBarSlot(session.region, kind) ?: [session.region stringByAppendingString:@".horizontal"], NSStringFromClass(other.class));
     return YES;
 }
@@ -316,7 +316,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
     session.dispatched = YES;
     NSString *slot = DXStatusBarSlot(session.region, kind);
     NSString *selector = DXStatusBarSelector(session.preferences, slot);
-    NSLog(@"[TypeX][StatusBarGesture] trigger host=%@ slot=%@", NSProcessInfo.processInfo.processName, slot);
+    NSLog(@"[MetisKeyboard][StatusBarGesture] trigger host=%@ slot=%@", NSProcessInfo.processInfo.processName, slot);
     if (DXKeyboardPanelBool(session.preferences, kEnabledHaptickey, YES)) {
         UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
         [feedback impactOccurred];
@@ -326,7 +326,7 @@ static BOOL DXStatusReceiverVisible(UIView *view, UIWindow *window) {
     BOOL landscape = UIInterfaceOrientationIsLandscape(orientation) ||
         (orientation == UIInterfaceOrientationUnknown && window.bounds.size.width > window.bounds.size.height);
     DXRequestStatusBarGesture(slot, selector, landscape, ^(DXSystemOpenResult result) {
-        NSLog(@"[TypeX][StatusBarGesture] result host=%@ slot=%@ status=%llu", NSProcessInfo.processInfo.processName, slot, (unsigned long long)result);
+        NSLog(@"[MetisKeyboard][StatusBarGesture] result host=%@ slot=%@ status=%llu", NSProcessInfo.processInfo.processName, slot, (unsigned long long)result);
     });
 }
 @end
@@ -397,7 +397,7 @@ static void DXInstallStatusGestures(UIView *view) {
     UIView *gestureHost = aperture ? (UIView *)anchor.window : anchor;
     for (UIGestureRecognizer *gesture in recognizers) [gestureHost addGestureRecognizer:gesture];
     [handler refresh];
-    NSLog(@"[TypeX][StatusBarGesture] installed host=%@ view=%@ window=%@", NSProcessInfo.processInfo.processName,
+    NSLog(@"[MetisKeyboard][StatusBarGesture] installed host=%@ view=%@ window=%@", NSProcessInfo.processInfo.processName,
         NSStringFromClass(anchor.class), NSStringFromClass(anchor.window.class));
 }
 
@@ -504,23 +504,23 @@ static void DXTryStatusHooks(void) {
         if (signature.numberOfArguments != 2 || strcmp(signature.methodReturnType, @encode(void))) continue;
         if (cls == wrapper && !wrapperInstalled) {
             %init(TypeXStatusBarWrapper, UIStatusBar = wrapper); wrapperInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
         }
         if (cls == core && !coreInstalled) {
             %init(TypeXStatusBarCore, _UIStatusBar = core); coreInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
         }
         if (cls == modern && modern != wrapper && !modernInstalled) {
             %init(TypeXStatusBarModern, UIStatusBar_Modern = modern); modernInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
         }
         if (cls == systemWrapper && !systemWrapperInstalled) {
             %init(TypeXSystemStatusBarWrapper, STUIStatusBar_Wrapper = systemWrapper); systemWrapperInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
         }
         if (cls == systemCore && !systemCoreInstalled) {
             %init(TypeXSystemStatusBarCore, STUIStatusBar = systemCore); systemCoreInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] hook host=%@ class=%@", NSProcessInfo.processInfo.processName, NSStringFromClass(cls));
         }
         if (cls == aperture && !apertureInstalled) { %init(TypeXStatusBarAperture, SBSystemApertureContainerView = aperture); apertureInstalled = YES; }
     }
@@ -530,11 +530,11 @@ static void DXTryStatusHooks(void) {
         if (!DXStatusConstructionSupported(cls)) continue;
         if (cls == core && !coreConstructionInstalled) {
             %init(TypeXStatusBarCoreConstruction, _UIStatusBar = core); coreConstructionInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] construction hook class=%@", NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] construction hook class=%@", NSStringFromClass(cls));
         }
         if (cls == systemCore && !systemCoreConstructionInstalled) {
             %init(TypeXSystemStatusBarCoreConstruction, STUIStatusBar = systemCore); systemCoreConstructionInstalled = YES;
-            NSLog(@"[TypeX][StatusBarGesture] construction hook class=%@", NSStringFromClass(cls));
+            NSLog(@"[MetisKeyboard][StatusBarGesture] construction hook class=%@", NSStringFromClass(cls));
         }
     }
     #pragma clang diagnostic push
@@ -547,7 +547,7 @@ static void DXTryStatusHooks(void) {
     for (DXStatusGestureHandler *handler in DXStatusHandlers.allObjects) [handler refresh];
     if (!wrapperInstalled && !coreInstalled && !modernInstalled && !systemWrapperInstalled && !systemCoreInstalled && !loggedUnavailable) {
         loggedUnavailable = YES;
-        NSLog(@"[TypeX][StatusBarGesture] unavailable: status-bar classes missing");
+        NSLog(@"[MetisKeyboard][StatusBarGesture] unavailable: status-bar classes missing");
     }
 }
 
@@ -587,7 +587,7 @@ void DXStartStatusBarGestures(void) {
                     [DXPrefsManager.sharedInstance reload];
                     DXTryStatusHooks();
                 });
-                if (result != NOTIFY_STATUS_OK) NSLog(@"[TypeX][StatusBarGesture] notification registration failed status=%u", result);
+                if (result != NOTIFY_STATUS_OK) NSLog(@"[MetisKeyboard][StatusBarGesture] notification registration failed status=%u", result);
             }
             DXTryStatusHooks();
         });

@@ -60,7 +60,7 @@ static void DXRegisterManagedCellsIfNeeded(UITableView *table) {
     self.title = LOCALIZED(@"CUSTOM_ACTIONS");
     [self configureActionSearch];
     [self updateControls];
-    NSLog(@"[TypeX][CustomActions] load actions=%lu groups=%lu",
+    NSLog(@"[MetisKeyboard][CustomActions] load actions=%lu groups=%lu",
         (unsigned long)self.linkActions.count, (unsigned long)self.groupNames.count);
 }
 - (void)configureActionTableView:(UITableView *)tableView {
@@ -289,7 +289,7 @@ static void DXRegisterManagedCellsIfNeeded(UITableView *table) {
     [self.batchSelectors removeAllObjects];
     [self reloadPreferences];
     [self reloadDataKeepingSelection];
-    NSLog(@"[TypeX][CustomActions] grouped count=%lu", (unsigned long)count);
+    NSLog(@"[MetisKeyboard][CustomActions] grouped count=%lu", (unsigned long)count);
 }
 - (void)chooseGroup:(void (^)(NSString *group))completion {
     NSDictionary *prefs = [DXPrefsManager.sharedInstance readPrefs];

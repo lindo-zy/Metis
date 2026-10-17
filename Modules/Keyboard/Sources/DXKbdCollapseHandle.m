@@ -35,7 +35,7 @@ static void DXKbdVisibilityPost(uint64_t word) {
     static uint64_t lastPosted;
     if (word != lastPosted) {
         lastPosted = word;
-        NSLog(@"[TypeX][KbdHandle] keyboard visibility word=%llu", (unsigned long long)word);
+        NSLog(@"[MetisKeyboard][KbdHandle] keyboard visibility word=%llu", (unsigned long long)word);
     }
 }
 
@@ -61,7 +61,7 @@ void DXStartKbdVisibilityReporter(void) {
         NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
         [center addObserver:DXKbdVisibilityReporterInstance selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
         [center addObserver:DXKbdVisibilityReporterInstance selector:@selector(keyboardDidHide:) name:UIKeyboardDidHideNotification object:nil];
-        NSLog(@"[TypeX][KbdHandle] reporter installed");
+        NSLog(@"[MetisKeyboard][KbdHandle] reporter installed");
     });
 }
 
@@ -83,7 +83,7 @@ static BOOL DXKbdHandleScreenIsOn(void) {
     return read && blanked == 0;
 }
 
-// LOCALIZED 宏依赖 TypeX.xm 的 tweakBundle 静态变量，这里独立取同一 bundle。
+// LOCALIZED 宏依赖 DXKeyboardHooks.xm 的 tweakBundle 静态变量，这里独立取同一 bundle。
 static NSString *DXKbdHandleLocalized(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
@@ -269,7 +269,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         if (notify_get_state(eventToken, &word) != NOTIFY_STATUS_OK) return;
         [host applyVisibilityWord:word == DXKbdVisibilityShownWord];
     }) != NOTIFY_STATUS_OK) {
-        NSLog(@"[TypeX][KbdHandle] visibility observer failed");
+        NSLog(@"[MetisKeyboard][KbdHandle] visibility observer failed");
     }
     for (NSString *name in @[@"com.apple.springboard.lockstate", @"com.apple.springboard.hasBlankedScreen"]) {
         notify_register_dispatch(name.UTF8String, &token, dispatch_get_main_queue(), ^(__unused int eventToken) {
@@ -289,7 +289,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
             dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf finishStartup]; });
         }];
     [self applyPreferences];
-    NSLog(@"[TypeX][KbdHandle] host started");
+    NSLog(@"[MetisKeyboard][KbdHandle] host started");
 }
 
 - (void)finishStartup {
@@ -435,7 +435,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (self.nubbed) return;
     // 自动隐藏=滑入边缘只露 11pt（PullOver-X 把手 nub 同款语义），不是整体
     // 消失；点按/向内拖出恢复，与手动缩边共用同一状态并持久化。
-    NSLog(@"[TypeX][KbdHandle] auto tuck after %.1fs", self.autoHideInterval);
+    NSLog(@"[MetisKeyboard][KbdHandle] auto tuck after %.1fs", self.autoHideInterval);
     self.nubbed = YES;
     [self saveHandlePlacement];
     [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
@@ -463,7 +463,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (self.window) return;
     UIWindowScene *scene = [self windowScene];
     if (!scene) {
-        NSLog(@"[TypeX][KbdHandle] window scene unavailable");
+        NSLog(@"[MetisKeyboard][KbdHandle] window scene unavailable");
         return;
     }
     DXKbdHandleWindow *window = [[DXKbdHandleWindow alloc] initWithWindowScene:scene];
@@ -518,7 +518,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     self.handleMaterial.userInteractionEnabled = NO;
     [self.handleView addSubview:self.handleMaterial];
 
-    UIImage *icon = [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"TypeX512.png"]]
+    UIImage *icon = [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"Keyboard512.png"]]
         ?: [DXHelper imageForTypeXWithPlaceholder:NO];
     self.handleIconView = [[UIImageView alloc] initWithImage:icon];
     self.handleIconView.contentMode = UIViewContentModeScaleAspectFit;
@@ -528,7 +528,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self.handleMaterial.contentView addSubview:self.handleIconView];
 
     self.window = window;
-    NSLog(@"[TypeX][KbdHandle] window created backdropRouting=%d", hitTestingConfigured);
+    NSLog(@"[MetisKeyboard][KbdHandle] window created backdropRouting=%d", hitTestingConfigured);
 }
 
 - (void)layoutForBounds:(CGRect)bounds {
@@ -595,7 +595,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         self.handleView.transform = CGAffineTransformIdentity;
     }
     [self armAutoHideTimer];
-    NSLog(@"[TypeX][KbdHandle] handle shown items=%lu pinned=%d", (unsigned long)self.panelItems.count,
+    NSLog(@"[MetisKeyboard][KbdHandle] handle shown items=%lu pinned=%d", (unsigned long)self.panelItems.count,
         self.selectedIdentifiers.count > 0);
 }
 
@@ -610,7 +610,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     self.window.hidden = YES;
     self.handleView.alpha = 1;
     self.handleView.transform = CGAffineTransformIdentity;
-    NSLog(@"[TypeX][KbdHandle] handle hidden reason=%@", reason);
+    NSLog(@"[MetisKeyboard][KbdHandle] handle hidden reason=%@", reason);
 }
 
 - (void)saveHandlePlacement {
@@ -680,13 +680,13 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
             [self layoutForBounds:self.window.bounds];
         } completion:nil];
         [self armAutoHideTimer];
-        NSLog(@"[TypeX][KbdHandle] drag dock side=%ld nubbed=%d", (long)side, self.nubbed);
+        NSLog(@"[MetisKeyboard][KbdHandle] drag dock side=%ld nubbed=%d", (long)side, self.nubbed);
     }
 }
 
 - (void)handleTapped:(UITapGestureRecognizer *)gesture {
     if (gesture.state != UIGestureRecognizerStateEnded || self.window.hidden || self.keyboardVisible || self.dragging) return;
-    NSLog(@"[TypeX][KbdHandle] handle tapped");
+    NSLog(@"[MetisKeyboard][KbdHandle] handle tapped");
     if (self.panelOpen) [self closePanel:YES];
     else [self openPanel];
 }
@@ -701,7 +701,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self closePanel:YES];
     [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
         animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
-    NSLog(@"[TypeX][KbdHandle] outside interaction close panel tuck=1");
+    NSLog(@"[MetisKeyboard][KbdHandle] outside interaction close panel tuck=1");
 }
 
 - (void)openPanel {
@@ -716,7 +716,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (self.quickEnabled) { [self openQuickLauncher]; return; }
     [self rebuildPanel];
     if (self.panelItems.count == 0) {
-        NSLog(@"[TypeX][KbdHandle] panel skipped empty");
+        NSLog(@"[MetisKeyboard][KbdHandle] panel skipped empty");
         return;
     }
     // 面板使用中不整体隐藏；closePanel 收起后重新计时。
@@ -735,7 +735,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         self.panelView.transform = CGAffineTransformIdentity;
         self.backdrop.alpha = 1;
     } completion:nil];
-    NSLog(@"[TypeX][KbdHandle] panel opened items=%lu pinned=%d", (unsigned long)self.panelItems.count,
+    NSLog(@"[MetisKeyboard][KbdHandle] panel opened items=%lu pinned=%d", (unsigned long)self.panelItems.count,
         self.selectedIdentifiers.count > 0);
 }
 
@@ -802,7 +802,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self cancelAutoHideTimer]; self.panelGeneration++; self.panelOpen = YES;
     self.backdrop.hidden = NO; self.backdrop.alpha = 1; self.panelView.hidden = YES;
     self.quickView.hidden = NO; [self layoutForBounds:self.window.bounds];
-    NSLog(@"[TypeX][Launcher] session opened favorites=%lu", (unsigned long)favorites.count);
+    NSLog(@"[MetisKeyboard][Launcher] session opened favorites=%lu", (unsigned long)favorites.count);
 }
 
 - (void)recordQuickSuccess:(NSString *)identifier {
@@ -840,7 +840,7 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         if (!host || host.launchRequest != request || !host.launchPending) return;
         host.launchPending = NO; host.quickView.launching = NO;
         if (result == DXSystemOpenSucceeded) [host recordQuickSuccess:identifier];
-        NSLog(@"[TypeX][Launcher] open completed request=%lu result=%llu", (unsigned long)request, (unsigned long long)result);
+        NSLog(@"[MetisKeyboard][Launcher] open completed request=%lu result=%llu", (unsigned long)request, (unsigned long long)result);
         if (!host.panelOpen || host.panelGeneration != generation || host.window.hidden) return;
         if (result == DXSystemOpenSucceeded) [host closePanel:YES];
         else [host.quickView showOpenFailure];
@@ -900,12 +900,12 @@ static UIImage *DXKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (index >= self.panelItems.count) return;  // 陈旧点击：面板可能已按新列表重建
     NSString *identifier = [self.panelItems objectAtIndex:index];
     if (![identifier isKindOfClass:[NSString class]]) return;
-    NSLog(@"[TypeX][KbdHandle] panel open bundleID=%@", identifier);
+    NSLog(@"[MetisKeyboard][KbdHandle] panel open bundleID=%@", identifier);
     [self closePanel:YES];
     // 目标切换语义由 DXFloatingAppCoordinator.open 承接：同 App 短路，不同 App
     // 走 target-switch 收旧开新，悬浮卡只剩一个。截止时间由 open 通道自建。
     DXOpenFloatingApplication(identifier, ^(DXSystemOpenResult result) {
-        NSLog(@"[TypeX][KbdHandle] float result=%llu bundleID=%@", (unsigned long long)result, identifier);
+        NSLog(@"[MetisKeyboard][KbdHandle] float result=%llu bundleID=%@", (unsigned long long)result, identifier);
     });
 }
 

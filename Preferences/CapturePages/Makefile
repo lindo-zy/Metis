@@ -1,6 +1,6 @@
 BUNDLE_NAME = MetisCapturePrefs
 
-# Capture（PixPin）详细设置子包：从统一设置壳的模块页进入。
+# Capture（MetisCapture）详细设置子包：从统一设置壳的模块页进入。
 # 不再注册独立 PreferenceLoader 入口（原 PixPinPrefs.plist 不安装）。
 MetisCapturePrefs_FILES = PXRootListController.m \
 	PXEditorOrderController.m \

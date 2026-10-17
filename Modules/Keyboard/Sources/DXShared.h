@@ -1,5 +1,5 @@
 #import "common.h"
-#import "TypeX.h"
+#import "DXKeyboardUIKit.h"
 
 extern id delegate;
 extern UIKeyboardImpl *kbImpl;

@@ -2,11 +2,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// PixPin 自有覆盖窗口的统一生命周期封装。
+/// MetisCapture 自有覆盖窗口的统一生命周期封装。
 /// 约定（DEVELOPMENT.md 6.2）：
 /// - 创建/显示/关闭必须全部在主线程；
 /// - 关闭时由持有者释放引用，视图自身的手势/图层随 dealloc 释放；
-/// - 抓屏前必须先隐藏全部 PixPin 窗口（由协调器统一调度）。
+/// - 抓屏前必须先隐藏全部 MetisCapture 窗口（由协调器统一调度）。
 @interface PXCaptureWindow : UIWindow
 
 /// 独立覆盖窗口：优先绑定 SpringBoard 当前的前台非键盘 UIWindowScene。

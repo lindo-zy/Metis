@@ -1,6 +1,6 @@
 BUNDLE_NAME = MetisClipboardPrefs
 
-# Clipboard（KayokoX）详细设置子包：从统一设置壳的模块页进入。
+# Clipboard（MetisClipboard）详细设置子包：从统一设置壳的模块页进入。
 # 共享层（Tags/Actions/AltList）链接 MetisCore；不再注册独立
 # PreferenceLoader 入口（layout/ 旧入口不安装）。
 MetisClipboardPrefs_FILES = $(wildcard Controllers/*.m) \

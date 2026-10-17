@@ -397,7 +397,7 @@ static NSBundle *dxpLocalBundle;
     if (icon.length > 0
         && ![DXHelper customIconForShortcutItem:@{@"icon": icon}]
         && ![DXHelper appIconBundleIDForShortcutItem:@{@"icon": icon}]) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"TypeX"
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"MetisKeyboard"
                                                                        message:LOCALIZED(@"CUSTOM_ICON_INVALID")
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_YES")
@@ -569,7 +569,7 @@ static NSBundle *dxpLocalBundle;
     BOOL isLibraryRow = (self.iconLibrarySpec && [self specifierAtIndexPath:indexPath] == self.iconLibrarySpec) ||
         [cell.textLabel.text isEqualToString:LOCALIZED(@"ICON_LIBRARY_ROW")];
     if (isLibraryRow) {
-        NSLog(@"[TypeX][SFSymbol] library row tapped, pushing picker");
+        NSLog(@"[MetisKeyboard][SFSymbol] library row tapped, pushing picker");
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DXPSFSymbolPickerController *picker = [[DXPSFSymbolPickerController alloc] init];
         NSString *current = [self readIconValue:nil];
@@ -580,14 +580,14 @@ static NSBundle *dxpLocalBundle;
             if (!strongSelf || !symbolName.length) return;
             if (strongSelf.pendingNewEntry) {
                 // 新建未保存按钮没有可落盘的条目：保持暂存，随页面保存一并写入。
-                NSLog(@"[TypeX][SFSymbol] stage icon=%@ (pendingNewEntry)", symbolName);
+                NSLog(@"[MetisKeyboard][SFSymbol] stage icon=%@ (pendingNewEntry)", symbolName);
                 [strongSelf setIconValue:symbolName specifier:strongSelf.iconLibrarySpec];
                 [strongSelf reloadSpecifiers];
                 return;
             }
             // 已保存按钮：图标库选中立即落盘生效（目录选出的名字必过 systemImageNamed
             // 校验）；字段里未保存的手输图标暂存被本次选择覆盖，名称暂存不受影响。
-            NSLog(@"[TypeX][SFSymbol] apply immediate icon=%@", symbolName);
+            NSLog(@"[MetisKeyboard][SFSymbol] apply immediate icon=%@", symbolName);
             [strongSelf updateStoredShortcutEntryWithMutator:^(NSMutableDictionary *entry) {
                 entry[@"icon"] = symbolName;
             }];

@@ -146,7 +146,7 @@ static id DXQACurrentItem(id application, NSString *shortcutType) {
         id controller = DXQAApplicationController();
         if (!controller) {
             DXQAWriteStatus(@"failed", resolvedRequestID, @{@"error": @"SBApplicationController unavailable"});
-            NSLog(@"[TypeX] quickactions: SBApplicationController unavailable");
+            NSLog(@"[MetisKeyboard] quickactions: SBApplicationController unavailable");
             return;
         }
 
@@ -198,14 +198,14 @@ static id DXQACurrentItem(id application, NSString *shortcutType) {
         dispatch_async(DXQASnapshotWriterQueue(), ^{
             if (!DXSetQuickActionSharedValue(snapshot, TypeXQuickActionSnapshotKey)) {
                 DXQAWriteStatus(@"failed", resolvedRequestID, @{@"error": @"Snapshot write failed"});
-                NSLog(@"[TypeX] quickactions: failed to write snapshot %@", resolvedRequestID);
+                NSLog(@"[MetisKeyboard] quickactions: failed to write snapshot %@", resolvedRequestID);
                 return;
             }
             DXQAWriteStatus(@"complete", resolvedRequestID, stats);
             CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
                                                  (__bridge CFStringRef)kShortcutSnapshotChangedIdentifier,
                                                  NULL, NULL, YES);
-            NSLog(@"[TypeX] quickactions: snapshot %@ complete (%lu apps, %lu static, %lu dynamic)",
+            NSLog(@"[MetisKeyboard] quickactions: snapshot %@ complete (%lu apps, %lu static, %lu dynamic)",
                   resolvedRequestID, (unsigned long)apps.count,
                   (unsigned long)staticCount, (unsigned long)dynamicCount);
         });

@@ -13,7 +13,7 @@
 "FOOTER_DISPLAY_STYLE" = "Set shortcuts displaying style.";
 "ANSWER_YES" = "Yes";
 "ANSWER_NO" = "No";
-"FOOTER_TOGGLE_BUTTON" = "Set the button to be used for toggling TypeX.";
+"FOOTER_TOGGLE_BUTTON" = "Set the button to be used for toggling MetisKeyboard.";
 "GLOBE" = "Globe";
 "DICTATION" = "Dictation";
 "BOTH" = "Both";
@@ -29,10 +29,10 @@
 "PASTE_CHIP_APPS" = "Enabled Apps";
 "SMS_CODE_SECTION" = "SMS Verification Codes";
 "SMS_CODE_COPY" = "Automatically Copy Codes";
-"SMS_CODE_FOOTER" = "Off by default. Copies an unambiguous 4–8 digit verification code from a newly received Messages notification, replacing the current clipboard. Local device only; expires after 3 minutes. Other or ambiguous messages are skipped. Codes may be unavailable when notifications are disabled or omit the message body. Requires TypeX to be enabled.";
+"SMS_CODE_FOOTER" = "Off by default. Copies an unambiguous 4–8 digit verification code from a newly received Messages notification, replacing the current clipboard. Local device only; expires after 3 minutes. Other or ambiguous messages are skipped. Codes may be unavailable when notifications are disabled or omit the message body. Requires MetisKeyboard to be enabled.";
 "BROWSER_REDIRECT_SECTION" = "Default Browser";
 "BROWSER_REDIRECT" = "Open Links in Reynard";
-"BROWSER_REDIRECT_FOOTER" = "Off by default. When enabled, links that would open Safari, Firefox, Chrome, or Brave open in the Reynard browser instead; http/https links are handed over as reynard:// URLs and decoded by Reynard, other links keep their URL. Requires Reynard to be installed. Requires TypeX to be enabled.";
+"BROWSER_REDIRECT_FOOTER" = "Off by default. When enabled, links that would open Safari, Firefox, Chrome, or Brave open in the Reynard browser instead; http/https links are handed over as reynard:// URLs and decoded by Reynard, other links keep their URL. Requires Reynard to be installed. Requires MetisKeyboard to be enabled.";
 
 // Configuration backup
 "BACKUP_SECTION" = "Configuration Backup";

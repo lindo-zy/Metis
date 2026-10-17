@@ -22,7 +22,7 @@ static BOOL DXDockSaveSelector(NSString *direction, NSString *selector) {
     [manager writePrefs:preferences];
     id saved = [manager readPrefs][kDXDockGestureBindings];
     BOOL success = [saved isKindOfClass:NSDictionary.class] && [saved[direction] isEqual:selector];
-    NSLog(@"[TypeX][DockSettings] save direction=%@ success=%d", direction, success);
+    NSLog(@"[MetisKeyboard][DockSettings] save direction=%@ success=%d", direction, success);
     return success;
 }
 

@@ -107,7 +107,7 @@ static BOOL DXLauncherHiddenTags(id tags) {
                     }
                     self.records = records; self.loadedAt = NSDate.date;
                 } else { self.loadedAt = nil; }
-                NSLog(@"[TypeX][Launcher] catalogue available=%d count=%lu", available, (unsigned long)self.records.count);
+                NSLog(@"[MetisKeyboard][Launcher] catalogue available=%d count=%lu", available, (unsigned long)self.records.count);
             }
             NSArray *records = self.records;
             if (!available) {

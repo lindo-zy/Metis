@@ -95,10 +95,10 @@
         [groups sortUsingComparator:^NSComparisonResult(NSDictionary *left, NSDictionary *right) {
             return [left[@"name"] localizedStandardCompare:right[@"name"]];
         }];
-        NSLog(@"[TypeX] shortcuts: %ld groups from the shared catalogue", (long)groups.count);
+        NSLog(@"[MetisKeyboard] shortcuts: %ld groups from the shared catalogue", (long)groups.count);
         return groups;
     } @catch (NSException *exception) {
-        NSLog(@"[TypeX] shortcuts: shared catalogue unreadable (%@)", exception);
+        NSLog(@"[MetisKeyboard] shortcuts: shared catalogue unreadable (%@)", exception);
         return @[];
     }
 }
@@ -122,11 +122,11 @@
             for (LSApplicationProxy *proxy in [workspace allApplications]) collect(proxy);
         }
     } @catch (NSException *exception) {
-        NSLog(@"[TypeX] quickaction catalogue enumeration exception=%@", exception.name);
+        NSLog(@"[MetisKeyboard] quickaction catalogue enumeration exception=%@", exception.name);
     }
     // An empty list asks the existing provider to use SpringBoard's registry.
     NSDictionary *request = @{@"requestID": NSUUID.UUID.UUIDString, @"bundles": identifiers.array};
-    if (!DXSetQuickActionSharedValue(request, TypeXQuickActionRequestKey)) return NO;
+    if (!DXSetQuickActionSharedValue(request, MTQuickActionRequestKey)) return NO;
     CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge CFStringRef)kShortcutRefreshRequestIdentifier, NULL, NULL, YES);
     return YES;

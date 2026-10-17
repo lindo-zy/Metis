@@ -1,5 +1,5 @@
-// MTKeyboardSpringBoardEntry —— TypeX（Keyboard 模块）SpringBoard 侧唯一挂接点。
-// 原 TypeX.xm ctor 的 isSpringBoard 分支整体迁入：系统 open broker、全局面板、
+// MTKeyboardSpringBoardEntry —— MetisKeyboard（Keyboard 模块）SpringBoard 侧唯一挂接点。
+// 原 DXKeyboardHooks.xm ctor 的 isSpringBoard 分支整体迁入：系统 open broker、全局面板、
 // 悬浮 App 托管、键盘收起把手、状态栏手势、shortcut/AI 请求监听与桌面可见性钩子。
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -24,7 +24,7 @@ static void dxsbShortcutRefreshRequestCallback(CFNotificationCenterRef center,
                                                CFStringRef name,
                                                const void *object,
                                                CFDictionaryRef userInfo) {
-    NSDictionary *request = DXQuickActionSharedValue(TypeXQuickActionRequestKey);
+    NSDictionary *request = DXQuickActionSharedValue(MTQuickActionRequestKey);
     NSArray *rawBundles = [request[@"bundles"] isKindOfClass:[NSArray class]] ? request[@"bundles"] : nil;
     NSString *requestID = [request[@"requestID"] isKindOfClass:[NSString class]] ? request[@"requestID"] : nil;
     if (rawBundles.count > 2048) rawBundles = nil;
@@ -77,7 +77,7 @@ static void DXSBOpenAIPanelWithRequest(NSDictionary *request) {
     if (requestID.length == 0) return;
 
     static NSString *lastAIRequestID;
-    @synchronized(TypeXAIChatRequestKey) {
+    @synchronized(MTAIChatRequestKey) {
         if ([lastAIRequestID isEqualToString:requestID]) return;
         lastAIRequestID = [requestID copy];
     }
@@ -105,7 +105,7 @@ static void dxsbAIChatRequestCallback(CFNotificationCenterRef center,
                                       CFStringRef name,
                                       const void *object,
                                       CFDictionaryRef userInfo) {
-    NSDictionary *request = DXQuickActionSharedValue(TypeXAIChatRequestKey);
+    NSDictionary *request = DXQuickActionSharedValue(MTAIChatRequestKey);
     if (![request isKindOfClass:[NSDictionary class]]) return;
     dispatch_async(dispatch_get_main_queue(), ^{
         DXSBOpenAIPanelWithRequest(request);

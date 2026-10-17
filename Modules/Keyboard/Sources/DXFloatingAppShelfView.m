@@ -96,7 +96,7 @@
     NSString *identifier = [button.accessibilityIdentifier copy];
     uint64_t revision = [self.snapshot[@"revision"] unsignedLongLongValue];
     if ([self.snapshot[@"active"] isEqual:identifier] || [self.snapshot[@"foreground"] isEqual:identifier])
-        NSLog(@"[TypeX][FloatingShelf] restore revalidate bundleID=%@ revision=%llu", identifier, (unsigned long long)revision);
+        NSLog(@"[MetisKeyboard][FloatingShelf] restore revalidate bundleID=%@ revision=%llu", identifier, (unsigned long long)revision);
     self.pendingIdentifier = identifier;
     NSUInteger generation = ++self.requestGeneration;
     button.enabled = NO;

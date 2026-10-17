@@ -3,7 +3,7 @@
 #import <Preferences/Preferences.h>
 
 
-@interface PSListController (TypeX)
+@interface PSListController (MetisKeyboard)
 -(void)setPreferenceValue:(id)value forSpecifier:(PSSpecifier*)specifier;
 - (void)setCellForRowAtIndexPath:(NSIndexPath *)indexPath enabled:(BOOL)enabled;
 @end
