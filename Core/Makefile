@@ -5,7 +5,9 @@ LIBRARY_NAME = MetisCore
 # 载入准则：MT* 公共类型 + 被 SB/UIKit/设置子包共同引用的 DX* 共享类
 # （含 vendored AltList，ADR-011 的 vendoring 备选路径：单一副本保证类唯一）。
 MetisCore_INSTALL_PATH = /Library/Metis/Frameworks
-MetisCore_LDFLAGS += -install_name /var/jb/Library/Metis/Frameworks/MetisCore.dylib
+# install_name 由 Theos 的 package scheme 生成。RootHide 使用
+# @loader_path/.jbroot/Library/Metis/Frameworks/MetisCore.dylib；
+# 手动覆盖为 /var/jb 会让所有消费者在随机 jbroot 环境中加载失败。
 
 MetisCore_FILES = MTLog.m \
 	MTPathResolver.m \

@@ -162,6 +162,50 @@ deployment_for_label() {
 OUTPUT_ROOT="$ROOT_DIR/packages"
 [[ "$BUILD_MODE" == "verify" ]] && OUTPUT_ROOT="$ROOT_DIR/packages/verify"
 
+# 必需的 RootHide 加载契约检查，随构建入口入库，不依赖本地 Tests/。
+# 检查每个架构的 LC_ID_DYLIB / LC_LOAD_DYLIB，避免单个切片残留 /var/jb。
+check_core_linkage() (
+    set -euo pipefail
+    extract_dir="$(mktemp -d /tmp/metis-core-linkage.XXXXXX)"
+    trap 'rm -rf "$extract_dir"' EXIT
+    dpkg-deb -x "$1" "$extract_dir"
+    expected='@loader_path/.jbroot/Library/Metis/Frameworks/MetisCore.dylib'
+
+    for relative_path in \
+        Library/Metis/Frameworks/MetisCore.dylib \
+        Library/MobileSubstrate/DynamicLibraries/MetisSpringBoard.dylib \
+        Library/MobileSubstrate/DynamicLibraries/MetisUIKit.dylib \
+        Library/MobileSubstrate/DynamicLibraries/MetisPasteServices.dylib \
+        Library/PreferenceBundles/MetisPrefs.bundle/MetisPrefs \
+        Library/PreferenceBundles/MetisKeyboardPrefs.bundle/MetisKeyboardPrefs \
+        Library/PreferenceBundles/MetisClipboardPrefs.bundle/MetisClipboardPrefs; do
+        binary="$extract_dir/$relative_path"
+        if [[ ! -f "$binary" ]]; then
+            echo "error: missing Core consumer: $relative_path" >&2
+            exit 1
+        fi
+        archs="$(lipo -archs "$binary")"
+        if [[ " $archs " != *" arm64 "* || " $archs " != *" arm64e "* ]]; then
+            echo "error: missing arm64/arm64e slice: $relative_path ($archs)" >&2
+            exit 1
+        fi
+        for arch in $archs; do
+            if [[ "$relative_path" == Library/Metis/Frameworks/MetisCore.dylib ]]; then
+                references="$(otool -arch "$arch" -D "$binary" | tail -1)"
+            else
+                references="$(otool -arch "$arch" -L "$binary" | awk '
+                    NR > 1 && $1 ~ /(^|\/)MetisCore[.]dylib$/ { print $1 }
+                ')"
+            fi
+            if [[ "$references" != "$expected" ]]; then
+                echo "error: invalid MetisCore linkage: $relative_path ($arch): ${references:-missing}" >&2
+                exit 1
+            fi
+        done
+    done
+    echo "==> RootHide Core linkage OK (7 binaries, arm64 + arm64e)"
+)
+
 build_one() {
     local label="$1"
     local sdk_version
@@ -200,6 +244,7 @@ build_one() {
     fi
 
     mv "$package_path" "$output_path"
+    check_core_linkage "$output_path"
     if [[ -x "$ROOT_DIR/Tests/Package/package-check.sh" ]]; then
         "$ROOT_DIR/Tests/Package/package-check.sh" "$output_path" "$VERSION_TO_BUILD" "$label"
     else
