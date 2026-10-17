@@ -64,7 +64,10 @@ static NSBundle *mtpLocalBundle;
     mtpLocalBundle = [NSBundle bundleWithPath:bundlePath];
     [mtpLocalBundle load];
     [super viewDidLoad];
-    
+
+    // 模块内不再挂品牌 logo 头（2026-10-17 需求）：品牌只在系统设置首页出现，
+    // 这里只保留搜索框与 Respring 按钮。
+
     //search bar
     
     self.settingsSearch = [[UISearchController alloc] initWithSearchResultsController:nil];
@@ -84,74 +87,7 @@ static NSBundle *mtpLocalBundle;
         self.navigationItem.hidesSearchBarWhenScrolling = YES;
     }
     //search bar
-    
-    
-    CGFloat headerWidth = self.table.bounds.size.width;
-    CGRect frame = CGRectMake(0, 0, headerWidth, 250);
 
-    UIView *headerView = [[UIView alloc] initWithFrame:frame];
-    headerView.backgroundColor = UIColor.clearColor;
-
-    UIImage *headerImage = [[UIImage alloc]
-                            initWithContentsOfFile:[[NSBundle bundleWithPath:bundlePath] pathForResource:@"Keyboard512" ofType:@"png"]];
-
-    // shadow container + rounded inner view so the corners clip without cutting the shadow
-    CGFloat iconSize = 120;
-    UIView *iconContainer = [[UIView alloc] initWithFrame:CGRectMake((headerWidth - iconSize) / 2.0, 28, iconSize, iconSize)];
-    iconContainer.backgroundColor = UIColor.clearColor;
-    iconContainer.layer.shadowColor = [UIColor blackColor].CGColor;
-    iconContainer.layer.shadowOpacity = 0.35;
-    iconContainer.layer.shadowRadius = 12;
-    iconContainer.layer.shadowOffset = CGSizeMake(0, 6);
-    iconContainer.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
-
-    UIImageView *imageView = [[UIImageView alloc] initWithFrame:iconContainer.bounds];
-    [imageView setImage:headerImage];
-    [imageView setContentMode:UIViewContentModeScaleAspectFit];
-    imageView.layer.cornerRadius = iconSize * 0.225;
-    imageView.layer.masksToBounds = YES;
-    [iconContainer addSubview:imageView];
-    [headerView addSubview:iconContainer];
-
-    CGRect labelFrame = CGRectMake(0, iconContainer.frame.origin.y + iconSize + 14, headerWidth, 52);
-    UIFont *font = nil;
-    if (@available(iOS 13.0, *)) {
-        UIFontDescriptor *desc = [[UIFontDescriptor preferredFontDescriptorWithTextStyle:UIFontTextStyleLargeTitle]
-                                  fontDescriptorWithDesign:UIFontDescriptorSystemDesignRounded];
-        font = [UIFont fontWithDescriptor:desc size:36];
-    }
-    if (!font) font = [UIFont systemFontOfSize:36 weight:UIFontWeightBold];
-
-    UILabel *headerLabel = [[UILabel alloc] initWithFrame:labelFrame];
-    [headerLabel setText:@"MetisKeyboard"];
-    [headerLabel setFont:font];
-    if (@available(iOS 13.0, *)) {
-        [headerLabel setTextColor:[UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *traitCollection) {
-            return traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark
-                ? [UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:0.92]
-                : [UIColor colorWithRed:0.10 green:0.10 blue:0.12 alpha:1.00];
-        }]];
-    } else {
-        [headerLabel setTextColor:[UIColor darkGrayColor]];
-    }
-    headerLabel.textAlignment = NSTextAlignmentCenter;
-    headerLabel.adjustsFontSizeToFitWidth = YES;
-    headerLabel.minimumScaleFactor = 0.7;
-    [headerLabel setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
-    [headerView addSubview:headerLabel];
-
-    UILabel *versionLabel = [[UILabel alloc] initWithFrame:CGRectMake(16, CGRectGetMaxY(labelFrame) + 2, MAX(0, headerWidth - 32), 20)];
-    versionLabel.text = [@"v" stringByAppendingString:@TYPEX_PACKAGE_VERSION];
-    versionLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightRegular];
-    versionLabel.textColor = UIColor.secondaryLabelColor;
-    versionLabel.textAlignment = NSTextAlignmentCenter;
-    versionLabel.adjustsFontSizeToFitWidth = YES;
-    versionLabel.minimumScaleFactor = 0.7;
-    versionLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    [headerView addSubview:versionLabel];
-
-    self.table.tableHeaderView = headerView;
-    
     self.respringBtn = [[UIBarButtonItem alloc] initWithTitle:LOCALIZED(@"RESPRING") style:UIBarButtonItemStylePlain target:self action:@selector(respring)];
     //self.addSnippetBtn.tintColor = [UIColor blackColor];
     self.navigationItem.rightBarButtonItem = self.respringBtn;
