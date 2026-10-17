@@ -19,7 +19,7 @@ SUBPROJECTS += Runtime/UIKitHost
 SUBPROJECTS += Runtime/PasteServices
 SUBPROJECTS += Preferences/Shell
 # 模块迁入时逐个启用：
-# SUBPROJECTS += Preferences/CapturePages
+SUBPROJECTS += Preferences/CapturePages
 # SUBPROJECTS += Preferences/KeyboardPages
 # SUBPROJECTS += Preferences/ClipboardPages
 
