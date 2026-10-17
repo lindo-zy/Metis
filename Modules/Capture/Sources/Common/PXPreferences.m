@@ -1,0 +1,118 @@
+#import "PXPreferences.h"
+#import "PXConstants.h"
+#import "PXLog.h"
+#import "MTModuleGate.h"
+
+// .m 内部可写版本：加载时一次性填充，之后只读。
+@interface PXConfig ()
+@property (nonatomic, readwrite) BOOL enabled;
+@property (nonatomic, readwrite) PXOutputAction defaultResultAction;
+@property (nonatomic, readwrite) BOOL saveAlsoCopy;
+@property (nonatomic, readwrite) BOOL showResultBubble;
+@property (nonatomic, readwrite) BOOL floatingSnapShadow;
+@property (nonatomic, readwrite) CGFloat selectionSnapEdgeDistance;
+@property (nonatomic, readwrite) BOOL screenshotHaptic;
+@property (nonatomic, readwrite) BOOL areaRememberLastRect;
+@property (nonatomic, readwrite) CGFloat editorDefaultLineWidth;
+@property (nonatomic, strong, readwrite) PXLongShotOptions *longShotOptions;
+@end
+
+@implementation PXConfig
+
+- (instancetype)initDefault {
+    if (self = [super init]) {
+        _enabled = YES;
+        _defaultResultAction = (PXOutputAction)PXDefaultResultAction;
+        _saveAlsoCopy = YES;
+        _showResultBubble = YES;
+        _floatingSnapShadow = YES;
+        _selectionSnapEdgeDistance = 12.0;
+        _screenshotHaptic = YES;
+        _areaRememberLastRect = NO;
+        _editorDefaultLineWidth = PXDefaultEditorLineWidth;
+        _longShotOptions = [[PXLongShotOptions alloc] initWithValues:@{}];
+    }
+    return self;
+}
+
+- (NSString *)description {
+    return [NSString stringWithFormat:@"<PXConfig enabled=%d action=%ld saveAlsoCopy=%d bubble=%d snapShadow=%d haptic=%d rememberRect=%d lineWidth=%.1f>",
+            self.enabled, (long)self.defaultResultAction, self.saveAlsoCopy,
+            self.showResultBubble, self.floatingSnapShadow, self.screenshotHaptic, self.areaRememberLastRect,
+            self.editorDefaultLineWidth];
+}
+
+@end
+
+static BOOL PXPrefBool(NSString *key, BOOL defaultValue) {
+    Boolean valid = false;
+    Boolean value = CFPreferencesGetAppBooleanValue((__bridge CFStringRef)key,
+                                                    (__bridge CFStringRef)PXPreferencesDomain,
+                                                    &valid);
+    return valid ? (BOOL)value : defaultValue;
+}
+
+static NSInteger PXPrefInteger(NSString *key, NSInteger defaultValue) {
+    Boolean valid = false;
+    CFIndex value = CFPreferencesGetAppIntegerValue((__bridge CFStringRef)key,
+                                                    (__bridge CFStringRef)PXPreferencesDomain,
+                                                    &valid);
+    return valid ? (NSInteger)value : defaultValue;
+}
+
+static CGFloat PXPrefDouble(NSString *key, CGFloat defaultValue) {
+    id obj = CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key,
+                                                         (__bridge CFStringRef)PXPreferencesDomain));
+    if ([obj isKindOfClass:[NSNumber class]]) {
+        return [(NSNumber *)obj doubleValue];
+    }
+    return defaultValue;
+}
+
+@implementation PXPreferences
+
+static PXConfig *_currentConfig = nil;
+
++ (PXConfig *)config {
+    @synchronized(self) {
+        if (!_currentConfig) {
+            [self reload];
+        }
+        return _currentConfig;
+    }
+}
+
++ (void)reload {
+    PXConfig *config = [[PXConfig alloc] initDefault];
+
+    // Metis 门控桥接：模块启停的唯一权威是 com.lindo.metis 域（MTModuleGate）。
+    // 旧 Enabled key 仅在迁移 importer 中读取，运行端不再消费。
+    [MTModuleGate reload];
+    config.enabled = [MTModuleGate moduleEnabled:MTModuleCapture];
+    config.showResultBubble = PXPrefBool(PXKeyShowResultBubble, YES);
+    config.floatingSnapShadow = PXPrefBool(PXKeyFloatingSnapShadow, YES);
+    config.selectionSnapEdgeDistance = MAX(0.0, MIN(60.0, PXPrefDouble(PXKeySelectionSnapEdgeDistance, 12.0)));
+    config.screenshotHaptic = PXPrefBool(PXKeyScreenshotHaptic, YES);
+    config.areaRememberLastRect = PXPrefBool(PXKeyAreaRememberLastRect, NO);
+
+    NSInteger action = PXPrefInteger(PXKeyDefaultResultAction, PXDefaultResultAction);
+    config.defaultResultAction = (PXOutputAction)MAX(0, MIN(4, action));
+    config.saveAlsoCopy = PXPrefBool(PXKeySaveAlsoCopy, YES);
+
+    CGFloat lineWidth = PXPrefDouble(PXKeyEditorDefaultLineWidth, PXDefaultEditorLineWidth);
+    config.editorDefaultLineWidth = MAX(0.5, MIN(16.0, lineWidth));
+    NSMutableDictionary *longValues = [NSMutableDictionary dictionary];
+    for (NSString *key in PXLongShotOptions.preferenceKeys) {
+        id value = CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key,
+                                              (__bridge CFStringRef)PXPreferencesDomain));
+        if (value) longValues[key] = value;
+    }
+    config.longShotOptions = [[PXLongShotOptions alloc] initWithValues:longValues];
+
+    @synchronized(self) {
+        _currentConfig = config;
+    }
+    PXLogInfo(@"config reloaded: %@", config);
+}
+
+@end

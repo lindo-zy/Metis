@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: Verify build (iOS16/17)
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      THEOS: /Users/runner/work/_theos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew install ldid dpkg make
+
+      - name: Set up Theos (roothide fork)
+        run: |
+          git clone --recursive https://github.com/roothide/theos.git "$THEOS"
+
+      - name: Prepare SDKs
+        run: |
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          XCODE_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          ln -s "$XCODE_SDK" "$THEOS/sdks/iPhoneOS17.0.sdk"
+
+      - name: Host tests + verify build + package check
+        run: |
+          ./build.sh --target all --mode verify
+
+      - name: Class audit
+        run: |
+          ./Tests/Package/class-audit.sh
