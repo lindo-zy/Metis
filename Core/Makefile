@@ -22,7 +22,6 @@ MetisCore_FILES += SharedResources/MTSharedResourceIDs.m \
 	SharedResources/MTSharedResourceStore.m \
 	SharedResources/MTSharedResourceMigration.m \
 	SharedResources/MTSharedResourceLegacyBridge.m
-MetisCore_CFLAGS += -ISharedResources
 
 # Keyboard（MetisKeyboard）共享层：任一被两个以上镜像引用的 DX 类都在这里。
 KEYBOARD = ../Modules/Keyboard/Sources
@@ -69,7 +68,7 @@ MetisCore_FILES += $(wildcard AltList/*.m)
 MetisCore_CFLAGS = -fobjc-arc
 MetisCore_CFLAGS += -Wno-tautological-pointer-compare
 MetisCore_CFLAGS += -DMETIS_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
-MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList
+MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList -ISharedResources
 
 # Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
 CLIPBOARD = ../Modules/Clipboard
