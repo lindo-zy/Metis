@@ -7,12 +7,10 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
-        self.layer.cornerRadius = [MTSettingsStyle tileCornerRadius];
-        self.layer.cornerCurve = kCACornerCurveContinuous;
-        self.layer.masksToBounds = YES;
+        // 系统设置风格：无瓦片底色，symbol 直接渲染， tint 跟随 label 动态色。
         _glyph = [[UIImageView alloc] init];
         _glyph.contentMode = UIViewContentModeScaleAspectFit;
-        _glyph.tintColor = UIColor.whiteColor;
+        _glyph.tintColor = UIColor.labelColor;
         _glyph.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:_glyph];
         [NSLayoutConstraint activateConstraints:@[
@@ -25,17 +23,15 @@
     return self;
 }
 
-- (void)updateWithIconName:(NSString *)iconName colorName:(NSString *)colorName {
+- (void)updateWithIconName:(NSString *)iconName {
     UIImage *symbol = iconName.length ? [MTSettingsStyle symbolPreferred:iconName fallback:nil] : nil;
     if (!symbol) {
-        // 无符号即无瓦片：整块隐藏并清掉复用残留（底色/旧图）。
+        // 无符号即无图标：整块隐藏并清掉复用残留。
         self.hidden = YES;
         _glyph.image = nil;
-        self.backgroundColor = nil;
         return;
     }
     self.hidden = NO;
-    self.backgroundColor = [MTSettingsStyle tileColorForName:colorName];
     _glyph.preferredSymbolConfiguration =
         [UIImageSymbolConfiguration configurationWithPointSize:[MTSettingsStyle tileIconPointSize]];
     _glyph.image = [symbol imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];

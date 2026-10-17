@@ -94,7 +94,7 @@
         self.message.textAlignment = NSTextAlignmentCenter; self.message.adjustsFontSizeToFitWidth = YES;
         [self addSubview:self.message];
         self.showsToggleRow = YES; self.showsSliderRow = YES;
-        [self configureDark:YES preview:NO];
+        [self configureDark:NO preview:NO];
     }
     return self;
 }
@@ -108,7 +108,7 @@
     self.volume.hidden = !self.showsSliderRow;
     self.hidden = !self.showsToggleRow && !self.showsSliderRow;
     self.message.hidden = self.hidden;
-    [self configureDark:MTKeyboardPanelBool(preferences, kMTPanelDark, YES) preview:preview];
+    [self configureDark:MTKeyboardPanelBool(preferences, kMTPanelDark, NO) preview:preview];
     [self setNeedsLayout];
 }
 - (CGFloat)preferredHeightForWidth:(CGFloat)width {
@@ -131,8 +131,10 @@
     for (NSUInteger index = 0; index < self.buttons.count; index++) {
         UIButton *button = self.buttons[index]; NSNumber *value = self.state[ids[index]];
         BOOL known = [value isKindOfClass:NSNumber.class], on = known && value.boolValue;
-        button.backgroundColor = on ? UIColor.systemBlueColor : (self.dark ? [UIColor colorWithWhite:0 alpha:0.5] : [UIColor colorWithWhite:0.8 alpha:0.65]);
-        button.tintColor = on || self.dark ? UIColor.whiteColor : UIColor.labelColor;
+        // 关闭态圆钮统一深色底 + 白图标（浅色面板配深色按钮；深色模式沿用半透明黑圆）。
+        button.backgroundColor = on ? UIColor.systemBlueColor :
+            (self.dark ? [UIColor colorWithWhite:0 alpha:0.5] : [UIColor colorWithWhite:0.12 alpha:0.88]);
+        button.tintColor = UIColor.whiteColor;
         button.alpha = known ? 1 : 0.35;
         BOOL enabled = known && !busy;
         if (button.enabled != enabled) button.enabled = enabled;

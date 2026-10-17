@@ -43,7 +43,8 @@
     self.gesturePanel = [panel[@"kind"] isEqual:MTPanelGestureKind];
     preferences = MTPanelPreferences(preferences, selector);
     self.titleLabel.text = MTPanelString(panel[@"name"]);
-    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, YES);
+    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
+    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
     UIColor *textColor = dark ? UIColor.whiteColor : UIColor.labelColor;
     self.backgroundColor = dark ? [UIColor colorWithWhite:0.10 alpha:1] : UIColor.systemBackgroundColor;
     [self.systemControls configureWithPreferences:preferences preview:YES];
@@ -58,12 +59,13 @@
         UIView *item = [UIView new];
         UIView *circle = [UIView new];
         circle.tag = 1;
-        circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:1 alpha:0.65];
+        // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
+        circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
         [item addSubview:circle];
         UIImageView *icon = [UIImageView new];
         icon.tag = 2;
         icon.contentMode = UIViewContentModeScaleAspectFit;
-        icon.tintColor = textColor;
+        icon.tintColor = UIColor.whiteColor;
         id iconConfig = definition[@"icon"];
         if (![iconConfig isKindOfClass:NSString.class]) iconConfig = @"link";
         icon.image = [MTHelper imageForIconConfig:iconConfig defaultSymbolName:@"link"];

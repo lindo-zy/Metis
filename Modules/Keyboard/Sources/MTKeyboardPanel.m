@@ -247,7 +247,8 @@
     preferences = MTPanelPreferences(preferences, selector);
     self.scale = MTKeyboardPanelNumber(preferences, kMTPanelScale, 100, 70, 120) / 100;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
-    self.dark = MTKeyboardPanelBool(preferences, kMTPanelDark, YES);
+    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
+    self.dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
 
     UIWindow *window = [self keyboardHostForScene:scene];
     if (!window) {
@@ -351,7 +352,7 @@
         button.actionSelector = selector;
         button.actionImage = [[UIImageView alloc] init];
         button.actionImage.contentMode = UIViewContentModeScaleAspectFit;
-        button.actionImage.tintColor = text;
+        button.actionImage.tintColor = UIColor.whiteColor;
         button.actionImage.image = [toolbar subActionPanelImageForSelector:selector];
         button.actionLabel = [[UILabel alloc] init];
         NSString *name = entry[@"name"];
@@ -416,7 +417,8 @@
             circleView = [[UIView alloc] init];
             circleView.tag = 10;
             circleView.userInteractionEnabled = NO;
-            circleView.backgroundColor = self.dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:1 alpha:0.65];
+            // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
+            circleView.backgroundColor = self.dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
             [button insertSubview:circleView atIndex:0];
         }
         circleView.frame = CGRectMake((itemWidth - circle) / 2, 4, circle, circle);

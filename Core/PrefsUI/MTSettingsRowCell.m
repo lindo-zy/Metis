@@ -67,7 +67,7 @@
     _titleLabel.text = row.title;
     _subtitleLabel.text = row.subtitle;
     _subtitleLabel.hidden = (row.subtitle.length == 0);
-    [_tile updateWithIconName:row.iconName colorName:row.colorName];
+    [_tile updateWithIconName:row.iconName];
 
     // 分隔线随行内边距走：有瓦片时与标题对齐，无瓦片时用标准边距。
     // 只调文本起点与分隔线，不动 cell.layoutMargins——否则会连带动到图标位置。

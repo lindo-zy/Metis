@@ -218,7 +218,8 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     preferences = MTPanelPreferences(preferences, selector);
     self.scale = MTKeyboardPanelNumber(preferences, kMTPanelScale, 100, 70, 120) / 100;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
-    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, YES);
+    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
+    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
     UIColor *text = dark ? UIColor.whiteColor : UIColor.labelColor;
 
     // SpringBoard has scene-less windows on some supported systems. A fresh
@@ -321,13 +322,14 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
         MTGlobalPanelItem *button = [MTGlobalPanelItem buttonWithType:UIButtonTypeCustom];
         button.actionSelector = entry[@"selector"];
         button.circle = [UIView new];
-        button.circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:1 alpha:0.65];
+        // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
+        button.circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
         button.circle.userInteractionEnabled = NO;
         [button addSubview:button.circle];
         button.icon = [UIImageView new];
         button.icon.userInteractionEnabled = NO;
         button.icon.contentMode = UIViewContentModeScaleAspectFit;
-        button.icon.tintColor = text;
+        button.icon.tintColor = UIColor.whiteColor;
         NSString *icon = MTGlobalPanelString(definition[@"icon"]);
         button.icon.image = [MTHelper imageForIconConfig:icon defaultSymbolName:@"square.grid.2x2"];
         [button addSubview:button.icon];
