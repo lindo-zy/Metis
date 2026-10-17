@@ -12,7 +12,7 @@
 		</dict>
 		<dict>
 			<key>cellClass</key>
-			<string>KayokoHeaderCell</string>
+			<string>MTHeaderCell</string>
 			<key>headerSubtitle</key>
 			<string>Feature-rich clipboard manager for iOS.</string>
 			<key>headerTitle</key>
@@ -48,7 +48,7 @@
 			<key>defaults</key>
 			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
-			<string>KayokoFloatingPreviewSettingsViewController</string>
+			<string>MTFloatingPreviewSettingsViewController</string>
 			<key>label</key>
 			<string>Floating Preview</string>
 		</dict>
@@ -58,7 +58,7 @@
 			<key>defaults</key>
 			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
-			<string>KayokoFloatingPanelSettingsViewController</string>
+			<string>MTFloatingPanelSettingsViewController</string>
 			<key>label</key>
 			<string>Floating Panel</string>
 		</dict>
@@ -70,7 +70,7 @@
 			<key>defaults</key>
 			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
-			<string>KayokoListItemsController</string>
+			<string>MTListItemsController</string>
 			<key>key</key>
 			<string>ActivationMethod</string>
 			<key>label</key>
@@ -110,7 +110,7 @@
 			<key>PostNotification</key>
 			<string>com.lindo.kayoko.preferences.reload</string>
 			<key>cellClass</key>
-			<string>KayokoStepSliderCell</string>
+			<string>MTStepSliderCell</string>
 			<key>default</key>
 			<integer>200</integer>
 			<key>defaults</key>
@@ -167,7 +167,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoTagManagementViewController</string>
+			<string>MTTagManagementViewController</string>
 			<key>label</key>
 			<string>CUSTOM_TAGS</string>
 		</dict>
@@ -175,7 +175,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoCustomJumpManagementViewController</string>
+			<string>MTCustomJumpManagementViewController</string>
 			<key>label</key>
 			<string>CUSTOM_JUMPS</string>
 		</dict>
@@ -183,7 +183,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoImageActionManagementViewController</string>
+			<string>MTImageActionManagementViewController</string>
 			<key>label</key>
 			<string>IMAGE_ACTIONS</string>
 		</dict>
@@ -191,7 +191,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoImageDoubleTapActionViewController</string>
+			<string>MTImageDoubleTapActionViewController</string>
 			<key>label</key>
 			<string>IMAGE_DOUBLE_TAP_ACTION</string>
 		</dict>
@@ -303,7 +303,7 @@
 			<key>PostNotification</key>
 			<string>com.lindo.kayoko.preferences.height.reload</string>
 			<key>cellClass</key>
-			<string>KayokoSliderCell</string>
+			<string>MTSliderCell</string>
 			<key>default</key>
 			<real>420</real>
 			<key>defaults</key>
@@ -367,7 +367,7 @@
 			<key>PostNotification</key>
 			<string>com.lindo.kayoko.preferences.reload</string>
 			<key>cellClass</key>
-			<string>KayokoSliderCell</string>
+			<string>MTSliderCell</string>
 			<key>default</key>
 			<real>998</real>
 			<key>defaults</key>
@@ -537,7 +537,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoAdvancedOptionsListController</string>
+			<string>MTAdvancedOptionsListController</string>
 			<key>label</key>
 			<string>Advanced Options</string>
 		</dict>
@@ -580,7 +580,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>KayokoCreditsListController</string>
+			<string>MTCreditsListController</string>
 			<key>label</key>
 			<string>Acknowledgments &amp; Licenses</string>
 		</dict>
@@ -600,7 +600,7 @@
 		</dict>
 		<dict>
 			<key>cellClass</key>
-			<string>KayokoLinkCell</string>
+			<string>MTLinkCell</string>
 			<key>height</key>
 			<integer>54</integer>
 			<key>label</key>
@@ -622,7 +622,7 @@
 		</dict>
 		<dict>
 			<key>cellClass</key>
-			<string>KayokoLinkCell</string>
+			<string>MTLinkCell</string>
 			<key>height</key>
 			<integer>54</integer>
 			<key>label</key>
@@ -642,7 +642,7 @@
 		</dict>
 		<dict>
 			<key>cellClass</key>
-			<string>KayokoLinkCell</string>
+			<string>MTLinkCell</string>
 			<key>height</key>
 			<integer>54</integer>
 			<key>label</key>

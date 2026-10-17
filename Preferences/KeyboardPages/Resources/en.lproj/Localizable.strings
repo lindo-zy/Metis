@@ -244,7 +244,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "LONG_SHELLX_SCREENSHOT" = "ShellX Screenshot";
 "SHORT_SHELLX_SCREENSHOT" = "Shot";
-"LONG_PIXPIN_SCREENSHOT" = "MetisCapture Screenshot";
+"LONG_CAPTURE_SCREENSHOT" = "MetisCapture Screenshot";
 "SHORT_PIXPIN_SCREENSHOT" = "MetisCapture";
 "LONG_AI_CHAT" = "AI Chat";
 "SHORT_AI_CHAT" = "AI";
@@ -434,11 +434,11 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_GROUP_DEVICE" = "Device";
 "SYSTEM_GROUP_CONTROL" = "Control Center";
 "SYSTEM_GROUP_PIXPIN" = "MetisCapture Screenshots";
-"SYSTEM_PIXPIN_FULL" = "MetisCapture Full-Screen Capture";
-"SYSTEM_PIXPIN_AREA" = "MetisCapture Area Capture";
-"SYSTEM_PIXPIN_MARKUP" = "MetisCapture Full-Screen Markup";
-"SYSTEM_PIXPIN_LONG" = "MetisCapture Scrolling Capture";
-"SYSTEM_PIXPIN_FOOTER" = "Shown only when MetisCapture is installed. Uses MetisCapture's current settings; disabled features, a busy task, or missing injection may prevent a response. Sending a request does not confirm capture or saving.";
+"SYSTEM_CAPTURE_FULL" = "MetisCapture Full-Screen Capture";
+"SYSTEM_CAPTURE_AREA" = "MetisCapture Area Capture";
+"SYSTEM_CAPTURE_MARKUP" = "MetisCapture Full-Screen Markup";
+"SYSTEM_CAPTURE_LONG" = "MetisCapture Scrolling Capture";
+"SYSTEM_CAPTURE_FOOTER" = "Shown only when MetisCapture is installed. Uses MetisCapture's current settings; disabled features, a busy task, or missing injection may prevent a response. Sending a request does not confirm capture or saving.";
 "SYSTEM_DEVICE_FOOTER" = "Respring restarts the interface service; Respring (SB) exits SpringBoard. Safe mode requires jailbreak support and userspace reboot requires system permission. Exit and power actions require confirmation.";
 "SYSTEM_ACTION_CONFIRM" = "This action interrupts the current session. Continue?";
 "SYSTEM_ACTION_UNAVAILABLE" = "No supported system interface is available";

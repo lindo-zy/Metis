@@ -5,7 +5,7 @@
 	NSString* _selectedApplicationID;
 }
 
-// Metis vendor addition: programmatic hosts (DXPOpenAppPickerController) need
+// Metis vendor addition: programmatic hosts (MTPOpenAppPickerController) need
 // to seed and read the selection; upstream only ever touches the ivar
 // internally.
 @property (nonatomic, copy) NSString *selectedApplicationID;

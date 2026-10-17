@@ -2,17 +2,17 @@ BUNDLE_NAME = MetisCapturePrefs
 
 # Capture（MetisCapture）详细设置子包：从统一设置壳的模块页进入。
 # 不再注册独立 PreferenceLoader 入口（原 PixPinPrefs.plist 不安装）。
-MetisCapturePrefs_FILES = PXRootListController.m \
-	PXEditorOrderController.m \
-	PXEditorButtonEditController.m \
-	PXCustomURLController.m \
-	../../Modules/Capture/Sources/Common/PXConstants.m \
-	../../Modules/Capture/Sources/Common/PXPanelAppearance.m \
-	../../Modules/Capture/Sources/Common/PXEditorOrder.m \
-	../../Modules/Capture/Sources/Common/PXSelectionToolbar.m \
-	../../Modules/Capture/Sources/Common/PXLog.m \
-	../../Modules/Capture/Sources/Common/PXExternalRequest.m \
-	../../Modules/Capture/Sources/Editor/PXEditorLayout.m
+MetisCapturePrefs_FILES = MTCaptureRootListController.m \
+	MTEditorOrderController.m \
+	MTEditorButtonEditController.m \
+	MTCustomURLController.m \
+	../../Modules/Capture/Sources/Common/MTConstants.m \
+	../../Modules/Capture/Sources/Common/MTPanelAppearance.m \
+	../../Modules/Capture/Sources/Common/MTEditorOrder.m \
+	../../Modules/Capture/Sources/Common/MTSelectionToolbar.m \
+	../../Modules/Capture/Sources/Common/MTCaptureLog.m \
+	../../Modules/Capture/Sources/Common/MTExternalRequest.m \
+	../../Modules/Capture/Sources/Editor/MTEditorLayout.m
 
 MetisCapturePrefs_CFLAGS = -fobjc-arc
 MetisCapturePrefs_CFLAGS += -I../../Modules/Capture/Sources/Common

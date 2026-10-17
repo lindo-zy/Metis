@@ -3,19 +3,19 @@
 #import <math.h>
 #if defined(THEOS_PACKAGE_SCHEME_ROOTHIDE)
 #import <roothide.h>
-#define DX_ROOT_PATH_NS(path) jbroot(path)
+#define MT_ROOT_PATH_NS(path) jbroot(path)
 #else
 #import <rootless.h>
-#define DX_ROOT_PATH_NS(path) ROOT_PATH_NS(path)
+#define MT_ROOT_PATH_NS(path) ROOT_PATH_NS(path)
 #endif
 #import <spawn.h>
 
 @class CPDistributedMessagingCenter;
 
-#import "DXPrefsManager.h"
-#import "DXGlobals.h"
+#import "MTPrefsManager.h"
+#import "MTGlobals.h"
 
-#define bundlePath DX_ROOT_PATH_NS(@"/Library/PreferenceBundles/MetisKeyboardPrefs.bundle")
+#define bundlePath MT_ROOT_PATH_NS(@"/Library/PreferenceBundles/MetisKeyboardPrefs.bundle")
 //#define typexBundlePath @"/Library/Application Support/MetisKeyboard.bundle"
 #define LOCALIZED(str) [tweakBundle localizedStringForKey:str value:@"" table:nil]
 
@@ -162,10 +162,10 @@
 
 #define heightOffsetDefault 60.0f
 // Bottom dock geometry shared by the live toolbar and its Settings preview.
-#define DXBottomToolbarLeadingInset 69.0f
-#define DXBottomToolbarTrailingInset 60.0f
-#define DXBottomToolbarBottomInset 22.0f
-#define DXBottomToolbarCellTopInset 22.0f
+#define MTBottomToolbarLeadingInset 69.0f
+#define MTBottomToolbarTrailingInset 60.0f
+#define MTBottomToolbarBottomInset 22.0f
+#define MTBottomToolbarCellTopInset 22.0f
 
 #define searchedCountEaster 100
 
@@ -179,7 +179,7 @@
 #define subActionPanelScaleDefault 100.0f
 
 // The shared snapshot must live where sandboxed app hosts can read it.  The
-// jailbreak root (/var/jb on rootless, resolved by DX_ROOT_PATH_NS) is readable
+// jailbreak root (/var/jb on rootless, resolved by MT_ROOT_PATH_NS) is readable
 // from inside app sandboxes -- this tweak already loads its bundle resources
 // from /var/jb/Library -- while /var/mobile/Library/** is not.  The package
 // stages the directory world-writable (no sticky bit: mobile writers must be
@@ -187,8 +187,8 @@
 // (Settings, SpringBoard) can refresh the snapshot without a helper daemon.
 // Metis 布局：共享目录统一收口 /Library/Metis/Config/ 下（不使用旧插件包
 // 目录，避免读到旧插件残留的快照/缓存旧值；gate.plist 门控镜像同目录）。
-#define TypeXCachePath DX_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-cache")
-#define TypeXSharedPrefsPath DX_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-shared.plist")
+#define TypeXCachePath MT_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-cache")
+#define TypeXSharedPrefsPath MT_ROOT_PATH_NS(@"/Library/Metis/Config/keyboard-shared.plist")
 
 // Settings and SpringBoard exchange quick-action data through an isolated
 // CFPreferences domain. On RootHide iOS 16, SpringBoard can read shared files
@@ -206,7 +206,7 @@
 
 // MetisKeyboard 自带 AI 面板通道：工具栏进程只写请求（{format:2, requestID, created,
 // mode: text|image|empty, origin: sb|app, text?}），SpringBoard 端收到 Darwin
-// 通知后整包读取并在 SB 进程内创建 DXAIPanel 悬浮窗。面板不能在键盘进程承载：
+// 通知后整包读取并在 SB 进程内创建 MTAIPanel 悬浮窗。面板不能在键盘进程承载：
 // 窗口会被限制在键盘宿主区域内（第三方键盘扩展里完全无法悬浮）。与快捷方式
 // 目录共用隔离域，避免再开共享面。
 #define MTAIChatRequestKey @"ai-chat-request"
@@ -218,7 +218,7 @@
 //   {format: 3, generation: requestID, updated: time,
 //    apps: {bundleID: {name, items: [{type, title, subtitle, source}]}}}
 
-static inline id DXQuickActionSharedValue(NSString *key) {
+static inline id MTQuickActionSharedValue(NSString *key) {
     CFStringRef domain = (__bridge CFStringRef)TypeXQuickActionDomain;
     CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
     return CFBridgingRelease(CFPreferencesCopyValue((__bridge CFStringRef)key,
@@ -227,7 +227,7 @@ static inline id DXQuickActionSharedValue(NSString *key) {
                                                     kCFPreferencesAnyHost));
 }
 
-static inline BOOL DXSetQuickActionSharedValue(id value, NSString *key) {
+static inline BOOL MTSetQuickActionSharedValue(id value, NSString *key) {
     CFStringRef domain = (__bridge CFStringRef)TypeXQuickActionDomain;
     CFPreferencesSetValue((__bridge CFStringRef)key,
                           (__bridge CFPropertyListRef)value,
@@ -239,7 +239,7 @@ static inline BOOL DXSetQuickActionSharedValue(id value, NSString *key) {
 
 // Reverse-DNS shape test shared with the SpringBoard-side request handler so
 // the channel can never be coerced into acting on a non-identifier payload.
-static inline BOOL DXIsValidBundleIdentifier(NSString *value) {
+static inline BOOL MTIsValidBundleIdentifier(NSString *value) {
     if (![value isKindOfClass:[NSString class]] || value.length == 0) return NO;
     NSRegularExpression *expression = [NSRegularExpression regularExpressionWithPattern:@"^[A-Za-z0-9_](?:[A-Za-z0-9_-]*[A-Za-z0-9_])?(?:\\.[A-Za-z0-9_](?:[A-Za-z0-9_-]*[A-Za-z0-9_])?)+$"
                                                                                 options:0
@@ -247,7 +247,7 @@ static inline BOOL DXIsValidBundleIdentifier(NSString *value) {
     return [expression firstMatchInString:value options:0 range:NSMakeRange(0, value.length)] != nil;
 }
 
-static inline BOOL DXIsValidAppShortcutType(NSString *value) {
+static inline BOOL MTIsValidAppShortcutType(NSString *value) {
     return [value isKindOfClass:NSString.class] && value.length > 0 && value.length <= 512 &&
         ![value hasPrefix:@"com.apple.springboard."] &&
         [value rangeOfCharacterFromSet:NSCharacterSet.controlCharacterSet].location == NSNotFound;
@@ -257,7 +257,7 @@ static inline BOOL DXIsValidAppShortcutType(NSString *value) {
 // classification of custom-action links): a scheme-shaped URL of bounded
 // length whose scheme is not an executable/document one (javascript:, data:,
 // file:, about:), so the channel can never be coerced beyond "open this URL".
-static inline BOOL DXIsOpenableSchemeURLString(NSString *value) {
+static inline BOOL MTIsOpenableSchemeURLString(NSString *value) {
     if (![value isKindOfClass:[NSString class]] || value.length == 0 || value.length > 2048) return NO;
     NSRange schemeRange = [value rangeOfString:@"^[A-Za-z][A-Za-z0-9+.-]*:" options:NSRegularExpressionSearch];
     if (schemeRange.location != 0) return NO;
@@ -270,16 +270,16 @@ static inline BOOL DXIsOpenableSchemeURLString(NSString *value) {
         ![lowercaseScheme isEqualToString:@"about"];
 }
 
-static inline NSString *DXScopedPreferenceKey(NSString *baseKey, NSString *configuration) {
+static inline NSString *MTScopedPreferenceKey(NSString *baseKey, NSString *configuration) {
     if ([configuration isEqualToString:@"top"]) {
         return [@"top" stringByAppendingString:baseKey];
     }
     return baseKey;
 }
 
-static inline NSInteger DXMultiRowButtonsPerRowFromPreferences(NSDictionary *preferences) {
+static inline NSInteger MTMultiRowButtonsPerRowFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]]
-        ? preferences[DXScopedPreferenceKey(kButtonsPerRowKey, @"top")] : nil;
+        ? preferences[MTScopedPreferenceKey(kButtonsPerRowKey, @"top")] : nil;
     NSInteger perRow = [value respondsToSelector:@selector(integerValue)]
         ? [value integerValue] : (NSInteger)buttonsPerRowDefault;
     return MIN(8, MAX(1, perRow));
@@ -287,14 +287,14 @@ static inline NSInteger DXMultiRowButtonsPerRowFromPreferences(NSDictionary *pre
 
 // Two rows are the hard layout limit. The configured per-row count can lower
 // the active capacity, while eight columns keep the absolute ceiling at 16.
-static inline NSInteger DXMultiRowCapacityForPreferences(NSDictionary *preferences) {
+static inline NSInteger MTMultiRowCapacityForPreferences(NSDictionary *preferences) {
     return MIN(maxMultiRowButtons,
-               DXMultiRowButtonsPerRowFromPreferences(preferences) * maxMultiRowRows);
+               MTMultiRowButtonsPerRowFromPreferences(preferences) * maxMultiRowRows);
 }
 
 // 悬浮小窗布局把自动适配比例封顶在这个配置值上（0.30–1.00，缺省 0.72）。
 // 非法值（含 NaN）一律回退缺省，读配置失败不产生危险布局。
-static inline CGFloat DXFloatingCardMaxScaleFromPreferences(NSDictionary *preferences) {
+static inline CGFloat MTFloatingCardMaxScaleFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardMaxScaleKey] : nil;
     CGFloat scale = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] / 100.0 : 0.72;
     if (!(scale >= 0.30) || scale > 1.0) scale = 0.72;
@@ -302,21 +302,21 @@ static inline CGFloat DXFloatingCardMaxScaleFromPreferences(NSDictionary *prefer
 }
 
 // 悬浮小窗打开时的默认水平位置：0=居左、1=居中、2=居右。非法值一律回退居中。
-static inline NSInteger DXFloatingCardPositionFromPreferences(NSDictionary *preferences) {
+static inline NSInteger MTFloatingCardPositionFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardPositionKey] : nil;
     NSInteger position = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 1;
     return (position >= 0 && position <= 2) ? position : 1;
 }
 
 // 把手停靠角：0=左下、1=右下。非法值一律回退左下，读配置失败不产生危险布局。
-static inline NSInteger DXKbdHandlePositionFromPreferences(NSDictionary *preferences) {
+static inline NSInteger MTKbdHandlePositionFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandlePositionKey] : nil;
     NSInteger position = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 0;
     return (position == 0 || position == 1) ? position : 0;
 }
 
 // 把手自动隐藏时长（秒）：非法/缺省一律回退 3 秒并夹回 0.5~10，永不外溢。
-static inline double DXKbdHandleAutoHideSecondsFromPreferences(NSDictionary *preferences) {
+static inline double MTKbdHandleAutoHideSecondsFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandleAutoHideSecondsKey] : nil;
     double seconds = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : kKbdHandleAutoHideSecondsDefault;
     if (!isfinite(seconds)) seconds = kKbdHandleAutoHideSecondsDefault;
@@ -324,7 +324,7 @@ static inline double DXKbdHandleAutoHideSecondsFromPreferences(NSDictionary *pre
 }
 
 // 把手面板固定应用列表：只接受 bundleID 字符串数组并去重，其余格式回退空表。
-static inline NSArray<NSString *> *DXKbdHandleAppsFromPreferences(NSDictionary *preferences) {
+static inline NSArray<NSString *> *MTKbdHandleAppsFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandleAppsKey] : nil;
     if (![value isKindOfClass:[NSArray class]]) return @[];
     NSMutableOrderedSet<NSString *> *identifiers = [NSMutableOrderedSet orderedSet];
@@ -335,15 +335,15 @@ static inline NSArray<NSString *> *DXKbdHandleAppsFromPreferences(NSDictionary *
 }
 
 // With paging removed, every enabled button must fit the current toolbar surface.
-static inline NSInteger DXToolbarCapacityForPreferences(NSDictionary *preferences, NSString *configuration) {
+static inline NSInteger MTToolbarCapacityForPreferences(NSDictionary *preferences, NSString *configuration) {
     if (![configuration isEqualToString:@"top"]) return maxEnabledBottomButtons;
-    return DXMultiRowCapacityForPreferences(preferences);
+    return MTMultiRowCapacityForPreferences(preferences);
 }
 
-static inline NSArray *DXToolbarOrderFittingCapacity(NSArray *order, NSDictionary *preferences, NSString *configuration) {
+static inline NSArray *MTToolbarOrderFittingCapacity(NSArray *order, NSDictionary *preferences, NSString *configuration) {
     if (![order isKindOfClass:NSArray.class] || order.count < 2 ||
         ![order[0] isKindOfClass:NSArray.class] || ![order[1] isKindOfClass:NSArray.class]) return order;
-    NSInteger remaining = DXToolbarCapacityForPreferences(preferences, configuration);
+    NSInteger remaining = MTToolbarCapacityForPreferences(preferences, configuration);
     NSMutableArray *buttons = [NSMutableArray array];
     for (id item in order[0]) {
         if (![item isKindOfClass:NSDictionary.class] || [item[@"disabled"] boolValue]) {
@@ -363,7 +363,7 @@ static inline NSArray *DXToolbarOrderFittingCapacity(NSArray *order, NSDictionar
 // Fields whose text was set programmatically start editing with the caret at
 // the leading edge; park it past the existing text so a tap continues typing
 // where the text ends. Works for UITextField and UITextView alike.
-static inline void DXPlaceCaretAtEnd(id<UITextInput> field) {
+static inline void MTPlaceCaretAtEnd(id<UITextInput> field) {
     if (![field conformsToProtocol:@protocol(UITextInput)]) return;
     UITextPosition *end = field.endOfDocument;
     field.selectedTextRange = [field textRangeFromPosition:end toPosition:end];
@@ -371,13 +371,13 @@ static inline void DXPlaceCaretAtEnd(id<UITextInput> field) {
 
 // Each gesture has an independent ordered action list. Long press retains
 // the historical "customactions" key; tap and each swipe use their own keys.
-typedef NS_ENUM(NSInteger, DXShortcutGestureType) {
-    DXShortcutGestureLongPress = 0,
-    DXShortcutGestureSwipeUp = 1,
-    DXShortcutGestureSwipeDown = 2,
-    DXShortcutGestureSwipeLeft = 3,
-    DXShortcutGestureSwipeRight = 4,
-    DXShortcutGestureTap = 5,
+typedef NS_ENUM(NSInteger, MTShortcutGestureType) {
+    MTShortcutGestureLongPress = 0,
+    MTShortcutGestureSwipeUp = 1,
+    MTShortcutGestureSwipeDown = 2,
+    MTShortcutGestureSwipeLeft = 3,
+    MTShortcutGestureSwipeRight = 4,
+    MTShortcutGestureTap = 5,
 };
 
 // Temporary identifier used by the "add button" flow: the entry written into
@@ -390,35 +390,35 @@ typedef NS_ENUM(NSInteger, DXShortcutGestureType) {
 // inert until a tap action is configured for them.
 #define kDraftActionPrefix @"__typexdraft_"
 
-static inline BOOL DXIsDraftActionSelector(NSString *selector) {
+static inline BOOL MTIsDraftActionSelector(NSString *selector) {
     return [selector isKindOfClass:[NSString class]] && [selector hasPrefix:kDraftActionPrefix];
 }
 
-static inline BOOL DXIsLinkActionSelector(NSString *selector) {
+static inline BOOL MTIsLinkActionSelector(NSString *selector) {
     return [selector isKindOfClass:[NSString class]] && [selector hasPrefix:kLinkActionSelectorPrefix];
 }
 
-static inline NSString *DXCustomActionsKeyForGesture(int gestureType, NSString *configuration) {
+static inline NSString *MTCustomActionsKeyForGesture(int gestureType, NSString *configuration) {
     NSString *baseKey;
     switch (gestureType) {
-        case DXShortcutGestureTap: baseKey = kTapCustomActionskey; break;
-        case DXShortcutGestureSwipeUp: baseKey = kSwipeUpCustomActionskey; break;
-        case DXShortcutGestureSwipeDown: baseKey = kSwipeDownCustomActionskey; break;
-        case DXShortcutGestureSwipeLeft: baseKey = kSwipeLeftCustomActionskey; break;
-        case DXShortcutGestureSwipeRight: baseKey = kSwipeRightCustomActionskey; break;
+        case MTShortcutGestureTap: baseKey = kTapCustomActionskey; break;
+        case MTShortcutGestureSwipeUp: baseKey = kSwipeUpCustomActionskey; break;
+        case MTShortcutGestureSwipeDown: baseKey = kSwipeDownCustomActionskey; break;
+        case MTShortcutGestureSwipeLeft: baseKey = kSwipeLeftCustomActionskey; break;
+        case MTShortcutGestureSwipeRight: baseKey = kSwipeRightCustomActionskey; break;
         default: baseKey = kCustomActionskey; break;
     }
-    return DXScopedPreferenceKey(baseKey, configuration);
+    return MTScopedPreferenceKey(baseKey, configuration);
 }
 
 // Shared by Settings and toolbar hosts. New gesture entries store an ordered
 // selectors array; an explicit empty array disables the gesture and must never
 // resurrect a legacy/default action. Legacy preferences are read without writes.
-static inline NSArray<NSString *> *DXGestureActionSelectors(NSDictionary *preferences, NSString *identifier,
+static inline NSArray<NSString *> *MTGestureActionSelectors(NSDictionary *preferences, NSString *identifier,
                                                           int gestureType, NSString *configuration) {
     if (![preferences isKindOfClass:[NSDictionary class]] ||
         ![identifier isKindOfClass:[NSString class]] || identifier.length == 0) return @[];
-    id stored = preferences[DXCustomActionsKeyForGesture(gestureType, configuration)];
+    id stored = preferences[MTCustomActionsKeyForGesture(gestureType, configuration)];
     NSDictionary *legacyEntry = nil;
     if ([stored isKindOfClass:[NSArray class]]) {
         for (NSDictionary *entry in stored) {
@@ -437,9 +437,9 @@ static inline NSArray<NSString *> *DXGestureActionSelectors(NSDictionary *prefer
         }
     }
 
-    BOOL usesLegacySubActions = gestureType == DXShortcutGestureLongPress;
-    if (gestureType == DXShortcutGestureTap) {
-        id sections = preferences[DXScopedPreferenceKey(kShortcutskey, configuration)];
+    BOOL usesLegacySubActions = gestureType == MTShortcutGestureLongPress;
+    if (gestureType == MTShortcutGestureTap) {
+        id sections = preferences[MTScopedPreferenceKey(kShortcutskey, configuration)];
         if ([sections isKindOfClass:[NSArray class]]) {
             for (id section in sections) {
                 if (![section isKindOfClass:[NSArray class]]) continue;
@@ -453,7 +453,7 @@ static inline NSArray<NSString *> *DXGestureActionSelectors(NSDictionary *prefer
     }
     if (usesLegacySubActions) {
         NSMutableArray *selectors = [NSMutableArray array];
-        id entries = preferences[DXScopedPreferenceKey(kSubActionskey, configuration)];
+        id entries = preferences[MTScopedPreferenceKey(kSubActionskey, configuration)];
         if ([entries isKindOfClass:[NSArray class]]) {
             for (NSDictionary *entry in entries) {
                 if (![entry isKindOfClass:[NSDictionary class]] || ![entry[@"identifier"] isEqual:identifier]) continue;
@@ -467,12 +467,12 @@ static inline NSArray<NSString *> *DXGestureActionSelectors(NSDictionary *prefer
 
     id selector = legacyEntry[@"selector2"] ?: legacyEntry[@"selector"];
     if ([selector isKindOfClass:[NSString class]] && [selector length] > 0) return @[selector];
-    if (gestureType == DXShortcutGestureTap && !DXIsDraftActionSelector(identifier) &&
+    if (gestureType == MTShortcutGestureTap && !MTIsDraftActionSelector(identifier) &&
         ![identifier isEqualToString:kNewButtonPendingIdentifier]) return @[identifier];
     return @[];
 }
 
-static inline UIColor *DXColorFromHex(NSString *value, NSString *fallback) {
+static inline UIColor *MTColorFromHex(NSString *value, NSString *fallback) {
     NSString *hex = [value isKindOfClass:[NSString class]] ? value : fallback;
     hex = [hex stringByReplacingOccurrencesOfString:@"#" withString:@""];
     unsigned int color = 0;
@@ -497,7 +497,7 @@ static inline UIColor *DXColorFromHex(NSString *value, NSString *fallback) {
     return [UIColor redColor];
 }
 
-static inline void DXRunShellCommand(NSString *command) {
+static inline void MTRunShellCommand(NSString *command) {
     if (command.length == 0) return;
 
     const char *shell = "/bin/bash";
@@ -507,7 +507,7 @@ static inline void DXRunShellCommand(NSString *command) {
     posix_spawn(&pid, shell, NULL, NULL, (char *const *)arguments, environ);
 }
 
-static inline UIInterfaceOrientation DXCurrentInterfaceOrientation(void) {
+static inline UIInterfaceOrientation MTCurrentInterfaceOrientation(void) {
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
             if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -523,7 +523,7 @@ static inline UIInterfaceOrientation DXCurrentInterfaceOrientation(void) {
 #pragma clang diagnostic pop
 }
 
-static inline UIWindow *DXKeyWindow(void) {
+static inline UIWindow *MTKeyWindow(void) {
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
             if (![scene isKindOfClass:[UIWindowScene class]]) continue;
@@ -542,16 +542,16 @@ static inline UIWindow *DXKeyWindow(void) {
     return nil;
 }
 
-typedef NS_ENUM(NSInteger, DXPhonemesType){
-    DXPhonemesTypeVowel,
-    DXPhonemesTypeConsonent
+typedef NS_ENUM(NSInteger, MTPhonemesType){
+    MTPhonemesTypeVowel,
+    MTPhonemesTypeConsonent
 };
 
-typedef NS_ENUM(NSInteger, DXStudlyCapsType){
-    DXStudlyCapsTypeRandom,
-    DXStudlyCapsTypeAlternate,
-    DXStudlyCapsTypeVowel,
-    DXStudlyCapsTypeConsonent
+typedef NS_ENUM(NSInteger, MTStudlyCapsType){
+    MTStudlyCapsTypeRandom,
+    MTStudlyCapsTypeAlternate,
+    MTStudlyCapsTypeVowel,
+    MTStudlyCapsTypeConsonent
 };
 
 @interface CPDistributedMessagingCenter : NSObject

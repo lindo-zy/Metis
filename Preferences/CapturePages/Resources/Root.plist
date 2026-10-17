@@ -168,7 +168,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>PXFullscreenButtonController</string>
+			<string>MTFullscreenButtonController</string>
 			<key>id</key>
 			<string>fullscreenButtons</string>
 			<key>label</key>
@@ -178,7 +178,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>PXRegionButtonController</string>
+			<string>MTRegionButtonController</string>
 			<key>id</key>
 			<string>regionButtons</string>
 			<key>label</key>
@@ -188,7 +188,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>PXCustomURLController</string>
+			<string>MTCustomURLController</string>
 			<key>id</key>
 			<string>customUrlButtons</string>
 			<key>label</key>
@@ -198,7 +198,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>PXEditorOrderController</string>
+			<string>MTEditorOrderController</string>
 			<key>id</key>
 			<string>editorButtonOrder</string>
 			<key>label</key>

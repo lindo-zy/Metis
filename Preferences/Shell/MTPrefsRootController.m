@@ -8,8 +8,8 @@
 
 + (NSArray<MTPrefsModuleInfo *> *)allModules {
     NSArray *configs = @[
-        @[@"capture", @"截图与标注", @"模式、编辑、输出", @"MetisCapturePrefs", @"PXRootListController"],
-        @[@"keyboard", @"键盘与操作", @"工具栏、面板、输入", @"MetisKeyboardPrefs", @"DXPRootListController"],
+        @[@"capture", @"截图与标注", @"模式、编辑、输出", @"MetisCapturePrefs", @"MTCaptureRootListController"],
+        @[@"keyboard", @"键盘与操作", @"工具栏、面板、输入", @"MetisKeyboardPrefs", @"MTPRootListController"],
         @[@"clipboard", @"剪贴板", @"历史、收藏、悬浮预览", @"MetisClipboardPrefs", @"MTPrefsClipboardRootController"],
     ];
     NSMutableArray *modules = [NSMutableArray array];

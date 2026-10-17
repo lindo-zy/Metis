@@ -2,7 +2,7 @@
 // Upstream imports <MobileCoreServices/LSApplicationProxy.h> and
 // <MobileCoreServices/LSApplicationWorkspace.h>, but the theos SDKs used by
 // this project do not ship those private headers (MetisKeyboard declares these classes
-// by hand everywhere else, e.g. DXPAppInfo.m). This shim is self-contained:
+// by hand everywhere else, e.g. MTPAppInfo.m). This shim is self-contained:
 // declarations only, the real implementations come from the framework at
 // runtime. Merge upstream changes into the declarations below if AltList is
 // ever re-synced.

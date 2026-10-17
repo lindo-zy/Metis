@@ -1,0 +1,37 @@
+#import <Foundation/Foundation.h>
+#import "MTGeometry.h"
+#import "MTLongShotOptions.h"
+
+NS_ASSUME_NONNULL_BEGIN
+
+/// 配置快照对象：不可变。任务创建时整体取走一份，执行中不被偏好变更打断。
+@interface MTConfig : NSObject
+
+@property (nonatomic, readonly) BOOL enabled;
+@property (nonatomic, readonly) MTOutputAction defaultResultAction;
+/// 保存同时复制：任何保存动作同时写入剪贴板（默认开）。
+@property (nonatomic, readonly) BOOL saveAlsoCopy;
+@property (nonatomic, readonly) BOOL showResultBubble;
+@property (nonatomic, readonly) BOOL floatingSnapShadow;
+/// 选区边缘吸附距离（点）：0=关闭，>0=拖动选框时对齐屏幕边缘的阈值（默认 12，夹取 0–60）。
+@property (nonatomic, readonly) CGFloat selectionSnapEdgeDistance;
+@property (nonatomic, readonly) BOOL screenshotHaptic;
+@property (nonatomic, readonly) BOOL areaRememberLastRect;
+@property (nonatomic, readonly) CGFloat editorDefaultLineWidth;
+@property (nonatomic, strong, readonly) MTLongShotOptions *longShotOptions;
+
+@end
+
+/// 偏好读取层：只负责把 CFPreferences 域转成不可变配置快照。
+/// 写入方是设置 Bundle（直接写 CFPreferences），跨进程通过 Darwin reload 通知同步。
+@interface MTCapturePreferences : NSObject
+
+/// 当前配置快照。线程安全：读侧永远拿到完整一致的一份。
+@property (class, nonatomic, readonly, strong) MTConfig *config;
+
+/// 重新从 CFPreferences 读取全部键，原子替换当前快照。
++ (void)reload;
+
+@end
+
+NS_ASSUME_NONNULL_END

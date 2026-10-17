@@ -1,0 +1,148 @@
+#import "MTLongShotScroller.h"
+#import "MTLongShotHID.h"
+#import "MTLongShotTarget.h"
+#import "../Common/MTCaptureLog.h"
+#import <dlfcn.h>
+#import <objc/message.h>
+#import <mach/mach_time.h>
+#import <QuartzCore/QuartzCore.h>
+#import <math.h>
+
+typedef CFTypeRef MTHIDClientRef;
+static MTLongShotHIDFunctions MTHIDFunctions;
+
+@interface MTLongShotScroller () {
+    MTHIDClientRef _client;
+}
+@property (nonatomic, copy, readwrite) NSString *availabilityError;
+@property (nonatomic, copy, readwrite) NSString *targetApplicationIdentifier;
+@property (nonatomic, strong) CADisplayLink *displayLink;
+@property (nonatomic, copy) void (^completion)(BOOL);
+@property (nonatomic, assign) MTLongShotScrollPlan plan;
+@property (nonatomic, assign) CGPoint lastPoint;
+@property (nonatomic, assign) CFTimeInterval startedAt;
+@property (nonatomic, assign) NSTimeInterval duration;
+@property (nonatomic, assign) BOOL fingerDown;
+@end
+
+@implementation MTLongShotScroller
+
+- (instancetype)init {
+    NSParameterAssert([NSThread isMainThread]);
+    if (self = [super init]) {
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{
+            // 句柄驻进程；函数指针使用期不可 dlclose。未导出时安全拒绝自动滚动。
+            void *handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY);
+            if (!handle) return;
+            MTHIDFunctions.createClient = dlsym(handle, "IOHIDEventSystemClientCreate");
+            MTHIDFunctions.createClientWithType = dlsym(handle, "IOHIDEventSystemClientCreateWithType");
+            MTHIDFunctions.createHand = dlsym(handle, "IOHIDEventCreateDigitizerEvent");
+            MTHIDFunctions.createFinger = dlsym(handle, "IOHIDEventCreateDigitizerFingerEvent");
+            MTHIDFunctions.setInteger = dlsym(handle, "IOHIDEventSetIntegerValue");
+            MTHIDFunctions.setSender = dlsym(handle, "IOHIDEventSetSenderID");
+            MTHIDFunctions.append = dlsym(handle, "IOHIDEventAppendEvent");
+            MTHIDFunctions.dispatch = dlsym(handle, "IOHIDEventSystemClientDispatchEvent");
+        });
+        if (!MTLongShotHIDIsAvailable(&MTHIDFunctions)) {
+            _availabilityError = @"当前系统的自动滚动接口不可用";
+        } else {
+            BOOL typedFallback = NO;
+            _client = MTLongShotCreateHIDClient(&MTHIDFunctions, &typedFallback);
+            if (!_client) _availabilityError = @"自动滚动事件通道创建失败";
+            MTCaptureLogInfo(@"long shot scroll HID client (created=%d typedFallback=%d)", _client != NULL, typedFallback);
+        }
+        _targetApplicationIdentifier = MTLongShotFrontmostIdentifier(UIApplication.sharedApplication);
+        if (!_targetApplicationIdentifier && !_availabilityError) {
+            _availabilityError = @"请先打开需要长截图的 App";
+        }
+        if (!_availabilityError && ![self targetApplicationIsCurrent]) {
+            _availabilityError = @"当前页面不能开始自动滚动";
+        }
+    }
+    return self;
+}
+
+- (BOOL)targetApplicationIsCurrent {
+    NSParameterAssert([NSThread isMainThread]);
+    return MTLongShotTargetIsCurrent(UIApplication.sharedApplication, MTLongShotLockManager(),
+                                     self.targetApplicationIdentifier);
+}
+
+- (BOOL)mtSendPoint:(CGPoint)point touching:(BOOL)touching transition:(BOOL)transition cancelled:(BOOL)cancelled {
+    if (!_client) return NO;
+    UIScreen *screen = UIScreen.mainScreen;
+    CGPoint native = [screen.coordinateSpace convertPoint:point toCoordinateSpace:screen.fixedCoordinateSpace];
+    CGRect bounds = screen.fixedCoordinateSpace.bounds;
+    if (bounds.size.width <= 0 || bounds.size.height <= 0) return NO;
+    double x = MIN(MAX((native.x - bounds.origin.x) / bounds.size.width, 0.0), 1.0);
+    double y = MIN(MAX((native.y - bounds.origin.y) / bounds.size.height, 0.0), 1.0);
+    return MTLongShotSendHIDFrame(&MTHIDFunctions, _client, mach_absolute_time(),
+                                   CGPointMake(x, y), touching, transition, cancelled);
+}
+
+- (void)scrollWithPlan:(MTLongShotScrollPlan)plan duration:(NSTimeInterval)duration completion:(void (^)(BOOL))completion {
+    NSParameterAssert([NSThread isMainThread]);
+    // 上滑前进而下滑回滚；只要求竖直方向有最小位移，方向本身不设限。
+    if (self.displayLink || self.availabilityError || !isfinite(duration) || duration < 0.25 || duration > 2 ||
+        !isfinite(plan.start.x) || !isfinite(plan.start.y) || !isfinite(plan.end.x) || !isfinite(plan.end.y) ||
+        fabs(plan.start.y - plan.end.y) < 8.0 || ![self targetApplicationIsCurrent]) {
+        completion(NO);
+        return;
+    }
+    self.plan = plan;
+    self.duration = duration;
+    self.lastPoint = plan.start;
+    self.completion = completion;
+    MTCaptureLogInfo(@"long shot scroll begin (target=%@ start=%@ end=%@)", self.targetApplicationIdentifier,
+              NSStringFromCGPoint(plan.start), NSStringFromCGPoint(plan.end));
+    if (![self mtSendPoint:plan.start touching:YES transition:YES cancelled:NO]) {
+        MTCaptureLogWarn(@"long shot scroll touch-down failed (target=%@)", self.targetApplicationIdentifier);
+        [self mtFinish:NO];
+        return;
+    }
+    self.fingerDown = YES;
+    self.startedAt = CACurrentMediaTime();
+    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mtTick:)];
+    self.displayLink.preferredFramesPerSecond = 60;
+    [self.displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+}
+
+- (void)mtTick:(CADisplayLink *)link {
+    if (![self targetApplicationIsCurrent]) { [self mtFinish:NO]; return; }
+    CFTimeInterval elapsed = CACurrentMediaTime() - self.startedAt;
+    CGFloat t = MIN(MAX(elapsed / (self.duration - 0.12), 0.0), 1.0);
+    CGFloat p = t * t * (3.0 - 2.0 * t); // 两端零速度，随后按住 0.12s，抑制惯性甩屏。
+    CGPoint point = CGPointMake(self.plan.start.x, self.plan.start.y + (self.plan.end.y - self.plan.start.y) * p);
+    self.lastPoint = point;
+    if (![self mtSendPoint:point touching:YES transition:NO cancelled:NO]) { [self mtFinish:NO]; return; }
+    if (elapsed >= self.duration) [self mtFinish:YES];
+}
+
+- (void)mtFinish:(BOOL)completed {
+    [self.displayLink invalidate];
+    self.displayLink = nil;
+    if (self.fingerDown) {
+        BOOL lifted = [self mtSendPoint:self.lastPoint touching:NO transition:YES cancelled:!completed];
+        completed = completed && lifted;
+        self.fingerDown = NO;
+    }
+    void (^completion)(BOOL) = self.completion;
+    self.completion = nil;
+    if (completion) {
+        MTCaptureLogInfo(@"long shot scroll finished (target=%@ completed=%d)", self.targetApplicationIdentifier, completed);
+        completion(completed);
+    }
+}
+
+- (void)cancel {
+    NSParameterAssert([NSThread isMainThread]);
+    [self mtFinish:NO];
+}
+
+- (void)dealloc {
+    NSAssert(!self.fingerDown && !self.displayLink, @"automatic scroll must be cancelled before release");
+    if (_client) CFRelease(_client);
+}
+
+@end

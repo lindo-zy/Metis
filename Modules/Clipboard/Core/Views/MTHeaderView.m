@@ -1,0 +1,261 @@
+//
+//  MTHeaderView.m
+//  Mt
+//
+
+#import "MTHeaderView.h"
+
+#import "MTGrabberView.h"
+#import "MTHeaderButtonStyle.h"
+#import "MTPasteboardManager.h"
+
+static CGFloat const kMTHeaderHeight = 76;
+static CGFloat const kMTTitleTapControlHeight = 44;
+static CGFloat const kMTTitleTapControlTrailingSpacing = 8;
+static CGFloat const kMTHistorySegmentWidth = 146;
+static CGFloat const kMTHistorySegmentHeight = 28;
+static CGFloat const kMTGrabberTopInset = 8;
+static CGFloat const kMTSegmentBottomInset = 10;
+
+@interface MTHeaderView ()
+
+@property(nonatomic, strong, readwrite) MTGrabberView *grabber;
+@property(nonatomic, strong, readwrite) UILabel *titleLabel;
+@property(nonatomic, strong, readwrite) UIControl *titleTapControl;
+@property(nonatomic, strong, readwrite) UIButton *leadingButton;
+@property(nonatomic, strong, readwrite) UIButton *editButton;
+@property(nonatomic, strong) UIStackView *trailingButtonStack;
+@property(nonatomic, strong, readwrite) UIButton *trailingButton;
+@property(nonatomic, strong, readwrite) UIButton *alternateTrailingButton;
+@property(nonatomic, strong, readwrite) UIButton *selectionActionButton;
+@property(nonatomic, strong, readwrite) UIButton *translationButton;
+@property(nonatomic, strong, readwrite) UIButton *shareButton;
+@property(nonatomic, strong, readwrite) UISegmentedControl *historySegmentedControl;
+
+@end
+
+@implementation MTHeaderView
+
++ (CGFloat)preferredHeight {
+    return kMTHeaderHeight;
+}
+
+- (instancetype)initWithTitle:(NSString *)title {
+    self = [super initWithFrame:CGRectZero];
+    if (self) {
+        [self setClipsToBounds:YES];
+        [self setBackgroundColor:[UIColor clearColor]];
+        [self setOpaque:NO];
+        _historySwitcherVisible = YES;
+
+        _grabber = [[MTGrabberView alloc] init];
+        [self addSubview:_grabber];
+        [_grabber setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _leadingButton = [[UIButton alloc] init];
+        [self addSubview:_leadingButton];
+        [_leadingButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _titleLabel = [[UILabel alloc] init];
+        [_titleLabel setFont:[UIFont systemFontOfSize:26 weight:UIFontWeightSemibold]];
+        [_titleLabel setTextColor:[UIColor labelColor]];
+        [_titleLabel setNumberOfLines:1];
+        [_titleLabel setLineBreakMode:NSLineBreakByTruncatingTail];
+        [self addSubview:_titleLabel];
+        [_titleLabel setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        NSBundle *bundle = [MTPasteboardManager localizationBundle];
+        NSString *clipboardTitle = [bundle localizedStringForKey:@"Clipboard" value:@"剪贴板" table:@"Tweak"];
+        NSString *favoritesTitle = [bundle localizedStringForKey:@"Favorites" value:@"收藏夹" table:@"Tweak"];
+        if ([clipboardTitle isEqualToString:@"Clipboard"]) {
+            clipboardTitle = @"剪贴板";
+        }
+        if ([favoritesTitle isEqualToString:@"Favorites"]) {
+            favoritesTitle = @"收藏夹";
+        }
+
+        _historySegmentedControl = [[UISegmentedControl alloc] initWithItems:@[ clipboardTitle, favoritesTitle ]];
+        [_historySegmentedControl setSelectedSegmentIndex:0];
+        [_historySegmentedControl setBackgroundColor:[UIColor colorWithWhite:0.55 alpha:0.22]];
+        if (@available(iOS 13.0, *)) {
+            [_historySegmentedControl setSelectedSegmentTintColor:[UIColor colorWithWhite:1.0 alpha:1.0]];
+        }
+        UIFont *normalFont = [UIFont systemFontOfSize:12.5 weight:UIFontWeightMedium];
+        UIFont *selectedFont = [UIFont systemFontOfSize:12.5 weight:UIFontWeightSemibold];
+        [_historySegmentedControl setTitleTextAttributes:@{
+            NSForegroundColorAttributeName : [UIColor colorWithWhite:0.20 alpha:0.72],
+            NSFontAttributeName : normalFont
+        }
+                                               forState:UIControlStateNormal];
+        [_historySegmentedControl setTitleTextAttributes:@{
+            NSForegroundColorAttributeName : [UIColor colorWithWhite:0.08 alpha:1.0],
+            NSFontAttributeName : selectedFont
+        }
+                                         forState:UIControlStateSelected];
+        [_historySegmentedControl setDividerImage:[[UIImage alloc] init]
+                              forLeftSegmentState:UIControlStateNormal
+                                rightSegmentState:UIControlStateNormal
+                                       barMetrics:UIBarMetricsDefault];
+        [self addSubview:_historySegmentedControl];
+        [_historySegmentedControl setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _trailingButtonStack = [[UIStackView alloc] init];
+        [_trailingButtonStack setAxis:UILayoutConstraintAxisHorizontal];
+        [_trailingButtonStack setAlignment:UIStackViewAlignmentCenter];
+        [_trailingButtonStack setDistribution:UIStackViewDistributionFill];
+        [_trailingButtonStack setSpacing:12];
+        [self addSubview:_trailingButtonStack];
+        [_trailingButtonStack setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _selectionActionButton = [[UIButton alloc] init];
+        [_selectionActionButton setHidden:YES];
+        [_trailingButtonStack addArrangedSubview:_selectionActionButton];
+        [_selectionActionButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _editButton = [[UIButton alloc] init];
+        [_editButton setHidden:YES];
+        [_trailingButtonStack addArrangedSubview:_editButton];
+        [_editButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _alternateTrailingButton = [[UIButton alloc] init];
+        [_alternateTrailingButton setHidden:YES];
+        [_trailingButtonStack addArrangedSubview:_alternateTrailingButton];
+        [_alternateTrailingButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _translationButton = [[UIButton alloc] init];
+        [_translationButton setHidden:YES];
+        [_trailingButtonStack addArrangedSubview:_translationButton];
+        [_translationButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _shareButton = [[UIButton alloc] init];
+        [_shareButton setHidden:YES];
+        [_trailingButtonStack addArrangedSubview:_shareButton];
+        [_shareButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _trailingButton = [[UIButton alloc] init];
+        [_trailingButtonStack addArrangedSubview:_trailingButton];
+        [_trailingButton setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _titleTapControl = [[UIControl alloc] init];
+        [_titleTapControl setBackgroundColor:[UIColor clearColor]];
+        [_titleTapControl setAccessibilityTraits:[_titleTapControl accessibilityTraits] | UIAccessibilityTraitButton];
+        [self addSubview:_titleTapControl];
+        [_titleTapControl setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [[_grabber topAnchor] constraintEqualToAnchor:[self topAnchor] constant:kMTGrabberTopInset],
+            [[_grabber centerXAnchor] constraintEqualToAnchor:[self centerXAnchor]],
+            [[_grabber widthAnchor] constraintEqualToConstant:42],
+            [[_grabber heightAnchor] constraintEqualToConstant:14],
+
+            [[_leadingButton bottomAnchor] constraintEqualToAnchor:[self bottomAnchor]
+                                                          constant:-kMTSegmentBottomInset],
+            [[_leadingButton centerXAnchor] constraintEqualToAnchor:[self leadingAnchor]
+                                                           constant:kMTLeadingHeaderButtonCenterXInset],
+            [[_leadingButton topAnchor] constraintGreaterThanOrEqualToAnchor:[_grabber bottomAnchor] constant:8],
+
+            [[_titleLabel centerYAnchor] constraintEqualToAnchor:[_leadingButton centerYAnchor]],
+            [[_titleLabel leadingAnchor] constraintEqualToAnchor:[self leadingAnchor]
+                                                        constant:kMTTitleLabelLeadingInset],
+
+            [[_historySegmentedControl centerYAnchor] constraintEqualToAnchor:[_leadingButton centerYAnchor]],
+            [[_historySegmentedControl centerXAnchor] constraintEqualToAnchor:[self centerXAnchor]],
+            [[_historySegmentedControl widthAnchor] constraintEqualToConstant:kMTHistorySegmentWidth],
+            [[_historySegmentedControl heightAnchor] constraintEqualToConstant:kMTHistorySegmentHeight],
+
+            [[_trailingButtonStack centerYAnchor] constraintEqualToAnchor:[_leadingButton centerYAnchor]],
+            [[_trailingButtonStack trailingAnchor] constraintEqualToAnchor:[self trailingAnchor] constant:-16],
+            [[_trailingButtonStack heightAnchor] constraintEqualToConstant:32],
+            [[_editButton widthAnchor] constraintEqualToConstant:32],
+            [[_editButton heightAnchor] constraintEqualToConstant:32],
+            [[_selectionActionButton widthAnchor] constraintEqualToConstant:32],
+            [[_selectionActionButton heightAnchor] constraintEqualToConstant:32],
+            [[_alternateTrailingButton widthAnchor] constraintEqualToConstant:32],
+            [[_alternateTrailingButton heightAnchor] constraintEqualToConstant:32],
+            [[_translationButton widthAnchor] constraintEqualToConstant:32],
+            [[_translationButton heightAnchor] constraintEqualToConstant:32],
+            [[_shareButton widthAnchor] constraintEqualToConstant:32],
+            [[_shareButton heightAnchor] constraintEqualToConstant:32],
+            [[_trailingButton widthAnchor] constraintEqualToConstant:32],
+            [[_trailingButton heightAnchor] constraintEqualToConstant:32],
+            [[_titleLabel trailingAnchor] constraintLessThanOrEqualToAnchor:[_trailingButtonStack leadingAnchor]
+                                                                      constant:-kMTTitleTapControlTrailingSpacing],
+            [[_titleTapControl leadingAnchor] constraintEqualToAnchor:[_titleLabel leadingAnchor]],
+            [[_titleTapControl trailingAnchor] constraintEqualToAnchor:[_trailingButtonStack leadingAnchor]
+                                                              constant:-kMTTitleTapControlTrailingSpacing],
+            [[_titleTapControl centerYAnchor] constraintEqualToAnchor:[_titleLabel centerYAnchor]],
+            [[_titleTapControl heightAnchor] constraintEqualToConstant:kMTTitleTapControlHeight]
+        ]];
+
+        [self setTitleText:title];
+        [self setHistorySwitcherVisible:YES animated:NO];
+    }
+    return self;
+}
+
+- (void)setTitleText:(NSString *)title {
+    if ([title length] == 0) {
+        return;
+    }
+
+    [[self titleLabel] setAttributedText:nil];
+    [[self titleLabel] setText:title];
+    [[self titleTapControl] setAccessibilityLabel:title];
+}
+
+- (void)setTitleImageName:(NSString *)imageName accessibilityLabel:(NSString *)accessibilityLabel {
+    UIImageSymbolConfiguration *configuration =
+        [UIImageSymbolConfiguration configurationWithPointSize:26 weight:UIImageSymbolWeightMedium];
+    UIImage *image = [UIImage systemImageNamed:imageName withConfiguration:configuration];
+    if (!image) {
+        image = [UIImage systemImageNamed:@"link" withConfiguration:configuration];
+    }
+
+    NSTextAttachment *attachment = [[NSTextAttachment alloc] init];
+    [attachment setImage:[image imageWithTintColor:[UIColor labelColor] renderingMode:UIImageRenderingModeAlwaysOriginal]];
+    [attachment setBounds:CGRectMake(0, -4, 30, 30)];
+    [[self titleLabel] setText:nil];
+    [[self titleLabel] setAttributedText:[NSAttributedString attributedStringWithAttachment:attachment]];
+    [[self titleTapControl] setAccessibilityLabel:accessibilityLabel];
+}
+
+- (void)setHistorySwitcherVisible:(BOOL)historySwitcherVisible {
+    [self setHistorySwitcherVisible:historySwitcherVisible animated:NO];
+}
+
+- (void)setHistorySwitcherVisible:(BOOL)historySwitcherVisible animated:(BOOL)animated {
+    _historySwitcherVisible = historySwitcherVisible;
+    void (^updates)(void) = ^{
+      [[self historySegmentedControl] setAlpha:historySwitcherVisible ? 1.0 : 0.0];
+      [[self historySegmentedControl] setHidden:!historySwitcherVisible];
+      [[self titleLabel] setAlpha:historySwitcherVisible ? 0.0 : 1.0];
+      [[self titleLabel] setHidden:historySwitcherVisible];
+      [[self titleTapControl] setHidden:historySwitcherVisible];
+      [[self titleTapControl] setUserInteractionEnabled:!historySwitcherVisible];
+    };
+    if (animated) {
+        [UIView animateWithDuration:0.18 animations:updates];
+    } else {
+        updates();
+    }
+}
+
+- (void)setSelectedHistorySegmentIndex:(NSInteger)index {
+    if (index < 0 || index >= [[self historySegmentedControl] numberOfSegments]) {
+        return;
+    }
+    [[self historySegmentedControl] setSelectedSegmentIndex:index];
+}
+
+- (void)updateStyleForButton:(UIButton *)button
+               withImageName:(NSString *)imageName
+                   imageSize:(NSUInteger)imageSize
+                   tintColor:(UIColor *)color {
+    UIImageSymbolConfiguration *configuration =
+        [UIImageSymbolConfiguration configurationWithPointSize:imageSize weight:UIImageSymbolWeightMedium];
+    UIImage *image = [UIImage systemImageNamed:imageName] ?: [UIImage systemImageNamed:@"doc.on.doc"];
+    [button setImage:[image imageWithConfiguration:configuration] forState:UIControlStateNormal];
+    [button setTintColor:color];
+}
+
+@end

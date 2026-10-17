@@ -1,78 +1,78 @@
 // MTKeyboardSpringBoardEntry —— MetisKeyboard（Keyboard 模块）SpringBoard 侧唯一挂接点。
-// 原 DXKeyboardHooks.xm ctor 的 isSpringBoard 分支整体迁入：系统 open broker、全局面板、
+// 原 MTKeyboardHooks.xm ctor 的 isSpringBoard 分支整体迁入：系统 open broker、全局面板、
 // 悬浮 App 托管、键盘收起把手、状态栏手势、shortcut/AI 请求监听与桌面可见性钩子。
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import "common.h"
-#import "DXHelper.h"
-#import "DXPrefsManager.h"
-#import "DXQuickActionProvider.h"
-#import "DXAIPanel.h"
-#import "DXKbdCollapseHandle.h"
-#import "DXStatusBarGestures.h"
-#import "DXGlobalPanel.h"
-#import "DXFloatingApp.h"
-#import "DXServer.h"
-#import "DXSystemOpenBroker.h"
+#import "MTHelper.h"
+#import "MTPrefsManager.h"
+#import "MTQuickActionProvider.h"
+#import "MTAIPanel.h"
+#import "MTKbdCollapseHandle.h"
+#import "MTStatusBarGestures.h"
+#import "MTGlobalPanel.h"
+#import "MTFloatingApp.h"
+#import "MTServer.h"
+#import "MTSystemOpenBroker.h"
 #import "MTCore.h"
 
 #pragma mark - shortcut 快照刷新请求（Settings 两段式枚举的结果回填）
 
-static void dxsbShortcutRefreshRequestCallback(CFNotificationCenterRef center,
+static void mtsbShortcutRefreshRequestCallback(CFNotificationCenterRef center,
                                                void *observer,
                                                CFStringRef name,
                                                const void *object,
                                                CFDictionaryRef userInfo) {
-    NSDictionary *request = DXQuickActionSharedValue(MTQuickActionRequestKey);
+    NSDictionary *request = MTQuickActionSharedValue(MTQuickActionRequestKey);
     NSArray *rawBundles = [request[@"bundles"] isKindOfClass:[NSArray class]] ? request[@"bundles"] : nil;
     NSString *requestID = [request[@"requestID"] isKindOfClass:[NSString class]] ? request[@"requestID"] : nil;
     if (rawBundles.count > 2048) rawBundles = nil;
     if (requestID.length == 0) return;
 
     static NSString *lastRequestID;
-    @synchronized([DXQuickActionProvider class]) {
+    @synchronized([MTQuickActionProvider class]) {
         if ([lastRequestID isEqualToString:requestID]) return;
         lastRequestID = [requestID copy];
     }
 
     NSMutableOrderedSet<NSString *> *bundleIdentifiers = [NSMutableOrderedSet orderedSet];
     for (id value in rawBundles) {
-        if (DXIsValidBundleIdentifier(value)) [bundleIdentifiers addObject:value];
+        if (MTIsValidBundleIdentifier(value)) [bundleIdentifiers addObject:value];
     }
-    [DXQuickActionProvider refreshSnapshotForBundleIdentifiers:bundleIdentifiers.array
+    [MTQuickActionProvider refreshSnapshotForBundleIdentifiers:bundleIdentifiers.array
                                                      requestID:requestID];
 }
 
 #pragma mark - AI 面板请求（SB 桌面呈现）
 
-static NSString *g_dxsbAIPendingSeedText;
-static BOOL g_dxsbAIPendingClipboardImage;
-static double g_dxsbAIPendingCreatedAt;
-static BOOL g_dxsbAIDesktopVisible;
+static NSString *g_mtsbAIPendingSeedText;
+static BOOL g_mtsbAIPendingClipboardImage;
+static double g_mtsbAIPendingCreatedAt;
+static BOOL g_mtsbAIDesktopVisible;
 
-static void DXSBDelayedAIPrefsHeal(void);
+static void MTSBDelayedAIPrefsHeal(void);
 
-static void DXSBDPresentAIPanelFromPending(void) {
-    NSString *seed = g_dxsbAIPendingSeedText;
-    BOOL clipboardImage = g_dxsbAIPendingClipboardImage;
-    g_dxsbAIPendingSeedText = nil;
-    g_dxsbAIPendingClipboardImage = NO;
-    [DXAIPanel presentInSpringBoardWithSeedText:seed clipboardImage:clipboardImage];
+static void MTSBDPresentAIPanelFromPending(void) {
+    NSString *seed = g_mtsbAIPendingSeedText;
+    BOOL clipboardImage = g_mtsbAIPendingClipboardImage;
+    g_mtsbAIPendingSeedText = nil;
+    g_mtsbAIPendingClipboardImage = NO;
+    [MTAIPanel presentInSpringBoardWithSeedText:seed clipboardImage:clipboardImage];
 }
 
-static void DXSBDPresentAIPanelWhenDesktop(void) {
-    if (!g_dxsbAIPendingSeedText && !g_dxsbAIPendingClipboardImage) return;
-    if (!g_dxsbAIDesktopVisible) return;
-    if ([NSDate date].timeIntervalSince1970 - g_dxsbAIPendingCreatedAt > 300.0) {
-        g_dxsbAIPendingSeedText = nil;
-        g_dxsbAIPendingClipboardImage = NO;
+static void MTSBDPresentAIPanelWhenDesktop(void) {
+    if (!g_mtsbAIPendingSeedText && !g_mtsbAIPendingClipboardImage) return;
+    if (!g_mtsbAIDesktopVisible) return;
+    if ([NSDate date].timeIntervalSince1970 - g_mtsbAIPendingCreatedAt > 300.0) {
+        g_mtsbAIPendingSeedText = nil;
+        g_mtsbAIPendingClipboardImage = NO;
         return;
     }
-    DXSBDPresentAIPanelFromPending();
+    MTSBDPresentAIPanelFromPending();
 }
 
-static void DXSBOpenAIPanelWithRequest(NSDictionary *request) {
+static void MTSBOpenAIPanelWithRequest(NSDictionary *request) {
     NSString *requestID = [request[@"requestID"] isKindOfClass:[NSString class]] ? request[@"requestID"] : nil;
     if (requestID.length == 0) return;
 
@@ -86,29 +86,29 @@ static void DXSBOpenAIPanelWithRequest(NSDictionary *request) {
     if (created <= 0 || fabs([NSDate date].timeIntervalSince1970 - created) > 30.0) return;
 
     NSString *mode = [request[@"mode"] isKindOfClass:[NSString class]] ? request[@"mode"] : nil;
-    g_dxsbAIPendingSeedText = ([mode isEqualToString:@"text"] && [request[@"text"] isKindOfClass:[NSString class]])
+    g_mtsbAIPendingSeedText = ([mode isEqualToString:@"text"] && [request[@"text"] isKindOfClass:[NSString class]])
         ? request[@"text"] : nil;
-    if (g_dxsbAIPendingSeedText.length == 0) g_dxsbAIPendingSeedText = nil;
-    g_dxsbAIPendingClipboardImage = [mode isEqualToString:@"image"];
-    g_dxsbAIPendingCreatedAt = created;
+    if (g_mtsbAIPendingSeedText.length == 0) g_mtsbAIPendingSeedText = nil;
+    g_mtsbAIPendingClipboardImage = [mode isEqualToString:@"image"];
+    g_mtsbAIPendingCreatedAt = created;
 
     if ([request[@"origin"] isKindOfClass:[NSString class]] &&
         [request[@"origin"] isEqualToString:@"sb"]) {
-        DXSBDPresentAIPanelFromPending();
+        MTSBDPresentAIPanelFromPending();
     } else {
-        DXSBDPresentAIPanelWhenDesktop();
+        MTSBDPresentAIPanelWhenDesktop();
     }
 }
 
-static void dxsbAIChatRequestCallback(CFNotificationCenterRef center,
+static void mtsbAIChatRequestCallback(CFNotificationCenterRef center,
                                       void *observer,
                                       CFStringRef name,
                                       const void *object,
                                       CFDictionaryRef userInfo) {
-    NSDictionary *request = DXQuickActionSharedValue(MTAIChatRequestKey);
+    NSDictionary *request = MTQuickActionSharedValue(MTAIChatRequestKey);
     if (![request isKindOfClass:[NSDictionary class]]) return;
     dispatch_async(dispatch_get_main_queue(), ^{
-        DXSBOpenAIPanelWithRequest(request);
+        MTSBOpenAIPanelWithRequest(request);
     });
 }
 
@@ -120,23 +120,23 @@ static void dxsbAIChatRequestCallback(CFNotificationCenterRef center,
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     // 冷启动兜底：ctor 时域读取可能撞上 cfprefsd 未就绪/首解锁前保护而读空。
-    if (![DXPrefsManager sharedInstance].preferencesAvailable) DXSBDelayedAIPrefsHeal();
-    g_dxsbAIDesktopVisible = YES;
-    DXSBDPresentAIPanelWhenDesktop();
+    if (![MTPrefsManager sharedInstance].preferencesAvailable) MTSBDelayedAIPrefsHeal();
+    g_mtsbAIDesktopVisible = YES;
+    MTSBDPresentAIPanelWhenDesktop();
     // 回桌面时收回展开面板，保留边缘常驻把手。
-    DXKbdCollapseHandleDesktopDidAppear();
+    MTKbdCollapseHandleDesktopDidAppear();
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     %orig;
-    g_dxsbAIDesktopVisible = NO;
+    g_mtsbAIDesktopVisible = NO;
 }
 
 %end
 
-static void DXSBDelayedAIPrefsHeal(void) {
-    // DXPrefsManager +load 已注册 prefschanged 观察并自愈；这里只主动触发一次读取。
-    [[DXPrefsManager sharedInstance] readPrefs];
+static void MTSBDelayedAIPrefsHeal(void) {
+    // MTPrefsManager +load 已注册 prefschanged 观察并自愈；这里只主动触发一次读取。
+    [[MTPrefsManager sharedInstance] readPrefs];
 }
 
 %ctor {
@@ -151,8 +151,8 @@ static void DXSBDelayedAIPrefsHeal(void) {
                 // 不 load MetisKeyboardPrefs.bundle：其链接 SwiftUI/JSContext
                 // 等重框架，SB 无需其代码；资源访问用 NSBundle 按需读取即可。
 
-                CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, dxsbShortcutRefreshRequestCallback, (CFStringRef)kShortcutRefreshRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-                CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, dxsbAIChatRequestCallback, (CFStringRef)kAIChatRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+                CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, mtsbShortcutRefreshRequestCallback, (CFStringRef)kShortcutRefreshRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+                CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, mtsbAIChatRequestCallback, (CFStringRef)kAIChatRequestIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
                 %init();
 
@@ -166,12 +166,12 @@ static void DXSBDelayedAIPrefsHeal(void) {
                     });
                 }];
 
-                DXStartStatusBarGestures();
-                DXStartSystemOpenBroker();
-                DXStartGlobalPanel();
-                DXStartFloatingAppHost();
-                DXStartKbdCollapseHandle();
-                DXStartKbdVisibilityReporter();
+                MTStartStatusBarGestures();
+                MTStartSystemOpenBroker();
+                MTStartGlobalPanel();
+                MTStartFloatingAppHost();
+                MTStartKbdCollapseHandle();
+                MTStartKbdVisibilityReporter();
                 MTLogInfo(MTLogModuleKeyboard, @"state=sb-entry-ready version=%@", MTCoreVersionString);
             }
         });

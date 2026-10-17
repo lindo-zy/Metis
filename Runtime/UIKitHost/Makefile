@@ -4,8 +4,8 @@ TWEAK_NAME = MetisUIKit
 # constructor 内对 SpringBoard 立即 return，保证按进程最小注入）。
 # 承载 MetisKeyboard 键盘 hook 与 Kayoko Helper 的统一 hook（03-architecture §1）。
 MetisUIKit_FILES = MTUIKitEntry.xm \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/DXKeyboardHooks.xm \
-	../../Modules/Keyboard/Sources/DXPasteChip.m \
+	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTKeyboardHooks.xm \
+	../../Modules/Keyboard/Sources/MTPasteChip.m \
 
 MetisUIKit_CFLAGS = -fobjc-arc
 MetisUIKit_CFLAGS += -I../../Core
@@ -17,7 +17,7 @@ MetisUIKit_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices Spring
 
 # Clipboard（MetisClipboard Helper 迁入）：键盘宿主 hook（SwipeUp 识别器在 MetisCore）
 HELPER = ../../Modules/Clipboard/Helper
-MetisUIKit_FILES += $(filter-out $(HELPER)/KayokoSwipeUpGestureRecognizer.m,$(wildcard $(HELPER)/*.m))
+MetisUIKit_FILES += $(filter-out $(HELPER)/MTSwipeUpGestureRecognizer.m,$(wildcard $(HELPER)/*.m))
 MetisUIKit_FILES += $(wildcard $(HELPER)/*.mm)
 MetisUIKit_CFLAGS += -I../../Modules/Clipboard/Helper -I../../Preferences/ClipboardPages
 MetisUIKit_FRAMEWORKS += AudioToolbox
