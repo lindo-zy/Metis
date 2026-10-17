@@ -111,10 +111,6 @@ static BOOL MTStoreWriteJournal(NSDictionary *journal) {
     return MTStoreAtomicWrite(journal, MTStoreJournalPath(), nil);
 }
 
-static NSDictionary *MTStoreReadJournal(void) {
-    return MTStoreReadFile(MTStoreJournalPath());
-}
-
 // 快照发布：世界可读 + 无文件保护（与 gate.plist 同策略，沙盒宿主唯一来源）。
 static BOOL MTStorePublish(NSDictionary *document) {
     if (!MTStoreAtomicWrite(document, MTStoreSnapshotPath(), nil)) return NO;
