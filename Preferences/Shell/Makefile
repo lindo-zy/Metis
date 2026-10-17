@@ -3,16 +3,23 @@ BUNDLE_NAME = MetisPrefs
 # 统一设置壳：系统设置里唯一的 Metis 入口（docs/development/02/03）。
 # 首页五分类（全局/键盘/剪切板/截图/其他）直达实际配置；全局与其他分类页
 # 在壳内实现，键盘/剪切板/截图经 MTPrefsSubbundleLoader 复用子包控制器。
-MetisPrefs_FILES = MTPrefsRootController.m \
+# 首页/全局页走设计稿视觉：*Model.m（Foundation-only，宿主测试编译）+ 模型
+# 驱动控制器（UIKit）；绑定/引用/默认行为/其他/关于仍是 PSListController。
+MetisPrefs_FILES = MTPrefsRootModel.m \
+	MTPrefsGlobalModel.m \
+	MTPrefsSearchIndex.m \
+	MTPrefsRootController.m \
+	MTPrefsShellTableController.m \
 	MTPrefsSubbundleLoader.m \
 	MTPrefsGlobalController.m \
+	MTPrefsDefaultsController.m \
 	MTPrefsBindingsController.m \
 	MTPrefsReferencesController.m \
 	MTPrefsOtherController.m \
 	MTPrefsAboutController.m
 
 MetisPrefs_CFLAGS = -fobjc-arc
-MetisPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources
+MetisPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources -I../../Core/PrefsUI
 MetisPrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisPrefs_INSTALL_PATH = /Library/PreferenceBundles
 MetisPrefs_FRAMEWORKS = UIKit CoreGraphics

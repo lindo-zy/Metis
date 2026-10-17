@@ -1,24 +1,12 @@
-// MTPrefsRootController —— Metis 唯一设置入口首页（docs/development/02 §1）。
-// 首页固定：启用 Metis 总开关 + 五个配置分类（全局/键盘/剪切板/截图/其他）
-// 直达实际配置页；没有模块开关、启用状态与计数（v3 P03）。
-#import <Preferences/Preferences.h>
+// MTPrefsRootController —— Metis 唯一设置入口首页（docs/development/02 §1 + 设计稿第一屏）。
+// 设计稿视觉：品牌头（图标 + 统一的效率工具）+ 搜索设置 + 启用 Metis +
+// 功能模块五分类 + 关于 Metis + 页脚；结构由 MTPrefsRootModel 提供并经
+// 宿主测试断言。UIKit 渲染层（不参与 macOS 宿主测试编译）。
+#import "MTPrefsShellTableController.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// 分类页元信息。分类只是页面组织，不制造依赖开关（P02/P03）。
-@interface MTPrefsCategoryInfo : NSObject
-@property (nonatomic, copy) NSString *categoryID;
-@property (nonatomic, copy) NSString *title;
-@property (nonatomic, copy) NSString *subtitle;
-@property (nonatomic, copy) NSString *iconName;              // SF Symbol 名
-@property (nonatomic, copy, nullable) NSString *subBundle;   // 详细页所在子包（nil = Shell 内控制器）
-@property (nonatomic, copy, nullable) NSString *subController;
-+ (NSArray<MTPrefsCategoryInfo *> *)allCategories;
-@end
-
-@interface MTPrefsRootController : PSListController
-- (NSNumber *)globalEnabledForSpecifier:(PSSpecifier *)specifier;
-- (void)setGlobalEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier;
+@interface MTPrefsRootController : MTPrefsShellTableController
 @end
 
 NS_ASSUME_NONNULL_END
