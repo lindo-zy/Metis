@@ -895,8 +895,15 @@ static void reloadPrefs(void);
         }
     }
     if (!allowAction) return;
-    id handlerObject = [allowAction valueForKey:@"handler"];
-    if (!handlerObject) return;
+    // UIAlertAction 的 handler 是私有 ivar：KVC 在 key 不存在（系统版本
+    // 改名）时抛 NSUndefinedKeyException 会让宿主 app 必崩，必须保护。
+    id handlerObject = nil;
+    @try {
+        handlerObject = [allowAction valueForKey:@"handler"];
+    } @catch (__unused NSException *exception) {
+        handlerObject = nil;
+    }
+    if (![handlerObject isKindOfClass:[NSBlock class]]) return;
     void (^allowHandler)(UIAlertAction *) = handlerObject;
 
     allowHandler(allowAction);
@@ -1037,8 +1044,11 @@ static void reloadPrefsNotificationCallback(CFNotificationCenterRef center,
                 // Metis 拆分：SpringBoard 路径整体迁至 MetisSpringBoard 目标
                 // （MTKeyboardSpringBoardEntry.xm）；本镜像在 SB 中立即返回。
                 if (isApplication && !isSpringBoard){
+                    // 只创建 NSBundle 引用供 LOCALIZED/资源访问；不做 load：
+                    // bundle 链接了 SwiftUI/JSContext 等重框架，在每个 app 的
+                    // 加载期 load 会拖慢启动并抬高键盘扩展的内存压力，而
+                    // localizedString/图片资源访问本就不要求 load。
                     tweakBundle = [NSBundle bundleWithPath:bundlePath];
-                    [tweakBundle load];
                     firstInit = YES;
                     reloadPrefs();
                     %init(TypeX);

@@ -12,6 +12,12 @@ NSString *MTResolvePath(NSString *logicalPath);
 NSString *MTPrivateDataRoot(void);
 
 /// Metis 公共只读快照目录（逻辑路径 /Library/Metis/Config/）。
+/// 目录由包 staged 为 0777：Settings 写入门控快照，沙盒进程只读。
 NSString *MTPublicConfigDirectory(void);
+
+/// 门控快照文件（MTPublicConfigDirectory 下）：承载 enabled 与三个模块
+/// 开关，供沙盒宿主（app/键盘扩展，读不到 /var/mobile 偏好文件）获取
+/// com.lindo.metis 门控的镜像。唯一写入者是 MTConfigService.flush。
+NSString *MTGateSnapshotPath(void);
 
 NS_ASSUME_NONNULL_END

@@ -310,6 +310,8 @@ CHOptimizedMethod1(self, id, UIStatusBarWindow, initWithFrame, CGRect, frame) {
 
 CHOptimizedMethod1(self, void, SpringBoard, applicationDidFinishLaunching, id, application) {
     CHSuper1(SpringBoard, applicationDidFinishLaunching, application);
+    // 启动完成后应用完整偏好（constructor 只做了 hook 形态的轻量读取）。
+    [[KayokoCoreRuntime sharedRuntime] loadPreferences];
     [[KayokoCoreRuntime sharedRuntime] preloadInitialHistory];
 }
 

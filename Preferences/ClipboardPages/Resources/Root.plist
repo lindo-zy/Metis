@@ -36,7 +36,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>PrivacyMode</string>
 			<key>label</key>
@@ -46,7 +46,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>KayokoFloatingPreviewSettingsViewController</string>
 			<key>label</key>
@@ -56,7 +56,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>KayokoFloatingPanelSettingsViewController</string>
 			<key>label</key>
@@ -68,7 +68,7 @@
 			<key>default</key>
 			<integer>38</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>KayokoListItemsController</string>
 			<key>key</key>
@@ -114,7 +114,7 @@
 			<key>default</key>
 			<integer>200</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>isContinuous</key>
 			<true/>
 			<key>key</key>
@@ -143,7 +143,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>SaveText</string>
 			<key>label</key>
@@ -157,7 +157,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>SaveImages</string>
 			<key>label</key>
@@ -211,7 +211,7 @@
 			<key>default</key>
 			<integer>2</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>InitialViewMode</string>
 			<key>validTitles</key>
@@ -243,7 +243,7 @@
 			<key>default</key>
 			<integer>1</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>PreviewLineCount</string>
 			<key>label</key>
@@ -277,7 +277,7 @@
 			<key>default</key>
 			<integer>1</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>ItemDetailsMode</string>
 			<key>validTitles</key>
@@ -307,7 +307,7 @@
 			<key>default</key>
 			<real>420</real>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -347,7 +347,7 @@
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>id</key>
 			<string>OverlayWindowLevelMode</string>
 			<key>key</key>
@@ -371,7 +371,7 @@
 			<key>default</key>
 			<real>998</real>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>format</key>
 			<string>%.0f</string>
 			<key>id</key>
@@ -407,7 +407,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>AutomaticallyPaste</string>
 			<key>label</key>
@@ -421,7 +421,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>DismissOnOutsideTouch</string>
 			<key>label</key>
@@ -435,7 +435,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>DisablePasteTips</string>
 			<key>label</key>
@@ -455,7 +455,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>SwipeToSelectWords</string>
 			<key>label</key>
@@ -477,7 +477,7 @@
 			<key>default</key>
 			<integer>1</integer>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>AutomaticPromotionMode</string>
 			<key>validTitles</key>
@@ -507,7 +507,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>PlaySoundEffects</string>
 			<key>label</key>
@@ -521,7 +521,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>key</key>
 			<string>PlayHapticFeedback</string>
 			<key>label</key>
@@ -551,7 +551,7 @@
 			<key>defaultApplicationSwitchValue</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>ATLApplicationListMultiSelectionController</string>
 			<key>includeIdentifiersInSearch</key>
@@ -592,7 +592,7 @@
 			<key>footerText</key>
 			<string>Made by OwnGoal Studio</string>
 			<key>hideFooterTextAfterPreferenceDefaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>hideFooterTextAfterPreferenceKey</key>
 			<string>DidOpenHavocLink</string>
 			<key>label</key>
@@ -606,7 +606,7 @@
 			<key>label</key>
 			<string>OwnGoal Studio Kayoko</string>
 			<key>markOpenedDefaults</key>
-			<string>com.lindo.kayoko.preferences</string>
+			<string>com.lindo.metis.clipboard</string>
 			<key>markOpenedKey</key>
 			<string>DidOpenHavocLink</string>
 			<key>subtitle</key>

@@ -300,28 +300,31 @@ NS_ASSUME_NONNULL_END
         return;
     }
 
-    if (![[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item]) {
-        [self showActionFailureToast];
-        return;
-    }
-
-    NSURL *URL = [NSURL URLWithString:link];
-    if (!URL) {
-        [self showActionFailureToast];
-        return;
-    }
-
     __weak typeof(self) weakSelf = self;
-    [[UIApplication sharedApplication] openURL:URL
-                                       options:@{}
-                             completionHandler:^(BOOL success) {
-                               if (success) {
-                                   return;
-                               }
-                               dispatch_async(dispatch_get_main_queue(), ^{
-                                 [weakSelf showActionFailureToast];
-                               });
-                             }];
+    [[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
+                                                                   completion:^(BOOL didUpdate) {
+        if (!didUpdate) {
+            [weakSelf showActionFailureToast];
+            return;
+        }
+
+        NSURL *URL = [NSURL URLWithString:link];
+        if (!URL) {
+            [weakSelf showActionFailureToast];
+            return;
+        }
+
+        [[UIApplication sharedApplication] openURL:URL
+                                           options:@{}
+                                 completionHandler:^(BOOL success) {
+                                   if (success) {
+                                       return;
+                                   }
+                                   dispatch_async(dispatch_get_main_queue(), ^{
+                                     [weakSelf showActionFailureToast];
+                                   });
+                                 }];
+    }];
 }
 
 - (NSArray<NSDictionary<NSString *, id> *> *)loadImageActions {
@@ -330,20 +333,25 @@ NS_ASSUME_NONNULL_END
 
 - (void)openImageAction:(NSDictionary<NSString *, id> *)action {
     KayokoPasteboardItem *item = [self previewItem];
-    if (!item || [[item imageName] length] == 0 ||
-        ![[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item]) {
+    if (!item || [[item imageName] length] == 0) {
         return;
     }
 
     __weak typeof(self) weakSelf = self;
-    [KayokoQuickAction openAction:action
-                            input:@""
-                completionHandler:^(BOOL success) {
-                  if (success) {
-                      return;
-                  }
-                  [weakSelf showActionFailureToast];
-                }];
+    [[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
+                                                                   completion:^(BOOL didUpdate) {
+        if (!didUpdate) {
+            return;
+        }
+        [KayokoQuickAction openAction:action
+                                input:@""
+                    completionHandler:^(BOOL success) {
+                      if (success) {
+                          return;
+                      }
+                      [weakSelf showActionFailureToast];
+                    }];
+    }];
 }
 
 - (void)showActionFailureToast {

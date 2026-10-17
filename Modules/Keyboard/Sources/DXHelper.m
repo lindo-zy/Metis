@@ -47,6 +47,12 @@ static const CGFloat DXAppIconSide = 24.0;
             resizedImage = [UIImage imageWithImage:[UIImage imageWithContentsOfFile:inputImagePath] resize:CGSizeMake(24, 24)];
             //resizedImage = [UIImage imageWithImage:[UIImage imageWithContentsOfFile:inputImagePath] scaledToFitToSize:CGSizeMake(24, 24)];
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+                // 共享缓存目录（/Library/Metis/Config/typex-cache）不随包
+                // staged，由首个写者创建；0777 保证沙盒宿主也可写。
+                [[NSFileManager defaultManager] createDirectoryAtPath:[cacheFilePath stringByDeletingLastPathComponent]
+                                          withIntermediateDirectories:YES
+                                                           attributes:@{NSFilePosixPermissions: @0777}
+                                                              error:nil];
                 [UIImagePNGRepresentation(resizedImage) writeToFile:cacheFilePath options:NSDataWritingAtomic error:nil];
             });
         }else{
@@ -97,6 +103,15 @@ static const CGFloat DXAppIconSide = 24.0;
     return image;
 }
 
+// valueForKey 链产出的数组不保证与调用方索引对齐（偏好数据被旧版本/手动
+// 编辑损坏时）：越界直接 objectAtIndex 会抛 NSRangeException 崩掉宿主
+// （设置页或键盘进程），统一走带保护的取值。
++(nullable NSString *)dxSafeStringAtIndex:(NSArray *)array index:(NSUInteger)index{
+    if (![array isKindOfClass:[NSArray class]] || index >= array.count) return nil;
+    id value = array[index];
+    return [value isKindOfClass:[NSString class]] ? value : nil;
+}
+
 +(UIImage *)imageFromArray:(NSArray *)array atIndex:(NSUInteger)index withSystemColor:(BOOL)withSystemColor completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{
     UIImage *image;
     __block BOOL isThirteen = NO;
@@ -104,8 +119,8 @@ static const CGFloat DXAppIconSide = 24.0;
     if (@available(iOS 13.0, *)){
         NSArray* imagelistDict = [array filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"%@ IN self.@allKeys" , @"images13"]];
         NSArray *imagelist = [imagelistDict valueForKey:@"images13"];
-        NSString *imageNameAtIndex = [imagelist objectAtIndex:index];
-        
+        NSString *imageNameAtIndex = [self dxSafeStringAtIndex:imagelist index:index];
+
         dispatch_semaphore_t smp = dispatch_semaphore_create(0);
         image = [self imageForName:imageNameAtIndex withSystemColor:withSystemColor completion:^(BOOL thirteen, BOOL customPath){
             isThirteen = thirteen;
@@ -113,12 +128,12 @@ static const CGFloat DXAppIconSide = 24.0;
             dispatch_semaphore_signal(smp);
         }];
         dispatch_semaphore_wait(smp, DISPATCH_TIME_FOREVER);
-        
+
     }else{
         NSArray* imagelistDict = [array filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"%@ IN self.@allKeys" , @"images12"]];
         NSArray *imagelist = [imagelistDict valueForKey:@"images12"];
-        NSString *imageNameAtIndex = [imagelist objectAtIndex:index];
-        
+        NSString *imageNameAtIndex = [self dxSafeStringAtIndex:imagelist index:index];
+
         dispatch_semaphore_t smp = dispatch_semaphore_create(0);
         image = [self imageForName:imageNameAtIndex withSystemColor:withSystemColor completion:^(BOOL thirteen, BOOL customPath){
             isThirteen = thirteen;
@@ -136,13 +151,13 @@ static const CGFloat DXAppIconSide = 24.0;
 +(NSString *)labelFromArray:(NSArray *)array atIndex:(NSUInteger)index{
     NSArray* labelTextlistDict = [array filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"%@ IN self.@allKeys" , @"label" ]];
     NSArray *labelTextlist = [labelTextlistDict valueForKey:@"label"];
-    return [labelTextlist objectAtIndex:index];
+    return [self dxSafeStringAtIndex:labelTextlist index:index];
 }
 
 +(NSString *)actionNameFromArray:(NSArray *)array atIndex:(NSUInteger)index{
     NSArray* labelTextlistDict = [array filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"%@ IN self.@allKeys" , @"selector" ]];
     NSArray *labelTextlist = [labelTextlistDict valueForKey:@"selector"];
-    return [labelTextlist objectAtIndex:index];
+    return [self dxSafeStringAtIndex:labelTextlist index:index];
 }
 
 +(void)showSearchCountEasterAlertFor:(id)object searchController:(UISearchController *)searchController count:(NSUInteger)count delay:(double)delay{
@@ -259,7 +274,9 @@ static const CGFloat DXAppIconSide = 24.0;
             }];
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                 [[NSFileManager defaultManager] createDirectoryAtPath:[cachedFilePath stringByDeletingLastPathComponent]
-                                          withIntermediateDirectories:YES attributes:nil error:nil];
+                                          withIntermediateDirectories:YES
+                                                           attributes:@{NSFilePosixPermissions: @0777}
+                                                              error:nil];
                 [UIImagePNGRepresentation(icon) writeToFile:cachedFilePath options:NSDataWritingAtomic error:nil];
             });
         }

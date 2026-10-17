@@ -30,10 +30,13 @@
 }
 
 - (void)copyItem:(KayokoPasteboardItem *)item completion:(void (^)(BOOL success))completion {
-    BOOL copied = item && [[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item];
-    if (completion) {
-        completion(copied);
+    if (!item) {
+        if (completion) {
+            completion(NO);
+        }
+        return;
     }
+    [[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item completion:completion];
 }
 
 - (void)saveImageForItem:(KayokoPasteboardItem *)item completion:(void (^)(BOOL success))completion {

@@ -1,7 +1,10 @@
 #import "PXConstants.h"
 
+// PXBundleID 保留 PixPin 身份（外部 URL scheme / 错误域标识）；偏好域是
+// Metis 自有域，不读取、不迁移旧 PixPin 插件域（com.pixpin.screenshot）
+// 的任何旧值；模块启停权威在 com.lindo.metis（MTModuleGate）。
 NSString * const PXBundleID = @"com.pixpin.screenshot";
-NSString * const PXPreferencesDomain = @"com.pixpin.screenshot";
+NSString * const PXPreferencesDomain = @"com.lindo.metis.capture";
 
 NSString * const PXExternalURLScheme = @"pixpin";
 CFStringRef const PXDarwinActivate = CFSTR("com.pixpin.screenshot/activate");

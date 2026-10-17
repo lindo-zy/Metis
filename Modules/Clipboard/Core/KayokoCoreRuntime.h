@@ -19,6 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)sharedRuntime;
 
+- (void)loadHookShapePreferences;
 - (void)loadPreferences;
 - (BOOL)refreshPasteTipPreferences;
 - (void)loadHeightPreference;

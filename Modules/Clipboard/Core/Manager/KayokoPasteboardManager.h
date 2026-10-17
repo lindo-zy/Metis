@@ -61,7 +61,11 @@ static NSString *const kKayokoPasteboardManagerHistoryChangeTypeClear = @"clear"
           sourceHistoryItem:(KayokoPasteboardItem *)sourceHistoryItem
          fromHistoryWithKey:(NSString *)historyKey
        allowsAutomaticPaste:(BOOL)allowsAutomaticPaste;
-- (BOOL)copyPasteboardItemToPasteboard:(KayokoPasteboardItem *)item;
+// 复制历史条目到系统剪贴板。写剪贴板是到 pasted 的同步 IPC：禁止在主线程
+// dispatch_sync 等待（pasted 忙/卡时会把 SB 主线程一起挂死），一律在
+// 剪贴板串行队列异步执行，结果经 completion 回主线程。
+- (void)copyPasteboardItemToPasteboard:(KayokoPasteboardItem *)item
+                             completion:(nullable void (^)(BOOL didUpdatePasteboard))completion;
 - (void)removePasteboardItem:(KayokoPasteboardItem *)item
           fromHistoryWithKey:(NSString *)historyKey
            shouldRemoveImage:(BOOL)shouldRemoveImage;

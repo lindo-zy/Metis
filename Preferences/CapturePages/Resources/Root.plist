@@ -24,7 +24,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>AreaRememberLastRect</string>
 			<key>label</key>
@@ -46,7 +46,7 @@
 			<key>default</key>
 			<real>12</real>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>SelectionSnapEdgeDistance</string>
 			<key>label</key>
@@ -74,7 +74,7 @@
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>DefaultResultAction</string>
 			<key>label</key>
@@ -102,7 +102,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>SaveAlsoCopy</string>
 			<key>label</key>
@@ -116,7 +116,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>ShowResultBubble</string>
 			<key>label</key>
@@ -136,7 +136,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>FloatingSnapShadow</string>
 			<key>label</key>
@@ -150,7 +150,7 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.pixpin.screenshot</string>
+			<string>com.lindo.metis.capture</string>
 			<key>key</key>
 			<string>ScreenshotHaptic</string>
 			<key>label</key>

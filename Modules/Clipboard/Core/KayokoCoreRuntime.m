@@ -1146,26 +1146,44 @@ NS_ASSUME_NONNULL_END
 - (void)openFloatingPreviewAction:(NSDictionary<NSString *, id> *)action
                           forItem:(KayokoPasteboardItem *)item {
     BOOL isImageItem = [[item imageName] length] > 0;
-    if (isImageItem) {
-        if (![[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item]) {
-            [self hideFloatingPreviewAnimated:NO];
-            [self playFailureHapticFeedbackIfNeeded];
+    if (!isImageItem) {
+        [self hideFloatingPreviewAnimated:NO];
+        __weak typeof(self) weakSelf = self;
+        [KayokoQuickAction openAction:action
+                                input:[item content] ?: @""
+                    completionHandler:^(BOOL success) {
+                      if (!success) {
+                          [weakSelf playFailureHapticFeedbackIfNeeded];
+                      }
+                    }];
+        return;
+    }
+
+    // 图片动作先把条目写回剪贴板（异步，不在主线程等 pasted IPC），成功后
+    // 抑制本次内部写带来的新预览，再执行动作。
+    __weak typeof(self) weakSelf = self;
+    [[KayokoPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
+                                                                   completion:^(BOOL didUpdate) {
+        typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        if (!didUpdate) {
+            [strongSelf hideFloatingPreviewAnimated:NO];
+            [strongSelf playFailureHapticFeedbackIfNeeded];
             return;
         }
         // The image action intentionally writes the existing item back to the
         // pasteboard. Do not treat that internal write as a new floating preview.
-        [self.pasteSuppressionState beginWithExpirationDelay:kKayokoPasteSuppressionExpirationDelay];
-    }
+        [strongSelf.pasteSuppressionState beginWithExpirationDelay:kKayokoPasteSuppressionExpirationDelay];
 
-    [self hideFloatingPreviewAnimated:NO];
-    __weak typeof(self) weakSelf = self;
-    [KayokoQuickAction openAction:action
-                            input:isImageItem ? @"" : ([item content] ?: @"")
-                completionHandler:^(BOOL success) {
-                  if (!success) {
-                      [weakSelf playFailureHapticFeedbackIfNeeded];
-                  }
-                }];
+        [strongSelf hideFloatingPreviewAnimated:NO];
+        [KayokoQuickAction openAction:action
+                                input:@""
+                    completionHandler:^(BOOL success) {
+                      if (!success) {
+                          [weakSelf playFailureHapticFeedbackIfNeeded];
+                      }
+                    }];
+    }];
 }
 
 - (void)applyOverlayWindowFrame:(UIWindow *)window {
@@ -1400,6 +1418,32 @@ NS_ASSUME_NONNULL_END
 
     [self readPasteTipPreferencesFromPreferences:preferences];
     return self.enabled;
+}
+
+- (void)loadHookShapePreferences {
+    // dyld 加载期（KayokoCore constructor）调用：只读决定「装哪些 hook」的
+    // 三项值。完整偏好应用（NSUserDefaults 套件初始化、40 项 registerDefaults、
+    // 外观刷新）延后到主队列 / SB didFinishLaunching 的 loadPreferences。
+    [MTModuleGate reload];
+    self.enabled = [MTModuleGate moduleEnabled:MTModuleClipboard];
+
+    // 细节域（com.lindo.metis.clipboard）直读：SpringBoard 非沙盒，cfprefsd
+    // 正常时即权威值；冷启动首解锁保护期读空时维持默认，后续 loadPreferences
+    // 补齐。绝不读 KayokoX 旧插件域。
+    CFStringRef domain = (__bridge CFStringRef)kKayokoPreferencesIdentifier;
+    Boolean valid = false;
+    CFIndex activation = CFPreferencesGetAppIntegerValue(
+        (__bridge CFStringRef)kKayokoPreferenceKeyActivationMethod, domain, &valid);
+    self.activationMethod =
+        valid ? (NSUInteger)activation : kKayokoPreferenceKeyActivationMethodDefaultValue;
+    CFIndex gestureMode = CFPreferencesGetAppIntegerValue(
+        (__bridge CFStringRef)kKayokoPreferenceKeyGestureRecognizerMode, domain, &valid);
+    self.gestureRecognizerMode =
+        valid ? (KayokoGestureRecognizerMode)gestureMode : kKayokoPreferenceKeyGestureRecognizerModeDefaultValue;
+    if (self.gestureRecognizerMode != kKayokoGestureRecognizerModeClassic &&
+        self.gestureRecognizerMode != kKayokoGestureRecognizerModeSystem) {
+        self.gestureRecognizerMode = kKayokoPreferenceKeyGestureRecognizerModeDefaultValue;
+    }
 }
 
 - (void)loadPreferences {
