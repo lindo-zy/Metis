@@ -3,11 +3,11 @@
 #
 # 用法：
 #   ./build.sh --help
-#   ./build.sh --target all --mode verify                 # 本地测试+构建+包检查，不改 control
+#   ./build.sh --target all --mode verify                 # 本地测试+构建+包检查，成功后递增版本
 #   ./build.sh --target all --mode release --version 0.1.0 # 显式版本发布，全部检查通过后才写回版本
 #
 # 规则：
-#   - 只从本脚本进入 Theos/make；不归档云端、不上传、不推送通知。
+#   - 只从本脚本进入 Theos/make；成功后调用本机 local/release.local.sh 通知与归档。
 #   - verify 产物放 packages/verify/<label>/，release 产物放 packages/<label>/，互不混用。
 #   - release 同一版本重复发布直接拒绝；版本写回不早于全部构建与包检查。
 #   - 构建进程级锁：同一时刻只允许一个 build.sh 写 control/.theos/packages。
@@ -66,6 +66,7 @@ usage: ./build.sh [--target ios16|ios17|all] [--mode verify|release] [--version 
   SKIP_TESTS=1                跳过主机测试（仅本地快速迭代，发布不建议）。
   METIS_SDK_ROOT=<dir>        覆盖 SDK 查找根（默认 $THEOS/sdks）。
   METIS_ALLOW_DIRTY=1         release 时允许脏工作区（不建议）。
+  METIS_SKIP_POSTBUILD=1      本次跳过本地 Bark/iCloud/坚果云后处理。
 EOF
     exit 2
 }
@@ -134,6 +135,46 @@ if [[ "$BUILD_MODE" == "release" ]]; then
         fi
     done
 fi
+
+# ---- 版本写回（参考 TypeX：全部目标构建成功后才写，temp 文件 + trap 清理） ----
+CONTROL_TMP=""
+persist_control_version() {
+    [[ "$CONTROL_VERSION" == "$VERSION_TO_BUILD" ]] && return 0
+    CONTROL_TMP="$(mktemp "$ROOT_DIR/control.tmp.XXXXXX")" || return 1
+    awk -v next_version="$VERSION_TO_BUILD" '
+        BEGIN { updated = 0 }
+        /^Version:/ { print "Version: " next_version; updated = 1; next }
+        { print }
+        END { if (!updated) exit 1 }
+    ' "$CONTROL_FILE" > "$CONTROL_TMP" || return 1
+    mv "$CONTROL_TMP" "$CONTROL_FILE" || return 1
+    CONTROL_TMP=""
+    echo "==> control Version: ${CONTROL_VERSION} -> ${VERSION_TO_BUILD}"
+}
+finalize() {
+    local rc=$?
+    trap - EXIT
+    if [[ $rc -eq 0 ]]; then
+        # 构建链全部成功才落版本号；任何失败保持 control 原值。
+        if ! persist_control_version; then
+            echo "error: failed to persist control version" >&2
+            rc=1
+        fi
+    fi
+    # 用户已授权本机构建完成后自动通知和归档。配置与鉴权仍留在忽略目录。
+    # 持锁到后处理结束，避免另一个构建删除本次尚未归档的包。
+    local hook="$ROOT_DIR/local/release.local.sh" action="--postbuild"
+    [[ $rc -eq 0 ]] || action="--failed"
+    if [[ "${METIS_SKIP_POSTBUILD:-0}" != "1" && -x "$hook" ]]; then
+        if ! "$hook" "$action" "$VERSION_TO_BUILD" "$BUILD_TARGET" "$BUILD_MODE"; then
+            echo "warning: local notification/archive failed; build exit status remains $rc" >&2
+        fi
+    fi
+    rm -rf "$LOCK_DIR"
+    rm -f "${CONTROL_TMP:-}"
+    exit "$rc"
+}
+trap finalize EXIT
 
 # ---- 主机测试与包检查 ----
 # 测试脚本按用户约定不上库（.gitignore 排除 docs/ Tests/）；本地存在时执行，
@@ -258,34 +299,6 @@ case "$BUILD_TARGET" in
     ios17) build_one ios17 ;;
     all) build_one ios16; build_one ios17 ;;
 esac
-
-# ---- 版本写回（参考 TypeX：全部目标构建成功后才写，temp 文件 + trap 清理） ----
-CONTROL_TMP=""
-persist_control_version() {
-    [[ "$CONTROL_VERSION" == "$VERSION_TO_BUILD" ]] && return 0
-    CONTROL_TMP="$(mktemp "$ROOT_DIR/control.tmp.XXXXXX")"
-    awk -v next_version="$VERSION_TO_BUILD" '
-        BEGIN { updated = 0 }
-        /^Version:/ { print "Version: " next_version; updated = 1; next }
-        { print }
-        END { if (!updated) exit 1 }
-    ' "$CONTROL_FILE" > "$CONTROL_TMP"
-    mv "$CONTROL_TMP" "$CONTROL_FILE"
-    CONTROL_TMP=""
-    echo "==> control Version: ${CONTROL_VERSION} -> ${VERSION_TO_BUILD}"
-}
-finalize() {
-    local rc=$?
-    trap - EXIT
-    rm -rf "$LOCK_DIR"
-    rm -f "${CONTROL_TMP:-}"
-    if [[ $rc -eq 0 ]]; then
-        # 构建链全部成功才落版本号；任何失败保持 control 原值。
-        persist_control_version || true
-    fi
-    exit $rc
-}
-trap finalize EXIT
 
 # ---- release 收尾：manifest（全部检查通过之后） ----
 if [[ "$BUILD_MODE" == "release" ]]; then

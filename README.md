@@ -21,6 +21,11 @@ Metis 是一个 iOS RootHide 插件：**一个安装包、一个系统设置入�
 进 MAJOR）；全部目标构建成功后写回 control，失败不写。`--version` 可选覆盖
 （CI tag 构建用）。
 
+本机存在 `local/release.local.sh` 时，构建成功后自动发送 Bark 通知，将双平台包
+归档到 iCloud，并按现有策略将 iOS 16 包同步到坚果云。鉴权配置仅保存在本地
+忽略文件中；`METIS_SKIP_POSTBUILD=1` 可跳过本次后处理。后处理失败单独报告，
+保留原构建结果与产物。
+
 要求：Theos（roothide fork，`THEOS` 环境变量或默认路径）与 iPhoneOS16.5/17.0 SDK。
 产物：`packages/ios16|ios17/com.lindo.metis_<版本>_<平台>_iphoneos-arm64e.deb`。
 
