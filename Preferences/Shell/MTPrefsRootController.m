@@ -1,181 +1,185 @@
 #import "MTPrefsRootController.h"
-#import "MTPrefsAboutController.h"
+#import "MTPrefsRootModel.h"
+#import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
-#import "MTPrefsOtherController.h"
-#import "MTPrefsSubbundleLoader.h"
-#import "MTCore.h"
-#import <objc/message.h>
 
-@implementation MTPrefsCategoryInfo
-
-+ (NSArray<MTPrefsCategoryInfo *> *)allCategories {
-    // 五分类固定顺序与摘要（02-settings-ux §1）；
-    // 全局与其他在 Shell 内，键盘/剪切板/截图直达各子包根控制器。
-    NSArray *configs = @[
-        @[@"global",    @"全局",   @"自定义动作、面板与入口绑定", @"globe",
-          [NSNull null], NSStringFromClass(MTPrefsGlobalController.class)],
-        @[@"keyboard",  @"键盘",   @"工具栏、输入与键盘手势", @"keyboard",
-          @"MetisKeyboardPrefs", @"MTPRootListController"],
-        @[@"clipboard", @"剪切板", @"历史、收藏与悬浮预览", @"doc.on.doc",
-          @"MetisClipboardPrefs", @"MTClipboardRootListController"],
-        @[@"capture",   @"截图",   @"截取、标注与长截图", @"camera.viewfinder",
-          @"MetisCapturePrefs", @"MTCaptureRootListController"],
-        @[@"other",     @"其他",   @"全局手势、悬浮应用与自动化", @"square.grid.2x2",
-          [NSNull null], NSStringFromClass(MTPrefsOtherController.class)],
-    ];
-    NSMutableArray *categories = [NSMutableArray array];
-    for (NSArray *config in configs) {
-        MTPrefsCategoryInfo *info = [[MTPrefsCategoryInfo alloc] init];
-        info.categoryID = config[0];
-        info.title = config[1];
-        info.subtitle = config[2];
-        info.iconName = config[3];
-        info.subBundle = [config[4] isKindOfClass:NSString.class] ? config[4] : nil;
-        info.subController = config[5];
-        [categories addObject:info];
-    }
-    return categories;
-}
-
+// 首页渲染：品牌头 + 搜索设置 + 卡片分区。模型与文案见 MTPrefsRootModel
+// （宿主测试权威）；本文件只做 UIKit 传输（02 §8：系统 grouped 风格）。
+@interface MTPrefsRootController () <UISearchBarDelegate>
 @end
 
-@implementation MTPrefsRootController
+@implementation MTPrefsRootController {
+    UISearchBar *_searchBar;
+    BOOL _searchActive;
+}
 
-- (NSArray *)specifiers {
-    if (!_specifiers) {
-        NSMutableArray *specs = [NSMutableArray array];
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"Metis";
+    self.model = [MTPrefsRootModel rootPageModel];
+    [self mtAttachToggleHandler];
+    [self render];
+}
 
-        PSSpecifier *globalSwitch = [PSSpecifier preferenceSpecifierNamed:@"启用 Metis"
-            target:self
-            set:@selector(setGlobalEnabled:forSpecifier:)
-            get:@selector(globalEnabledForSpecifier:)
-            detail:nil
-            cell:PSSwitchCell
-            edit:nil];
-        [globalSwitch setProperty:@YES forKey:@"enabled"];
-        [specs addObject:globalSwitch];
+#pragma mark - Brand header + search
 
-        // 总开关关闭时仍允许配置，仅显示一条整体暂停提示（02 §1）。
-        if (![MTModuleGate globalEnabled]) {
-            PSSpecifier *paused = [PSSpecifier preferenceSpecifierNamed:@"Metis 已暂停"
-                target:self
-                set:@selector(mtNoopSetter:forSpecifier:)
-                get:@selector(mtPausedSummary:)
-                detail:nil
-                cell:PSTitleValueCell
-                edit:nil];
-            paused.identifier = @"metis-paused-notice";
-            [specs addObject:paused];
-        }
+- (UIView *)makeTableHeaderView {
+    // 设计稿头部：Metis 图标（包内 Metis.png）+「统一的效率工具」，下方搜索框。
+    UIView *container = [[UIView alloc] init];
 
-        PSSpecifier *group = [PSSpecifier groupSpecifierWithName:@"功能分类"];
-        [specs addObject:group];
+    UIImageView *brandIcon = [[UIImageView alloc] initWithImage:[self mtBrandIconImage]];
+    brandIcon.layer.cornerRadius = 12.0;
+    brandIcon.layer.cornerCurve = kCACornerCurveContinuous;
+    brandIcon.layer.masksToBounds = YES;
+    brandIcon.contentMode = UIViewContentModeScaleAspectFit;
+    brandIcon.translatesAutoresizingMaskIntoConstraints = NO;
+    [container addSubview:brandIcon];
 
-        for (MTPrefsCategoryInfo *info in [MTPrefsCategoryInfo allCategories]) {
-            PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:info.title
-                target:self
-                set:@selector(mtNoopSetter:forSpecifier:)
-                get:@selector(mtCategorySubtitle:)
-                detail:nil
-                cell:PSLinkCell
-                edit:nil];
-            link.identifier = [NSString stringWithFormat:@"category-%@", info.categoryID];
-            [link setProperty:info forKey:@"metis-category-info"];
-            UIImage *icon = [UIImage systemImageNamed:info.iconName];
-            if (icon) [link setProperty:icon forKey:@"iconImage"];
-            // 分类直达实际配置：经 action 加载目标控制器并压栈（子包与 Shell 同路径）。
-            link->action = @selector(openCategory:);
-            [specs addObject:link];
-        }
+    UILabel *brandSubtitle = [[UILabel alloc] init];
+    brandSubtitle.text = @"统一的效率工具";
+    brandSubtitle.font = [UIFont systemFontOfSize:15.0];
+    brandSubtitle.textColor = UIColor.secondaryLabelColor;
+    brandSubtitle.adjustsFontForContentSizeCategory = YES;
+    brandSubtitle.translatesAutoresizingMaskIntoConstraints = NO;
+    [container addSubview:brandSubtitle];
 
-        PSSpecifier *supportGroup = [PSSpecifier groupSpecifierWithName:@"管理与支持"];
-        [specs addObject:supportGroup];
+    _searchBar = [[UISearchBar alloc] init];
+    _searchBar.placeholder = @"搜索设置";
+    _searchBar.searchBarStyle = UISearchBarStyleMinimal;
+    _searchBar.delegate = self;
+    _searchBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [container addSubview:_searchBar];
 
-        PSSpecifier *about = [PSSpecifier preferenceSpecifierNamed:@"关于"
-            target:self
-            set:@selector(mtNoopSetter:forSpecifier:)
-            get:@selector(aboutSummary:)
-            detail:[MTPrefsAboutController class]
-            cell:PSLinkCell
-            edit:nil];
-        [specs addObject:about];
+    [NSLayoutConstraint activateConstraints:@[
+        [brandIcon.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
+        [brandIcon.topAnchor constraintEqualToAnchor:container.topAnchor constant:6.0],
+        [brandIcon.widthAnchor constraintEqualToConstant:56.0],
+        [brandIcon.heightAnchor constraintEqualToConstant:56.0],
+        [brandSubtitle.leadingAnchor constraintEqualToAnchor:brandIcon.trailingAnchor constant:14.0],
+        [brandSubtitle.centerYAnchor constraintEqualToAnchor:brandIcon.centerYAnchor],
+        [brandSubtitle.trailingAnchor constraintLessThanOrEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
+        [_searchBar.topAnchor constraintEqualToAnchor:brandIcon.bottomAnchor constant:12.0],
+        [_searchBar.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [_searchBar.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
+        [_searchBar.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-4.0],
+    ]];
+    return container;
+}
 
-        _specifiers = specs;
-        MTLogInfo(MTLogModulePrefs, @"state=root-specifiers-ready count=%lu", (unsigned long)specs.count);
+// 包内品牌图按屏幕倍率取最合适的一档（PreferenceLoader 入口图标是独立拷贝，
+// 页内展示直接读 MetisPrefs.bundle 资源）。
+- (UIImage *)mtBrandIconImage {
+    NSBundle *bundle = [NSBundle bundleForClass:self.class];
+    CGFloat scale = self.view.window.screen.scale ?: UIScreen.mainScreen.scale ?: 2.0;
+    for (NSNumber *candidate in @[@3.0, @2.0, @1.0]) {
+        CGFloat candidateScale = candidate.doubleValue;
+        if (candidateScale > scale && candidateScale != 1.0) continue;
+        NSString *suffix = candidateScale == 3.0 ? @"@3x" : (candidateScale == 2.0 ? @"@2x" : @"");
+        NSString *path = [bundle pathForResource:[NSString stringWithFormat:@"Metis%@", suffix] ofType:@"png"];
+        if (path) return [UIImage imageWithContentsOfFile:path];
     }
-    return _specifiers;
+    NSString *fallback = [bundle pathForResource:@"Metis" ofType:@"png"];
+    return fallback ? [UIImage imageWithContentsOfFile:fallback] : nil;
 }
 
-- (NSString *)mtPausedSummary:(PSSpecifier *)specifier {
-    (void)specifier;
-    return @"所有入口已停止；配置仍可修改，重新开启后生效";
+#pragma mark - Model wiring
+
+- (void)mtAttachToggleHandler {
+    MTSettingsRow *toggle = [self.model rowWithIdentifier:@"global-enabled"];
+    if (!toggle) return;
+    __weak typeof(self) weakSelf = self;
+    toggle.toggleHandler = ^(BOOL on) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        // 写入 + flush + gate reload 在模型层；随后重建模型刷新暂停提示行显隐。
+        [MTPrefsRootModel setGlobalEnabled:on];
+        strongSelf.model = [MTPrefsRootModel rootPageModel];
+        [strongSelf mtAttachToggleHandler];
+        [strongSelf render];
+    };
 }
 
-- (NSNumber *)globalEnabledForSpecifier:(PSSpecifier *)specifier {
-    (void)specifier;
-    return @([MTModuleGate globalEnabled]);
-}
+#pragma mark - Search
 
-- (void)setGlobalEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier {
-    (void)specifier;
-    [MTConfigService setGlobalEnabled:value.boolValue];
-    [MTConfigService flush];
-    [MTModuleGate reload];
-    // 暂停提示行的显隐随开关变化：重建整个 specifier 表（getter 保持对象返回 ABI）。
-    @try {
-        self->_specifiers = nil;
-        [self reloadSpecifiers];
-    } @catch (__unused NSException *exception) {
-        // 个别宿主不支持全量重建：退回仅刷新开关行。
+- (void)mtApplySearchQuery:(NSString *)query {
+    NSArray<MTSettingsSearchEntry *> *entries = [MTPrefsSearchIndex entriesMatchingQuery:query];
+    NSMutableArray<MTSettingsRow *> *rows = [NSMutableArray array];
+    [entries enumerateObjectsUsingBlock:^(MTSettingsSearchEntry *entry, NSUInteger index, BOOL *stop) {
+        MTSettingsRow *row = [MTSettingsRow linkRowWithIdentifier:[NSString stringWithFormat:@"search-result-%lu", (unsigned long)index]
+                                                            title:entry.title];
+        row.subtitle = entry.path;
+        row.userInfo = entry;
+        [rows addObject:row];
+    }];
+    if (!rows.count) {
+        MTSettingsRow *empty = [MTSettingsRow linkRowWithIdentifier:@"search-empty" title:@"无搜索结果"];
+        empty.kind = MTSettingsRowKindInfo;
+        empty.subtitle = @"仅检索设置标题与资源名称";
+        rows = [NSMutableArray arrayWithObject:empty];
     }
+    MTSettingsSection *section = [MTSettingsSection sectionWithRows:rows];
+    MTSettingsPageModel *overlay = [[MTSettingsPageModel alloc] init];
+    overlay.sections = @[section];
+    self.overlayModel = overlay;
+    [self render];
 }
 
-- (NSString *)mtCategorySubtitle:(PSSpecifier *)specifier {
-    MTPrefsCategoryInfo *info = [specifier propertyForKey:@"metis-category-info"];
-    return info.subtitle;
+- (void)mtExitSearch {
+    if (!_searchActive && self.overlayModel == nil) return;
+    _searchActive = NO;
+    self.overlayModel = nil;
+    [self render];
 }
 
-- (void)mtNoopSetter:(id)value forSpecifier:(PSSpecifier *)specifier {
-    (void)value; (void)specifier;
-}
-
-- (NSString *)aboutSummary:(PSSpecifier *)specifier {
-    (void)specifier;
-    return [NSString stringWithFormat:@"版本 %@", MTCoreVersionString];
-}
-
-// 分类直达：子包缺失/加载失败给出明确提示，不静默跳过（02 §7）。
-- (void)openCategory:(PSSpecifier *)specifier {
-    MTPrefsCategoryInfo *info = [specifier propertyForKey:@"metis-category-info"];
-    if (!info) return;
-    Class controllerClass = nil;
-    if (info.subBundle.length > 0) {
-        NSError *error = nil;
-        controllerClass = [MTPrefsSubbundleLoader loadControllerClassFromBundle:info.subBundle
-                                                                       classNamed:info.subController
-                                                                            error:&error];
-        if (!controllerClass) {
-            MTLogError(MTLogModulePrefs, @"state=category-load-failed bundle=%@ error=%@",
-                       info.subBundle, error.localizedDescription);
-        }
-    } else {
-        controllerClass = NSClassFromString(info.subController);
-    }
-    if (!controllerClass) {
-        [self mtPresentUnavailableAlertWithTitle:info.title];
+- (void)settingsRowSelected:(MTSettingsRow *)row {
+    MTSettingsSearchEntry *entry = [row.userInfo isKindOfClass:MTSettingsSearchEntry.class] ? row.userInfo : nil;
+    if (!entry) {
+        [super settingsRowSelected:row];
         return;
     }
-    id controller = [[controllerClass alloc] init];
-    [self.navigationController pushViewController:controller animated:YES];
+    MTSettingsRow *target = entry.target;
+    if (target.routeKind == MTSettingsRouteInPage) {
+        [self mtExitSearch];
+        [self flashRowWithIdentifier:[target.userInfo isKindOfClass:NSString.class] ? target.userInfo : target.identifier];
+        return;
+    }
+    if (target.routeKind == MTSettingsRouteShellClass) {
+        Class controllerClass = target.className.length ? NSClassFromString(target.className) : Nil;
+        if (!controllerClass) return;
+        id controller = [[controllerClass alloc] init];
+        // Shell 内模型驱动页支持行级强调；PS 页（其他分类）自然忽略该属性。
+        if ([controller respondsToSelector:@selector(setPendingFocusIdentifier:)]) {
+            [(MTSettingsTableController *)controller setPendingFocusIdentifier:
+                [target.userInfo isKindOfClass:NSString.class] ? target.userInfo : nil];
+        }
+        [self.navigationController pushViewController:controller animated:YES];
+        return;
+    }
+    // 子包目标（资源名称）：退出搜索后按原始路由压栈。
+    [self mtExitSearch];
+    [self performRouteForRow:target];
 }
 
-- (void)mtPresentUnavailableAlertWithTitle:(NSString *)title {
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:title
-                         message:@"无法载入该分类的设置页面，请重新安装当前版本后重试。"
-                  preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
+#pragma mark - UISearchBarDelegate
+
+- (void)searchBarTextDidBeginEditing:(UISearchBar *)searchBar {
+    _searchActive = YES;
+    searchBar.showsCancelButton = YES;
+}
+
+- (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText {
+    if (searchText.length) [self mtApplySearchQuery:searchText];
+    else [self mtExitSearch];
+}
+
+- (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar {
+    [searchBar resignFirstResponder];
+}
+
+- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar {
+    searchBar.text = @"";
+    [searchBar resignFirstResponder];
+    [self mtExitSearch];
 }
 
 @end

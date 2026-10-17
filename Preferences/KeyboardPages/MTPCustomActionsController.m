@@ -1,4 +1,5 @@
 #import "MTPCustomActionsController.h"
+#import "MTPNewActionTypeController.h"
 #import "MTPLinkActionEditorController.h"
 #import "MTPAppInfo.h"
 #import "MTPBatchOpenAppEntries.h"
@@ -345,26 +346,27 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
 }
 - (void)addTapped {
     self.defaultActionGroup = @"";
-    [self showAddMenu];
+    [self presentNewActionPage];
 }
-- (void)showAddMenu {
-    UIAlertController *menu = [UIAlertController alertControllerWithTitle:LOCALIZED(@"ADD") message:nil preferredStyle:UIAlertControllerStyleAlert];
+// 「新建动作」类型选择页（02 §3 + 设计稿第三屏）替代原 alert 菜单；
+// 选中后仍走 startAddFlowForType: 暂存条目 + 编辑器，store 只在保存时写入。
+// 批量添加应用移入「更多」菜单，保持本页与设计稿一致的六类型布局。
+- (void)presentNewActionPage {
+    MTPNewActionTypeController *page = [[MTPNewActionTypeController alloc] init];
     __weak typeof(self) weakSelf = self;
-    for (NSString *type in @[kCustomActionTypeURLScheme, kCustomActionTypeText, kCustomActionTypeOpenApp,
-                            kCustomActionTypeShortcut, kCustomActionTypeSystem, kCustomActionTypeJavaScript])
-        [menu addAction:[UIAlertAction actionWithTitle:[MTPLinkActionEditorController displayNameForType:type] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [weakSelf startAddFlowForType:type];
-        }]];
-    [menu addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"BATCH_ADD_APPLICATIONS") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        [weakSelf startBatchAddApplicationsFlow];
-    }]];
-    [menu addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:menu animated:YES completion:nil];
+    page.selectionHandler = ^(NSString *type) {
+        __strong typeof(weakSelf) owner = weakSelf;
+        if (!owner) return;
+        [owner startAddFlowForType:type];
+    };
+    // 本页是普通 UITableViewController（无 PS root 需求），走标准导航压栈；
+    // 后续编辑器仍经 startAddFlowForType: 的 pushController:（PSListController 需要 root）。
+    [self.navigationController pushViewController:page animated:YES];
 }
 - (void)groupHeaderTapped:(UIButton *)sender {
     NSString *group = [self groupAtSection:sender.tag];
     self.defaultActionGroup = group;
-    [self showAddMenu];
+    [self presentNewActionPage];
 }
 - (void)setAllCollapsed:(BOOL)collapsed {
     NSMutableDictionary *prefs = [[MTPrefsManager.sharedInstance readPrefs] mutableCopy] ?: [NSMutableDictionary dictionary];
@@ -388,13 +390,14 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
 - (void)moreTapped {
     UIAlertController *menu = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleAlert];
     __weak typeof(self) weakSelf = self;
-    NSArray *keys = @[@"ACTION_COLLAPSE_ALL", @"ACTION_EXPAND_ALL", @"ACTION_SORT", @"ACTION_GROUP_MANAGER"];
+    NSArray *keys = @[@"ACTION_COLLAPSE_ALL", @"ACTION_EXPAND_ALL", @"ACTION_SORT", @"ACTION_GROUP_MANAGER", @"BATCH_ADD_APPLICATIONS"];
     for (NSUInteger index = 0; index < keys.count; index++) {
         NSUInteger operation = index;
         [menu addAction:[UIAlertAction actionWithTitle:LOCALIZED(keys[index]) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
             if (operation < 2) [weakSelf setAllCollapsed:operation == 0];
             else if (operation == 2) [weakSelf startSorting];
-            else [weakSelf showGroupManager];
+            else if (operation == 3) [weakSelf showGroupManager];
+            else [weakSelf startBatchAddApplicationsFlow];
         }]];
     }
     [menu addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];

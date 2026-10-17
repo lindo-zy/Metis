@@ -11,7 +11,7 @@ MetisKeyboardPrefs_FILES = $(wildcard *.m) $(wildcard *.mm)
 
 MetisKeyboardPrefs_CFLAGS = -fobjc-arc
 MetisKeyboardPrefs_CFLAGS += -Wno-tautological-pointer-compare
-MetisKeyboardPrefs_CFLAGS += -I../../Modules/Keyboard/Sources -I../../Core
+MetisKeyboardPrefs_CFLAGS += -I../../Modules/Keyboard/Sources -I../../Core -I../../Core/PrefsUI
 MetisKeyboardPrefs_CFLAGS += -DTYPEX_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
 MetisKeyboardPrefs_INSTALL_PATH = /Library/PreferenceBundles
 MetisKeyboardPrefs_FRAMEWORKS = UIKit CoreGraphics SwiftUI MobileCoreServices JavaScriptCore UniformTypeIdentifiers

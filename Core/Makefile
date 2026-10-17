@@ -65,10 +65,15 @@ MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
 # vendored AltList（MIT，来源见 Core/AltList/README-MetisKeyboard-vendor.md）
 MetisCore_FILES += $(wildcard AltList/*.m)
 
+# 设置页 UI 套件（设计稿 metis-settings-v3.png）：模型层 Foundation-only
+# （宿主测试直接编译），UIKit 渲染层由设置壳/键盘子包共用。全部走 MetisCore
+# 单一镜像，维持跨 bundle 类唯一性（03-architecture §1）。
+MetisCore_FILES += $(wildcard PrefsUI/*.m)
+
 MetisCore_CFLAGS = -fobjc-arc
 MetisCore_CFLAGS += -Wno-tautological-pointer-compare
 MetisCore_CFLAGS += -DMETIS_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
-MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList -ISharedResources
+MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList -ISharedResources -IPrefsUI
 
 # Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
 CLIPBOARD = ../Modules/Clipboard
