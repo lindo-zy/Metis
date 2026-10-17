@@ -1,6 +1,7 @@
 #import "MTPrefsShellTableController.h"
 #import "MTPrefsSubbundleLoader.h"
 #import "MTLog.h"
+#import "MTSettingsNavigation.h"
 
 @implementation MTPrefsShellTableController
 
@@ -16,7 +17,7 @@
             return;
         }
         id controller = [[controllerClass alloc] init];
-        [self.navigationController pushViewController:controller animated:YES];
+        MTSettingsPushController(self, controller, nil, YES);
         return;
     }
     // ShellClass / InPage / None 交给基础层默认实现。

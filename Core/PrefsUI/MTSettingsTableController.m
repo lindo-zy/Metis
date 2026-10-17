@@ -1,5 +1,6 @@
 #import "MTSettingsTableController.h"
 #import "MTSettingsRowCell.h"
+#import "MTSettingsNavigation.h"
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
 // 导航条已存在，这里只声明本页需要大标题，不改宿主全局行为。
@@ -197,7 +198,7 @@
     // 覆写补齐；基础层无法感知子包布局，这里不猜测路径。
     if (!controllerClass) return;
     id controller = [[controllerClass alloc] init];
-    [self.navigationController pushViewController:controller animated:YES];
+    MTSettingsPushController(self, controller, nil, YES);
 }
 
 - (void)flashRowWithIdentifier:(NSString *)identifier {

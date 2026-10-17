@@ -1,6 +1,7 @@
 #import "MTPrefsOtherController.h"
 #import "MTPrefsSubbundleLoader.h"
 #import "MTLog.h"
+#import "MTSettingsNavigation.h"
 
 // 细项键沿用键盘细节域（com.lindo.metis.keyboard）：迁分类不改键名与
 // PostNotification，运行端零改动（02 §6：原有具体功能开关仍按功能语义保留）。
@@ -124,7 +125,7 @@ static NSString *const MTOtherPrefsChanged = @"com.lindo.metis.keyboard/prefscha
         return;
     }
     id controller = [[controllerClass alloc] init];
-    [self.navigationController pushViewController:controller animated:YES];
+    MTSettingsPushController(self, controller, specifier, YES);
 }
 
 @end
