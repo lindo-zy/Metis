@@ -8,6 +8,7 @@ BUNDLE_NAME = MetisPrefs
 MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsGlobalModel.m \
 	MTPrefsSearchIndex.m \
+	MTPrefsEntryController.m \
 	MTPrefsRootController.m \
 	MTPrefsShellTableController.m \
 	MTPrefsSubbundleLoader.m \
