@@ -35,7 +35,9 @@ void MTExecuteGlobalCustomAction(NSDictionary *entry, MTSystemOpenReply reply) {
     // 「succeeded」只表示已提交给执行引擎（03 §7 提交边界语义）。
     if ([type isEqual:kCustomActionTypeJavaScript]) {
         [MTJavaScriptHost startSessionlessEntry:entry
-                                           open:MTExecuteSessionlessJSOpen
+                                           open:^(NSString *kind, NSString *payload) {
+            MTExecuteSessionlessJSOpen(kind, payload);
+        }
                                           error:^(NSString *message) {
             NSLog(@"[MetisKeyboard][GlobalPanel] sessionless-js failed: %@", message);
         }];
