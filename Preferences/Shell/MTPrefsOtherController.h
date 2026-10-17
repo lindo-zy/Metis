@@ -3,5 +3,9 @@
 // JS 源码只在全局自定义动作里编辑，此处不再建脚本管理器。
 #import <Preferences/Preferences.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MTPrefsOtherController : PSListController
 @end
+
+NS_ASSUME_NONNULL_END

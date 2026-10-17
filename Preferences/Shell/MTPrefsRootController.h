@@ -3,6 +3,8 @@
 // 直达实际配置页；没有模块开关、启用状态与计数（v3 P03）。
 #import <Preferences/Preferences.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 /// 分类页元信息。分类只是页面组织，不制造依赖开关（P02/P03）。
 @interface MTPrefsCategoryInfo : NSObject
 @property (nonatomic, copy) NSString *categoryID;
@@ -18,3 +20,5 @@
 - (NSNumber *)globalEnabledForSpecifier:(PSSpecifier *)specifier;
 - (void)setGlobalEnabled:(NSNumber *)value forSpecifier:(PSSpecifier *)specifier;
 @end
+
+NS_ASSUME_NONNULL_END
