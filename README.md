@@ -26,7 +26,7 @@ Metis 将 PixPin（截图与标注）、TypeX（键盘与操作）和 KayokoX（
 
 ## 架构
 
-按进程最小注入（详见 [docs/development/03-architecture.md](docs/development/03-architecture.md)）：
+按进程最小注入：
 
 | 目标 | 注入范围 | 内容 |
 | --- | --- | --- |
@@ -37,8 +37,7 @@ Metis 将 PixPin（截图与标注）、TypeX（键盘与操作）和 KayokoX（
 | MetisPrefs.bundle | 系统设置 | 统一设置壳（唯一入口） |
 
 配置权威域 `com.lindo.metis`（Settings 唯一写入者）；与旧三包互斥（Conflicts），
-旧配置域保留、不迁移不覆盖。当前实现状态与偏差决策见
-[docs/implementation/implementation-report.md](docs/implementation/implementation-report.md)。
+旧配置域保留、不迁移不覆盖。
 
 ## 许可
 

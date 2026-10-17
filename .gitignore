@@ -6,3 +6,9 @@ notify.local.conf
 local.env
 .netrc
 .DS_Store
+
+# 开发用文档与测试脚本只在本地保留，不上库（2026-10-17 用户约定）。
+docs/
+Tests/
+AGENTS.md
+DEVELOPMENT.md

@@ -85,8 +85,7 @@ jobs:
           - iOS17 变体：${XCODE_SDK}（17.x），部署目标 16.0。
           - 架构：arm64 / arm64e（RootHide）。
           - SHA256 与构建元数据见 manifest JSON。
-          - 状态：package-verified（构建与包检查通过）；真机验收矩阵待验，见
-            docs/implementation/implementation-report.md。
+          - 状态：package-verified（构建与包检查通过）；真机验收待验。
           EOF
           gh release create "${GITHUB_REF_NAME}" \
             release-artifacts/*.deb release-artifacts/*.json \

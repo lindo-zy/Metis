@@ -44,7 +44,3 @@ jobs:
       - name: Host tests + verify build + package check
         run: |
           ./build.sh --target all --mode verify
-
-      - name: Class audit
-        run: |
-          ./Tests/Package/class-audit.sh

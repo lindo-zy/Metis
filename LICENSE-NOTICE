@@ -1,20 +1,19 @@
 Metis 许可与来源清单（LICENSE-NOTICE）
 =====================================
 
-Metis（com.lindo.metis）整合以下三个来源项目，来源基线见
-docs/development/evidence/source-baseline.json（固定 SHA 记录）。
+Metis（com.lindo.metis）整合以下三个来源项目（固定来源 SHA 记录）。
 
 | 模块 | 来源项目 | 来源 HEAD | 许可（仓库内文件事实） |
 | --- | --- | --- | --- |
-| 截图与标注（Capture） | PixPin（com.pixpin.screenshot） | 973b1b1afe6d1e452d63cf90333f7337ddc4a003 | 根目录未发现许可文件（01-source-audit §5）；发布前需确认可分发范围 |
+| 截图与标注（Capture） | PixPin（com.pixpin.screenshot） | 973b1b1afe6d1e452d63cf90333f7337ddc4a003 | 根目录未发现许可文件；发布前需确认可分发范围 |
 | 键盘与操作（Keyboard） | TypeX（com.lindo.typex） | dfc9a5b19924482272ba3a0e7f1282a9aad9a765 | AGPL-3.0（根 LICENSE） |
 | 剪贴板（Clipboard） | KayokoX（com.lindo.kayokox） | 61b7a8d35274540068ddda3233df78d9d47f0046 | GPL-3.0（COPYING/README）；THIRD_PARTY_NOTICES 另含 AltList MIT |
 
 第三方组件：
-- AltList（com.opa334.altlist）：MIT。Metis 按包依赖引用（Depends），不复制其二进制。
+- AltList（com.opa334.altlist，© Lars Fröder）：MIT。Metis 以 vendored 单副本
+  编入 MetisCore（含 TypeX 项目的最小修改，见 Core/AltList/README-TypeX-vendor.md）。
 - Theos 工具链与 roothide Theos：各自上游许可，构建期使用，不分发其二进制。
 
-保留原始版权头与许可声明；源文件级的来源/commit/SHA256 明细在迁入时
-登记到 docs/implementation/source-provenance.json（随模块迁入更新）。
+保留原始版权头与许可声明。
 
 本文件随包安装到 /usr/share/doc/com.lindo.metis/LICENSE-NOTICE。
