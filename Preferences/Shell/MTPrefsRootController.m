@@ -1,4 +1,5 @@
 #import "MTPrefsRootController.h"
+#import "MTSettingsNavigation.h"
 #import "MTPrefsRootModel.h"
 #import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
@@ -155,7 +156,7 @@
             [(MTSettingsTableController *)controller setPendingFocusIdentifier:
                 [target.userInfo isKindOfClass:NSString.class] ? target.userInfo : nil];
         }
-        [self.navigationController pushViewController:controller animated:YES];
+        MTSettingsPushController(self, controller, nil, YES);
         return;
     }
     // 子包目标（资源名称）：退出搜索后按原始路由压栈。

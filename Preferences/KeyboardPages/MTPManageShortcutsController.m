@@ -29,9 +29,11 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     return ![MTShortcutsGenerator isVisibleShortcutSelector:selector];
 }
 
+// This private model must have its own runtime name: MTSettingsRow belongs to
+// the shared settings shell in MetisCore. Both images load in Preferences.app.
 // One row of the toolbar-scoped settings sections. Sliders snap to `step` and
 // fall back to `defaultValue` while the preference key is unset.
-@interface MTSettingsRow : NSObject
+@interface MTPToolbarSettingsRow : NSObject
 @property (nonatomic, copy) NSString *key;
 @property (nonatomic, copy) NSString *label;
 @property (nonatomic, assign) BOOL isSwitch;
@@ -44,9 +46,9 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 @property (nonatomic, copy) NSString *valueSuffix;
 @end
 
-@implementation MTSettingsRow
-+ (MTSettingsRow *)switchRowWithKey:(NSString *)key label:(NSString *)label defaultValue:(BOOL)defaultValue {
-    MTSettingsRow *row = [[MTSettingsRow alloc] init];
+@implementation MTPToolbarSettingsRow
++ (MTPToolbarSettingsRow *)switchRowWithKey:(NSString *)key label:(NSString *)label defaultValue:(BOOL)defaultValue {
+    MTPToolbarSettingsRow *row = [[MTPToolbarSettingsRow alloc] init];
     row.key = key;
     row.label = label;
     row.isSwitch = YES;
@@ -56,8 +58,8 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 
 // Index-valued row rendered as a segmented control; the selected segment index
 // is the stored value.
-+ (MTSettingsRow *)segmentRowWithKey:(NSString *)key label:(NSString *)label titles:(NSArray<NSString *> *)titles defaultValue:(float)defaultValue {
-    MTSettingsRow *row = [[MTSettingsRow alloc] init];
++ (MTPToolbarSettingsRow *)segmentRowWithKey:(NSString *)key label:(NSString *)label titles:(NSArray<NSString *> *)titles defaultValue:(float)defaultValue {
+    MTPToolbarSettingsRow *row = [[MTPToolbarSettingsRow alloc] init];
     row.key = key;
     row.label = label;
     row.isSegment = YES;
@@ -66,8 +68,8 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     return row;
 }
 
-+ (MTSettingsRow *)sliderRowWithKey:(NSString *)key label:(NSString *)label minValue:(float)minValue maxValue:(float)maxValue step:(float)step defaultValue:(float)defaultValue {
-    MTSettingsRow *row = [[MTSettingsRow alloc] init];
++ (MTPToolbarSettingsRow *)sliderRowWithKey:(NSString *)key label:(NSString *)label minValue:(float)minValue maxValue:(float)maxValue step:(float)step defaultValue:(float)defaultValue {
+    MTPToolbarSettingsRow *row = [[MTPToolbarSettingsRow alloc] init];
     row.key = key;
     row.label = label;
     row.minValue = minValue;
@@ -588,45 +590,45 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     float heightDefault = self.topConfiguration ? 33.33
         : (backgroundTintOn ? cellsHeightDefault + 5 : cellsHeightDefault);
 
-    NSMutableArray<MTSettingsRow *> *appearanceRows = [@[
-        [MTSettingsRow segmentRowWithKey:[self scopedAppearanceKey:kShortLabelEnabledKey]
+    NSMutableArray<MTPToolbarSettingsRow *> *appearanceRows = [@[
+        [MTPToolbarSettingsRow segmentRowWithKey:[self scopedAppearanceKey:kShortLabelEnabledKey]
                                   label:LOCALIZED(@"DISPLAY_STYLE")
                                  titles:@[LOCALIZED(@"ICON"), LOCALIZED(@"TEXT")]
                            defaultValue:0],
-        [MTSettingsRow switchRowWithKey:[self scopedAppearanceKey:kCellBorderEnabledkey]
+        [MTPToolbarSettingsRow switchRowWithKey:[self scopedAppearanceKey:kCellBorderEnabledkey]
                                   label:LOCALIZED(@"BORDER_ENABLED") defaultValue:NO],
-        [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellBorderWidthkey]
+        [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellBorderWidthkey]
                                   label:LOCALIZED(@"BORDER_WIDTH") minValue:0.5 maxValue:10 step:0.5
                             defaultValue:buttonBorderWidthDefault],
-        [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kButtonWidthScalekey]
+        [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kButtonWidthScalekey]
                                   label:LOCALIZED(@"BUTTON_WIDTH") minValue:30 maxValue:100 step:0.5
                             defaultValue:buttonWidthScaleDefault],
-        [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellHeightkey]
+        [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellHeightkey]
                                   label:LOCALIZED(@"HEIGHT") minValue:25 maxValue:50 step:0.5
                             defaultValue:heightDefault],
-        [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellRadiuskey]
+        [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellRadiuskey]
                                   label:LOCALIZED(@"RADIUS") minValue:0 maxValue:30 step:0.5
                             defaultValue:cellsRadiusDefault],
-        [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellSpacingkey]
+        [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellSpacingkey]
                                   label:LOCALIZED(@"SPACING") minValue:0 maxValue:20 step:0.5
                             defaultValue:spacingBetweenCellsDefault],
     ] mutableCopy];
     if (!self.topConfiguration) [appearanceRows insertObject:
-        [MTSettingsRow switchRowWithKey:kFloatingShelfEnabledKey label:LOCALIZED(@"FLOATING_SHELF_SWITCH") defaultValue:NO] atIndex:0];
+        [MTPToolbarSettingsRow switchRowWithKey:kFloatingShelfEnabledKey label:LOCALIZED(@"FLOATING_SHELF_SWITCH") defaultValue:NO] atIndex:0];
     if (self.topConfiguration) {
         [appearanceRows addObject:
-            [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kBottomSpacingKey]
+            [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kBottomSpacingKey]
                                       label:LOCALIZED(@"BOTTOM_SPACING") minValue:0 maxValue:20 step:0.1
                                   defaultValue:topBottomSpacingDefault]];
         // Column count controls the one-row/two-row active capacity.
         [appearanceRows addObject:
-            [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kButtonsPerRowKey]
+            [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kButtonsPerRowKey]
                                       label:LOCALIZED(@"BUTTONS_PER_ROW") minValue:1 maxValue:8 step:1
                                   defaultValue:buttonsPerRowDefault]];
     }
     self.appearanceRows = appearanceRows;
 
-    MTSettingsRow *panelScaleRow = [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kSubActionPanelScaleKey]
+    MTPToolbarSettingsRow *panelScaleRow = [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kSubActionPanelScaleKey]
                                                               label:LOCALIZED(@"PANEL_SIZE")
                                                            minValue:50 maxValue:120 step:5
                                                         defaultValue:subActionPanelScaleDefault];
@@ -636,7 +638,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     if (self.topConfiguration) {
         // 顶部固定多行布局，此分组只调整按钮行距；每行个数在按钮设置中调整。
         self.multiRowRows = @[
-            [MTSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kMultiRowSpacingKey]
+            [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kMultiRowSpacingKey]
                                       label:LOCALIZED(@"BUTTON_ROW_SPACING") minValue:0 maxValue:20 step:0.1
                                   defaultValue:multiRowSpacingDefault],
         ];
@@ -646,11 +648,11 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     // The toolbar height is the only remaining positioning control; the
     // leading/trailing/vertical offsets and the insets are fixed in the tweak.
     self.offsetRows = @[
-        [MTSettingsRow sliderRowWithKey:kHeightOffsetkey label:LOCALIZED(@"TOOLBAR_HEIGHT") minValue:50 maxValue:80 step:1 defaultValue:heightOffsetDefault],
+        [MTPToolbarSettingsRow sliderRowWithKey:kHeightOffsetkey label:LOCALIZED(@"TOOLBAR_HEIGHT") minValue:50 maxValue:80 step:1 defaultValue:heightOffsetDefault],
     ];
 }
 
-- (MTSettingsRow *)settingsRowForIndexPath:(NSIndexPath *)indexPath {
+- (MTPToolbarSettingsRow *)settingsRowForIndexPath:(NSIndexPath *)indexPath {
     switch (indexPath.section) {
         case 1: return self.appearanceRows[indexPath.row];
         case 2: return self.panelRows[indexPath.row];
@@ -659,7 +661,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     }
 }
 
-- (float)storedFloatForRow:(MTSettingsRow *)row {
+- (float)storedFloatForRow:(MTPToolbarSettingsRow *)row {
     id value = [[MTPrefsManager sharedInstance] getValueForKey:row.key];
     return [value respondsToSelector:@selector(floatValue)] ? [value floatValue] : row.defaultValue;
 }
@@ -671,14 +673,14 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 }
 
 // Snap to the row's step so the stored value matches what the slider showed.
-- (void)persistRowValue:(MTSettingsRow *)row rawValue:(float)rawValue {
+- (void)persistRowValue:(MTPToolbarSettingsRow *)row rawValue:(float)rawValue {
     float stepped = row.minValue + roundf((rawValue - row.minValue) / row.step) * row.step;
     stepped = MIN(row.maxValue, MAX(row.minValue, stepped));
     [[MTPrefsManager sharedInstance] setValue:@(stepped) forKey:row.key];
 }
 
 - (UITableViewCell *)settingsCellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    MTSettingsRow *row = [self settingsRowForIndexPath:indexPath];
+    MTPToolbarSettingsRow *row = [self settingsRowForIndexPath:indexPath];
     if (row.isSwitch) return [self switchCellForRow:row];
     if (row.isSegment) return [self segmentCellForRow:row indexPath:indexPath];
 
@@ -734,7 +736,7 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
     return cell;
 }
 
-- (UITableViewCell *)switchCellForRow:(MTSettingsRow *)row {
+- (UITableViewCell *)switchCellForRow:(MTPToolbarSettingsRow *)row {
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"TypeXSettingsSwitch"];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
     cell.textLabel.text = row.label;
@@ -753,7 +755,7 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 
 // Full-width segmented control row (PSSegmentCell style): the control spans
 // the cell so the two options are large and obvious, no leading label.
-- (UITableViewCell *)segmentCellForRow:(MTSettingsRow *)row indexPath:(NSIndexPath *)indexPath {
+- (UITableViewCell *)segmentCellForRow:(MTPToolbarSettingsRow *)row indexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"TypeXSettingsSegment" forIndexPath:indexPath];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
@@ -783,13 +785,13 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 }
 
 - (void)settingsSwitchChanged:(UISwitch *)sender {
-    MTSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
+    MTPToolbarSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
     [[MTPrefsManager sharedInstance] setValue:@(sender.isOn) forKey:row.key];
     [self refreshToolbarPreview];
 }
 
 - (void)settingsSegmentChanged:(UISegmentedControl *)sender {
-    MTSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
+    MTPToolbarSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
     [[MTPrefsManager sharedInstance] setValue:@(sender.selectedSegmentIndex) forKey:row.key];
     [self refreshToolbarPreview];
 }
@@ -798,7 +800,7 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
     // Live label feedback; the preference write itself waits for touch-up so
     // dragging does not spam the preference domain and reload notifications.
     UILabel *valueLabel = (UILabel *)[(UIView *)sender.superview viewWithTag:2];
-    MTSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
+    MTPToolbarSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
     valueLabel.text = MTFormatSettingsValue(sender.value, row.step, row.valueSuffix);
     // Preview the snapped value while dragging without writing preferences or
     // reloading the live keyboard until the existing touch-up save happens.
@@ -811,7 +813,7 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 }
 
 - (void)settingsSliderReleased:(UISlider *)sender {
-    MTSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
+    MTPToolbarSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
     float stepped = row.minValue + roundf((sender.value - row.minValue) / row.step) * row.step;
     stepped = MIN(row.maxValue, MAX(row.minValue, stepped));
 
@@ -827,7 +829,7 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 }
 
 - (void)settingsSliderCancelled:(UISlider *)sender {
-    MTSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
+    MTPToolbarSettingsRow *row = objc_getAssociatedObject(sender, @selector(key));
     sender.value = [self storedFloatForRow:row];
     UILabel *valueLabel = (UILabel *)[sender.superview viewWithTag:2];
     valueLabel.text = MTFormatSettingsValue(sender.value, row.step, row.valueSuffix);

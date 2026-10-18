@@ -2,11 +2,13 @@
 #import "MTPOpenAppPickerController.h"
 #import "MTPAppInfo.h"
 #import "common.h"
+#import "MTSettingsNavigation.h"
 
 static NSString *MTLSettings(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
 @interface MTPLauncherAppsController ()
+@property(nonatomic, strong) UITableView *tableView;
 @property(nonatomic, strong) NSMutableArray<NSString *> *identifiers;
 @property(nonatomic, strong) NSMutableDictionary *aliases;
 @property(nonatomic, copy) NSArray<NSString *> *aliasOnly;
@@ -14,6 +16,11 @@ static NSString *MTLSettings(NSString *key) {
 @implementation MTPLauncherAppsController
 - (void)viewDidLoad {
     [super viewDidLoad]; self.title = MTLSettings(@"QUICK_MANAGE");
+    self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+    self.tableView.delegate = self;
+    self.tableView.dataSource = self;
+    self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.view = self.tableView;
     self.tableView.rowHeight = 58;
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
         target:self action:@selector(addApplications)];
@@ -63,7 +70,7 @@ static NSString *MTLSettings(NSString *key) {
         for (MTPAppInfo *app in apps) if (MTIsValidBundleIdentifier(app.bundleID) && ![controller.identifiers containsObject:app.bundleID]) [controller.identifiers addObject:app.bundleID];
         [controller save]; [controller.tableView reloadData];
     };
-    [self.navigationController pushViewController:picker animated:YES];
+    MTSettingsPushController(self, picker, nil, YES);
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return section == 0 ? self.identifiers.count : self.aliasOnly.count; }
