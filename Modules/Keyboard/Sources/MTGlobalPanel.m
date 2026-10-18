@@ -24,7 +24,6 @@
 
 @interface MTGlobalPanelItem : UIButton
 @property(nonatomic, copy) NSString *actionSelector;
-@property(nonatomic, strong) UIView *circle;
 @property(nonatomic, strong) UIImageView *icon;
 @property(nonatomic, strong) UILabel *name;
 @end
@@ -218,7 +217,7 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     preferences = MTPanelPreferences(preferences, selector);
     self.scale = MTKeyboardPanelNumber(preferences, kMTPanelScale, 100, 70, 120) / 100;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
-    // 面板固定浅色渲染 + 深色按钮（深色偏好已移除）。
+    // 面板固定浅色渲染 + 无底色按钮（深色偏好已移除）。
     UIColor *text = UIColor.labelColor;
 
     // SpringBoard has scene-less windows on some supported systems. A fresh
@@ -320,15 +319,12 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
         if (!definition) continue;
         MTGlobalPanelItem *button = [MTGlobalPanelItem buttonWithType:UIButtonTypeCustom];
         button.actionSelector = entry[@"selector"];
-        button.circle = [UIView new];
-        // 按钮圆：浅色面板配深色圆 + 白色内容。
-        button.circle.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
-        button.circle.userInteractionEnabled = NO;
-        [button addSubview:button.circle];
         button.icon = [UIImageView new];
         button.icon.userInteractionEnabled = NO;
         button.icon.contentMode = UIViewContentModeScaleAspectFit;
-        button.icon.tintColor = UIColor.whiteColor;
+        // 按钮无底色：符号图标（AlwaysTemplate）用深色 tint 才能在浅色面板上可见；
+        // App 图标为 AlwaysOriginal 原色，不受 tint 影响。
+        button.icon.tintColor = text;
         NSString *icon = MTGlobalPanelString(definition[@"icon"]);
         button.icon.image = [MTHelper imageForIconConfig:icon defaultSymbolName:@"square.grid.2x2"];
         [button addSubview:button.icon];
@@ -384,8 +380,6 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     for (NSUInteger index = 0; index < self.items.count; index++) {
         MTGlobalPanelItem *button = self.items[index];
         CGFloat slot = button.bounds.size.width;
-        button.circle.frame = CGRectMake((slot - circle) / 2, 4, circle, circle);
-        button.circle.layer.cornerRadius = circle / 2;
         CGFloat icon = circle * 0.52;
         button.icon.frame = CGRectMake((slot - icon) / 2, 4 + (circle - icon) / 2, icon, icon);
         CGSize labelSize = [button.name sizeThatFits:CGSizeMake(MAX(0, slot - 6), 30 * self.scale)];

@@ -43,7 +43,7 @@
     self.gesturePanel = [panel[@"kind"] isEqual:MTPanelGestureKind];
     preferences = MTPanelPreferences(preferences, selector);
     self.titleLabel.text = MTPanelString(panel[@"name"]);
-    // 面板固定浅色渲染 + 深色按钮（深色偏好已移除）。
+    // 面板固定浅色渲染 + 无底色按钮（深色偏好已移除）。
     UIColor *textColor = UIColor.labelColor;
     self.backgroundColor = UIColor.systemBackgroundColor;
     [self.systemControls configureWithPreferences:preferences preview:YES];
@@ -56,15 +56,12 @@
     for (NSDictionary *entry in entries) {
         NSDictionary *definition = MTPPanelDisplayDefinition(preferences, entry[@"selector"]);
         UIView *item = [UIView new];
-        UIView *circle = [UIView new];
-        circle.tag = 1;
-        // 按钮圆：浅色面板配深色圆 + 白色内容。
-        circle.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
-        [item addSubview:circle];
         UIImageView *icon = [UIImageView new];
         icon.tag = 2;
         icon.contentMode = UIViewContentModeScaleAspectFit;
-        icon.tintColor = UIColor.whiteColor;
+        // 按钮无底色：符号图标（AlwaysTemplate）用深色 tint 才能在浅色面板上可见；
+        // App 图标为 AlwaysOriginal 原色，不受 tint 影响。
+        icon.tintColor = textColor;
         id iconConfig = definition[@"icon"];
         if (![iconConfig isKindOfClass:NSString.class]) iconConfig = @"link";
         icon.image = [MTHelper imageForIconConfig:iconConfig defaultSymbolName:@"link"];
@@ -108,9 +105,6 @@
         (void)index;
         (void)stop;
         CGFloat itemWidth = contentWidth / MAX(1, self.columns);
-        UIView *circle = [item viewWithTag:1];
-        circle.frame = CGRectMake((itemWidth - circleSize) / 2, 4, circleSize, circleSize);
-        circle.layer.cornerRadius = circleSize / 2;
         CGFloat iconSize = circleSize * 0.52;
         [item viewWithTag:2].frame = CGRectMake((itemWidth - iconSize) / 2, 4 + (circleSize - iconSize) / 2, iconSize, iconSize);
         UILabel *label = (UILabel *)[item viewWithTag:3];

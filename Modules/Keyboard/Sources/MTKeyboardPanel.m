@@ -350,7 +350,9 @@
         button.actionSelector = selector;
         button.actionImage = [[UIImageView alloc] init];
         button.actionImage.contentMode = UIViewContentModeScaleAspectFit;
-        button.actionImage.tintColor = UIColor.whiteColor;
+        // 按钮无底色：符号图标（AlwaysTemplate）用深色 tint 才能在浅色面板上可见；
+        // App 图标为 AlwaysOriginal 原色，不受 tint 影响。
+        button.actionImage.tintColor = text;
         button.actionImage.image = [toolbar subActionPanelImageForSelector:selector];
         button.actionLabel = [[UILabel alloc] init];
         NSString *name = entry[@"name"];
@@ -410,17 +412,6 @@
     [self.buttons enumerateObjectsUsingBlock:^(MTKeyboardPanelButton *button, NSUInteger index, BOOL *stop) {
         (void)stop;
         (void)index;
-        UIView *circleView = [button viewWithTag:10];
-        if (!circleView) {
-            circleView = [[UIView alloc] init];
-            circleView.tag = 10;
-            circleView.userInteractionEnabled = NO;
-            // 按钮圆：浅色面板配深色圆 + 白色内容。
-            circleView.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
-            [button insertSubview:circleView atIndex:0];
-        }
-        circleView.frame = CGRectMake((itemWidth - circle) / 2, 4, circle, circle);
-        circleView.layer.cornerRadius = circle / 2;
         CGFloat icon = circle * 0.52;
         button.actionImage.frame = CGRectMake((itemWidth - icon) / 2, 4 + (circle - icon) / 2, icon, icon);
         button.actionLabel.frame = CGRectMake(3, circle + 9, itemWidth - 6, 30 * self.scale);
