@@ -26,5 +26,6 @@
 + (CGFloat)tileSide { return 29.0; }
 + (CGFloat)tileIconPointSize { return 22.0; }
 + (CGFloat)tileTextGap { return 12.0; }
++ (CGFloat)rowVerticalPadding { return 12.0; }
 
 @end

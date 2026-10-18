@@ -17,6 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (CGFloat)tileSide;            ///< 图标槽位边长 29pt（系统设置惯例）
 + (CGFloat)tileIconPointSize;   ///< 行内 SF Symbol 点数
 + (CGFloat)tileTextGap;         ///< 图标与标题间距
++ (CGFloat)rowVerticalPadding;  ///< 文字栈上下内边距 12pt（单行条目 ≈44.7pt，对齐 iOS 设置 44pt 标准）
 @end
 
 NS_ASSUME_NONNULL_END

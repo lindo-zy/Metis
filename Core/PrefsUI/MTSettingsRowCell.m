@@ -47,8 +47,12 @@
             [_tile.heightAnchor constraintEqualToConstant:[MTSettingsStyle tileSide]],
             [_textStack.trailingAnchor constraintLessThanOrEqualToAnchor:self.contentView.trailingAnchor
                                                                constant:-[MTSettingsStyle contentInset]],
-            [_textStack.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:8.0],
-            [_textStack.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-8.0],
+            // 行高 = 上下内边距 + 标题行高：12pt 内边距使单行条目 ≈44.7pt，对齐
+            // iOS 设置标准行高 44pt；带副标题行按同一内边距同步增高。
+            [_textStack.topAnchor constraintEqualToAnchor:self.contentView.topAnchor
+                                                constant:[MTSettingsStyle rowVerticalPadding]],
+            [_textStack.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor
+                                                     constant:-[MTSettingsStyle rowVerticalPadding]],
         ]];
         // 标题起点随行内是否有瓦片切换：有瓦片时接在瓦片右侧，无瓦片时回到 16pt 内边距。
         _textLeadingConstraint =
