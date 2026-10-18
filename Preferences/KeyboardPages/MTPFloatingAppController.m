@@ -76,7 +76,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [launcherSide setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
     [launcherSide setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")]
         forKey:@"titles"];
-    // 面板大小：80%~130% 等比缩放，5% 步进（读取侧同样夹回该范围）。
+    // 面板大小：80%~100% 等比缩放，5% 步进（读取侧同样夹回该范围）。
     PSSpecifier *launcherScale = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SIZE") target:self
         set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
     [launcherScale setProperty:kKbdLauncherScaleKey forKey:@"key"];
@@ -96,6 +96,9 @@ static NSString *MTFloatingLocalized(NSString *key) {
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
+    if ([[specifier propertyForKey:@"key"] isEqual:kKbdLauncherScaleKey]) {
+        return @(MTKbdLauncherScaleFromPreferences(preferences));
+    }
     id value = preferences[[specifier propertyForKey:@"key"]];
     return [value respondsToSelector:@selector(floatValue)] ? value : [specifier propertyForKey:@"default"];
 }
@@ -122,7 +125,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
         return;
     }
     if ([key isEqual:kKbdLauncherScaleKey]) {
-        // 面板大小：与滑杆 5% 步进一致；越界值夹回 80~130，避免写快照后触发读取侧缺省回退。
+        // 面板大小：与滑杆 5% 步进一致；越界值夹回 80~100，避免写快照后触发读取侧缺省回退。
         double scale = [value doubleValue];
         if (!isfinite(scale)) scale = kKbdLauncherScaleDefault;
         scale = lround(scale / 5) * 5;

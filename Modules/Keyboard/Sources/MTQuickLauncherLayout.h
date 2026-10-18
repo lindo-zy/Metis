@@ -2,11 +2,14 @@
 
 // Pure geometry shared with host checks. Callers supply safe-area distances.
 // Docked side hugs the screen edge (4pt seam); the floating side keeps 8pt.
-// scalePercent：设置里的面板大小百分比（80~130，缺省 100），等比缩放基准宽高；
-// 缩放后仍夹回可用区域，小屏放大到放不下时按可用宽度截断。
+// scalePercent：设置里的面板大小百分比（80~100，缺省 100）。
 static inline CGFloat MTQuickLauncherScaleFactor(CGFloat scalePercent) {
     if (!isfinite(scalePercent) || scalePercent <= 0) return 1.0;
-    return MIN(MAX(scalePercent, 80.0), 130.0) / 100.0;
+    return MIN(MAX(scalePercent, 80.0), 100.0) / 100.0;
+}
+
+static inline CGSize MTQuickLauncherBaseSize(BOOL wide) {
+    return wide ? CGSizeMake(620, 278) : CGSizeMake(316, 470);
 }
 
 static inline CGRect MTQuickLauncherPanelFrame(CGRect bounds, CGFloat topInset, CGFloat leftInset,
@@ -15,9 +18,11 @@ static inline CGRect MTQuickLauncherPanelFrame(CGRect bounds, CGFloat topInset, 
     CGFloat right = CGRectGetMaxX(bounds) - rightInset - (side == 1 ? 4 : 8);
     CGFloat top = CGRectGetMinY(bounds) + topInset + 8, bottom = CGRectGetMaxY(bounds) - bottomInset - 8;
     BOOL wide = right - left > 440 && bounds.size.width > bounds.size.height;
+    CGSize base = MTQuickLauncherBaseSize(wide);
     CGFloat factor = MTQuickLauncherScaleFactor(scalePercent);
-    CGFloat width = MIN((wide ? 620 : 316) * factor, MAX(0, right - left));
-    CGFloat height = MIN((wide ? 278 : 470) * factor, MAX(0, bottom - top));
+    // 安全区不足时整体等比收缩，不能单独压扁高度挤占九键区。
+    factor = MIN(factor, MIN(MAX(0, right - left) / base.width, MAX(0, bottom - top) / base.height));
+    CGFloat width = base.width * factor, height = base.height * factor;
     return CGRectMake(side == 1 ? right - width : left, bottom - height, width, height);
 }
 

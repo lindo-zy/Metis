@@ -80,6 +80,7 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
 
 @interface MTQuickLauncherView () <UICollectionViewDataSource, UICollectionViewDelegate>
 @property(nonatomic, strong) UIVisualEffectView *material;
+@property(nonatomic, strong) UIView *panelContent;
 @property(nonatomic, strong) UILabel *titleLabel;
 @property(nonatomic, strong) UIButton *closeButton;
 @property(nonatomic, strong) UIButton *clearButton;
@@ -115,15 +116,16 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
         self.layer.borderWidth = 0.5; self.layer.borderColor = [UIColor.whiteColor colorWithAlphaComponent:0.2].CGColor;
         self.material = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark]];
         self.material.userInteractionEnabled = NO; [self addSubview:self.material];
+        self.panelContent = [UIView new]; [self addSubview:self.panelContent];
         self.titleLabel = [UILabel new]; self.titleLabel.text = MTQL(@"QUICK_TITLE");
         self.titleLabel.font = [UIFont boldSystemFontOfSize:17]; self.titleLabel.textColor = UIColor.whiteColor;
-        [self addSubview:self.titleLabel];
+        [self.panelContent addSubview:self.titleLabel];
         self.closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
         [self.closeButton setImage:[UIImage systemImageNamed:@"xmark"] forState:UIControlStateNormal];
         self.closeButton.tintColor = UIColor.whiteColor; self.closeButton.accessibilityLabel = MTQL(@"QUICK_CLOSE");
-        [self.closeButton addTarget:self action:@selector(closeTapped) forControlEvents:UIControlEventTouchUpInside]; [self addSubview:self.closeButton];
+        [self.closeButton addTarget:self action:@selector(closeTapped) forControlEvents:UIControlEventTouchUpInside]; [self.panelContent addSubview:self.closeButton];
         self.queryBackground = [UIView new]; self.queryBackground.backgroundColor = [UIColor.whiteColor colorWithAlphaComponent:0.10];
-        self.queryBackground.layer.cornerRadius = 12; [self addSubview:self.queryBackground];
+        self.queryBackground.layer.cornerRadius = 12; [self.panelContent addSubview:self.queryBackground];
         self.queryLabel = [UILabel new]; self.queryLabel.font = [UIFont systemFontOfSize:16]; self.queryLabel.textColor = UIColor.whiteColor;
         [self.queryBackground addSubview:self.queryLabel];
         self.clearButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -132,17 +134,17 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
         [self.clearButton addTarget:self action:@selector(clearQuery) forControlEvents:UIControlEventTouchUpInside];
         [self.queryBackground addSubview:self.clearButton];
         self.statusLabel = [UILabel new]; self.statusLabel.textColor = UIColor.lightGrayColor;
-        self.statusLabel.font = [UIFont systemFontOfSize:11]; [self addSubview:self.statusLabel];
+        self.statusLabel.font = [UIFont systemFontOfSize:11]; [self.panelContent addSubview:self.statusLabel];
         self.flow = [UICollectionViewFlowLayout new]; self.flow.scrollDirection = UICollectionViewScrollDirectionHorizontal;
         self.flow.minimumLineSpacing = 0; self.flow.minimumInteritemSpacing = 0;
         self.collection = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:self.flow];
         self.collection.backgroundColor = UIColor.clearColor; self.collection.pagingEnabled = YES;
         self.collection.showsHorizontalScrollIndicator = NO; self.collection.dataSource = self; self.collection.delegate = self;
         self.collection.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-        [self.collection registerClass:MTLauncherPageCell.class forCellWithReuseIdentifier:@"page"]; [self addSubview:self.collection];
+        [self.collection registerClass:MTLauncherPageCell.class forCellWithReuseIdentifier:@"page"]; [self.panelContent addSubview:self.collection];
         self.pages = [UIPageControl new]; self.pages.userInteractionEnabled = NO;
-        self.pages.hidesForSinglePage = YES; [self addSubview:self.pages];
-        self.keys = [UIView new]; [self addSubview:self.keys]; self.keyButtons = [NSMutableArray array];
+        self.pages.hidesForSinglePage = YES; [self.panelContent addSubview:self.pages];
+        self.keys = [UIView new]; [self.panelContent addSubview:self.keys]; self.keyButtons = [NSMutableArray array];
         self.catalog = [MTAppLauncherCatalog new]; self.searchQueue = dispatch_queue_create("com.lindo.metis.keyboard.launcher.search", DISPATCH_QUEUE_SERIAL);
         __weak typeof(self) weakSelf = self;
         self.catalog.didInvalidate = ^{ if (weakSelf.active) [weakSelf loadCatalog]; };
@@ -284,8 +286,17 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 }
 - (void)layoutSubviews {
     [super layoutSubviews]; self.material.frame = self.bounds;
-    CGFloat width = self.bounds.size.width, height = self.bounds.size.height;
-    BOOL wide = width > 400; CGFloat contentWidth = wide ? floor(width * 0.47) - 20 : width - 24;
+    BOOL wide = self.bounds.size.width > self.bounds.size.height;
+    CGSize base = MTQuickLauncherBaseSize(wide);
+    CGFloat scale = MIN(self.bounds.size.width / base.width, self.bounds.size.height / base.height);
+    // 内部始终按基准尺寸排版，再统一缩放文字、图标、间距及按钮。
+    // 不能只缩外框而保留 254pt 的九键起点，否则 80% 时按键会被压扁。
+    self.panelContent.bounds = (CGRect){CGPointZero, base};
+    self.panelContent.transform = CGAffineTransformMakeScale(scale, scale);
+    self.panelContent.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    self.layer.cornerRadius = 24 * scale;
+    CGFloat width = base.width, height = base.height;
+    CGFloat contentWidth = wide ? floor(width * 0.47) - 20 : width - 24;
     self.titleLabel.frame = CGRectMake(12, 8, contentWidth - 44, 28);
     self.closeButton.frame = CGRectMake(width - 48, 0, 44, 44);
     self.queryBackground.frame = CGRectMake(12, 44, contentWidth, 36);
@@ -299,7 +310,7 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     BOOL changed = self.slots != slots; self.slots = slots;
     CGSize itemSize = CGSizeMake(contentWidth, gridHeight);
     if (!CGSizeEqualToSize(self.flow.itemSize, itemSize)) { self.flow.itemSize = itemSize; [self.flow invalidateLayout]; }
-    self.keys.frame = MTQuickLauncherKeysFrame(self.bounds.size);
+    self.keys.frame = MTQuickLauncherKeysFrame(base);
     for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
     if (changed) { self.pages.numberOfPages = (self.results.count + slots - 1) / slots; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData]; }
 }
