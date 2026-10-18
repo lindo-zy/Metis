@@ -352,6 +352,12 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
 // 选中后仍走 startAddFlowForType: 暂存条目 + 编辑器，store 只在保存时写入。
 // 批量添加应用移入「更多」菜单，保持本页与设计稿一致的六类型布局。
 - (void)presentNewActionPage {
+    // 防御：无导航栈时不静默失败——记录现场（编辑器同样依赖导航栈，
+    // 此形态下「添加」点击本就无法走完，日志便于宿主侧定位）。
+    if (!self.navigationController) {
+        NSLog(@"[MetisKeyboard][CustomActions] add page skipped: no navigation controller");
+        return;
+    }
     MTPNewActionTypeController *page = [[MTPNewActionTypeController alloc] init];
     __weak typeof(self) weakSelf = self;
     page.selectionHandler = ^(NSString *type) {

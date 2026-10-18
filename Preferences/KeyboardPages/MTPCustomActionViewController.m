@@ -175,7 +175,26 @@ static NSBundle *mtpLocalBundle;
 
 #pragma mark - Action editor
 
+// 「新建动作」页可选六类型（与 MTPNewActionTypeController 固定顺序一致）；
+// legacy url 类型仅用于既有条目兼容，不在新建流程内。
+static BOOL MTIsCreatableActionType(NSString *type) {
+    static NSSet<NSString *> *creatableTypes;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        creatableTypes = [NSSet setWithObjects:kCustomActionTypeURLScheme, kCustomActionTypeText,
+            kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem,
+            kCustomActionTypeJavaScript, nil];
+    });
+    return [creatableTypes containsObject:type];
+}
+
 - (void)startAddFlowForType:(NSString *)type {
+    // 防御：nil/未知类型直接拒绝——字典字面量插入 nil 值会抛异常，未知类型
+    // 会产出编辑器无法识别的脏条目。
+    if (!MTIsCreatableActionType(type)) {
+        NSLog(@"[MetisKeyboard][CustomActions] add flow rejected: unknown type '%@'", type ?: @"<nil>");
+        return;
+    }
     BOOL opensApplication = [type isEqualToString:kCustomActionTypeOpenApp];
     NSMutableDictionary *entry = [@{
         @"selector": [kLinkActionSelectorPrefix stringByAppendingString:NSUUID.UUID.UUIDString],
@@ -222,6 +241,11 @@ static NSBundle *mtpLocalBundle;
     };
     [editor setRootController:[self rootController]];
     [editor setParentController:[self parentController]];
+    // PS 压栈链依赖 rootController：缺失时编辑器不会出现（点击「添加」无响应
+    // 的已知故障形态）。此处记录现场，便于宿主日志定位。
+    if (!editor.rootController) {
+        NSLog(@"[MetisKeyboard][CustomActions] editor push degraded: missing PS root controller");
+    }
     [self pushController:editor];
 }
 
