@@ -158,7 +158,7 @@
         Class controllerClass = target.className.length ? NSClassFromString(target.className) : Nil;
         if (!controllerClass) return;
         id controller = [[controllerClass alloc] init];
-        // Shell 内模型驱动页支持行级强调；PS 页（其他分类）自然忽略该属性。
+        // Shell 内模型驱动页支持行级强调；PS 页（引用管理）自然忽略该属性。
         if ([controller respondsToSelector:@selector(setPendingFocusIdentifier:)]) {
             [(MTSettingsTableController *)controller setPendingFocusIdentifier:
                 [target.userInfo isKindOfClass:NSString.class] ? target.userInfo : nil];

@@ -39,7 +39,7 @@ static NSString *MTToolbarActionName(PSSpecifier *specifier) {
 - (NSArray *)specifiers {
     if (_specifiers) return _specifiers;
     NSMutableArray *items = [NSMutableArray array];
-    // Dock/状态栏手势已归「其他」分类（02 §6）；本页只承载键盘自身手势。
+    // Dock/状态栏手势已归「全局」分类（02 §6）；本页只承载键盘自身手势。
     for (NSArray *category in @[
         @[@"KEYBOARD_GESTURE_SETTINGS", MTPKeyboardGestureController.class, @"keyboard"]
     ]) {

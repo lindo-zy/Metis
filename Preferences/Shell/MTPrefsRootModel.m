@@ -1,14 +1,14 @@
 #import "MTPrefsRootModel.h"
 #import "MTCore.h"
 
-// 五分类固定顺序与摘要（02 §1）；全局与其他在 Shell 内，键盘/剪切板/截图
-// 直达各子包根控制器。行元组：[id, 标题, 摘要, SF Symbol, 色token,
-// 子包(NSNull 或字符串), 控制器类名]。控制器一律字符串引用：模型不链接
-// 子包/壳控制器类，宿主测试只编译模型不编译控制器。
+// 四分类固定顺序与摘要（02 §1；原「其他」分类内容已并入全局，02 §6）；
+// 全局在 Shell 内，键盘/剪切板/截图直达各子包根控制器。行元组：[id, 标题,
+// 摘要, SF Symbol, 色token, 子包(NSNull 或字符串), 控制器类名]。控制器一律
+// 字符串引用：模型不链接子包/壳控制器类，宿主测试只编译模型不编译控制器。
 // configs 供 Tests/Host/run-prefs-shell-tests.sh 的结构检查解析，勿改元组形态。
 static NSArray *MTRootCategoryConfigs(void) {
     return @[
-        @[@"global",    @"全局",   @"自定义动作与面板管理", @"circle.hexagongrid.fill", @"indigo",
+        @[@"global",    @"全局",   @"手势、悬浮、自动化与共享资源", @"circle.hexagongrid.fill", @"indigo",
           [NSNull null], @"MTPrefsGlobalController"],
         @[@"keyboard",  @"键盘",   @"工具栏、输入与键盘手势", @"keyboard", @"blue",
           @"MetisKeyboardPrefs", @"MTPRootListController"],
@@ -16,8 +16,6 @@ static NSArray *MTRootCategoryConfigs(void) {
           @"MetisClipboardPrefs", @"MTClipboardRootListController"],
         @[@"capture",   @"截图",   @"截取、标注与长截图", @"crop", @"purple",
           @"MetisCapturePrefs", @"MTCaptureRootListController"],
-        @[@"other",     @"其他",   @"全局手势、悬浮应用与自动化", @"square.grid.2x2.fill", @"orange",
-          [NSNull null], @"MTPrefsOtherController"],
     ];
 }
 

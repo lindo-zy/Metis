@@ -48,7 +48,8 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
 
     // 「关于 Metis」页已移除（2026-10-17 需求），首页索引不再收录该条目。
 
-    // 全局分类范围：压栈到全局页并强调目标行。
+    // 全局分类范围：压栈到全局页并强调目标行。原「其他」分类页已并入
+    // 全局（2026-10-18 需求），其条目随本遍历自动收录，不再单独直达。
     for (MTSettingsSection *section in [MTPrefsGlobalModel globalPageModel].sections) {
         for (MTSettingsRow *row in section.rows) {
             MTSettingsRow *target = [MTSettingsRow linkRowWithIdentifier:row.identifier title:row.title];
@@ -57,15 +58,6 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
             target.userInfo = row.identifier; // 压栈后的强调目标
             add(row.title, @"全局", target);
         }
-    }
-
-    // 其他分类范围：压栈到「其他」页（PS 页不支持行级强调，只做页面直达）。
-    NSArray *otherTitles = @[@"Dock 手势", @"状态栏手势", @"悬浮应用", @"AI 问答", @"短信验证码自动复制", @"浏览器重定向"];
-    for (NSString *title in otherTitles) {
-        MTSettingsRow *target = [MTSettingsRow linkRowWithIdentifier:title title:title];
-        target.routeKind = MTSettingsRouteShellClass;
-        target.className = @"MTPrefsOtherController";
-        add(title, @"其他", target);
     }
 
     return entries;
