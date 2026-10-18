@@ -16,14 +16,13 @@
 
 +(BOOL)isVisibleShortcutSelector:(NSString *)selector {
     if (![self isAvailableShortcutSelector:selector]) return NO;
-    if ([selector isEqualToString:@"pixpinScreenshotAction:"] && ![self isCaptureScreenshotAvailable]) return NO;
 
     // These actions remain executable for existing preferences, but stay out of
     // the shortcut/action picker for new configurations.
     static NSSet *legacyHiddenSelectors;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        legacyHiddenSelectors = [NSSet setWithArray:@[@"runCommandAction:", @"spongebobAction:"]];
+        legacyHiddenSelectors = [NSSet setWithArray:@[@"runCommandAction:", @"spongebobAction:", @"pixpinScreenshotAction:"]];
     });
     return ![legacyHiddenSelectors containsObject:selector];
 }

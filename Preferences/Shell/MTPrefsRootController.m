@@ -7,17 +7,17 @@
 
 // 首页渲染：品牌头 + 搜索设置 + 卡片分区。模型与文案见 MTPrefsRootModel
 // （宿主测试权威）；本文件只做 UIKit 传输（02 §8：系统 grouped 风格）。
-@interface MTPrefsRootController () <UISearchBarDelegate>
+@interface MTPrefsRootController () <UITextFieldDelegate>
 @end
 
 @implementation MTPrefsRootController {
-    UISearchBar *_searchBar;
+    UISearchTextField *_searchField;
     BOOL _searchActive;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Metis";
+    self.title = @"";
     self.model = [MTPrefsRootModel rootPageModel];
     [self mtAttachToggleHandler];
     [self render];
@@ -26,8 +26,10 @@
 #pragma mark - Brand header + search
 
 - (UIView *)makeTableHeaderView {
-    // 设计稿头部：Metis 图标（包内 Metis.png）+「统一的效率工具」，下方搜索框。
+    // Brand mark and version share the same margins as the inset grouped cards.
     UIView *container = [[UIView alloc] init];
+    container.layoutMargins = self.tableView.layoutMargins;
+    container.insetsLayoutMarginsFromSafeArea = NO;
 
     UIImageView *brandIcon = [[UIImageView alloc] initWithImage:[self mtBrandIconImage]];
     brandIcon.layer.cornerRadius = 12.0;
@@ -39,19 +41,23 @@
 
     UILabel *brandSubtitle = [[UILabel alloc] init];
     // 副标题带当前版本号：关于页移除后主页即版本信息的唯一展示位。
-    brandSubtitle.text = [NSString stringWithFormat:@"统一的效率工具 · %@", MTCoreVersionString];
-    brandSubtitle.font = [UIFont systemFontOfSize:15.0];
+    brandSubtitle.text = MTCoreVersionString;
+    brandSubtitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
     brandSubtitle.textColor = UIColor.secondaryLabelColor;
     brandSubtitle.adjustsFontForContentSizeCategory = YES;
     brandSubtitle.translatesAutoresizingMaskIntoConstraints = NO;
     [container addSubview:brandSubtitle];
 
-    _searchBar = [[UISearchBar alloc] init];
-    _searchBar.placeholder = @"搜索设置";
-    _searchBar.searchBarStyle = UISearchBarStyleMinimal;
-    _searchBar.delegate = self;
-    _searchBar.translatesAutoresizingMaskIntoConstraints = NO;
-    [container addSubview:_searchBar];
+    _searchField = [[UISearchTextField alloc] init];
+    _searchField.placeholder = @"搜索设置";
+    _searchField.delegate = self;
+    _searchField.clearButtonMode = UITextFieldViewModeWhileEditing;
+    _searchField.returnKeyType = UIReturnKeySearch;
+    _searchField.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    _searchField.adjustsFontForContentSizeCategory = YES;
+    _searchField.translatesAutoresizingMaskIntoConstraints = NO;
+    [_searchField addTarget:self action:@selector(searchTextChanged:) forControlEvents:UIControlEventEditingChanged];
+    [container addSubview:_searchField];
 
     [NSLayoutConstraint activateConstraints:@[
         [brandIcon.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
@@ -61,10 +67,11 @@
         [brandSubtitle.leadingAnchor constraintEqualToAnchor:brandIcon.trailingAnchor constant:14.0],
         [brandSubtitle.centerYAnchor constraintEqualToAnchor:brandIcon.centerYAnchor],
         [brandSubtitle.trailingAnchor constraintLessThanOrEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
-        [_searchBar.topAnchor constraintEqualToAnchor:brandIcon.bottomAnchor constant:12.0],
-        [_searchBar.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
-        [_searchBar.trailingAnchor constraintEqualToAnchor:container.trailingAnchor],
-        [_searchBar.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-4.0],
+        [_searchField.topAnchor constraintEqualToAnchor:brandIcon.bottomAnchor constant:12.0],
+        [_searchField.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
+        [_searchField.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
+        [_searchField.heightAnchor constraintGreaterThanOrEqualToConstant:40.0],
+        [_searchField.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-4.0],
     ]];
     return container;
 }
@@ -164,26 +171,22 @@
     [self performRouteForRow:target];
 }
 
-#pragma mark - UISearchBarDelegate
+#pragma mark - Search field
 
-- (void)searchBarTextDidBeginEditing:(UISearchBar *)searchBar {
-    _searchActive = YES;
-    searchBar.showsCancelButton = YES;
+- (void)viewDidLayoutSubviews {
+    self.tableView.tableHeaderView.layoutMargins = self.tableView.layoutMargins;
+    [super viewDidLayoutSubviews];
 }
 
-- (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText {
-    if (searchText.length) [self mtApplySearchQuery:searchText];
+- (void)searchTextChanged:(UISearchTextField *)field {
+    _searchActive = field.text.length > 0;
+    if (_searchActive) [self mtApplySearchQuery:field.text];
     else [self mtExitSearch];
 }
 
-- (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar {
-    [searchBar resignFirstResponder];
-}
-
-- (void)searchBarCancelButtonClicked:(UISearchBar *)searchBar {
-    searchBar.text = @"";
-    [searchBar resignFirstResponder];
-    [self mtExitSearch];
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    [textField resignFirstResponder];
+    return YES;
 }
 
 @end

@@ -560,66 +560,6 @@
 			<key>useSearchBar</key>
 			<true/>
 		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTCreditsListController</string>
-			<key>label</key>
-			<string>Acknowledgments &amp; Licenses</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>condensedFooterText</key>
-			<string>Made by OwnGoal Studio</string>
-			<key>footerText</key>
-			<string>Made by OwnGoal Studio</string>
-			<key>hideFooterTextAfterPreferenceDefaults</key>
-			<string>com.lindo.metis.clipboard</string>
-			<key>hideFooterTextAfterPreferenceKey</key>
-			<string>DidOpenHavocLink</string>
-			<key>label</key>
-			<string></string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string></string>
-		</dict>
-		<dict>
-			<key>cellClass</key>
-			<string>MTLinkCell</string>
-			<key>height</key>
-			<integer>54</integer>
-			<key>label</key>
-			<string>mlgm</string>
-			<key>subtitle</key>
-			<string>Open mlgm's GitHub profile.</string>
-			<key>url</key>
-			<string>https://github.com/mlgm66</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>This build was modified by lindo based on the OwnGoal Studio edition.</string>
-			<key>label</key>
-			<string></string>
-		</dict>
-		<dict>
-			<key>cellClass</key>
-			<string>MTLinkCell</string>
-			<key>height</key>
-			<integer>54</integer>
-			<key>label</key>
-			<string>lindo Personal Repo</string>
-			<key>subtitle</key>
-			<string>Sharing some tweaks and apps I use myself.</string>
-			<key>url</key>
-			<string>https://lindo.github.io</string>
-		</dict>
 	</array>
 	<key>title</key>
 	<string>剪切板</string>

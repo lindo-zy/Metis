@@ -1,621 +1,172 @@
-//
-//  MTCustomJumpManagementViewController.m
-//  Mt
-//
-
 #import "MTCustomJumpManagementViewController.h"
-#import "MTCustomJump.h"
-#import "MTCustomJumpStore.h"
-#import "MTCustomJumpTableViewCell.h"
-#import "MTCustomJumpEditorViewController.h"
-#import "MTTagPlaceholderView.h"
+#import "MTClipboardActionReferences.h"
+#import "MTSharedResourceStore.h"
+#import "MTPrefsManager.h"
+#import "MTPreferenceKeys.h"
+#import <roothide.h>
 
-static NSString *const kMTCustomJumpCellReuseIdentifier = @"MTCustomJumpCell";
-static NSString *const kMTActionTypeCellReuseIdentifier = @"MTActionTypeCell";
-static CGFloat const kMTCustomJumpPlaceholderMinimumHeight = 96.0;
-static NSInteger const kMTSectionSelectedActions = 0;
-static NSInteger const kMTSectionChooseAction = 1;
-
-// The list page mirrors the reference layout: configured actions on top, the
-// fixed add-action entries below, and a single Edit toggle driving both batch
-// deletion and drag reordering.
 @interface MTCustomJumpManagementViewController () <UITableViewDataSource, UITableViewDelegate>
 @property(nonatomic, strong) UITableView *tableView;
-@property(nonatomic, strong) MTTagPlaceholderView *placeholderView;
-@property(nonatomic, strong) NSMutableArray<MTCustomJump *> *jumps;
-@property(nonatomic, strong) NSMutableSet<NSString *> *selectedJumpUUIDs;
-@property(nonatomic, strong) MTCustomJumpStore *jumpStore;
-@property(nonatomic, strong) NSBundle *localizationBundle;
-@property(nonatomic, strong) UIBarButtonItem *toolbarFlexibleSpaceItem;
-@property(nonatomic, strong) UIBarButtonItem *selectToolbarItem;
-@property(nonatomic, strong) UIBarButtonItem *deleteToolbarItem;
-@property(nonatomic, assign, getter=isUpdatingPlaceholderLayout) BOOL updatingPlaceholderLayout;
-- (UIBarButtonItem *)editDoneButton;
-- (void)updateToolbarItems;
-- (void)toggleSelectAll;
-- (void)deleteSelectedJumps;
-- (BOOL)allJumpsSelected;
-- (NSArray<NSString *> *)availableActionTypes;
-- (void)addJumpWithType:(NSString *)type;
-- (void)updatePlaceholderVisibility;
+@property(nonatomic, copy) NSDictionary *snapshot;
+@property(nonatomic, copy) NSArray<NSDictionary *> *availableActions;
+@property(nonatomic, strong) NSMutableArray<NSString *> *selectedIDs;
 @end
 
 @implementation MTCustomJumpManagementViewController
 
-+ (BOOL)isImageActionManagement {
-    return NO;
-}
++ (BOOL)isImageActionManagement { return NO; }
++ (NSString *)referenceSlot { return [self isImageActionManagement] ? @"image" : @"text"; }
 
-- (void)loadView {
-    UIView *view = [[UIView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    [view setBackgroundColor:[UIColor systemGroupedBackgroundColor]];
-    [self setView:view];
++ (BOOL)prepareSharedActionsWithError:(NSError **)error {
+    // Settings owns migration and all writes; runtime only resolves published bindings.
+    [MTPrefsManager.sharedInstance readPrefs];
+    NSDictionary *snapshot = [MTSharedResourceStore readSnapshotError:error];
+    if (!snapshot) return NO;
+    if ([snapshot[@"migration"][@"clipboardActionReferencesV1"] boolValue]) return YES;
+    NSMutableArray *legacy = [NSMutableArray array];
+    for (NSString *name in @[@"custom-jumps-v1.plist", @"image-actions-v1.plist"]) {
+        NSString *path = [jbroot(@"/var/mobile/Library/com.lindo.metis.clipboard") stringByAppendingPathComponent:name];
+        NSArray *items = @[];
+        if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
+            NSData *data = [NSData dataWithContentsOfFile:path options:0 error:error];
+            if (!data) return NO;
+            id plist = [NSPropertyListSerialization propertyListWithData:data options:0 format:NULL error:error];
+            if (![plist isKindOfClass:NSArray.class]) {
+                if (error && !*error) *error = [NSError errorWithDomain:@"MetisClipboardMigration" code:1
+                    userInfo:@{NSLocalizedDescriptionKey: @"旧动作文件无法读取，已保留原文件。"}];
+                return NO;
+            }
+            items = plist;
+        }
+        [legacy addObject:items];
+    }
+    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:kMTClipboardPreferencesIdentifier];
+    NSDictionary *next = [MTClipboardActionReferences document:snapshot importingText:legacy[0] image:legacy[1]
+        doubleTapURL:[defaults stringForKey:kMTPreferenceKeyImageDoubleTapActionURL] ?: @""];
+    return [MTSharedResourceStore commitSnapshot:next expectedRevision:[snapshot[@"revision"] unsignedLongLongValue] error:error];
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-
-    _localizationBundle = [NSBundle bundleForClass:[self class]];
-    _jumps = [[NSMutableArray alloc] init];
-    _selectedJumpUUIDs = [[NSMutableSet alloc] init];
-    NSString *jumpsPath = [[self class] isImageActionManagement] ? [MTCustomJumpStore defaultImageActionsPath]
-                                                                  : [MTCustomJumpStore defaultJumpsPath];
-    _jumpStore = [[MTCustomJumpStore alloc] initWithJumpsPath:jumpsPath];
-
-    [self setTitle:[self localizedStringForKey:[[self class] isImageActionManagement] ? @"Image Actions" : @"Custom Jumps"]];
-    [self loadJumps];
-    [self configureNavigationItem];
-    [self configureTableView];
-    [self configurePlaceholderView];
-    [self configureToolbarItems];
-    [self updateToolbarItems];
-    [self updatePlaceholderVisibility];
-}
-
-- (void)viewDidLayoutSubviews {
-    [super viewDidLayoutSubviews];
-    [self updatePlaceholderLayout];
+    NSString *slot = [self.class referenceSlot];
+    self.title = [slot isEqual:@"image-double-tap"] ? @"图片双击动作" :
+        ([self.class isImageActionManagement] ? @"图片动作" : @"文字动作");
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"排序"
+        style:UIBarButtonItemStylePlain target:self action:@selector(toggleOrdering)];
+    if ([slot isEqual:@"image-double-tap"]) self.navigationItem.rightBarButtonItem = nil;
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.tableView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.tableView.dataSource = self;
+    self.tableView.delegate = self;
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 60;
+    [self.view addSubview:self.tableView];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.tableView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.tableView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        [self.tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+    ]];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    [[self navigationController] setToolbarHidden:YES animated:animated];
-}
-
-- (void)loadJumps {
+    [self.navigationController setToolbarHidden:YES animated:animated];
     NSError *error = nil;
-    NSMutableArray<MTCustomJump *> *loadedJumps = [[self jumpStore] loadJumpsWithError:&error];
-    if (!loadedJumps) {
-        [self presentError:error];
-        return;
+    if (![self.class prepareSharedActionsWithError:&error]) {
+        [self showError:error];
     }
-    [[self jumps] addObjectsFromArray:loadedJumps];
+    [self reloadReferences];
 }
 
-- (void)configureTableView {
-    _tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
-    [_tableView setTranslatesAutoresizingMaskIntoConstraints:NO];
-    [_tableView setDataSource:self];
-    [_tableView setDelegate:self];
-    [_tableView setAllowsMultipleSelectionDuringEditing:YES];
-    [_tableView setRowHeight:64.0];
-    [_tableView registerClass:[MTCustomJumpTableViewCell class]
-       forCellReuseIdentifier:kMTCustomJumpCellReuseIdentifier];
-    [_tableView registerClass:[UITableViewCell class]
-       forCellReuseIdentifier:kMTActionTypeCellReuseIdentifier];
-    [[self view] addSubview:_tableView];
-    [NSLayoutConstraint activateConstraints:@[
-        [[_tableView topAnchor] constraintEqualToAnchor:[[self view] topAnchor]],
-        [[_tableView leadingAnchor] constraintEqualToAnchor:[[self view] leadingAnchor]],
-        [[_tableView trailingAnchor] constraintEqualToAnchor:[[self view] trailingAnchor]],
-        [[_tableView bottomAnchor] constraintEqualToAnchor:[[self view] bottomAnchor]]
-    ]];
+- (void)reloadReferences {
+    self.snapshot = [MTSharedResourceStore readSnapshot];
+    NSMutableArray *available = [NSMutableArray array];
+    for (NSDictionary *action in self.snapshot[@"actions"]) {
+        if ([MTClipboardActionReferences supportsEntry:action[@"entry"]]) [available addObject:action];
+    }
+    self.availableActions = available;
+    self.selectedIDs = [NSMutableArray array];
+    for (NSDictionary *entry in [MTClipboardActionReferences actionsInDocument:self.snapshot slot:[self.class referenceSlot]]) {
+        [self.selectedIDs addObject:entry[@"id"]];
+    }
+    [self.tableView reloadData];
 }
 
-- (void)configurePlaceholderView {
-    NSString *emptyKey = [[self class] isImageActionManagement] ? @"No Image Actions" : @"No Custom Jumps";
-    _placeholderView = [[MTTagPlaceholderView alloc] initWithMessage:[self localizedStringForKey:emptyKey]];
+- (void)toggleOrdering {
+    self.tableView.editing = !self.tableView.editing;
+    self.navigationItem.rightBarButtonItem.title = self.tableView.editing ? @"完成" : @"排序";
 }
 
-- (void)configureToolbarItems {
-    _toolbarFlexibleSpaceItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
-                                                                                target:nil
-                                                                                action:nil];
-    _selectToolbarItem = [[UIBarButtonItem alloc] initWithTitle:[self localizedStringForKey:@"Select All"]
-                                                          style:UIBarButtonItemStylePlain
-                                                         target:self
-                                                         action:@selector(toggleSelectAll)];
-    _deleteToolbarItem = [[UIBarButtonItem alloc] initWithTitle:[self localizedStringForKey:@"Delete"]
-                                                          style:UIBarButtonItemStylePlain
-                                                         target:self
-                                                         action:@selector(deleteSelectedJumps)];
-    [_deleteToolbarItem setTintColor:[UIColor systemRedColor]];
-}
-
-- (void)configureNavigationItem {
-    [[self navigationItem] setLargeTitleDisplayMode:UINavigationItemLargeTitleDisplayModeNever];
-    [[self navigationItem] setRightBarButtonItem:[self editDoneButton]];
-}
-
-- (UIBarButtonItem *)editDoneButton {
-    NSString *key = [self isEditing] ? @"Done" : @"Edit";
-    UIBarButtonItemStyle style = [self isEditing] ? UIBarButtonItemStyleDone : UIBarButtonItemStylePlain;
-    return [[UIBarButtonItem alloc] initWithTitle:[self localizedStringForKey:key]
-                                             style:style
-                                            target:self
-                                            action:@selector(toggleEditing)];
-}
-
-- (void)toggleEditing {
-    [self setEditing:![self isEditing] animated:YES];
-}
-
-- (void)setEditing:(BOOL)editing animated:(BOOL)animated {
-    BOOL wasEditing = [self isEditing];
-    if (editing && !wasEditing) {
-        [[self tableView] setEditing:NO animated:NO];
-    }
-
-    [super setEditing:editing animated:animated];
-    [[self tableView] setEditing:editing animated:animated];
-    [[self navigationItem] setRightBarButtonItem:[self editDoneButton] animated:animated];
-    if (!editing) {
-        [[self selectedJumpUUIDs] removeAllObjects];
-    }
-    [[self navigationController] setToolbarHidden:!editing animated:animated];
-    [self updateToolbarItems];
-}
-
-- (void)updateToolbarItems {
-    NSArray<UIBarButtonItem *> *toolbarItems = nil;
-    if ([self isEditing]) {
-        NSString *title = [self allJumpsSelected] ? [self localizedStringForKey:@"Deselect All"]
-                                                  : [self localizedStringForKey:@"Select All"];
-        [[self selectToolbarItem] setTitle:title];
-        [[self selectToolbarItem] setEnabled:[[self jumps] count] > 0];
-        [[self deleteToolbarItem] setEnabled:[[self selectedJumpUUIDs] count] > 0];
-        toolbarItems = @[ [self selectToolbarItem], [self toolbarFlexibleSpaceItem], [self deleteToolbarItem] ];
-    } else {
-        toolbarItems = @[];
-    }
-
-    if (![[self toolbarItems] isEqualToArray:toolbarItems]) {
-        [self setToolbarItems:toolbarItems animated:YES];
-    }
-}
-
-#pragma mark - Adding
-
-- (NSArray<NSString *> *)availableActionTypes {
-    return @[ kMTCustomJumpTypeURLScheme, kMTCustomJumpTypeOpenApp, kMTCustomJumpTypeShortcut ];
-}
-
-- (NSString *)displayNameForActionType:(NSString *)type {
-    if ([type isEqualToString:kMTCustomJumpTypeOpenApp]) {
-        return [self localizedStringForKey:@"Open App"];
-    }
-    if ([type isEqualToString:kMTCustomJumpTypeShortcut]) {
-        return [self localizedStringForKey:@"Shortcut"];
-    }
-    return [self localizedStringForKey:@"URL Scheme"];
-}
-
-- (UIImage *)iconForActionType:(NSString *)type {
-    NSString *symbolName = [type isEqualToString:kMTCustomJumpTypeOpenApp]      ? @"apps.iphone"
-        : [type isEqualToString:kMTCustomJumpTypeShortcut]                      ? @"square.grid.2x2"
-                                                                                    : kMTCustomJumpDefaultIconName;
-    return [UIImage systemImageNamed:symbolName];
-}
-
-- (void)addJumpWithType:(NSString *)type {
-    // Adding happens straight from the fixed option rows; nothing touches the
-    // store here — the action joins the list only when the editor's 完成
-    // reports the finished entry, so backing out of the editor never leaves a
-    // half-configured row behind.
-    // New entries start with the generic 动作 title so a bare add+完成 round
-    // trip still produces a readable row; the user can rename or let the
-    // pickers fill in the app/shortcut identity.
-    MTCustomJump *jump = [[MTCustomJump alloc] initWithUUID:[[NSUUID UUID] UUIDString]
-                                                              title:[self localizedStringForKey:@"Action"]
-                                                               link:@""
-                                                               icon:nil
-                                                               type:type
-                                                       shortcutType:nil];
-    MTCustomJumpEditorViewController *editor =
-        [[MTCustomJumpEditorViewController alloc] initWithJump:jump
-                                                 localizationBundle:[self localizationBundle]
-                                                     isImageAction:[[self class] isImageActionManagement]];
-    __weak typeof(self) weakSelf = self;
-    [editor setCompletionHandler:^(MTCustomJump *updatedJump) {
-      __strong typeof(weakSelf) strongSelf = weakSelf;
-      if (!strongSelf) return;
-      NSMutableArray<MTCustomJump *> *updatedJumps = [[strongSelf jumps] mutableCopy];
-      [updatedJumps addObject:updatedJump];
-      if (![strongSelf saveJumps:updatedJumps]) {
-          return;
-      }
-      [[strongSelf jumps] addObject:updatedJump];
-      [strongSelf updatePlaceholderVisibility];
-      NSIndexPath *indexPath = [NSIndexPath indexPathForRow:(NSInteger)([[strongSelf jumps] count] - 1)
-                                                  inSection:kMTSectionSelectedActions];
-      [[strongSelf tableView] insertRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
-      [[strongSelf tableView] scrollToRowAtIndexPath:indexPath
-                                    atScrollPosition:UITableViewScrollPositionMiddle
-                                           animated:YES];
-    }];
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:editor];
-    [navigationController setModalPresentationStyle:UIModalPresentationPageSheet];
-    [self presentViewController:navigationController animated:YES completion:nil];
-}
-
-#pragma mark - Editing
-
-- (BOOL)deleteJumpAtIndexPath:(NSIndexPath *)indexPath {
-    if ([indexPath section] != kMTSectionSelectedActions || (NSUInteger)[indexPath row] >= [[self jumps] count]) {
-        return NO;
-    }
-
-    NSUInteger index = (NSUInteger)[indexPath row];
-    MTCustomJump *deletedJump = [self jumps][index];
-    NSMutableArray<MTCustomJump *> *updatedJumps = [[self jumps] mutableCopy];
-    [updatedJumps removeObjectAtIndex:index];
-    if (![self saveJumps:updatedJumps]) {
-        return NO;
-    }
-
-    [[self jumps] removeObjectAtIndex:index];
-    [[self selectedJumpUUIDs] removeObject:[deletedJump uuid]];
-    [self updatePlaceholderVisibility];
-    [[self tableView] deleteRowsAtIndexPaths:@[ indexPath ] withRowAnimation:UITableViewRowAnimationAutomatic];
-    [self updateToolbarItems];
-    return YES;
-}
-
-- (void)toggleSelectAll {
-    if ([[self jumps] count] == 0) {
-        return;
-    }
-
-    BOOL shouldDeselect = [self allJumpsSelected];
-    for (NSUInteger index = 0; index < [[self jumps] count]; index++) {
-        MTCustomJump *jump = [self jumps][index];
-        NSIndexPath *indexPath = [NSIndexPath indexPathForRow:(NSInteger)index inSection:kMTSectionSelectedActions];
-        if (shouldDeselect) {
-            [[self selectedJumpUUIDs] removeObject:[jump uuid]];
-            [[self tableView] deselectRowAtIndexPath:indexPath animated:YES];
-        } else {
-            [[self selectedJumpUUIDs] addObject:[jump uuid]];
-            [[self tableView] selectRowAtIndexPath:indexPath animated:YES scrollPosition:UITableViewScrollPositionNone];
-        }
-    }
-    [self updateToolbarItems];
-}
-
-- (void)deleteSelectedJumps {
-    if ([[self selectedJumpUUIDs] count] == 0) {
-        return;
-    }
-
-    NSMutableArray<NSIndexPath *> *deletedIndexPaths = [[NSMutableArray alloc] init];
-    for (NSUInteger index = 0; index < [[self jumps] count]; index++) {
-        if ([[self selectedJumpUUIDs] containsObject:[[self jumps][index] uuid]]) {
-            [deletedIndexPaths addObject:[NSIndexPath indexPathForRow:(NSInteger)index
-                                                            inSection:kMTSectionSelectedActions]];
-        }
-    }
-
-    NSMutableArray<MTCustomJump *> *updatedJumps = [[NSMutableArray alloc] init];
-    for (MTCustomJump *jump in [self jumps]) {
-        if (![[self selectedJumpUUIDs] containsObject:[jump uuid]]) {
-            [updatedJumps addObject:jump];
-        }
-    }
-    if (![self saveJumps:updatedJumps]) {
-        return;
-    }
-
-    NSSet<NSString *> *deletedUUIDs = [[self selectedJumpUUIDs] copy];
-    [self setJumps:updatedJumps];
-    [[self selectedJumpUUIDs] minusSet:deletedUUIDs];
-    [self updatePlaceholderVisibility];
-    if ([deletedIndexPaths count] > 0) {
-        [[self tableView] deleteRowsAtIndexPaths:deletedIndexPaths withRowAnimation:UITableViewRowAnimationAutomatic];
-    }
-    [self updateToolbarItems];
-}
-
-- (void)presentEditorForJump:(MTCustomJump *)jump {
-    MTCustomJumpEditorViewController *editor =
-        [[MTCustomJumpEditorViewController alloc] initWithJump:jump
-                                                   localizationBundle:[self localizationBundle]
-                                                       isImageAction:[[self class] isImageActionManagement]];
-    __weak typeof(self) weakSelf = self;
-    [editor setCompletionHandler:^(MTCustomJump *updatedJump) {
-      [weakSelf updateJump:updatedJump];
-    }];
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:editor];
-    [navigationController setModalPresentationStyle:UIModalPresentationPageSheet];
-    [self presentViewController:navigationController animated:YES completion:nil];
-}
-
-- (void)updateJump:(MTCustomJump *)updatedJump {
-    NSUInteger index = [self indexOfJumpWithUUID:[updatedJump uuid]];
-    if (index == NSNotFound) {
-        return;
-    }
-
-    NSMutableArray<MTCustomJump *> *updatedJumps = [[self jumps] mutableCopy];
-    updatedJumps[index] = updatedJump;
-    if (![self saveJumps:updatedJumps]) {
-        return;
-    }
-
-    [self setJumps:updatedJumps];
-    NSIndexPath *indexPath = [NSIndexPath indexPathForRow:(NSInteger)index inSection:kMTSectionSelectedActions];
-    MTCustomJumpTableViewCell *cell =
-        (MTCustomJumpTableViewCell *)[[self tableView] cellForRowAtIndexPath:indexPath];
-    if ([cell isKindOfClass:[MTCustomJumpTableViewCell class]]) {
-        [cell configureWithJump:updatedJump editing:[self isEditing]];
-    }
-}
-
-- (BOOL)allJumpsSelected {
-    if ([[self jumps] count] == 0) {
-        return NO;
-    }
-    for (MTCustomJump *jump in [self jumps]) {
-        if (![[self selectedJumpUUIDs] containsObject:[jump uuid]]) {
-            return NO;
-        }
-    }
-    return YES;
-}
-
-- (NSUInteger)indexOfJumpWithUUID:(NSString *)uuid {
-    for (NSUInteger index = 0; index < [[self jumps] count]; index++) {
-        if ([[[self jumps][index] uuid] isEqualToString:uuid]) {
-            return index;
-        }
-    }
-    return NSNotFound;
-}
-
-- (BOOL)saveJumps:(NSArray<MTCustomJump *> *)jumps {
+- (BOOL)saveReferences {
     NSError *error = nil;
-    if ([[self jumpStore] saveJumps:jumps error:&error]) {
-        return YES;
-    }
-    [self presentError:error];
-    return NO;
+    BOOL saved = [MTClipboardActionReferences setActionIDs:self.selectedIDs slot:[self.class referenceSlot]
+        expectedRevision:[self.snapshot[@"revision"] unsignedLongLongValue] error:&error];
+    if (!saved) [self showError:error];
+    [self reloadReferences];
+    return saved;
 }
 
-- (void)updatePlaceholderVisibility {
-    UIView *footerView = [[self tableView] tableFooterView];
-    if ([[self jumps] count] > 0) {
-        if (footerView == [self placeholderView]) {
-            [[self tableView] setTableFooterView:nil];
-        }
-        return;
-    }
-
-    if (footerView != [self placeholderView]) {
-        [[self tableView] setTableFooterView:[self placeholderView]];
-    }
-    [[self placeholderView] setMessage:[self localizedStringForKey:[[self class] isImageActionManagement]
-                                                                        ? @"No Image Actions"
-                                                                        : @"No Custom Jumps"]];
-    [self updatePlaceholderLayout];
-}
-
-- (void)updatePlaceholderLayout {
-    if ([self isUpdatingPlaceholderLayout] || [[self tableView] tableFooterView] != [self placeholderView]) {
-        return;
-    }
-
-    CGFloat availableHeight = CGRectGetHeight([[self tableView] bounds]) -
-                              MAX([[self tableView] adjustedContentInset].top - [[self tableView] contentInset].top, 0.0) -
-                              MAX([[self tableView] adjustedContentInset].bottom - [[self tableView] contentInset].bottom, 0.0);
-    CGRect targetFrame = CGRectMake(0.0, 0.0, CGRectGetWidth([[self tableView] bounds]),
-                                    floor(MAX(availableHeight, kMTCustomJumpPlaceholderMinimumHeight)));
-    if (CGRectEqualToRect([[self placeholderView] frame], targetFrame)) {
-        return;
-    }
-
-    [self setUpdatingPlaceholderLayout:YES];
-    [[self placeholderView] setFrame:targetFrame];
-    [[self tableView] setTableFooterView:[self placeholderView]];
-    [self setUpdatingPlaceholderLayout:NO];
-}
-
-- (NSString *)localizedStringForKey:(NSString *)key {
-    return [[self localizationBundle] localizedStringForKey:key value:key table:@"CustomJumps"] ?: key;
-}
-
-- (void)presentError:(NSError *)error {
-    NSString *titleKey = [[self class] isImageActionManagement] ? @"Image Actions" : @"Custom Jumps";
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self localizedStringForKey:titleKey]
-                                                                    message:[error localizedDescription]
-                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:[self localizedStringForKey:@"OK"]
-                                               style:UIAlertActionStyleDefault
-                                             handler:nil]];
+- (void)showError:(NSError *)error {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"动作引用未保存"
+        message:error.localizedDescription ?: @"全局动作暂不可用，请返回后重试。" preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
-#pragma mark - UITableViewDataSource
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    (void)tableView;
-    return 2;
-}
-
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    (void)tableView;
-    return section == kMTSectionChooseAction ? (NSInteger)[[self availableActionTypes] count]
-                                                 : (NSInteger)[[self jumps] count];
+    return section == 0 ? self.selectedIDs.count : self.availableActions.count;
 }
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    if ([indexPath section] == kMTSectionChooseAction) {
-        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:kMTActionTypeCellReuseIdentifier
-                                                                forIndexPath:indexPath];
-        NSString *type = [self availableActionTypes][(NSUInteger)[indexPath row]];
-        [[cell imageView] setImage:[self iconForActionType:type]];
-        [[cell textLabel] setText:[self displayNameForActionType:type]];
-        [[cell textLabel] setFont:[UIFont systemFontOfSize:17.0]];
-        [[cell textLabel] setTextColor:[UIColor labelColor]];
-        [cell setAccessoryType:UITableViewCellAccessoryNone];
-        return cell;
-    }
-
-    MTCustomJumpTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:kMTCustomJumpCellReuseIdentifier
-                                                                            forIndexPath:indexPath];
-    [cell configureWithJump:[self jumps][(NSUInteger)[indexPath row]] editing:[self isEditing]];
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    return section == 0 ? @"已引用动作" : @"从全局动作选择";
+}
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if (section == 0) return self.selectedIDs.count ? @"轻点可取消引用。" : @"尚未引用动作。";
+    return @"动作统一在“全局 → 自定义动作”中创建和编辑；此处只保存引用。文本插入需要输入框；JavaScript 需使用剪切板输入和复制输出。";
+}
+- (NSDictionary *)actionAtIndexPath:(NSIndexPath *)path {
+    if (path.section == 1) return self.availableActions[path.row];
+    NSString *uuid = self.selectedIDs[path.row];
+    for (NSDictionary *action in self.availableActions) if ([action[@"id"] isEqual:uuid]) return action;
+    return nil;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"SharedClipboardAction"];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"SharedClipboardAction"];
+    NSDictionary *action = [self actionAtIndexPath:path];
+    NSDictionary *entry = action[@"entry"];
+    cell.textLabel.text = entry[@"name"] ?: @"未命名动作";
+    cell.textLabel.numberOfLines = 0;
+    cell.detailTextLabel.text = entry[@"type"] ?: @"URL Scheme";
+    cell.imageView.image = [UIImage systemImageNamed:entry[@"icon"] ?: @"link"] ?: [UIImage systemImageNamed:@"link"];
+    cell.accessoryType = [self.selectedIDs containsObject:action[@"id"]] ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     return cell;
 }
-
-- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    (void)tableView;
-    return [self localizedStringForKey:section == kMTSectionChooseAction ? @"Choose Action" : @"Selected"];
-}
-
-- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
-    (void)tableView;
-    if (section != kMTSectionSelectedActions) {
-        return nil;
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
+    [tableView deselectRowAtIndexPath:path animated:YES];
+    NSString *uuid = [self actionAtIndexPath:path][@"id"];
+    if (!uuid) return;
+    if ([self.selectedIDs containsObject:uuid]) [self.selectedIDs removeObject:uuid];
+    else {
+        if ([[self.class referenceSlot] isEqual:@"image-double-tap"]) [self.selectedIDs removeAllObjects];
+        [self.selectedIDs addObject:uuid];
     }
-
-    UILabel *footerLabel = [[UILabel alloc] init];
-    [footerLabel setNumberOfLines:0];
-    [footerLabel setFont:[UIFont systemFontOfSize:13.0]];
-    [footerLabel setTextColor:[UIColor secondaryLabelColor]];
-    [footerLabel setText:[self localizedStringForKey:@"Selected Actions Footer"]];
-    return footerLabel;
+    [self saveReferences];
 }
-
-- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    // The fixed add-action rows never participate in editing; only configured
-    // actions can be deleted or reordered.
-    return [indexPath section] == kMTSectionSelectedActions;
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)path { return path.section == 0; }
+- (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)path {
+    return UITableViewCellEditingStyleNone;
 }
-
-- (UITableViewCellEditingStyle)tableView:(UITableView *)tableView
-           editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    BOOL configuredAction = [indexPath section] == kMTSectionSelectedActions;
-    return (![self isEditing] && configuredAction) ? UITableViewCellEditingStyleDelete
-                                                   : UITableViewCellEditingStyleNone;
+- (BOOL)tableView:(UITableView *)tableView shouldIndentWhileEditingRowAtIndexPath:(NSIndexPath *)path { return NO; }
+- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)path { return path.section == 0; }
+- (NSIndexPath *)tableView:(UITableView *)tableView targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)source
+    toProposedIndexPath:(NSIndexPath *)target { return target.section == 0 ? target : source; }
+- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)source toIndexPath:(NSIndexPath *)target {
+    NSString *uuid = self.selectedIDs[source.row];
+    [self.selectedIDs removeObjectAtIndex:source.row];
+    [self.selectedIDs insertObject:uuid atIndex:target.row];
+    [self saveReferences];
 }
-
-- (void)tableView:(UITableView *)tableView
-    commitEditingStyle:(UITableViewCellEditingStyle)editingStyle
-     forRowAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    if (editingStyle == UITableViewCellEditingStyleDelete && ![self isEditing]) {
-        [self deleteJumpAtIndexPath:indexPath];
-    }
-}
-
-- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    return [self isEditing] && [indexPath section] == kMTSectionSelectedActions;
-}
-
-- (NSIndexPath *)tableView:(UITableView *)tableView
-    targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)sourceIndexPath
-                           toProposedIndexPath:(NSIndexPath *)proposedIndexPath {
-    (void)tableView;
-    if ([proposedIndexPath section] == kMTSectionSelectedActions) {
-        return proposedIndexPath;
-    }
-    return [NSIndexPath indexPathForRow:(NSInteger)([[self jumps] count] - 1)
-                              inSection:kMTSectionSelectedActions];
-}
-
-- (void)tableView:(UITableView *)tableView
-    moveRowAtIndexPath:(NSIndexPath *)sourceIndexPath
-           toIndexPath:(NSIndexPath *)destinationIndexPath {
-    if ([sourceIndexPath row] == [destinationIndexPath row]) {
-        return;
-    }
-
-    NSUInteger sourceIndex = (NSUInteger)[sourceIndexPath row];
-    NSUInteger destinationIndex = (NSUInteger)[destinationIndexPath row];
-    if (sourceIndex >= [[self jumps] count] || destinationIndex >= [[self jumps] count]) {
-        return;
-    }
-
-    NSMutableArray<MTCustomJump *> *updatedJumps = [[self jumps] mutableCopy];
-    MTCustomJump *jump = updatedJumps[sourceIndex];
-    [updatedJumps removeObjectAtIndex:sourceIndex];
-    [updatedJumps insertObject:jump atIndex:destinationIndex];
-    if (![self saveJumps:updatedJumps]) {
-        [tableView moveRowAtIndexPath:destinationIndexPath toIndexPath:sourceIndexPath];
-        return;
-    }
-    [self setJumps:updatedJumps];
-}
-
-#pragma mark - UITableViewDelegate
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if ([indexPath section] == kMTSectionChooseAction) {
-        if (![self isEditing]) {
-            [tableView deselectRowAtIndexPath:indexPath animated:YES];
-            [self addJumpWithType:[self availableActionTypes][(NSUInteger)[indexPath row]]];
-        }
-        return;
-    }
-
-    if ([self isEditing]) {
-        [[self selectedJumpUUIDs] addObject:[[self jumps][(NSUInteger)[indexPath row]] uuid]];
-        [self updateToolbarItems];
-        return;
-    }
-
-    [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    [self presentEditorForJump:[self jumps][(NSUInteger)[indexPath row]]];
-}
-
-- (void)tableView:(UITableView *)tableView didDeselectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (![self isEditing] || [indexPath section] != kMTSectionSelectedActions ||
-        (NSUInteger)[indexPath row] >= [[self jumps] count]) {
-        return;
-    }
-    [[self selectedJumpUUIDs] removeObject:[[self jumps][(NSUInteger)[indexPath row]] uuid]];
-    [self updateToolbarItems];
-}
-
-- (BOOL)tableView:(UITableView *)tableView shouldBeginMultipleSelectionInteractionAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    return [indexPath section] == kMTSectionSelectedActions;
-}
-
-- (void)tableView:(UITableView *)tableView didBeginMultipleSelectionInteractionAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    if (![self isEditing]) {
-        [self setEditing:YES animated:YES];
-    }
-}
-
-- (UISwipeActionsConfiguration *)tableView:(UITableView *)tableView
-    trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath *)indexPath {
-    (void)tableView;
-    if ([self isEditing] || [indexPath section] != kMTSectionSelectedActions) {
-        return nil;
-    }
-    UIContextualAction *deleteAction =
-        [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
-                                                title:[self localizedStringForKey:@"Delete"]
-                                              handler:^(__kindof UIContextualAction *action,
-                                                        __kindof UIView *sourceView, void (^completionHandler)(BOOL)) {
-                                                (void)action;
-                                                (void)sourceView;
-                                                completionHandler([self deleteJumpAtIndexPath:indexPath]);
-                                              }];
-    [deleteAction setImage:[UIImage systemImageNamed:@"trash.fill"]];
-    return [UISwipeActionsConfiguration configurationWithActions:@[ deleteAction ]];
-}
-
 @end

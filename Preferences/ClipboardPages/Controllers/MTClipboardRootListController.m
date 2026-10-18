@@ -10,6 +10,7 @@
 #import "MTPreferenceKeys.h"
 #import "MTRespringControllerSupport.h"
 #import "MTSliderCell.h"
+#import "MTCustomJumpManagementViewController.h"
 
 #import <Preferences/PSSpecifier.h>
 #import <UIKit/UIKit.h>
@@ -49,6 +50,10 @@ NS_ASSUME_NONNULL_END
     [super viewDidLoad];
 
     [self configureTestInputSearchController];
+    NSError *migrationError = nil;
+    if (![MTCustomJumpManagementViewController prepareSharedActionsWithError:&migrationError]) {
+        NSLog(@"[MetisClipboard] global action migration pending: %@", migrationError.localizedDescription);
+    }
 
     NSBundle *bundle = [NSBundle bundleForClass:[self class]];
     NSString *title = [bundle localizedStringForKey:@"Respring" value:nil table:@"Root"];
@@ -136,8 +141,7 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)configureCustomJumpManagementSpecifierInSpecifiers:(NSArray<PSSpecifier *> *)specifiers {
-    NSBundle *bundle = [NSBundle bundleForClass:[self class]];
-    NSString *localizedTitle = [bundle localizedStringForKey:@"CUSTOM_JUMPS" value:nil table:@"Root"];
+    NSString *localizedTitle = @"文字动作";
     for (PSSpecifier *specifier in specifiers) {
         NSString *detail = [specifier propertyForKey:@"detail"];
         if (![detail isEqualToString:@"MTCustomJumpManagementViewController"]) {

@@ -431,12 +431,11 @@
 "SYSTEM_GROUP_MEDIA" = "媒体控制";
 "SYSTEM_GROUP_DEVICE" = "设备操作";
 "SYSTEM_GROUP_CONTROL" = "控制中心";
-"SYSTEM_GROUP_PIXPIN" = "MetisCapture 截图";
-"SYSTEM_CAPTURE_FULL" = "MetisCapture 全屏截图";
-"SYSTEM_CAPTURE_AREA" = "MetisCapture 区域截图";
-"SYSTEM_CAPTURE_MARKUP" = "MetisCapture 全屏标记";
-"SYSTEM_CAPTURE_LONG" = "MetisCapture 滚动截图";
-"SYSTEM_CAPTURE_FOOTER" = "仅在已安装 MetisCapture 时显示。按 MetisCapture 当前设置执行；关闭功能、任务忙碌或尚未注入时可能不响应。请求已发送不代表截图或保存完成。";
+"SYSTEM_GROUP_PIXPIN" = "截图";
+"SYSTEM_CAPTURE_FULL" = "全屏截图";
+"SYSTEM_CAPTURE_AREA" = "区域截图";
+"SYSTEM_CAPTURE_MARKUP" = "全屏标记";
+"SYSTEM_CAPTURE_LONG" = "滚动截图";
 "SYSTEM_DEVICE_FOOTER" = "注销会重启界面服务，注销（SB）仅退出 SpringBoard。安全模式依赖越狱环境，重启用户空间需要系统权限。注销、安全模式、关机和重启执行前需要确认。";
 "SYSTEM_ACTION_CONFIRM" = "此操作会中断当前会话。确定继续？";
 "SYSTEM_ACTION_UNAVAILABLE" = "当前系统没有可用的动作接口";

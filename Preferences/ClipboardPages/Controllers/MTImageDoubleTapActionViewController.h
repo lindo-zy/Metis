@@ -1,13 +1,4 @@
-//
-//  MTImageDoubleTapActionViewController.h
-//  Mt
-//
+#import "MTCustomJumpManagementViewController.h"
 
-#import <Preferences/PSViewController.h>
-
-NS_ASSUME_NONNULL_BEGIN
-
-@interface MTImageDoubleTapActionViewController : PSViewController
+@interface MTImageDoubleTapActionViewController : MTCustomJumpManagementViewController
 @end
-
-NS_ASSUME_NONNULL_END

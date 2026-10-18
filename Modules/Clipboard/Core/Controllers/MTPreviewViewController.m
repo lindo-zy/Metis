@@ -293,38 +293,8 @@ NS_ASSUME_NONNULL_END
         return;
     }
 
-    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:kMTClipboardPreferencesIdentifier];
-    NSString *link = [[defaults stringForKey:kMTPreferenceKeyImageDoubleTapActionURL]
-        stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if ([link length] == 0) {
-        return;
-    }
-
-    __weak typeof(self) weakSelf = self;
-    [[MTPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
-                                                                   completion:^(BOOL didUpdate) {
-        if (!didUpdate) {
-            [weakSelf showActionFailureToast];
-            return;
-        }
-
-        NSURL *URL = [NSURL URLWithString:link];
-        if (!URL) {
-            [weakSelf showActionFailureToast];
-            return;
-        }
-
-        [[UIApplication sharedApplication] openURL:URL
-                                           options:@{}
-                                 completionHandler:^(BOOL success) {
-                                   if (success) {
-                                       return;
-                                   }
-                                   dispatch_async(dispatch_get_main_queue(), ^{
-                                     [weakSelf showActionFailureToast];
-                                   });
-                                 }];
-    }];
+    NSDictionary *action = [MTQuickAction actionsForKind:MTQuickActionKindImageDoubleTap].firstObject;
+    if (action) [self openImageAction:action];
 }
 
 - (NSArray<NSDictionary<NSString *, id> *> *)loadImageActions {

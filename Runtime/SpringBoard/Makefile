@@ -16,7 +16,7 @@ MetisSpringBoard_FILES += $(wildcard ../../Modules/Capture/Sources/Common/*.m) \
 	$(wildcard $(THEOS_PROJECT_DIR)/Modules/Capture/Sources/SpringBoard/*.xm)
 
 MetisSpringBoard_CFLAGS = -fobjc-arc
-MetisSpringBoard_CFLAGS += -I../../Core
+MetisSpringBoard_CFLAGS += -I../../Core -I../../Core/SharedResources
 MetisSpringBoard_CFLAGS += -I../../Modules/Capture/Sources/Common
 MetisSpringBoard_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisSpringBoard_FRAMEWORKS = UIKit CoreGraphics QuartzCore CoreText Photos ImageIO

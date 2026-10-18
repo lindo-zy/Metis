@@ -194,6 +194,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 
     // 4. 绑定：工具栏四槽 / Dock 三向 / 状态栏各槽 → 稳定入口 ID。
     NSMutableArray<NSDictionary *> *bindings = [NSMutableArray array];
+    // Clipboard bindings are independent of the keyboard/gesture editor projection.
+    for (NSDictionary *binding in MTBridgeArray(baseDocument[@"bindings"])) {
+        NSString *identifier = MTBridgeString(binding[@"id"]);
+        if (![identifier hasPrefix:@"keyboard.toolbar."] && ![identifier hasPrefix:@"gesture.dock."] &&
+            ![identifier hasPrefix:@"gesture.statusbar."]) [bindings addObject:binding];
+    }
     void (^bind)(NSString *, NSString *, NSString *, id) = ^(NSString *bindingID, NSString *source, NSString *placement, id rawTarget) {
         NSString *selector = nil;
         NSDictionary *options = nil;
@@ -256,6 +262,15 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 
     result[@"actions"] = [mergedActions copy];
     result[@"panels"] = [mergedPanels copy];
+    // Deleting a global action also removes its clipboard references atomically.
+    NSMutableSet *liveActionIDs = [NSMutableSet set];
+    for (NSDictionary *action in mergedActions) [liveActionIDs addObject:action[@"id"]];
+    NSIndexSet *removedBindings = [bindings indexesOfObjectsPassingTest:^BOOL(NSDictionary *binding, NSUInteger idx, BOOL *stop) {
+        return [binding[@"source"] isEqual:MTSharedResourceSourceClipboard] &&
+            [binding[@"target"][@"kind"] isEqual:MTSharedTargetKindAction] &&
+            ![liveActionIDs containsObject:binding[@"target"][@"id"]];
+    }];
+    [bindings removeObjectsAtIndexes:removedBindings];
     result[@"bindings"] = [bindings copy];
     result[@"groups"] = [groups copy];
     NSMutableDictionary *migration = [(MTBridgeDictionary(baseDocument[@"migration"]) ?: @{}) mutableCopy];

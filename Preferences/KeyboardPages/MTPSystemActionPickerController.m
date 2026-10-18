@@ -43,8 +43,7 @@ static NSBundle *mtpLocalBundle;
     return LOCALIZED(key);
 }
 - (NSString *)tableView:(UITableView *)table titleForFooterInSection:(NSInteger)section {
-    return section == 1 ? LOCALIZED(@"SYSTEM_DEVICE_FOOTER") : section == 2 ? LOCALIZED(@"SYSTEM_RECORDING_FOOTER") :
-        section == 3 ? LOCALIZED(@"SYSTEM_CAPTURE_FOOTER") : nil;
+    return section == 1 ? LOCALIZED(@"SYSTEM_DEVICE_FOOTER") : section == 2 ? LOCALIZED(@"SYSTEM_RECORDING_FOOTER") : nil;
 }
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = [table dequeueReusableCellWithIdentifier:@"SystemAction"];

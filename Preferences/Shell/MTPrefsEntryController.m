@@ -12,7 +12,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Metis";
+    self.title = @"";
     [self mtEmbedRootPage];
 }
 
