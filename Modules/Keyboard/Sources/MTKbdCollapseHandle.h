@@ -12,3 +12,6 @@ FOUNDATION_EXPORT void MTKbdCollapseHandleDesktopDidAppear(void);
 
 // SpringBoard 进程：悬浮会话转为 Live 时喂入最近悬浮列表（面板数据源）。
 FOUNDATION_EXPORT void MTKbdCollapseHandleNoteFloated(NSString *bundleIdentifier);
+
+// SpringBoard 主线程：按需打开快速面板，不依赖边缘把手开关或键盘显隐。
+FOUNDATION_EXPORT BOOL MTPresentQuickPanel(void);

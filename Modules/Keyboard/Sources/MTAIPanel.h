@@ -9,6 +9,8 @@
 //    通道，MTKeyboardHooks.xm 的 SB 端回调解析并桌面门控后调 presentInSpringBoard...，
 //    SB 内 plain-init UIWindow（makeKeyAndVisible）承载。
 @interface MTAIPanel : NSObject
+// 无输入会话的系统动作入口；键盘内仍使用原有带入当前输入内容的路径。
++ (BOOL)presentForSystemAction;
 + (void)openFromKeyboardWithSeedText:(NSString *)seedText;
 + (void)presentInSpringBoardWithSeedText:(NSString *)seedText clipboardImage:(BOOL)clipboardImage;
 // 面板输入框正持有键盘（第一响应者）时为 YES。用于 iOS16+ 粘贴授权弹窗的

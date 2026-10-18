@@ -197,7 +197,7 @@ static BOOL MTStorePublish(NSDictionary *document) {
         return NO;
     }
     NSMutableDictionary *document = [(current ?: [MTSharedResourceStore emptyDocument]) mutableCopy];
-    for (NSString *key in @[@"actions", @"panels", @"bindings", @"groups", @"migration"])
+    for (NSString *key in @[@"actions", @"panels", @"bindings", @"groups", @"ungroupedCollapsed", @"migration"])
         if (draft[key] != nil) document[key] = draft[key];
     if (!document[@"migration"]) {
         document[@"migration"] = @{@"version": @1, @"state": @"complete", @"mapping": @{}};

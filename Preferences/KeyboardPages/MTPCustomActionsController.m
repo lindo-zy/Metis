@@ -156,7 +156,8 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
     [NSLayoutConstraint activateConstraints:@[
         [toggle.leadingAnchor constraintEqualToAnchor:header.layoutMarginsGuide.leadingAnchor],
         [toggle.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
-        [toggle.trailingAnchor constraintLessThanOrEqualToAnchor:menu.leadingAnchor constant:-8],
+        [toggle.trailingAnchor constraintEqualToAnchor:menu.leadingAnchor constant:-8],
+        [toggle.heightAnchor constraintEqualToConstant:44],
         [menu.trailingAnchor constraintEqualToAnchor:header.layoutMarginsGuide.trailingAnchor],
         [menu.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
         [menu.widthAnchor constraintEqualToConstant:36],

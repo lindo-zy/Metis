@@ -201,6 +201,9 @@ static BOOL MTValidatorVisit(NSString *identifier,
         }
     }
 
+    // 可选 UI 状态；旧快照缺省为展开，不能作为一个有名称的分组导入。
+    if (document[@"ungroupedCollapsed"] && ![document[@"ungroupedCollapsed"] isKindOfClass:NSNumber.class])
+        return MTValidatorError(MTSharedResourceValidationShape, @"ungroupedCollapsed must be a boolean");
     NSMutableSet<NSString *> *groupNames = [NSMutableSet set];
     for (id item in groups) {
         NSDictionary *group = MTVDictionary(item);

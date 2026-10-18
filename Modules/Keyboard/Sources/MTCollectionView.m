@@ -2050,6 +2050,13 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 
     NSString *type = [entry[kCustomActionTypeKey] isKindOfClass:[NSString class]] ? entry[kCustomActionTypeKey] : @"";
 
+    // 系统动作中的 AI 问答沿用键盘入口，保留输入内容带入与第三方键盘转发。
+    if ([type isEqualToString:kCustomActionTypeSystem] &&
+        [entry[kCustomActionSystemIdentifierKey] isEqual:@"ai-chat"]) {
+        [self aiChatAction:sender];
+        return YES;
+    }
+
     [self beginImpactAnimationAndUpdateDelegateWithSender:sender];
 
     if ([type isEqualToString:kCustomActionTypeSystem]) {

@@ -176,8 +176,8 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
     NSMutableArray<NSDictionary *> *groups = [NSMutableArray array];
     NSMutableSet<NSString *> *collapsed = [NSMutableSet set];
     for (id name in MTBridgeArray(legacyPreferences[MTLegacyCollapsedGroupsKey])) {
-        NSString *string = MTBridgeString(name);
-        if (string.length) [collapsed addObject:string];
+        // 空字符串是“未分组”的稳定标识，也需要保存折叠状态。
+        if ([name isKindOfClass:NSString.class]) [collapsed addObject:name];
     }
     for (id name in MTBridgeArray(legacyPreferences[MTLegacyGroupsKey])) {
         NSString *string = MTBridgeString(name);
@@ -273,6 +273,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
     [bindings removeObjectsAtIndexes:removedBindings];
     result[@"bindings"] = [bindings copy];
     result[@"groups"] = [groups copy];
+    result[@"ungroupedCollapsed"] = @([collapsed containsObject:@""]);
     NSMutableDictionary *migration = [(MTBridgeDictionary(baseDocument[@"migration"]) ?: @{}) mutableCopy];
     migration[@"version"] = @1;
     migration[@"state"] = @"complete";
@@ -369,6 +370,9 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 
     NSMutableArray<NSString *> *groupNames = [NSMutableArray array];
     NSMutableArray<NSString *> *collapsedNames = [NSMutableArray array];
+    id ungroupedCollapsed = snapshot[@"ungroupedCollapsed"];
+    if ([ungroupedCollapsed isKindOfClass:NSNumber.class] && [ungroupedCollapsed boolValue])
+        [collapsedNames addObject:@""];
     NSArray *groupRows = [MTBridgeArray(snapshot[@"groups"]) sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
         NSNumber *left = [a isKindOfClass:NSDictionary.class] ? a[@"order"] : nil;
         NSNumber *right = [b isKindOfClass:NSDictionary.class] ? b[@"order"] : nil;
@@ -423,6 +427,8 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
             return [MTSharedResourceStore commitSnapshot:next expectedRevision:revision error:error];
         }
     }
+    if ([next[@"ungroupedCollapsed"] boolValue] != [current[@"ungroupedCollapsed"] boolValue])
+        return [MTSharedResourceStore commitSnapshot:next expectedRevision:revision error:error];
     return YES; // 内容未变化：不递增 revision、不重复发布。
 }
 

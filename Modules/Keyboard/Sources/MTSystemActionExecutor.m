@@ -4,6 +4,8 @@
 #import "MTSystemRecordingSession.h"
 #import "common.h"
 #import "MTCaptureIntegration.h"
+#import "MTKbdCollapseHandle.h"
+#import "MTAIPanel.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
@@ -192,6 +194,8 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
         return notify_post("com.lindo.metis.clipboard.core.show") == NOTIFY_STATUS_OK
             ? MTSystemOpenSucceeded : MTSystemOpenFailed;
     }
+    if ([action isEqual:@"ai-chat"])
+        return [MTAIPanel presentForSystemAction] ? MTSystemOpenSucceeded : MTSystemOpenUnavailable;
     MTLoadSystemActionFrameworks();
     NSLog(@"[MetisKeyboard][SystemAction] execute id=%@", action);
     if ([action isEqual:@"previous-track"] || [action isEqual:@"next-track"]) {
@@ -214,14 +218,9 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
         if (!supported) coordinator = MTSystemShared(@"SBMainSwitcherViewController", @"sharedInstance");
         return MTSystemCallFirstAvailable(coordinator, interfaces);
     }
-    // 单手模式（Reachability）：经 SpringBoard 的 SBReachabilityManager 切换。
-    // 多候选容错：不同 iOS 版本的切换接口命名不一致，均不可用时返回 Unavailable。
-    if ([action isEqual:@"reachability"]) {
-        id manager = MTSystemShared(@"SBReachabilityManager", @"sharedInstance");
-        return MTSystemCallFirstAvailable(manager, @[
-            @[@"toggleReachability", @[]],
-            @[@"toggleReachabilityWithCompletion:", @[NSNull.null]]]);
-    }
+    // 保留已保存的 reachability 标识，统一转到 Metis 快速面板。
+    if ([action isEqual:@"reachability"])
+        return MTPresentQuickPanel() ? MTSystemOpenSucceeded : MTSystemOpenUnavailable;
     if ([action isEqual:@"control-center"]) return MTSystemCallFirstAvailable(MTSystemShared(@"SBControlCenterController", @"sharedInstance"), @[
         @[@"presentAnimated:completion:", @[@YES, NSNull.null]], @[@"presentAnimated:", @[@YES]]]);
     if ([action isEqual:@"wifi"]) return MTSystemToggle(MTSystemShared(@"SBWiFiManager", @"sharedInstance"), @"wiFiEnabled", @"setWiFiEnabled:");

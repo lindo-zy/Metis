@@ -3,6 +3,8 @@
 #import "MTAIMarkdown.h"
 #import "common.h"
 #import "MTShared.h"
+#import "MTGlobalPanel.h"
+#import "MTModuleGate.h"
 #import <PhotosUI/PhotosUI.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
@@ -1807,6 +1809,13 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     [controller repositionAnimated:NO];
     MTAISchedulePanelReposition(controller);
     MTAIScheduleInputFocus(controller);
+}
+
++ (BOOL)presentForSystemAction {
+    if (!NSThread.isMainThread || ![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"]) return NO;
+    if (![MTModuleGate globalEnabled] || ![MTGlobalPanel deviceUnlocked]) return NO;
+    [self presentInSpringBoardWithSeedText:@"" clipboardImage:NO];
+    return g_aiPanelWindow && !g_aiPanelWindow.hidden && g_aiPanelWindow.rootViewController != nil;
 }
 
 + (void)closeAndDestroyPanel {

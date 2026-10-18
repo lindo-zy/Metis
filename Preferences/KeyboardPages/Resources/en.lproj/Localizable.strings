@@ -439,7 +439,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_USERSPACE_REBOOT" = "Reboot userspace";
 "SYSTEM_HOME" = "Home";
 "SYSTEM_SWITCHER" = "App switcher";
-"SYSTEM_REACHABILITY" = "Reachability";
+"SYSTEM_QUICK_PANEL" = "Quick Panel";
 "SYSTEM_SCREENSHOT" = "System Screenshot";
 "SYSTEM_CONTROL_CENTER" = "Open Control Center";
 "SYSTEM_SCREEN_RECORDING" = "Screen Recording";
@@ -618,7 +618,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FLOATING_HANDLE_FOOTER" = "When enabled, the small MetisKeyboard handle appears while the keyboard is hidden. It hides as the keyboard opens and returns to its saved position after the keyboard closes. Drag to move it and snap to either edge; drag outward to tuck it into the edge, then tap or drag inward to reveal it. Tap to open the app panel and tap an app icon to open or switch the floating window; pick pinned apps in “Panel App List” (sorted by name), otherwise up to six recently floated apps are shown. With Auto Hide on, the handle slides into the screen edge after the configured idle delay, leaving only a small nub visible (same as a manual tuck); tap or drag inward to bring it back — it never disappears completely. Once the quick launcher closes (tapping the handle, its close button, outside it, or after an app opens) the handle tucks immediately without waiting for the idle delay. Locking or turning off the screen hides it; unlocking restores it. Position and edge state are saved, and the recency list clears when SpringBoard restarts.";
 
 // Single-hand launcher
-"QUICK_TITLE" = "Quick Launch";
+"QUICK_TITLE" = "Quick Panel";
 "QUICK_SIDE" = "Quick Launcher Side";
 "QUICK_SIZE" = "Panel Size";
 "QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–130%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Requires the handle to be enabled.";

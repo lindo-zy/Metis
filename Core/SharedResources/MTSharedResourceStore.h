@@ -32,7 +32,7 @@ typedef NS_ENUM(NSInteger, MTSharedResourceStoreCode) {
 + (uint64_t)currentRevision;
 
 /// 仅 Settings（唯一写入端）调用：以 expectedRevision 做冲突检测后整体提交。
-/// draft 为完整 payload（actions/panels/bindings/groups/migration）；
+/// draft 为完整 payload（actions/panels/bindings/groups/ungroupedCollapsed/migration）；
 /// format/schemaVersion/revision 由本方法装配。
 + (BOOL)commitSnapshot:(NSDictionary *)draft expectedRevision:(uint64_t)revision error:(NSError **)error;
 

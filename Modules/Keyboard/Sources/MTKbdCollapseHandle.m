@@ -14,6 +14,7 @@
 #import "MTDarwinOpenChannel.h"
 #import "MTSystemOpenBroker.h"
 #import "MTGlobalPanel.h"
+#import "MTModuleGate.h"
 #import "MTHelper.h"
 #import "common.h"
 #import <UIKit/UIKit.h>
@@ -171,6 +172,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 @property(nonatomic, strong) id launchObserver;
 @property(nonatomic) NSUInteger panelGeneration;
 @property(nonatomic) BOOL panelOpen;
+@property(nonatomic) BOOL systemPanelOpen;
 @property(nonatomic) BOOL started;
 @property(nonatomic) BOOL autoHideEnabled;
 @property(nonatomic) NSTimeInterval autoHideInterval;
@@ -181,6 +183,9 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 - (void)handleEnvironmentChange:(NSString *)reason;
 - (void)finishStartup;
 - (void)refreshVisibility;
+- (BOOL)presentQuickPanel;
+- (void)closePanel:(BOOL)animated;
+- (void)openQuickLauncher;
 - (void)applyPreferences;
 - (void)noteFloated:(NSString *)bundleIdentifier;
 - (void)layoutForBounds:(CGRect)bounds;
@@ -227,12 +232,13 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         MTKbdHandleClamp(CGRectGetMidY(handle) - 22, CGRectGetMinY(self.bounds), CGRectGetMaxY(self.bounds) - 44), 44, 44);
     // 面板打开：面板与把手之外的任何落点一律定向给背景层（落指即收起）。
     // 不依赖背景层自身命中，窗口层直接定向，透明路由失效时也收得起。
+    BOOL hitsHandle = !self.manager.handleView.hidden && CGRectContainsPoint(target, point);
     if (self.manager.panelOpen) {
         CGRect panel = self.manager.quickView.frame;
-        if (!CGRectContainsPoint(panel, point) && !CGRectContainsPoint(target, point))
+        if (!CGRectContainsPoint(panel, point) && !hitsHandle)
             return self.manager.backdrop;
     }
-    if ((result == self || result == self.manager.backdrop) && CGRectContainsPoint(target, point))
+    if ((result == self || result == self.manager.backdrop) && hitsHandle)
         return self.manager.handleView;
     // 空白区域穿透给宿主 App/SpringBoard；只有把手、面板与打开态背景层接收触摸。
     return result == (UIView *)self ? nil : result;
@@ -317,6 +323,12 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 - (void)refreshVisibility {
     if (!self.startupReady) return;
+    // 系统动作打开的会话由总开关和屏幕状态管理，键盘信号不关闭它。
+    if (self.systemPanelOpen) {
+        if (![MTModuleGate globalEnabled] || ![MTGlobalPanel deviceUnlocked] || !MTKbdHandleScreenIsOn())
+            [self hideHandleWithReason:@"quick-panel-unavailable"];
+        return;
+    }
     if (!MTKbdHandleEnabled()) {
         [self hideHandleWithReason:@"prefs-disabled"];
     } else if (self.keyboardVisible) {
@@ -409,9 +421,9 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 // 速启面板消失后立即缩边：打开面板时把手已探出，收起后不再走静置倒计时。
 - (void)dismissPanelAndTuck:(BOOL)animated {
-    BOOL wasOpen = self.panelOpen;
+    BOOL wasOpen = self.panelOpen, wasSystemPanel = self.systemPanelOpen;
     [self closePanel:animated];
-    if (wasOpen) [self tuckHandleAnimated:animated];
+    if (wasOpen && !wasSystemPanel) [self tuckHandleAnimated:animated];
 }
 
 - (void)autoHideTimerFired:(NSTimer *)timer {
@@ -528,7 +540,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         // 停靠侧独立于把手停靠位（kbdlauncherside，默认靠右紧贴右缘）。
         CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide, self.launcherScale);
         // 面板与把手同侧重叠时缩宽避让，保证把手仍可点按。
-        if (self.panelOpen && CGRectIntersectsRect(quickFrame, handleFrame)) {
+        if (self.panelOpen && !self.handleView.hidden && CGRectIntersectsRect(quickFrame, handleFrame)) {
             quickFrame.size.width = MAX(0, quickFrame.size.width - MTKbdHandleSide - 6);
             if (self.launcherSide == 0) quickFrame.origin.x += MTKbdHandleSide + 6;
         }
@@ -659,7 +671,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 - (void)outsideInteractionOnBackdrop:(UIView *)backdrop {
     if (!NSThread.isMainThread || backdrop != self.backdrop || !self.window || self.window.hidden ||
-        backdrop.hidden || !self.panelOpen || self.keyboardVisible || self.dragging) return;
+        backdrop.hidden || !self.panelOpen || (self.keyboardVisible && !self.systemPanelOpen) || self.dragging) return;
     // 主动操作面板外部即立即缩边，独立于可选的静置自动隐藏开关。
     [self dismissPanelAndTuck:YES];
     NSLog(@"[MetisKeyboard][KbdHandle] outside interaction close panel tuck=1");
@@ -677,17 +689,47 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     [self openQuickLauncher];
 }
 
+// 复用同一搜索视图、收藏、别名和使用频率；仅改变系统动作会话的显示条件。
+- (BOOL)presentQuickPanel {
+    if (!NSThread.isMainThread || !self.startupReady || ![MTModuleGate globalEnabled] ||
+        ![MTGlobalPanel deviceUnlocked] || !MTKbdHandleScreenIsOn()) return NO;
+    if (self.systemPanelOpen && self.panelOpen && self.window && !self.window.hidden) return YES;
+    [self applyPreferences];
+    [self cancelHandleDrag];
+    [self closePanel:NO];
+    [self createWindowIfNeeded];
+    if (!self.window) return NO;
+    [MTGlobalPanel.sharedInstance dismiss];
+    [self.handleView.layer removeAllAnimations];
+    self.systemPanelOpen = YES;
+    self.handleView.hidden = YES;
+    self.window.windowLevel = UIWindowLevelAlert + 1;
+    self.window.hidden = NO;
+    [self openQuickLauncher];
+    NSLog(@"[MetisKeyboard][Launcher] system quick panel opened keyboard=%d", self.keyboardVisible);
+    return self.panelOpen && !self.window.hidden;
+}
+
 - (void)closePanel:(BOOL)animated {
     if (!self.panelOpen && animated) return;
     NSUInteger generation = ++self.panelGeneration;
+    BOOL wasSystemPanel = self.systemPanelOpen;
+    self.systemPanelOpen = NO;
     self.panelOpen = NO;
     [self.quickView endSession]; self.quickView.hidden = YES;
     void (^finish)(void) = ^{
         if (self.panelGeneration != generation || self.panelOpen) return;
         self.backdrop.hidden = YES;
         self.backdrop.alpha = 0;
+        if (wasSystemPanel) {
+            self.window.hidden = YES;
+            self.window.windowLevel = 101;
+            self.handleView.hidden = NO;
+            [self refreshVisibility];
+        }
     };
-    if (animated) {
+    // 系统动作会话同步释放覆盖窗口，再按原设置恢复边缘入口。
+    if (animated && !wasSystemPanel) {
         [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
             self.backdrop.alpha = 0;
         } completion:^(__unused BOOL done) { finish(); }];
@@ -798,7 +840,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 - (void)launchQuickIdentifier:(NSString *)identifier {
     if (!NSThread.isMainThread || !self.panelOpen || self.window.hidden ||
-        self.keyboardVisible || self.dragging || self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
+        (self.keyboardVisible && !self.systemPanelOpen) || self.dragging || self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
     self.launchPending = YES; self.quickView.launching = YES;
     NSUInteger generation = self.panelGeneration, request = ++self.launchRequest;
     __weak typeof(self) weakSelf = self;
@@ -831,4 +873,11 @@ void MTKbdCollapseHandleDesktopDidAppear(void) {
 void MTKbdCollapseHandleNoteFloated(NSString *bundleIdentifier) {
     if (![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"]) return;
     [[MTKbdCollapseHandle shared] noteFloated:bundleIdentifier];
+}
+
+BOOL MTPresentQuickPanel(void) {
+    if (!NSThread.isMainThread || ![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"]) return NO;
+    MTKbdCollapseHandle *host = MTKbdCollapseHandle.shared;
+    [host start];
+    return [host presentQuickPanel];
 }
