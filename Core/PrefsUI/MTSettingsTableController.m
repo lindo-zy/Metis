@@ -18,6 +18,13 @@
     return UITableViewStyleInsetGrouped;
 }
 
+// iOS 16.1 的 PSListController 只提供 table；Theos 头文件中的 tableView
+// 声明不保证运行时实现。保留 UIKit 风格访问器，但始终使用 Preferences
+// 持有的同一张表，供首页、全局页和 QuickPrefs 的长按路径共同使用。
+- (UITableView *)tableView {
+    return [self table];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self mtCommonInit];
