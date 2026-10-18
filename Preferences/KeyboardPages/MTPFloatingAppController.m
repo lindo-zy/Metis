@@ -76,11 +76,21 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [launcherSide setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
     [launcherSide setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")]
         forKey:@"titles"];
+    // 面板大小：80%~130% 等比缩放，5% 步进（读取侧同样夹回该范围）。
+    PSSpecifier *launcherScale = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SIZE") target:self
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
+    [launcherScale setProperty:kKbdLauncherScaleKey forKey:@"key"];
+    [launcherScale setProperty:@(kKbdLauncherScaleDefault) forKey:@"default"];
+    [launcherScale setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
+    [launcherScale setProperty:@(kKbdLauncherScaleMinimum) forKey:@"min"];
+    [launcherScale setProperty:@(kKbdLauncherScaleMaximum) forKey:@"max"];
+    [launcherScale setProperty:@5 forKey:@"step"];
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
     _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
-        handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds, quickGroup, launcherSide, manage] mutableCopy];
+        handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds,
+        quickGroup, launcherSide, launcherScale, manage] mutableCopy];
     return _specifiers;
 }
 
@@ -109,6 +119,15 @@ static NSString *MTFloatingLocalized(NSString *key) {
         seconds = lround(seconds * 2) / 2.0;
         [MTPrefsManager.sharedInstance setValue:@(MIN(MAX(seconds, kKbdHandleAutoHideSecondsMinimum),
             kKbdHandleAutoHideSecondsMaximum)) forKey:key];
+        return;
+    }
+    if ([key isEqual:kKbdLauncherScaleKey]) {
+        // 面板大小：与滑杆 5% 步进一致；越界值夹回 80~130，避免写快照后触发读取侧缺省回退。
+        double scale = [value doubleValue];
+        if (!isfinite(scale)) scale = kKbdLauncherScaleDefault;
+        scale = lround(scale / 5) * 5;
+        [MTPrefsManager.sharedInstance setValue:@(MIN(MAX(scale, kKbdLauncherScaleMinimum),
+            kKbdLauncherScaleMaximum)) forKey:key];
         return;
     }
     NSInteger stored;

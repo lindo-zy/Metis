@@ -124,6 +124,11 @@
 #define kKbdHandleAppsKey @"kbdhandleapps"
 // 速启面板停靠侧（0=靠左 1=靠右，默认靠右紧贴右缘）。
 #define kKbdLauncherSideKey @"kbdlauncherside"
+// 速启面板大小（百分比存储的缩放系数，100 = 基准尺寸；80~130，步进 5，缺省 100）。
+#define kKbdLauncherScaleKey @"kbdlauncherscale"
+#define kKbdLauncherScaleDefault 100.0
+#define kKbdLauncherScaleMinimum 80.0
+#define kKbdLauncherScaleMaximum 130.0
 #define kKbdLauncherOrderKey @"kbdlauncherorder"
 #define kKbdLauncherAliasesKey @"kbdlauncheraliases"
 #define kKbdLauncherUsageKey @"kbdlauncherusage"
@@ -319,6 +324,14 @@ static inline NSInteger MTKbdLauncherSideFromPreferences(NSDictionary *preferenc
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherSideKey] : nil;
     NSInteger side = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 1;
     return (side == 0 || side == 1) ? side : 1;
+}
+
+// 速启面板大小缩放（百分比 80~130）：非法/缺省一律回退 100%，永不外溢。
+static inline double MTKbdLauncherScaleFromPreferences(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherScaleKey] : nil;
+    double scale = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : kKbdLauncherScaleDefault;
+    if (!isfinite(scale)) scale = kKbdLauncherScaleDefault;
+    return MIN(MAX(scale, kKbdLauncherScaleMinimum), kKbdLauncherScaleMaximum);
 }
 
 // 把手自动隐藏时长（秒）：非法/缺省一律回退 3 秒并夹回 0.5~10，永不外溢。

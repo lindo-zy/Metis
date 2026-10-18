@@ -4,10 +4,13 @@
 
 @interface MTSelectionToolbar ()
 @property (nonatomic, copy, readwrite) NSArray<UIButton *> *buttons;
+@property (nonatomic, assign, readwrite) MTSelectionToolbarArrangement arrangement;
 @property (nonatomic, copy) NSArray<UIView *> *separators;
 @property (nonatomic, assign) CGFloat buttonScale;
 @property (nonatomic, assign) CGFloat rowHeight;
 @property (nonatomic, assign) NSUInteger layoutColumns;
+// 滑动排布才存在：承载全部按钮的横向滚动容器，宽度随可用空间夹断。
+@property (nonatomic, strong) UIScrollView *scroller;
 @end
 
 @implementation MTSelectionToolbar
@@ -15,7 +18,17 @@
 - (instancetype)initWithIdentifiers:(NSArray<NSString *> *)identifiers
                               style:(MTSelectionButtonStyle)style
                       iconPointSize:(CGFloat)iconPointSize {
+    return [self initWithIdentifiers:identifiers style:style iconPointSize:iconPointSize
+                         arrangement:MTSelectionToolbarArrangementRows];
+}
+
+- (instancetype)initWithIdentifiers:(NSArray<NSString *> *)identifiers
+                              style:(MTSelectionButtonStyle)style
+                      iconPointSize:(CGFloat)iconPointSize
+                        arrangement:(MTSelectionToolbarArrangement)arrangement {
     if ((self = [super initWithFrame:CGRectZero])) {
+        // 排布方式在创建时固定（与图标尺寸同属快照），运行期不再跟随偏好抖动。
+        _arrangement = arrangement;
         iconPointSize = MAX(10.0, MIN(20.0, iconPointSize));
         _buttonScale = iconPointSize / 17.0;
         BOOL stacked = style == MTSelectionButtonStyleIconAndText;
@@ -23,6 +36,19 @@
         self.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.78];
         self.layer.cornerRadius = 14.0 * _buttonScale;
         self.clipsToBounds = YES;
+        // 滑动排布：按钮装进横向滚动容器，工具栏自身仍是原来那张圆角条。
+        UIView *container = self;
+        if (_arrangement == MTSelectionToolbarArrangementSwipe) {
+            UIScrollView *scroller = [[UIScrollView alloc] initWithFrame:CGRectZero];
+            scroller.showsHorizontalScrollIndicator = NO;
+            scroller.showsVerticalScrollIndicator = NO;
+            scroller.scrollsToTop = NO;
+            scroller.bounces = YES;
+            scroller.alwaysBounceHorizontal = NO;
+            [self addSubview:scroller];
+            self.scroller = scroller;
+            container = scroller;
+        }
 
         NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
         NSMutableArray<UIView *> *separators = [NSMutableArray array];
@@ -69,12 +95,12 @@
             button.titleLabel.adjustsFontSizeToFitWidth = YES;
             button.titleLabel.minimumScaleFactor = 0.5;
             [buttons addObject:button];
-            [self addSubview:button];
+            [container addSubview:button];
             if (buttons.count > 1) {
                 UIView *separator = [[UIView alloc] init];
                 separator.backgroundColor = UIColor.whiteColor;
                 separator.userInteractionEnabled = NO;
-                [self addSubview:separator];
+                [container addSubview:separator];
                 [separators addObject:separator];
             }
         }
@@ -92,6 +118,8 @@
 
 - (NSUInteger)mtColumnsForAvailableWidth:(CGFloat)availableWidth {
     if (self.buttons.count == 0) return 0;
+    // 滑动排布恒为一排：屏幕上放不下的按钮横向滑动查看，不换行。
+    if (self.arrangement == MTSelectionToolbarArrangementSwipe) return self.buttons.count;
     CGFloat contentWidth = MAX(0.0, availableWidth - 12.0 * self.buttonScale);
     // 保留至少 40pt 的基准按钮宽度；空间不足时换行，不继续挤压所有按钮。
     NSUInteger fitting = (NSUInteger)MAX(1.0, floor((contentWidth + self.buttonScale) /
@@ -112,12 +140,22 @@
     NSUInteger columns = [self mtColumnsForAvailableWidth:width];
     if (columns == 0 || width <= 0.0) return;
     CGFloat scale = self.buttonScale;
-    CGFloat buttonWidth = MAX(0.0, (width - 12.0 * scale - (columns - 1) * scale) / columns);
+    BOOL scrolling = self.arrangement == MTSelectionToolbarArrangementSwipe;
+    // 多排按可用宽度均分；滑动模式下按钮保持最小宽度，让内容依靠滑动而非压缩。
+    CGFloat even = MAX(0.0, (width - 12.0 * scale - (columns - 1) * scale) / columns);
+    CGFloat buttonWidth = scrolling ? MAX(41.0 * scale, even) : even;
+    CGFloat stride = buttonWidth + scale;
+    CGFloat contentWidth = columns * stride - scale + 12.0 * scale;
+    if (scrolling && self.scroller) {
+        self.scroller.frame = self.bounds;
+        self.scroller.contentSize = CGSizeMake(MAX(width, contentWidth), CGRectGetHeight(self.bounds));
+    }
     CGFloat buttonHeight = self.rowHeight - 4.0 * scale;
     for (NSUInteger i = 0; i < self.buttons.count; i++) {
-        NSUInteger column = i % columns;
-        CGFloat x = 6.0 * scale + column * (buttonWidth + scale);
-        CGFloat y = 2.0 * scale + (i / columns) * (self.rowHeight + 4.0 * scale);
+        NSUInteger column = scrolling ? i : i % columns;
+        NSUInteger row = scrolling ? 0 : i / columns;
+        CGFloat x = 6.0 * scale + column * stride;
+        CGFloat y = 2.0 * scale + row * (self.rowHeight + 4.0 * scale);
         self.buttons[i].frame = CGRectMake(x, y, buttonWidth, buttonHeight);
         if (i > 0) {
             UIView *separator = self.separators[i - 1];
@@ -127,9 +165,9 @@
         }
     }
     if (self.layoutColumns != columns && self.userInteractionEnabled) {
-        MTCaptureLogInfo(@"selection toolbar layout: buttons=%lu columns=%lu rows=%lu",
-                  (unsigned long)self.buttons.count, (unsigned long)columns,
-                  (unsigned long)((self.buttons.count + columns - 1) / columns));
+        MTCaptureLogInfo(@"selection toolbar layout: arrangement=%@ buttons=%lu columns=%lu rows=%lu",
+                  scrolling ? @"swipe" : @"rows", (unsigned long)self.buttons.count,
+                  (unsigned long)columns, (unsigned long)((self.buttons.count + columns - 1) / columns));
     }
     self.layoutColumns = columns;
 }

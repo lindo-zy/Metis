@@ -129,8 +129,8 @@ static void MTPerformSystemOpen(NSDictionary *request, MTSystemOpenReply reply) 
         MTPrefsManager *manager = MTPrefsManager.sharedInstance;
         if (!manager.preferencesAvailable) [manager reload];
         // Toolbar gesture switches no longer control panels opened by buttons.
-        NSString *enabledKey = [control[@"source"] isEqual:@"global"] ? kMTPanelGlobalEnabled : kEnabledkey;
-        if (!manager.preferencesAvailable || !MTKeyboardPanelBool(manager.prefs, enabledKey, YES)) { reply(MTSystemOpenUnavailable); return; }
+        // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除），这里统一只校验总开关。
+        if (!manager.preferencesAvailable || !MTKeyboardPanelBool(manager.prefs, kEnabledkey, YES)) { reply(MTSystemOpenUnavailable); return; }
         int token = NOTIFY_TOKEN_INVALID;
         NSString *slot = MTPanelControlStateSlot(control[@"token"]);
         uint64_t word = 0;

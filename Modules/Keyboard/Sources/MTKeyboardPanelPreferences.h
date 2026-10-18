@@ -3,6 +3,7 @@
 
 #define kMTPanelTopEnabled @"keyboardpaneltopBOOL"
 #define kMTPanelBottomEnabled @"keyboardpanelbottomBOOL"
+// 手势面板恒定启用，此键只作旧配置迁移与读取兼容标记，运行时不再作为开关。
 #define kMTPanelGlobalEnabled @"keyboardpanelglobalBOOL"
 #define kMTPanelDockSwipeEnabled @"keyboardpaneldockswipeBOOL"
 #define kMTPanelSystemTogglesVisible @"keyboardpanelsystemtogglesBOOL"

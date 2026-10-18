@@ -11,4 +11,5 @@
 @end
 
 // Bottom anchored; mirror the existing handle side. Landscape uses two columns.
-FOUNDATION_EXPORT CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side);
+// scale：面板大小百分比（80~130，缺省 100），由 MTQuickLauncherFrame 消费。
+FOUNDATION_EXPORT CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CGFloat scale);

@@ -124,9 +124,10 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     if (!NSThread.isMainThread || ![self isVisible] || ![MTGlobalPanel deviceUnlocked]) return NO;
     UIWindowScene *scene = self.window.windowScene;
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+    // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除），只保留总开关与锁屏判断。
     return (!scene || scene.activationState == UISceneActivationStateForegroundActive) &&
         manager.preferencesAvailable && MTKeyboardPanelBool(manager.prefs, kEnabledkey, YES) &&
-        MTKeyboardPanelBool(manager.prefs, kMTPanelGlobalEnabled, YES) && [manager.prefs isEqual:self.snapshot];
+        [manager.prefs isEqual:self.snapshot];
 }
 - (void)interrupted:(NSNotification *)notification {
     if (!NSThread.isMainThread) {
@@ -199,8 +200,9 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     [manager reload];
     if (!MTPanelAllowed(manager.prefs, selector, MTPanelGestureKind)) return;
     NSDictionary *panelDefinition = MTPanelDefinition(manager.prefs, selector);
+    // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除）。
     if (!manager.preferencesAvailable || !MTKeyboardPanelBool(manager.prefs, kEnabledkey, YES) ||
-        !MTKeyboardPanelBool(manager.prefs, kMTPanelGlobalEnabled, YES) || ![MTGlobalPanel deviceUnlocked]) {
+        ![MTGlobalPanel deviceUnlocked]) {
         NSLog(@"[MetisKeyboard][GlobalPanel] open cancelled: preferences/lock gate"); return;
     }
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;

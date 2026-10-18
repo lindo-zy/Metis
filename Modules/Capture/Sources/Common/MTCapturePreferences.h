@@ -17,6 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) CGFloat selectionSnapEdgeDistance;
 @property (nonatomic, readonly) BOOL screenshotHaptic;
 @property (nonatomic, readonly) BOOL areaRememberLastRect;
+/// 截图按钮横向滑动排布：YES=单排滑动，NO=多排换行（默认）。
+@property (nonatomic, readonly) BOOL selectionButtonScrolling;
 @property (nonatomic, readonly) CGFloat editorDefaultLineWidth;
 @property (nonatomic, strong, readonly) MTLongShotOptions *longShotOptions;
 

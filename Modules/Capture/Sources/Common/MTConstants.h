@@ -99,6 +99,8 @@ FOUNDATION_EXPORT NSString * const MTKeySelectionButtonHidden;
 FOUNDATION_EXPORT NSString * const MTKeySelectionButtonNames;
 FOUNDATION_EXPORT NSString * const MTKeySelectionButtonIcons;
 FOUNDATION_EXPORT NSString * const MTKeySelectionButtonIconStyle;
+/// 截图按钮排布：0=多排（默认，空间不足换行），1=滑动（单排横向滚动）。
+FOUNDATION_EXPORT NSString * const MTKeySelectionButtonLayout;
 /// 选区工具栏自定义 URL 按钮：行记录 CSV（行间 \n、字段间 ,：id,name,icon,url）。
 FOUNDATION_EXPORT NSString * const MTKeySelectionCustomButtons;
 FOUNDATION_EXPORT NSString * const MTKeyAreaRememberLastRect;

@@ -74,6 +74,7 @@ NSString * const MTKeySelectionButtonHidden = @"SelectionButtonHidden";
 NSString * const MTKeySelectionButtonNames = @"SelectionButtonNames";
 NSString * const MTKeySelectionButtonIcons = @"SelectionButtonIcons";
 NSString * const MTKeySelectionButtonIconStyle = @"SelectionButtonIconStyle";
+NSString * const MTKeySelectionButtonLayout = @"SelectionButtonLayout";
 // 自定义 URL 按钮：行记录 CSV，行间 \n、字段间逗号（id,name,icon,url）；由 MTEditorOrder 解析。
 NSString * const MTKeySelectionCustomButtons = @"SelectionCustomButtons";
 NSString * const MTKeyAreaRememberLastRect = @"AreaRememberLastRect";

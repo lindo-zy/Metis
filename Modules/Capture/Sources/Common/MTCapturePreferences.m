@@ -13,6 +13,7 @@
 @property (nonatomic, readwrite) CGFloat selectionSnapEdgeDistance;
 @property (nonatomic, readwrite) BOOL screenshotHaptic;
 @property (nonatomic, readwrite) BOOL areaRememberLastRect;
+@property (nonatomic, readwrite) BOOL selectionButtonScrolling;
 @property (nonatomic, readwrite) CGFloat editorDefaultLineWidth;
 @property (nonatomic, strong, readwrite) MTLongShotOptions *longShotOptions;
 @end
@@ -29,6 +30,7 @@
         _selectionSnapEdgeDistance = 12.0;
         _screenshotHaptic = YES;
         _areaRememberLastRect = NO;
+        _selectionButtonScrolling = NO;
         _editorDefaultLineWidth = MTDefaultEditorLineWidth;
         _longShotOptions = [[MTLongShotOptions alloc] initWithValues:@{}];
     }
@@ -95,6 +97,7 @@ static MTConfig *_currentConfig = nil;
     config.selectionSnapEdgeDistance = MAX(0.0, MIN(60.0, MTPrefDouble(MTKeySelectionSnapEdgeDistance, 12.0)));
     config.screenshotHaptic = MTPrefBool(MTKeyScreenshotHaptic, YES);
     config.areaRememberLastRect = MTPrefBool(MTKeyAreaRememberLastRect, NO);
+    config.selectionButtonScrolling = MTPrefBool(MTKeySelectionButtonLayout, NO);
 
     NSInteger action = MTPrefInteger(MTKeyDefaultResultAction, MTDefaultResultAction);
     config.defaultResultAction = (MTOutputAction)MAX(0, MIN(4, action));
