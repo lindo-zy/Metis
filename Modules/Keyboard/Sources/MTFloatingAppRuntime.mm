@@ -1159,8 +1159,6 @@ void MTStartFloatingAppHost(void) {
             hook(workspaceClass, trusted, (IMP)MTFloatTrustedOpen, (IMP *)&MTFloatOriginalTrustedOpen);
         MTFloatingAppCoordinator *host = MTFloatingAppCoordinator.shared;
         host.shelf = [MTFloatingAppShelfState new];
-        // Publish a locked, empty snapshot now without touching UIKit/SB state.
-        // All private state queries wait for UIApplication's launch completion.
         __weak MTFloatingAppCoordinator *weakHost = host;
         host.shelfLaunchObserver = [NSNotificationCenter.defaultCenter
             addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:NSOperationQueue.mainQueue
@@ -1168,7 +1166,16 @@ void MTStartFloatingAppHost(void) {
                 // Let the launch notification finish unwinding before asking SB managers.
                 dispatch_async(dispatch_get_main_queue(), ^{ [weakHost finishShelfStartup]; });
             }];
-        [host publishShelf];
+        // 主路径同步置位 shelfStartupReady，与把手 startupReady 同一修复
+        // （cd22440）：本块由 %ctor dispatch_async(main) 入队，执行时
+        // UIApplicationDidFinishLaunchingNotification 通常已广播完毕
+        // （didFinishLaunching 返回即发通知，早于主队列块执行），仅依赖通知
+        // 观察者会把 shelfStartupReady 永远留在 NO——open: 守卫直接回
+        // Unavailable（面板「打开失败」、悬浮小窗打不开），shelf 快照永远
+        // 发布 locked/empty，restore 恒 Expired，锁屏/前台/prefs 观察也全部
+        // 早退。finishShelfStartup 幂等（内部发布一次真实快照）：本块确实
+        // 早于通知执行时走同一路径，观察者保留作双保险。
+        [host finishShelfStartup];
         NSMutableArray *tokens = [NSMutableArray array];
         for (NSString *name in @[@"com.apple.springboard.lockstate", @"com.apple.springboard.hasBlankedScreen", @"com.apple.springboard.frontmostapplicationchanged", kPrefsChangedIdentifier]) {
             int token = NOTIFY_TOKEN_INVALID;
