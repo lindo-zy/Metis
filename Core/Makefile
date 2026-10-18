@@ -13,7 +13,8 @@ MetisCore_FILES = MTLog.m \
 	MTPathResolver.m \
 	MTProcessContext.m \
 	MTModuleGate.m \
-	MTConfigService.m
+	MTConfigService.m \
+	MTConfigBackupService.m
 
 # 共享资源层（docs/development/03）：动作/面板/绑定唯一权威 store、验证、
 # 迁移与键盘 legacy 桥接。Foundation-only，主机测试可直接编译。

@@ -13,13 +13,15 @@ MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsShellTableController.m \
 	MTPrefsSubbundleLoader.m \
 	MTPrefsGlobalController.m \
-	MTPrefsReferencesController.m
+	MTPrefsReferencesController.m \
+	MTPrefsBackupController.m \
+	MTPrefsRestoreController.m
 
 MetisPrefs_CFLAGS = -fobjc-arc
 MetisPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources -I../../Core/PrefsUI
 MetisPrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisPrefs_INSTALL_PATH = /Library/PreferenceBundles
-MetisPrefs_FRAMEWORKS = UIKit CoreGraphics
+MetisPrefs_FRAMEWORKS = UIKit CoreGraphics UniformTypeIdentifiers
 MetisPrefs_PRIVATE_FRAMEWORKS = Preferences AppSupport
 
 include $(THEOS)/makefiles/common.mk

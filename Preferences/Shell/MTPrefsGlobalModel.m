@@ -95,6 +95,21 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     automationSection.headerTitle = @"自动化";
     automationSection.rows = [self automationRows];
 
+    // 「配置维护」区：备份/恢复（本版本新增）+ 引用管理（资源反向索引）。
+    MTSettingsRow *backup = [MTSettingsRow linkRowWithIdentifier:@"global-config-backup" title:@"配置备份"];
+    backup.subtitle = @"导出全部配置，可分享";
+    backup.iconName = @"square.and.arrow.up";
+    backup.colorName = @"blue";
+    backup.routeKind = MTSettingsRouteShellClass;
+    backup.className = @"MTPrefsBackupController";
+
+    MTSettingsRow *restore = [MTSettingsRow linkRowWithIdentifier:@"global-config-restore" title:@"配置恢复"];
+    restore.subtitle = @"从备份还原，自动保留安全网";
+    restore.iconName = @"clock.arrow.circlepath";
+    restore.colorName = @"green";
+    restore.routeKind = MTSettingsRouteShellClass;
+    restore.className = @"MTPrefsRestoreController";
+
     MTSettingsRow *references = [MTSettingsRow linkRowWithIdentifier:@"global-references" title:@"引用管理"];
     references.iconName = @"internaldrive";
     references.colorName = @"gray";
@@ -103,7 +118,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
 
     MTSettingsSection *maintenanceSection = [[MTSettingsSection alloc] init];
     maintenanceSection.headerTitle = @"配置维护";
-    maintenanceSection.rows = @[references];
+    maintenanceSection.rows = @[backup, restore, references];
 
     MTSettingsPageModel *model = [[MTSettingsPageModel alloc] init];
     model.sections = @[resourceSection, gestureSection, automationSection, maintenanceSection];
