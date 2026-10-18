@@ -12,7 +12,10 @@
 }
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
-    if (self = [super initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:reuseIdentifier specifier:nil]) {
+    // PSTableCell 的三参数初始化会动态调用 self 的这个两参数方法。
+    // 此处必须沿两参数 super 链初始化，否则在 iOS 16.1 上无限递归。
+    // 真实 specifier 由 datasource 在 configureWithRow: 后绑定。
+    if (self = [super initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:reuseIdentifier]) {
         self.preservesSuperviewLayoutMargins = NO;
         self.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
         self.selectionStyle = UITableViewCellSelectionStyleDefault;
