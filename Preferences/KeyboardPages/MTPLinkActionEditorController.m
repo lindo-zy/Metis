@@ -181,13 +181,7 @@ static NSInteger const MTLegacyRowLink = 2;
 }
 
 + (NSString *)defaultIconForType:(NSString *)type {
-    if ([type isEqualToString:kCustomActionTypeJavaScript]) return @"curlybraces";
-    if ([type isEqualToString:kCustomActionTypeText]) return @"doc.text";
-    if ([type isEqualToString:kCustomActionTypeURL]) return @"globe";
-    if ([type isEqualToString:kCustomActionTypeOpenApp]) return @"app";
-    if ([type isEqualToString:kCustomActionTypeShortcut]) return @"bolt.fill";
-    if ([type isEqualToString:kCustomActionTypeSystem]) return @"gearshape";
-    return @"link";
+    return [MTHelper defaultIconForActionType:type];
 }
 
 // Used by the management page's 添加 flow: the type is chosen here and is

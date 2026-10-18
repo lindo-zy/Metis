@@ -10,6 +10,8 @@
 +(NSString *)customIconForShortcutItem:(NSDictionary *)item;
 +(NSString *)appIconBundleIDForShortcutItem:(NSDictionary *)item;
 +(UIImage *)appIconImageForBundleID:(NSString *)bundleID;
++(NSString *)defaultIconForActionType:(NSString *)type;
++(UIImage *)imageForCustomActionEntry:(NSDictionary *)entry;
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName;
 +(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName;
 @end

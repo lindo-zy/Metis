@@ -2,6 +2,7 @@
 #import "MTClipboardActionReferences.h"
 #import "MTSharedResourceStore.h"
 #import "MTPrefsManager.h"
+#import "MTHelper.h"
 #import "MTPreferenceKeys.h"
 #import <roothide.h>
 
@@ -140,7 +141,8 @@
     cell.textLabel.text = entry[@"name"] ?: @"未命名动作";
     cell.textLabel.numberOfLines = 0;
     cell.detailTextLabel.text = entry[@"type"] ?: @"URL Scheme";
-    cell.imageView.image = [UIImage systemImageNamed:entry[@"icon"] ?: @"link"] ?: [UIImage systemImageNamed:@"link"];
+    cell.imageView.image = [MTHelper imageForCustomActionEntry:entry];
+    cell.imageView.tintColor = UIColor.systemBlueColor;
     cell.accessoryType = [self.selectedIDs containsObject:action[@"id"]] ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     return cell;
 }

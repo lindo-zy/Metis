@@ -189,7 +189,6 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
     NSString *type = [entry[kCustomActionTypeKey] isKindOfClass:[NSString class]] ? entry[kCustomActionTypeKey] : @"";
     NSString *name = [entry[@"name"] isKindOfClass:[NSString class]] ? entry[@"name"] : @"";
     NSString *link = [entry[@"link"] isKindOfClass:[NSString class]] ? entry[@"link"] : @"";
-    NSString *icon = [entry[@"icon"] isKindOfClass:[NSString class]] ? entry[@"icon"] : @"";
 
     cell.textLabel.text = name.length ? name : LOCALIZED(@"DEFAULT_BUTTON_NAME");
     NSString *shortcutTitle = [entry[kCustomActionShortcutTitleKey] isKindOfClass:NSString.class]
@@ -203,8 +202,7 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
         cell.detailTextLabel.text = [NSString stringWithFormat:LOCALIZED(@"TEXT_RECORD_COUNT"), (unsigned long)count];
     }
     cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
-    cell.imageView.image = [MTHelper imageForIconConfig:icon defaultSymbolName:[MTPLinkActionEditorController defaultIconForType:type]]
-        ?: [UIImage systemImageNamed:[MTPLinkActionEditorController defaultIconForType:type]];
+    cell.imageView.image = [MTHelper imageForCustomActionEntry:entry];
     // Same explicit tint as the 选择动作 rows; app icons are AlwaysOriginal and
     // unaffected, so both sections draw symbols in the same blue.
     cell.imageView.tintColor = [UIColor systemBlueColor];

@@ -307,6 +307,24 @@ static const CGFloat MTAppIconSide = 24.0;
     return nil;
 }
 
+// 全局动作与引用列表共用图标解析：保留原始 SF Symbol / App 图标配置。
++(NSString *)defaultIconForActionType:(NSString *)type {
+    if ([type isEqualToString:kCustomActionTypeJavaScript]) return @"curlybraces";
+    if ([type isEqualToString:kCustomActionTypeText]) return @"doc.text";
+    if ([type isEqualToString:kCustomActionTypeURL]) return @"globe";
+    if ([type isEqualToString:kCustomActionTypeOpenApp]) return @"app";
+    if ([type isEqualToString:kCustomActionTypeShortcut]) return @"bolt.fill";
+    if ([type isEqualToString:kCustomActionTypeSystem]) return @"gearshape";
+    return @"link";
+}
+
++(UIImage *)imageForCustomActionEntry:(NSDictionary *)entry {
+    NSString *icon = [entry[@"icon"] isKindOfClass:NSString.class] ? entry[@"icon"] : @"";
+    NSString *type = [entry[@"type"] isKindOfClass:NSString.class] ? entry[@"type"] : @"";
+    NSString *fallback = [self defaultIconForActionType:type];
+    return [self imageForIconConfig:icon defaultSymbolName:fallback] ?: [UIImage systemImageNamed:fallback];
+}
+
 +(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName{
     NSString *sfName = [self customIconForShortcutItem:item];
     if (sfName) return sfName;

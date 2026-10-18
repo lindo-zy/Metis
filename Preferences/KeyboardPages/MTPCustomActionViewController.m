@@ -441,13 +441,11 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     NSDictionary *entry = self.linkActions[global];
     NSString *selector = entry[@"selector"];
     NSString *name = [entry[@"name"] isKindOfClass:[NSString class]] ? entry[@"name"] : @"";
-    NSString *icon = [entry[@"icon"] isKindOfClass:[NSString class]] ? entry[@"icon"] : @"";
     cell.textLabel.text = name.length ? name : LOCALIZED(@"DEFAULT_BUTTON_NAME");
     NSString *group = MTActionGroupNormalizedName(entry[kCustomActionGroupKey]);
     cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@", group.length ? group : LOCALIZED(@"UNGROUPED"),
         [MTPLinkActionEditorController displayNameForType:MTActionDisplayType(entry)]];
-    cell.imageView.image = [MTHelper imageForIconConfig:icon defaultSymbolName:@"link"]
-        ?: [UIImage systemImageNamed:@"link"];
+    cell.imageView.image = [MTHelper imageForCustomActionEntry:entry];
     // 与 MTPCustomActionsController 的显式蓝一致：符号统一蓝、App 图标 AlwaysOriginal 不受影响。
     cell.imageView.tintColor = [UIColor systemBlueColor];
     BOOL checked = self.allowsMultipleSelection
