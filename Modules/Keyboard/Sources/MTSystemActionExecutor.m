@@ -8,6 +8,7 @@
 #import <objc/runtime.h>
 #import <dlfcn.h>
 #import <mach-o/dyld.h>
+#import <notify.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -185,9 +186,12 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
     if (![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"] || !NSThread.isMainThread) return MTSystemOpenUnavailable;
     if (MTSystemActionDefinition(action)[@"captureNotification"])
         return MTPostCaptureSystemAction(action, MT_ROOT_PATH_NS(MTCaptureDylibPath));
-    // 剪切板核心常驻 SpringBoard，复用 show 的锁屏、宿主选择与重复展示保护。
-    if ([action isEqual:@"clipboard"])
-        return MTSystemCall(MTSystemShared(@"MTClipboardCoreRuntime", @"sharedRuntime"), @"show", @[]);
+    // 走现有唤起通知：剪切板核心负责展示，输入宿主同时记录焦点以供粘贴恢复。
+    if ([action isEqual:@"clipboard"]) {
+        if (!NSClassFromString(@"MTClipboardCoreRuntime")) return MTSystemOpenUnavailable;
+        return notify_post("com.lindo.metis.clipboard.core.show") == NOTIFY_STATUS_OK
+            ? MTSystemOpenSucceeded : MTSystemOpenFailed;
+    }
     MTLoadSystemActionFrameworks();
     NSLog(@"[MetisKeyboard][SystemAction] execute id=%@", action);
     if ([action isEqual:@"previous-track"] || [action isEqual:@"next-track"]) {
