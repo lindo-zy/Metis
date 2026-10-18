@@ -76,8 +76,8 @@ static NSString *MTPanelLocalized(NSString *key) {
     NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
     if (!selector) {
         PSSpecifier *group = [PSSpecifier groupSpecifierWithName:MTPanelLocalized(@"PANEL_SETTINGS")];
+        // 手势面板恒定启用，不再提供总开关（kMTPanelGlobalEnabled 只留作旧配置迁移标记）。
         [group setProperty:MTPanelLocalized(@"PANEL_TYPES_FOOTER") forKey:@"footerText"]; [items addObject:group];
-        [items addObject:[self setting:@"GLOBAL_PANEL_ENABLED" key:kMTPanelGlobalEnabled defaultValue:@YES cell:PSSwitchCell]];
         for (NSString *kind in @[MTPanelKeyboardKind, MTPanelGestureKind]) {
             [items addObject:[PSSpecifier groupSpecifierWithName:MTPanelLocalized([kind isEqual:MTPanelKeyboardKind] ? @"PANEL_KIND_KEYBOARD" : @"PANEL_KIND_GESTURE")]];
             for (NSDictionary *panel in MTPanelDefinitions(preferences, kind)) {

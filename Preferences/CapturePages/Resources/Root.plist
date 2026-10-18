@@ -154,7 +154,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>全屏标记按钮用于全屏标记面板，截图按钮用于框选工具栏，两页分别设置排序和显示开关；截图按钮还可点击行修改名称与图标，并在显示样式中选择图标、文字、图标＋文字（上图下字），预览与大小调整同步。编辑器按钮排序用于普通图片编辑，图标名称与大小为共用外观。自定义 URL 按钮可添加任意个，出现在截图按钮工具栏。</string>
+			<string>全屏标记按钮用于全屏标记面板，截图按钮用于框选工具栏，两页分别设置排序和显示开关；截图按钮还可点击行修改名称与图标，并在显示样式中选择图标、文字、图标＋文字（上图下字），预览与大小调整同步。按钮排布默认「多排」（宽度不够时换行），切换「滑动」后按钮只占一排、横向滑动查看其余按钮，工具栏高度最小。编辑器按钮排序用于普通图片编辑，图标名称与大小为共用外观。自定义 URL 按钮可添加任意个，出现在截图按钮工具栏。</string>
 			<key>label</key>
 			<string>编辑器</string>
 		</dict>
@@ -177,6 +177,30 @@
 			<string>regionButtons</string>
 			<key>label</key>
 			<string>截图按钮</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>key</key>
+			<string>SelectionButtonLayout</string>
+			<key>label</key>
+			<string>按钮排布</string>
+			<key>titles</key>
+			<array>
+				<string>多排</string>
+				<string>滑动</string>
+			</array>
+			<key>values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+			</array>
 		</dict>
 		<dict>
 			<key>cell</key>

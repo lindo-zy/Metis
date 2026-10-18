@@ -153,7 +153,8 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 - (BOOL)hasAction:(NSString *)kind region:(NSString *)region preferences:(NSDictionary *)preferences {
     NSString *selector = MTStatusBarSelector(preferences, MTStatusBarSlot(region, kind));
     if (!selector) return NO;
-    if (MTPanelAllowed(preferences, selector, MTPanelGestureKind)) return MTKeyboardPanelBool(preferences, kMTPanelGlobalEnabled, YES);
+    // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除）：绑定到手势面板即视为有效动作。
+    if (MTPanelAllowed(preferences, selector, MTPanelGestureKind)) return YES;
     id definitions = preferences[kLinkActionskey];
     if (![definitions isKindOfClass:NSArray.class]) return NO;
     for (id entry in definitions)

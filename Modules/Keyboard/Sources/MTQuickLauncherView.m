@@ -8,8 +8,8 @@ static NSString *MTQL(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
 
-CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
-    return MTQuickLauncherPanelFrame(bounds, safe.top, safe.left, safe.bottom, safe.right, side);
+CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CGFloat scale) {
+    return MTQuickLauncherPanelFrame(bounds, safe.top, safe.left, safe.bottom, safe.right, side, scale);
 }
 
 @interface MTLauncherPageCell : UICollectionViewCell

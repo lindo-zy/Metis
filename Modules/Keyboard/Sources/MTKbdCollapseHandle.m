@@ -1,6 +1,8 @@
 // 键盘收起把手：解锁亮屏且键盘隐藏时显示；支持拖动、吸边和手动缩入边缘。
 // 点按弹出单手速启面板（MTQuickLauncherView，常用应用+九键搜索全量应用）；
 // 常用应用与排序见 kKbdHandleAppsKey/kKbdLauncherOrderKey，空位补最近悬浮 App。
+// 速启面板一经消失（点把手收起、面板关闭键、外部操作、启动成功）把手立即缩边，
+// 不必等静置倒计时；可选的静置自动隐藏仍由 kKbdHandleAutoHideKey 控制。
 // 可选自动隐藏：静置超过设定秒数（0.5~10）把手滑入屏幕边缘只露一小截
 // （与手动缩边同视觉，参照 PullOver-X 把手 nub；点按或向内拖出恢复），
 // 只有键盘弹出/锁屏/息屏才整体隐藏。悬浮窗口本体复用 MTFloatingAppRuntime，
@@ -146,6 +148,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 @property(nonatomic) NSUInteger launchRequest;
 @property(nonatomic, copy) NSDictionary *launcherPreferences;
 @property(nonatomic) NSInteger launcherSide;
+@property(nonatomic) double launcherScale;
 @property(nonatomic) CGRect lastLayoutBounds;
 @property(nonatomic, strong) UIView *handleView;
 @property(nonatomic, strong) UIVisualEffectView *handleMaterial;
@@ -186,6 +189,8 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 - (void)armAutoHideTimer;
 - (void)cancelAutoHideTimer;
 - (void)autoHideTimerFired:(NSTimer *)timer;
+- (void)tuckHandleAnimated:(BOOL)animated;
+- (void)dismissPanelAndTuck:(BOOL)animated;
 - (void)outsideInteractionOnBackdrop:(UIView *)backdrop;
 @end
 
@@ -340,6 +345,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     self.autoHideEnabled = [autoHide isKindOfClass:[NSNumber class]] && [autoHide boolValue];
     self.autoHideInterval = MTKbdHandleAutoHideSecondsFromPreferences(preferences);
     self.launcherSide = MTKbdLauncherSideFromPreferences(preferences);
+    self.launcherScale = MTKbdLauncherScaleFromPreferences(preferences);
     // 面板数据源或停靠侧变化时收起旧会话，下次点按按新配置重开。
     BOOL launcherChanged = NO;
     for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdLauncherSideKey]) {
@@ -388,19 +394,32 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     self.autoHideTimer = nil;
 }
 
+- (void)tuckHandleAnimated:(BOOL)animated {
+    if (!NSThread.isMainThread) { dispatch_async(dispatch_get_main_queue(), ^{ [self tuckHandleAnimated:animated]; }); return; }
+    [self cancelAutoHideTimer];
+    // 半露出本身已是最小占用常态：手动缩边、静置倒计时与面板收起共用同一状态。
+    if (!self.window || self.window.hidden || self.nubbed) return;
+    self.nubbed = YES;
+    [self saveHandlePlacement];
+    if (!animated) { [self layoutForBounds:self.window.bounds]; return; }
+    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
+        animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
+    NSLog(@"[MetisKeyboard][KbdHandle] handle tucked");
+}
+
+// 速启面板消失后立即缩边：打开面板时把手已探出，收起后不再走静置倒计时。
+- (void)dismissPanelAndTuck:(BOOL)animated {
+    BOOL wasOpen = self.panelOpen;
+    [self closePanel:animated];
+    if (wasOpen) [self tuckHandleAnimated:animated];
+}
+
 - (void)autoHideTimerFired:(NSTimer *)timer {
     self.autoHideTimer = nil;
     if (!self.autoHideEnabled || !self.window || self.window.hidden) return;
     if (self.panelOpen || self.dragging) { [self armAutoHideTimer]; return; }
-    // 已缩边（手动或自动）不再动作：半露出本身就是最小占用常态。
-    if (self.nubbed) return;
-    // 自动隐藏=滑入边缘只露 11pt（PullOver-X 把手 nub 同款语义），不是整体
-    // 消失；点按/向内拖出恢复，与手动缩边共用同一状态并持久化。
     NSLog(@"[MetisKeyboard][KbdHandle] auto tuck after %.1fs", self.autoHideInterval);
-    self.nubbed = YES;
-    [self saveHandlePlacement];
-    [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
-        animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
+    [self tuckHandleAnimated:YES];
 }
 
 #pragma mark 窗口与视图
@@ -507,7 +526,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
     if (self.quickView) {
         // 停靠侧独立于把手停靠位（kbdlauncherside，默认靠右紧贴右缘）。
-        CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide);
+        CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide, self.launcherScale);
         // 面板与把手同侧重叠时缩宽避让，保证把手仍可点按。
         if (self.panelOpen && CGRectIntersectsRect(quickFrame, handleFrame)) {
             quickFrame.size.width = MAX(0, quickFrame.size.width - MTKbdHandleSide - 6);
@@ -634,7 +653,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 - (void)handleTapped:(UITapGestureRecognizer *)gesture {
     if (gesture.state != UIGestureRecognizerStateEnded || self.window.hidden || self.keyboardVisible || self.dragging) return;
     NSLog(@"[MetisKeyboard][KbdHandle] handle tapped");
-    if (self.panelOpen) [self closePanel:YES];
+    if (self.panelOpen) [self dismissPanelAndTuck:YES];
     else [self openPanel];
 }
 
@@ -642,12 +661,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     if (!NSThread.isMainThread || backdrop != self.backdrop || !self.window || self.window.hidden ||
         backdrop.hidden || !self.panelOpen || self.keyboardVisible || self.dragging) return;
     // 主动操作面板外部即立即缩边，独立于可选的静置自动隐藏开关。
-    [self cancelAutoHideTimer];
-    self.nubbed = YES;
-    [self saveHandlePlacement];
-    [self closePanel:YES];
-    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
-        animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
+    [self dismissPanelAndTuck:YES];
     NSLog(@"[MetisKeyboard][KbdHandle] outside interaction close panel tuck=1");
 }
 
@@ -685,16 +699,50 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     [self armAutoHideTimer];
 }
 
+// 使用频率推荐排序：成功启动次数多的在前，同次数按最近一次启动时间新的在前；
+// 从未启动过的排到最后并保持传入顺序（手动排序 → 名称），让常用位先给用过的 App。
+- (NSArray<NSString *> *)rankedIdentifiers:(NSArray<NSString *> *)identifiers byUsage:(id)usage {
+    if (![identifiers isKindOfClass:NSArray.class]) return @[];
+    NSMutableDictionary<NSString *, NSNumber *> *counts = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSString *, NSNumber *> *lasts = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSString *, NSNumber *> *ranks = [NSMutableDictionary dictionary];
+    [identifiers enumerateObjectsUsingBlock:^(NSString *identifier, NSUInteger index, __unused BOOL *stop) {
+        ranks[identifier] = @(index);
+    }];
+    if ([usage isKindOfClass:NSDictionary.class]) for (id key in (NSDictionary *)usage) {
+        if (![key isKindOfClass:NSString.class]) continue;
+        id record = ((NSDictionary *)usage)[key];
+        if (![record isKindOfClass:NSDictionary.class]) continue;
+        id count = record[@"count"], last = record[@"last"];
+        double value = [count respondsToSelector:@selector(doubleValue)] ? [count doubleValue] : 0;
+        double stamp = [last respondsToSelector:@selector(doubleValue)] ? [last doubleValue] : 0;
+        if (isfinite(value) && value > 0) counts[(NSString *)key] = @(value);
+        if (isfinite(stamp) && stamp > 0) lasts[(NSString *)key] = @(stamp);
+    }
+    return [identifiers sortedArrayUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+        double countA = [counts[a] doubleValue], countB = [counts[b] doubleValue];
+        if ((countA > 0) != (countB > 0)) return countA > 0 ? NSOrderedAscending : NSOrderedDescending;
+        if (countA > 0) {
+            if (countA != countB) return countA > countB ? NSOrderedAscending : NSOrderedDescending;
+            double lastA = [lasts[a] doubleValue], lastB = [lasts[b] doubleValue];
+            if (lastA != lastB) return lastA > lastB ? NSOrderedAscending : NSOrderedDescending;
+        }
+        NSComparisonResult order = [ranks[a] compare:ranks[b]];
+        return order == NSOrderedSame ? [a compare:b] : order;
+    }];
+}
+
 // 每次打开冻结常用应用与最近悬浮快照；面板停靠侧由 kbdlauncherside 决定。
 - (void)openQuickLauncher {
     if (!self.quickView) {
         self.quickView = [[MTQuickLauncherView alloc] initWithFrame:CGRectZero];
         self.quickView.hidden = YES;
         __weak typeof(self) weakSelf = self;
-        self.quickView.closeHandler = ^{ [weakSelf closePanel:YES]; };
+        self.quickView.closeHandler = ^{ [weakSelf dismissPanelAndTuck:YES]; };
         self.quickView.selectHandler = ^(NSString *identifier) { [weakSelf launchQuickIdentifier:identifier]; };
         [self.window insertSubview:self.quickView belowSubview:self.handleView];
     }
+    // 基准顺序：手动排序优先，其后按名称兜底空出来的条目（写入侧与设置页同源）。
     NSMutableArray *favorites = [NSMutableArray array];
     id order = self.launcherPreferences[kKbdLauncherOrderKey];
     if ([order isKindOfClass:NSArray.class]) for (id identifier in order) {
@@ -706,6 +754,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         return name == NSOrderedSame ? [a compare:b] : name;
     }];
     for (NSString *identifier in sorted) if (![favorites containsObject:identifier]) [favorites addObject:identifier];
+    favorites = [[self rankedIdentifiers:favorites byUsage:self.launcherPreferences[kKbdLauncherUsageKey]] mutableCopy];
     for (NSString *identifier in self.recentIdentifiers) {
         if (favorites.count >= 6) break;
         if (![favorites containsObject:identifier]) [favorites addObject:identifier];
@@ -760,7 +809,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         if (result == MTSystemOpenSucceeded) [host recordQuickSuccess:identifier];
         NSLog(@"[MetisKeyboard][Launcher] open completed request=%lu result=%llu", (unsigned long)request, (unsigned long long)result);
         if (!host.panelOpen || host.panelGeneration != generation || host.window.hidden) return;
-        if (result == MTSystemOpenSucceeded) [host closePanel:YES];
+        if (result == MTSystemOpenSucceeded) [host dismissPanelAndTuck:YES];
         else [host.quickView showOpenFailure];
     });
 }

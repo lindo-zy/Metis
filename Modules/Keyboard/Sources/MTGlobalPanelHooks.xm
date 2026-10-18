@@ -76,7 +76,8 @@ static void MTTryInstallGlobalPanelHooks(void);
 }
 - (BOOL)hasAction:(NSString *)direction preferences:(NSDictionary *)preferences {
     NSString *selector = MTDockGestureSelector(preferences, direction);
-    if (MTPanelAllowed(preferences, selector, MTPanelGestureKind)) return MTKeyboardPanelBool(preferences, kMTPanelGlobalEnabled, YES);
+    // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除）：绑定到手势面板即视为有效动作。
+    if (MTPanelAllowed(preferences, selector, MTPanelGestureKind)) return YES;
     return MTIsLinkActionSelector(selector) && MTGlobalCustomActionSupported(MTDockGestureDefinition(preferences, selector, kLinkActionskey));
 }
 - (BOOL)validSession {
