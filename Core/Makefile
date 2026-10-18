@@ -75,6 +75,14 @@ MetisCore_CFLAGS += -Wno-tautological-pointer-compare
 MetisCore_CFLAGS += -DMETIS_PACKAGE_VERSION=\"$(or $(PACKAGE_VERSION),$(THEOS_PACKAGE_BASE_VERSION))\"
 MetisCore_CFLAGS += -I. -I$(KEYBOARD) -IAltList -ISharedResources -IPrefsUI
 
+# 共享资源 store 权威目录（Core/SharedResources）：/var/mobile/Library/Metis/Global
+# 与 /Library/Metis/Config 同策略——目录 0777 无 sticky，mobile 写者（Settings /
+# SpringBoard）可原子替换 root 拥有的 staged 文件。缺了它，设置端的资源提交
+# （自定义动作/面板/绑定）在设备上全部失败并表现为「保存无效」。
+internal-stage::
+	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/var/mobile/Library/Metis/Global$(ECHO_END)
+	$(ECHO_NOTHING)chmod 0777 $(THEOS_STAGING_DIR)/var/mobile/Library/Metis/Global$(ECHO_END)
+
 # Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
 CLIPBOARD = ../Modules/Clipboard
 MetisCore_FILES += $(CLIPBOARD)/Helper/MTSwipeUpGestureRecognizer.m \

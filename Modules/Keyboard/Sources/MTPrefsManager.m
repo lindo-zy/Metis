@@ -5,6 +5,7 @@
 #import "MTSharedResourceStore.h"
 #import "MTSharedResourceMigration.h"
 #import "MTSharedResourceLegacyBridge.h"
+#import "MTLog.h"
 
 static NSString *const MTSharedPrefsFormatKey = @"_typexSnapshotFormat";
 static NSString *const MTSharedPrefsPayloadKey = @"preferences";
@@ -256,9 +257,10 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
 // snapshot.  A sandboxed host can only reach the snapshot: it MERGES there,
 // because its readPrefs is empty and a blind replace would erase every other
 // preference (e.g. a dock toggle writing only toggledOnBOOL).
-// 资源键（动作/面板/分组/绑定）在非沙盒端改走共享 store 提交；键盘域与
-// 键盘快照都不再持久化这些键。沙盒端只写宿主参数，资源键不会出现在其
-// 写入路径上（沙盒无法成为资源写端）。
+// 资源键（动作/面板/分组/绑定）在非沙盒端优先走共享 store 提交；store 不可用
+// （目录不可写/冲突/校验失败）时回退为继续写入键盘域与 plist，读侧保留（见
+// applyStoreSnapshot 的 store 缺失分支），保证设置在移动端不丢数据。沙盒端
+// 只写宿主参数，资源键不会出现在其写入路径上（沙盒无法成为资源写端）。
 - (void)writePrefs:(NSDictionary *)dictionary {
     if (![dictionary isKindOfClass:[NSDictionary class]]) return;
 
@@ -280,9 +282,14 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
         if (touchedResources) {
             NSError *resourceError = nil;
             if (![MTSharedResourceLegacyBridge applyLegacyPreferences:dictionary error:&resourceError]) {
-                // 资源提交失败（冲突/校验）不阻断宿主参数写入；下次整份
-                // 写入会重试。失败已由 store 层记录日志。
-                (void)resourceError;
+                // store 提交失败（目录不可写/冲突/校验）：记录原因，并把资源键
+                // 回退写进域与 plist——读侧在 store 不可读时会保留这些 legacy
+                // 键（见 applyStoreSnapshot），避免设置在移动端保存后丢失。
+                // store 恢复可写后，下次整份写入会以读到的值为基数重试提交。
+                MTLogError(MTLogModulePrefs, @"state=shared-resource-commit-failed error=%@",
+                           resourceError.localizedDescription ?: @"unknown");
+                for (NSString *key in [MTSharedResourceLegacyBridge bridgedResourceKeys])
+                    if (dictionary[key] != nil) domainPart[key] = dictionary[key];
             }
         }
         CFStringRef appID = (CFStringRef)kIdentifier;
@@ -298,8 +305,10 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
             }
             CFRelease(existingKeys);
         }
-        // 旧安装域里残留的资源键也一并清除（store 已是唯一权威）。
-        [keysToRemove addObjectsFromArray:[MTSharedResourceLegacyBridge bridgedResourceKeys]];
+        // 旧安装域里残留的资源键也一并清除（store 已是唯一权威）；store 提交
+        // 失败刚回退写域的那些键除外，否则同一次 SetMultiple 会把它们删掉。
+        for (NSString *key in [MTSharedResourceLegacyBridge bridgedResourceKeys])
+            if (!domainPart[key]) [keysToRemove addObject:key];
         CFPreferencesSetMultiple((__bridge CFDictionaryRef)domainPart,
                                  (__bridge CFArrayRef)keysToRemove,
                                  appID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);

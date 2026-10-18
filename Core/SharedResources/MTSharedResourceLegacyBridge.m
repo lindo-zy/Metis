@@ -19,7 +19,7 @@ static NSString *const MTLegacyPanelSelectorPrefix = @"__typex_panel_";
 static NSString *const MTLegacyPanelKindKeyboard = @"keyboard";
 static NSString *const MTLegacyPanelKindGesture = @"gesture";
 static NSArray<NSString *> *MTLegacyPanelStyleKeys(void) {
-    return @[@"keyboardpanelcolumns", @"keyboardpanelscale", @"keyboardpaneldarkBOOL",
+    return @[@"keyboardpanelcolumns", @"keyboardpanelscale",
              @"keyboardpanelsystemtogglesBOOL", @"keyboardpanelsystemslidersBOOL"];
 }
 
@@ -259,8 +259,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 #pragma mark - Export (store → legacy)
 
 + (void)applyStoreSnapshot:(NSDictionary *)snapshot toLegacyPreferences:(NSMutableDictionary *)legacyPrefs {
-    for (NSString *key in [self bridgedResourceKeys]) [legacyPrefs removeObjectForKey:key];
+    // store 不可读（首装未初始化 / IO 失败 / 权限）时保留 legacyPrefs 中的
+    // 资源键：写入端在 store 提交失败时会把它们回退写进域与 plist，读侧若无
+    // 条件清删，设置端保存的自定义动作会整份消失（保存无效）。store 可用时
+    // 仍以它为唯一权威，先清后导。
     if (!MTBridgeDictionary(snapshot)) return;
+    for (NSString *key in [self bridgedResourceKeys]) [legacyPrefs removeObjectForKey:key];
 
     // id → 导出用的稳定 selector / legacyPanelID。
     NSMutableDictionary<NSString *, NSString *> *actionSelectors = [NSMutableDictionary dictionary];
