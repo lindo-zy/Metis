@@ -10,6 +10,14 @@ typedef NS_ENUM(NSInteger, MTSelectionButtonStyle) {
     MTSelectionButtonStyleIconAndText = 2,
 };
 
+/// 截图按钮排布方式（与 MTSelectionToolbar 共用同一枚举）。
+typedef NS_ENUM(NSUInteger, MTSelectionToolbarArrangement) {
+    /// 多排（默认）：宽度不够时换行，全部按钮同时可见。
+    MTSelectionToolbarArrangementRows = 0,
+    /// 滑动：只占一排，横向滑动查看其余按钮，工具栏高度最小。
+    MTSelectionToolbarArrangementSwipe = 1,
+};
+
 /// 用户在设置页自定义的 URL scheme 快捷按钮（数量不限，出现在截图按钮工具栏）。
 @interface MTCustomSelectionButton : NSObject
 /// url<n> 形式；删除后序号不复用，旧顺序 CSV 中的残留 id 由解析层剔除。
@@ -100,6 +108,8 @@ typedef NS_ENUM(NSInteger, MTSelectionButtonStyle) {
 /// 默认图标；兼容旧布尔配置，无效值回退默认。工具栏与设置预览使用同一枚举。
 + (MTSelectionButtonStyle)selectionButtonStyle;
 + (void)saveSelectionButtonStyle:(MTSelectionButtonStyle)style;
+/// 截图按钮排布：多排换行（默认）或单排滑动；无效值回退多排。
++ (MTSelectionToolbarArrangement)selectionToolbarArrangement;
 
 // MARK: 外观
 

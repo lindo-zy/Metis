@@ -3,15 +3,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// 截图按钮排布方式。
-typedef NS_ENUM(NSUInteger, MTSelectionToolbarArrangement) {
-    /// 多排（默认）：宽度不够时换行，全部按钮同时可见。
-    MTSelectionToolbarArrangementRows = 0,
-    /// 滑动：只占一排，横向滑动查看其余按钮，工具栏高度最小。
-    MTSelectionToolbarArrangementSwipe = 1,
-};
-
 /// 选区与设置预览共用的工具栏；外观在创建时取快照，调用方负责按钮动作。
+/// 排布枚举见 MTEditorOrder.h 的 MTSelectionToolbarArrangement。
 @interface MTSelectionToolbar : UIView
 @property (nonatomic, copy, readonly) NSArray<UIButton *> *buttons;
 @property (nonatomic, assign, readonly) MTSelectionToolbarArrangement arrangement;
