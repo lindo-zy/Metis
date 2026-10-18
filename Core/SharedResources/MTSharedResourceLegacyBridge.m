@@ -144,10 +144,15 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
             NSString *selector = MTBridgeString(item[@"selector"]);
             if (!selector.length) continue;
             NSDictionary *target = MTBridgeTargetFromSelector(selector, actionsBySelector, panelsBySelector, unresolved);
-            NSString *itemUUID = MTSharedDeterministicUUID(
+            NSString *legacyItemID = MTBridgeString(item[@"id"]);
+            NSString *itemUUID = MTSharedIsValidUUIDString(legacyItemID) ? legacyItemID : MTSharedDeterministicUUID(
+                legacyItemID.length ? [NSString stringWithFormat:@"keyboard|item|%@|%@", panelID, legacyItemID] :
                 [NSString stringWithFormat:@"keyboard|item|%@|%lu|%@", panelID, (unsigned long)index, selector]);
             if (!itemUUID) continue;
-            [items addObject:@{ @"itemID": itemUUID, @"target": target }];
+            NSMutableDictionary *row = [@{ @"itemID": itemUUID, @"target": target } mutableCopy];
+            if (legacyItemID.length && ![legacyItemID isEqual:itemUUID]) row[@"legacyItemID"] = legacyItemID;
+            if ([item[@"name"] isKindOfClass:NSString.class]) row[@"name"] = item[@"name"];
+            [items addObject:row];
         }
         NSMutableDictionary *style = [NSMutableDictionary dictionary];
         NSDictionary *preferences = MTBridgeDictionary(panel[@"preferences"]);
@@ -161,6 +166,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
             @"icon": MTBridgeString(panel[@"icon"]),
             @"legacyKind": kind,
             @"legacyPanelID": panelID,
+            @"legacyRef": @{ @"source": MTSharedResourceSourceKeyboard },
             @"style": [style copy],
             @"items": [items copy],
         }];
@@ -239,8 +245,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
     [mergedActions addObjectsFromArray:importedActions];
     for (id raw in MTBridgeArray(baseDocument[@"panels"])) {
         NSDictionary *panel = MTBridgeDictionary(raw);
-        if (panel && ![MTBridgeString(MTBridgeDictionary(panel[@"legacyRef"])[@"source"])
-                isEqual:MTSharedResourceSourceKeyboard]) [mergedPanels addObject:panel];
+        // Older imports only stored legacyPanelID. They are keyboard-owned
+        // too: retaining them duplicates IDs and rejects every subsequent save.
+        NSString *source = MTBridgeString(MTBridgeDictionary(panel[@"legacyRef"])[@"source"]);
+        BOOL keyboardPanel = [source isEqual:MTSharedResourceSourceKeyboard] ||
+            (!source.length && MTBridgeString(panel[@"legacyPanelID"]).length);
+        if (panel && !keyboardPanel) [mergedPanels addObject:panel];
     }
     [mergedPanels addObjectsFromArray:panelRows];
 
@@ -325,7 +335,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
             if (!item) continue;
             NSString *selector = selectorForTarget(MTBridgeDictionary(item[@"target"]));
             if (!selector.length) continue;
-            [items addObject:@{ @"selector": selector }];
+            NSMutableDictionary *legacyItem = [@{ @"selector": selector } mutableCopy];
+            NSString *itemID = MTBridgeString(item[@"legacyItemID"]);
+            if (!itemID.length) itemID = MTBridgeString(item[@"itemID"]);
+            if (itemID.length) legacyItem[@"id"] = itemID;
+            if ([item[@"name"] isKindOfClass:NSString.class]) legacyItem[@"name"] = item[@"name"];
+            [items addObject:legacyItem];
         }
         [panels addObject:@{
             @"id": panelID,
