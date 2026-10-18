@@ -602,6 +602,13 @@
     return MTSelectionButtonStyleIcon;
 }
 
++ (MTSelectionToolbarArrangement)selectionToolbarArrangement {
+    Boolean valid = false;
+    BOOL swipe = CFPreferencesGetAppBooleanValue((__bridge CFStringRef)MTKeySelectionButtonLayout,
+                                                (__bridge CFStringRef)MTCapturePreferencesDomain, &valid);
+    return (valid && swipe) ? MTSelectionToolbarArrangementSwipe : MTSelectionToolbarArrangementRows;
+}
+
 + (void)saveSelectionButtonStyle:(MTSelectionButtonStyle)style {
     if (style < MTSelectionButtonStyleText || style > MTSelectionButtonStyleIconAndText) {
         style = MTSelectionButtonStyleIcon;

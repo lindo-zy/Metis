@@ -146,10 +146,8 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     MTSelectionButtonStyle style = [MTEditorOrder selectionButtonStyle];
     CGFloat iconPointSize = [MTEditorOrder buttonIconPointSize];
     // 排布在创建时取快照：多排换行是默认，改为滑动后下次打开才按单排滚动。
-    MTSelectionToolbarArrangement arrangement = MTCapturePreferences.config.selectionButtonScrolling
-        ? MTSelectionToolbarArrangementSwipe : MTSelectionToolbarArrangementRows;
     _toolbar = [[MTSelectionToolbar alloc] initWithIdentifiers:order style:style
-        iconPointSize:iconPointSize arrangement:arrangement];
+        iconPointSize:iconPointSize arrangement:[MTEditorOrder selectionToolbarArrangement]];
     for (UIButton *button in _toolbar.buttons) {
         [button addTarget:self action:@selector(mtButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
     }

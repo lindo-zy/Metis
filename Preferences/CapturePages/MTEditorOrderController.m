@@ -2,7 +2,6 @@
 #import "MTEditorButtonEditController.h"
 #import "../../Modules/Capture/Sources/Common/MTConstants.h"
 #import "../../Modules/Capture/Sources/Common/MTEditorOrder.h"
-#import "../../Modules/Capture/Sources/Common/MTCapturePreferences.h"
 #import "../../Modules/Capture/Sources/Common/MTSelectionToolbar.h"
 #import "../../Modules/Capture/Sources/Common/MTPanelAppearance.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
@@ -339,10 +338,9 @@
         [header addSubview:caption];
         y += 28;
         // 直接展示实际工具栏：图文排列、分隔线及大小调整与截图界面一致。
-        MTSelectionToolbarArrangement arrangement = MTCapturePreferences.config.selectionButtonScrolling
-            ? MTSelectionToolbarArrangementSwipe : MTSelectionToolbarArrangementRows;
         MTSelectionToolbar *toolbar = [[MTSelectionToolbar alloc] initWithIdentifiers:selection
-            style:[MTEditorOrder selectionButtonStyle] iconPointSize:iconSize arrangement:arrangement];
+            style:[MTEditorOrder selectionButtonStyle] iconPointSize:iconSize
+            arrangement:[MTEditorOrder selectionToolbarArrangement]];
         CGFloat toolbarWidth = [toolbar preferredWidthForAvailableWidth:contentWidth];
         CGFloat toolbarHeight = [toolbar preferredHeightForAvailableWidth:toolbarWidth];
         toolbar.frame = CGRectMake(inset + (contentWidth - toolbarWidth) / 2.0, y,
