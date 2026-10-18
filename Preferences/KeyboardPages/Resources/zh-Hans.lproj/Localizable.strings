@@ -629,15 +629,15 @@
 
 // Single-hand launcher
 "QUICK_TITLE" = "单手速启";
-"QUICK_SWITCH" = "启用单手速启面板";
-"QUICK_SETTINGS_FOOTER" = "点按小把手显示常用应用与九键，面板跟随把手所在侧停在下方。搜索全部可启动应用；ABC 切换字母输入。小红书可用 xhs、947 搜索，948 支持邻键容错。需同时启用小把手。";
+"QUICK_SIDE" = "速启面板停靠边";
+"QUICK_SETTINGS_FOOTER" = "点按小把手显示常用应用与九键，面板按停靠边设置紧贴屏幕边缘停在下方，默认靠右。九键数字可搜索全部可启动应用（小红书 947，948 支持邻键容错）；末排「清空」一键清除搜索。需同时启用小把手。";
 "QUICK_MANAGE" = "常用应用排序与搜索别名";
 "QUICK_MANAGE_FOOTER" = "拖动调整顺序，按从左到右、从上到下排列；右侧位置适合右手操作。超过六个可翻页。点按应用编辑别名，右上角添加应用；空位补最近悬浮应用。";
 "QUICK_ALIAS_ONLY" = "其他应用的别名";
 "QUICK_ALIAS_FOOTER" = "移出常用列表后仍保留搜索别名；删除本节条目可清除别名。";
 "QUICK_EDIT_ALIAS" = "点按编辑搜索别名";
 "QUICK_ALIAS_MESSAGE" = "多个别名用逗号分隔，最多 8 个，每个最多 128 字。可填写 xhs、948 或多音字拼音；留空清除。";
-"QUICK_PLACEHOLDER" = "应用名 / 拼音 / 九键";
+"QUICK_PLACEHOLDER" = "九键搜索";
 "QUICK_FAVORITES" = "常用应用";
 "QUICK_MATCHES" = "匹配应用";
 "QUICK_APPROXIMATE" = "近似匹配";
@@ -648,6 +648,7 @@
 "QUICK_OPEN_FAILED" = "打开失败，请选择其他应用或稍后重试";
 "QUICK_CLOSE" = "关闭速启面板";
 "QUICK_CLEAR" = "清空搜索";
+"QUICK_CLEAR_KEY" = "清空";
 "QUICK_DELETE" = "删除，长按清空";
 "QUICK_CANCEL" = "取消";
 "QUICK_SAVE" = "保存";

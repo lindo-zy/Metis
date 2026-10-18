@@ -55,7 +55,6 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
         self.names[i].text = match.entry.name;
         self.badges[i].text = match.quality == 3 ? MTQL(@"QUICK_APPROXIMATE") : @"";
         button.accessibilityLabel = [NSString stringWithFormat:@"%@ %@", match.entry.name, self.badges[i].text];
-        button.backgroundColor = search && i == 0 ? [UIColor.systemBlueColor colorWithAlphaComponent:0.15] : UIColor.clearColor;
     }
     [self setNeedsLayout];
 }
@@ -105,7 +104,6 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
 @property(nonatomic) NSUInteger session;
 @property(nonatomic) NSUInteger slots;
 @property(nonatomic) BOOL active;
-@property(nonatomic) BOOL alphabetic;
 @property(nonatomic) BOOL available;
 @property(nonatomic) BOOL loaded;
 @end
@@ -154,7 +152,7 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
 }
 - (void)beginWithFavorites:(NSArray<NSString *> *)favorites names:(NSDictionary<NSString *, NSString *> *)names
     aliases:(NSDictionary *)aliases usage:(NSDictionary *)usage {
-    self.active = YES; self.session++; self.generation++; self.query = @""; self.alphabetic = NO; self.launching = NO;
+    self.active = YES; self.session++; self.generation++; self.query = @""; self.launching = NO;
     self.favorites = [favorites copy]; self.fallbackNames = [names copy]; self.aliases = [aliases copy]; self.usage = [usage copy];
     self.loaded = NO; self.available = NO;
     NSMutableArray *seed = [NSMutableArray array];
@@ -182,23 +180,26 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
 }
 - (void)closeTapped { if (self.closeHandler) self.closeHandler(); }
 - (void)clearQuery { if (!self.active || self.launching) return; self.query = @""; [self updateResults]; }
+// 清空键的专用 tag：keyTapped 按 tag 分流，不依赖随本地化变化的标题文本。
+static NSUInteger const MTQuickLauncherKeyTagClear = 100;
+
 - (void)buildKeys {
     for (UIView *view in self.keyButtons) [view removeFromSuperview]; [self.keyButtons removeAllObjects];
-    NSArray *titles = self.alphabetic
-        ? @[@"q", @"w", @"e", @"r", @"t", @"y", @"u", @"i", @"o", @"p", @"a", @"s", @"d", @"f", @"g", @"h", @"j", @"k", @"l", @"z", @"x", @"c", @"v", @"b", @"n", @"m", @"123", @"␣", @"⌫"]
-        : @[@"1\n·", @"2\nABC", @"3\nDEF", @"4\nGHI", @"5\nJKL", @"6\nMNO", @"7\nPQRS", @"8\nTUV", @"9\nWXYZ", @"ABC", @"0", @"⌫"];
+    NSArray *titles = @[@"1\n·", @"2\nABC", @"3\nDEF", @"4\nGHI", @"5\nJKL", @"6\nMNO", @"7\nPQRS", @"8\nTUV", @"9\nWXYZ", @"", @"0", @"⌫"];
     for (NSUInteger i = 0; i < titles.count; i++) {
-        UIButton *key = [UIButton buttonWithType:UIButtonTypeCustom]; key.tag = i;
-        key.layer.cornerRadius = self.alphabetic ? 5 : 10;
+        BOOL clear = i == 9;
+        UIButton *key = [UIButton buttonWithType:UIButtonTypeCustom]; key.tag = clear ? MTQuickLauncherKeyTagClear : i;
+        key.layer.cornerRadius = 10;
         key.backgroundColor = [UIColor.whiteColor colorWithAlphaComponent:0.12];
-        NSString *text = titles[i];
+        NSString *text = clear ? MTQL(@"QUICK_CLEAR_KEY") : titles[i];
         NSMutableAttributedString *title = [[NSMutableAttributedString alloc] initWithString:text attributes:@{
-            NSForegroundColorAttributeName: UIColor.whiteColor, NSFontAttributeName: [UIFont systemFontOfSize:self.alphabetic ? 17 : 21]}];
+            NSForegroundColorAttributeName: UIColor.whiteColor, NSFontAttributeName: [UIFont systemFontOfSize:21]}];
         NSRange newline = [text rangeOfString:@"\n"];
         if (newline.location != NSNotFound) [title addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:9]
             range:NSMakeRange(newline.location + 1, text.length - newline.location - 1)];
         [key setAttributedTitle:title forState:UIControlStateNormal]; key.titleLabel.numberOfLines = 2; key.titleLabel.textAlignment = NSTextAlignmentCenter;
-        key.accessibilityLabel = [text isEqual:@"⌫"] ? MTQL(@"QUICK_DELETE") : [text stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+        key.accessibilityLabel = clear ? MTQL(@"QUICK_CLEAR") : [text isEqual:@"⌫"] ? MTQL(@"QUICK_DELETE")
+            : [text stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
         [key addTarget:self action:@selector(keyTapped:) forControlEvents:UIControlEventTouchUpInside];
         if ([text isEqual:@"⌫"]) {
             UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(deleteHeld:)];
@@ -211,8 +212,8 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
 - (void)deleteHeld:(UILongPressGestureRecognizer *)gesture { if (gesture.state == UIGestureRecognizerStateBegan) [self clearQuery]; }
 - (void)keyTapped:(UIButton *)key {
     if (!self.active || self.launching) return;
+    if (key.tag == MTQuickLauncherKeyTagClear) { [self clearQuery]; return; }
     NSString *text = [key attributedTitleForState:UIControlStateNormal].string;
-    if ([text isEqual:@"ABC"] || [text isEqual:@"123"]) { self.alphabetic = !self.alphabetic; [self buildKeys]; return; }
     if ([text isEqual:@"⌫"]) {
         if (self.query.length) self.query = [self.query substringToIndex:self.query.length - 1];
     } else if (self.query.length < 64) {
@@ -299,18 +300,7 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side) {
     CGSize itemSize = CGSizeMake(contentWidth, gridHeight);
     if (!CGSizeEqualToSize(self.flow.itemSize, itemSize)) { self.flow.itemSize = itemSize; [self.flow invalidateLayout]; }
     self.keys.frame = MTQuickLauncherKeysFrame(self.bounds.size);
-    CGFloat kw = self.keys.bounds.size.width, kh = self.keys.bounds.size.height;
-    if (!self.alphabetic) {
-        for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
-    } else {
-        NSUInteger offset = 0;
-        for (NSUInteger row = 0; row < 4; row++) {
-            NSUInteger count = row == 0 ? 10 : row == 1 ? 9 : row == 2 ? 7 : 3;
-            CGFloat keyWidth = (kw - 3 * (count - 1)) / count;
-            for (NSUInteger column = 0; column < count; column++) self.keyButtons[offset++].frame = CGRectMake(
-                column * (keyWidth + 3), row * (kh + 6) / 4, keyWidth, (kh - 18) / 4);
-        }
-    }
+    for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
     if (changed) { self.pages.numberOfPages = (self.results.count + slots - 1) / slots; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData]; }
 }
 @end

@@ -1,9 +1,11 @@
 #import <CoreGraphics/CoreGraphics.h>
 
 // Pure geometry shared with host checks. Callers supply safe-area distances.
+// Docked side hugs the screen edge (4pt seam); the floating side keeps 8pt.
 static inline CGRect MTQuickLauncherPanelFrame(CGRect bounds, CGFloat topInset, CGFloat leftInset,
     CGFloat bottomInset, CGFloat rightInset, NSInteger side) {
-    CGFloat left = CGRectGetMinX(bounds) + leftInset + 8, right = CGRectGetMaxX(bounds) - rightInset - 8;
+    CGFloat left = CGRectGetMinX(bounds) + leftInset + (side == 0 ? 4 : 8);
+    CGFloat right = CGRectGetMaxX(bounds) - rightInset - (side == 1 ? 4 : 8);
     CGFloat top = CGRectGetMinY(bounds) + topInset + 8, bottom = CGRectGetMaxY(bounds) - bottomInset - 8;
     BOOL wide = right - left > 440 && bounds.size.width > bounds.size.height;
     CGFloat width = MIN(wide ? 620 : 316, MAX(0, right - left));

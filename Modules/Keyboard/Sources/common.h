@@ -104,8 +104,8 @@
 #define kFloatingCardPositionKey @"floatingcardposition"
 // One mode switch: shelf replaces only the keyboard bottom action toolbar.
 #define kFloatingShelfEnabledKey @"floatingappshelfBOOL"
-// 键盘收起把手：解锁亮屏且键盘隐藏时显示的小入口，点按弹出 App 面板
-// （数据源见 kKbdHandleAppsKey；未配置时为最近悬浮列表）。
+// 键盘收起把手：解锁亮屏且键盘隐藏时显示的小入口，点按弹出单手速启面板
+// （常用应用与九键搜索；数据源见 kKbdHandleAppsKey）。
 #define kKbdHandleEnabledKey @"kbdhandleBOOL"
 // 把手停靠侧（0=左侧 1=右侧，初始高度在底部；拖动后保存高度与缩边状态）。
 #define kKbdHandlePositionKey @"kbdhandleposition"
@@ -120,15 +120,14 @@
 #define kKbdHandleAutoHideSecondsDefault 3.0
 #define kKbdHandleAutoHideSecondsMinimum 0.5
 #define kKbdHandleAutoHideSecondsMaximum 10.0
-// 把手面板固定应用列表：bundleID 数组（AltList 多选页存储格式，集合序不保证，
-// 展示侧按显示名排序）。空数组时面板回退为最近悬浮列表。
+// 速启面板常用应用：bundleID 数组（「常用应用排序与搜索别名」页写入，含排序）。
 #define kKbdHandleAppsKey @"kbdhandleapps"
-// Optional single-hand launcher; absence is the legacy rail.
-#define kKbdQuickLauncherKey @"kbdquicklauncherBOOL"
+// 速启面板停靠侧（0=靠左 1=靠右，默认靠右紧贴右缘）。
+#define kKbdLauncherSideKey @"kbdlauncherside"
 #define kKbdLauncherOrderKey @"kbdlauncherorder"
 #define kKbdLauncherAliasesKey @"kbdlauncheraliases"
 #define kKbdLauncherUsageKey @"kbdlauncherusage"
-// 面板固定容量：最近悬浮 App 个数，超出按最近优先保留。
+// 最近悬浮列表容量：速启面板常用应用空位的补足来源，超出按最近优先保留。
 #define kKbdCollapsePanelCapacity 6
 // 顶部工具栏固定按"每行个数"换行，第一行紧贴键盘、第二行向上堆叠。
 // 行距只作用于两行之间；旧的多行开关不再参与布局或容量计算。
@@ -315,6 +314,13 @@ static inline NSInteger MTKbdHandlePositionFromPreferences(NSDictionary *prefere
     return (position == 0 || position == 1) ? position : 0;
 }
 
+// 速启面板停靠侧：0=靠左、1=靠右。缺省与非法值一律回退靠右。
+static inline NSInteger MTKbdLauncherSideFromPreferences(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherSideKey] : nil;
+    NSInteger side = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 1;
+    return (side == 0 || side == 1) ? side : 1;
+}
+
 // 把手自动隐藏时长（秒）：非法/缺省一律回退 3 秒并夹回 0.5~10，永不外溢。
 static inline double MTKbdHandleAutoHideSecondsFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandleAutoHideSecondsKey] : nil;
@@ -323,7 +329,7 @@ static inline double MTKbdHandleAutoHideSecondsFromPreferences(NSDictionary *pre
     return MIN(MAX(seconds, kKbdHandleAutoHideSecondsMinimum), kKbdHandleAutoHideSecondsMaximum);
 }
 
-// 把手面板固定应用列表：只接受 bundleID 字符串数组并去重，其余格式回退空表。
+// 速启面板常用应用列表：只接受 bundleID 字符串数组并去重，其余格式回退空表。
 static inline NSArray<NSString *> *MTKbdHandleAppsFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandleAppsKey] : nil;
     if (![value isKindOfClass:[NSArray class]]) return @[];

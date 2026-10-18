@@ -69,13 +69,17 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [autoHideSeconds setProperty:MTFloatingLocalized(@"FLOATING_HANDLE_AUTO_HIDE_FORMAT") forKey:@"valueFormat"];
     PSSpecifier *quickGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"QUICK_TITLE")];
     [quickGroup setProperty:MTFloatingLocalized(@"QUICK_SETTINGS_FOOTER") forKey:@"footerText"];
-    PSSpecifier *quick = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SWITCH") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
-    [quick setProperty:kKbdQuickLauncherKey forKey:@"key"]; [quick setProperty:@NO forKey:@"default"];
+    PSSpecifier *launcherSide = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SIDE") target:self
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
+    [launcherSide setProperty:kKbdLauncherSideKey forKey:@"key"];
+    [launcherSide setProperty:@1 forKey:@"default"];
+    [launcherSide setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
+    [launcherSide setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")]
+        forKey:@"titles"];
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
-        handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds, quickGroup, quick, manage] mutableCopy];
+        handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds, quickGroup, launcherSide, manage] mutableCopy];
     return _specifiers;
 }
 
@@ -94,7 +98,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     if (![value isKindOfClass:NSNumber.class]) return;
     NSString *key = [specifier propertyForKey:@"key"];
     if ([key isEqual:kFloatingShelfEnabledKey] || [key isEqual:kKbdHandleEnabledKey] ||
-        [key isEqual:kKbdHandleAutoHideKey] || [key isEqual:kKbdQuickLauncherKey]) {
+        [key isEqual:kKbdHandleAutoHideKey]) {
         [MTPrefsManager.sharedInstance setValue:@([value boolValue]) forKey:key]; return;
     }
     if ([key isEqual:kKbdHandleAutoHideSecondsKey]) {
@@ -109,7 +113,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     NSInteger stored;
     if ([key isEqual:kFloatingCardPositionKey]) {
         stored = MIN(2, MAX(0, lround([value doubleValue])));
-    } else if ([key isEqual:kKbdHandlePositionKey]) {
+    } else if ([key isEqual:kKbdHandlePositionKey] || [key isEqual:kKbdLauncherSideKey]) {
         stored = MIN(1, MAX(0, lround([value doubleValue])));
     } else {
         // 与滑杆 5% 步进一致；越界值夹回，避免写进快照后触发读取侧缺省回退。

@@ -630,15 +630,15 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 // Single-hand launcher
 "QUICK_TITLE" = "Quick Launcher";
-"QUICK_SWITCH" = "Use Quick Launcher";
-"QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom on the handle side. Search installed launchable apps; ABC switches to letters. XHS maps to 947; 948 is a nearby-key match. Requires the handle to be enabled.";
+"QUICK_SIDE" = "Quick Launcher Side";
+"QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom flush against the configured screen edge (right by default). T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Requires the handle to be enabled.";
 "QUICK_MANAGE" = "Favorites Order & Search Aliases";
 "QUICK_MANAGE_FOOTER" = "Drag to reorder left to right, top to bottom. Put frequent apps on the right for right-hand use. Swipe for more than six. Tap to edit aliases; + adds apps. Empty slots use recent floating apps.";
 "QUICK_ALIAS_ONLY" = "Other App Aliases";
 "QUICK_ALIAS_FOOTER" = "Aliases remain after removing a favorite. Delete an entry here to clear its aliases.";
 "QUICK_EDIT_ALIAS" = "Tap to edit search aliases";
 "QUICK_ALIAS_MESSAGE" = "Separate up to 8 aliases with commas (128 characters each). Add abbreviations, numbers, or alternate pronunciations. Leave empty to clear.";
-"QUICK_PLACEHOLDER" = "App / Pinyin / T9";
+"QUICK_PLACEHOLDER" = "T9 search";
 "QUICK_FAVORITES" = "Favorites";
 "QUICK_MATCHES" = "Matches";
 "QUICK_APPROXIMATE" = "Nearby-key match";
@@ -649,6 +649,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_OPEN_FAILED" = "Could not open app. Choose another or try later.";
 "QUICK_CLOSE" = "Close Quick Launcher";
 "QUICK_CLEAR" = "Clear search";
+"QUICK_CLEAR_KEY" = "Clear";
 "QUICK_DELETE" = "Delete; hold to clear";
 "QUICK_CANCEL" = "Cancel";
 "QUICK_SAVE" = "Save";

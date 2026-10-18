@@ -2,19 +2,13 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <math.h>
 
-// Shared geometry for the small handle, its partially hidden edge state and app panel.
+// Shared geometry for the small handle, its partially hidden edge state and the quick launcher.
 static const CGFloat MTKbdHandleSide = 34.0;
 static const CGFloat MTKbdHandleCornerRadius = 8.0;
 static const CGFloat MTKbdHandleVisibleEdge = 11.0;
-// 面板对齐 PullOver-X 应用栏：每个 App 一块与把手同款的 34pt 毛玻璃瓦片，
-// 无整体容器背景，瓦片间隙 4pt（PO_APP_RAIL_TILE_GAP）。
-static const CGFloat MTKbdPanelWidth = MTKbdHandleSide;
-static const CGFloat MTKbdPanelTileSide = MTKbdHandleSide;
-static const CGFloat MTKbdPanelTileGap = 4.0;
-// 把手内嵌图标与面板瓦片图标共用的内缩量（34pt 槽内显示 24pt 图标）。
+// 把手内嵌图标的内缩量（34pt 槽内显示 24pt 图标）。
 static const CGFloat MTKbdHandleIconInset = 5.0;
 static const CGFloat MTKbdHandleEdgeMargin = 6.0;
-static const CGFloat MTKbdHandleBottomGap = 8.0;
 
 static inline CGFloat MTKbdHandleClamp(CGFloat value, CGFloat minimum, CGFloat maximum) {
     return MIN(MAX(isfinite(value) ? value : minimum, minimum), MAX(minimum, maximum));
@@ -60,18 +54,4 @@ static inline BOOL MTKbdHandleShouldNub(CGRect bounds, CGPoint center, CGPoint t
         (endSide == 1 ? translation.x >= 12 : translation.x <= -12);
     return pushedOut || (endSide == 1 ? center.x > CGRectGetMaxX(bounds) - MTKbdHandleSide / 4
                                       : center.x < CGRectGetMinX(bounds) + MTKbdHandleSide / 4);
-}
-
-static inline CGRect MTKbdHandlePanelFrame(CGRect bounds, CGFloat top, CGFloat bottom,
-                                          CGRect handle, NSUInteger count) {
-    CGFloat tiles = MAX(count, (NSUInteger)1);
-    CGFloat height = MTKbdPanelTileSide * tiles + MTKbdPanelTileGap * (tiles - 1);
-    CGFloat minimum = CGRectGetMinY(bounds) + MAX(0, top) + MTKbdHandleEdgeMargin;
-    CGFloat maximum = CGRectGetMaxY(bounds) - MAX(0, bottom) - MTKbdHandleEdgeMargin;
-    CGFloat x = MTKbdHandleClamp(CGRectGetMidX(handle) - MTKbdPanelWidth / 2,
-        CGRectGetMinX(bounds) + MTKbdHandleEdgeMargin, CGRectGetMaxX(bounds) - MTKbdPanelWidth - MTKbdHandleEdgeMargin);
-    CGFloat y = CGRectGetMinY(handle) - MTKbdHandleBottomGap - height;
-    if (y < minimum) y = CGRectGetMaxY(handle) + MTKbdHandleBottomGap;
-    y = MTKbdHandleClamp(y, minimum, maximum - height);
-    return CGRectMake(x, y, MTKbdPanelWidth, height);
 }

@@ -1,10 +1,10 @@
 // 键盘收起把手：解锁亮屏且键盘隐藏时显示；支持拖动、吸边和手动缩入边缘。
-// 点按弹出 App 面板：配置了固定应用列表（kbdhandleapps）则展示配置项
-// （显示名排序、容量按屏高限制），否则回退最近悬浮过的 App（固定 6 项）。
+// 点按弹出单手速启面板（MTQuickLauncherView，常用应用+九键搜索全量应用）；
+// 常用应用与排序见 kKbdHandleAppsKey/kKbdLauncherOrderKey，空位补最近悬浮 App。
 // 可选自动隐藏：静置超过设定秒数（0.5~10）把手滑入屏幕边缘只露一小截
 // （与手动缩边同视觉，参照 PullOver-X 把手 nub；点按或向内拖出恢复），
 // 只有键盘弹出/锁屏/息屏才整体隐藏。悬浮窗口本体复用 MTFloatingAppRuntime，
-// 本文件只负责显隐状态机与把手/面板 UI。
+// 本文件只负责显隐状态机与把手 UI。
 
 #import "MTKbdCollapseHandle.h"
 #import "MTKbdHandleLayout.h"
@@ -136,33 +136,22 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     return [name isKindOfClass:[NSString class]] && [name length] > 0 ? name : bundleIdentifier;
 }
 
-// 瓦片图标与把手内嵌图标同为 24pt 槽位，直接用 MTHelper 的共享缓存（含磁盘缓存）；
-// 取不到再回退占位 SF 符号，与工具栏按钮的降级路径一致。
-static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
-    UIImage *image = [MTHelper appIconImageForBundleID:bundleIdentifier];
-    if (!image) image = [UIImage systemImageNamed:@"app"];
-    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
-}
-
 @class MTKbdHandleWindow;
 
 @interface MTKbdCollapseHandle : NSObject
 @property(nonatomic, strong) MTKbdHandleWindow *window;
 @property(nonatomic, strong) UIView *backdrop;
-@property(nonatomic, strong) UIView *panelView;
 @property(nonatomic, strong) MTQuickLauncherView *quickView;
-@property(nonatomic) BOOL quickEnabled;
 @property(nonatomic) BOOL launchPending;
 @property(nonatomic) NSUInteger launchRequest;
 @property(nonatomic, copy) NSDictionary *launcherPreferences;
+@property(nonatomic) NSInteger launcherSide;
 @property(nonatomic) CGRect lastLayoutBounds;
 @property(nonatomic, strong) UIView *handleView;
 @property(nonatomic, strong) UIVisualEffectView *handleMaterial;
 @property(nonatomic, strong) UIImageView *handleIconView;
-@property(nonatomic, strong) NSMutableArray<UIButton *> *panelButtons;
 @property(nonatomic, strong) NSMutableArray<NSString *> *recentIdentifiers;
 @property(nonatomic, copy) NSArray<NSString *> *selectedIdentifiers;
-@property(nonatomic, copy) NSArray<NSString *> *panelItems;
 @property(nonatomic) NSInteger alignment;
 @property(nonatomic) CGFloat anchorFraction;
 @property(nonatomic) BOOL nubbed;
@@ -194,8 +183,6 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
 - (void)layoutForBounds:(CGRect)bounds;
 - (void)cancelHandleDrag;
 - (void)saveHandlePlacement;
-- (NSArray<NSString *> *)panelIdentifiers;
-- (NSUInteger)panelCapacityForBounds:(CGRect)bounds;
 - (void)armAutoHideTimer;
 - (void)cancelAutoHideTimer;
 - (void)autoHideTimerFired:(NSTimer *)timer;
@@ -236,7 +223,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     // 面板打开：面板与把手之外的任何落点一律定向给背景层（落指即收起）。
     // 不依赖背景层自身命中，窗口层直接定向，透明路由失效时也收得起。
     if (self.manager.panelOpen) {
-        CGRect panel = self.manager.quickEnabled ? self.manager.quickView.frame : self.manager.panelView.frame;
+        CGRect panel = self.manager.quickView.frame;
         if (!CGRectContainsPoint(panel, point) && !CGRectContainsPoint(target, point))
             return self.manager.backdrop;
     }
@@ -259,7 +246,6 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (self.started) return;
     self.started = YES;
     self.recentIdentifiers = [NSMutableArray array];
-    self.panelButtons = [NSMutableArray array];
     __weak typeof(self) weakSelf = self;
     int token = NOTIFY_TOKEN_INVALID;
     if (notify_register_dispatch(MTKbdVisibilityChangedName, &token, dispatch_get_main_queue(), ^(__unused int eventToken) {
@@ -353,19 +339,18 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     id autoHide = preferences[kKbdHandleAutoHideKey];
     self.autoHideEnabled = [autoHide isKindOfClass:[NSNumber class]] && [autoHide boolValue];
     self.autoHideInterval = MTKbdHandleAutoHideSecondsFromPreferences(preferences);
-    BOOL enabled = [preferences[kKbdQuickLauncherKey] isKindOfClass:NSNumber.class] && [preferences[kKbdQuickLauncherKey] boolValue];
-    BOOL launcherChanged = self.quickEnabled != enabled;
-    for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdHandlePositionKey]) {
+    self.launcherSide = MTKbdLauncherSideFromPreferences(preferences);
+    // 面板数据源或停靠侧变化时收起旧会话，下次点按按新配置重开。
+    BOOL launcherChanged = NO;
+    for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdLauncherSideKey]) {
         id previous = self.launcherPreferences[key] ?: NSNull.null, current = preferences[key] ?: NSNull.null;
         if (![previous isEqual:current]) launcherChanged = YES;
     }
-    if (self.panelOpen && (self.quickEnabled || enabled) && launcherChanged) [self closePanel:NO];
-    self.quickEnabled = enabled;
+    if (self.panelOpen && launcherChanged) [self closePanel:NO];
     self.launcherPreferences = [preferences copy] ?: @{};
     self.selectedIdentifiers = MTKbdHandleAppsFromPreferences(preferences);
     [self refreshVisibility];
     if (self.window && !self.window.hidden) [self layoutForBounds:self.window.bounds];
-    if (self.panelOpen && !self.quickEnabled) [self rebuildPanel];
     // 偏好变化后定时器按新开关/时长重新布防；正在使用的面板与拖动由
     // closePanel / handlePanned 的各自路径负责，这里只对齐静止态。
     if (self.autoHideEnabled && self.window && !self.window.hidden && !self.panelOpen && !self.dragging) {
@@ -382,40 +367,9 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self.recentIdentifiers removeObject:bundleIdentifier];
     [self.recentIdentifiers insertObject:bundleIdentifier atIndex:0];
     while (self.recentIdentifiers.count > (NSUInteger)kKbdCollapsePanelCapacity) [self.recentIdentifiers removeLastObject];
-    if (self.panelOpen && !self.quickEnabled) [self rebuildPanel];
 }
 
-#pragma mark 面板数据源与自动隐藏
-
-// 固定列表模式的容量：竖排瓦片加把手必须整体放进安全区，放不下的条目不展示。
-- (NSUInteger)panelCapacityForBounds:(CGRect)bounds {
-    UIEdgeInsets safe = self.window ? self.window.safeAreaInsets : UIEdgeInsetsZero;
-    CGFloat top = CGRectGetMinY(bounds) + MAX(0, safe.top) + MTKbdHandleEdgeMargin;
-    CGFloat bottom = CGRectGetMaxY(bounds) - MAX(0, safe.bottom) - MTKbdHandleEdgeMargin;
-    CGFloat pitch = MTKbdPanelTileSide + MTKbdPanelTileGap;
-    // n 块瓦片总高 side*n+gap*(n-1)；再扣掉把手自身占位，保证翻转下置时也不越界。
-    CGFloat span = bottom - top - MTKbdHandleSide - MTKbdHandleBottomGap;
-    if (span < pitch) return 1;
-    return (NSUInteger)floor((span + MTKbdPanelTileGap) / pitch);
-}
-
-// 面板数据源：配置了固定应用列表则展示配置项（AltList 存的是无序集合，展示前
-// 按显示名稳定排序），否则回退最近悬浮列表（固定 6 项）。
-- (NSArray<NSString *> *)panelIdentifiers {
-    if (self.selectedIdentifiers.count == 0) {
-        NSArray<NSString *> *recents = self.recentIdentifiers;
-        NSUInteger count = MIN(recents.count, (NSUInteger)kKbdCollapsePanelCapacity);
-        return count == 0 ? @[] : [recents subarrayWithRange:NSMakeRange(0, count)];
-    }
-    NSMutableArray<NSString *> *identifiers = [self.selectedIdentifiers mutableCopy];
-    [identifiers sortUsingComparator:^NSComparisonResult(NSString *first, NSString *second) {
-        NSComparisonResult order = [MTKbdHandleDisplayName(first) localizedStandardCompare:MTKbdHandleDisplayName(second)];
-        return order != NSOrderedSame ? order : [first compare:second];
-    }];
-    NSUInteger capacity = [self panelCapacityForBounds:self.window.bounds];
-    if (identifiers.count > capacity) [identifiers removeObjectsInRange:NSMakeRange(capacity, identifiers.count - capacity)];
-    return identifiers;
-}
+#pragma mark 自动隐藏
 
 // 布防自动隐藏：只在把手可见且未缩边时启动一次性定时器（缩边即目标态，
 // 无需倒计时）；面板打开/拖动等使用态由各自路径先 cancel，展开后重新 arm。
@@ -494,14 +448,6 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     BOOL hitTestingConfigured = MTKbdHandleConfigureBackdropHitTesting(self.backdrop.layer);
     [window addSubview:self.backdrop];
 
-    // 面板只是瓦片的定位容器：背景与阴影都在每块瓦片上（同把手样式），
-    // 这里保持全透明，不再画整体胶囊。
-    self.panelView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, MTKbdPanelWidth, 1)];
-    self.panelView.backgroundColor = [UIColor clearColor];
-    self.panelView.alpha = 0;
-    self.panelView.hidden = YES;
-    [window addSubview:self.panelView];
-
     self.handleView = [[UIView alloc] initWithFrame:CGRectZero];
     self.handleView.layer.shadowColor = [UIColor blackColor].CGColor;
     self.handleView.layer.shadowOpacity = 0.25;
@@ -541,7 +487,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
 - (void)layoutForBounds:(CGRect)bounds {
     if (!self.window || !self.handleView || bounds.size.width < 1 || bounds.size.height < 1) return;
     UIEdgeInsets safe = self.window.safeAreaInsets;
-    if (!CGRectIsEmpty(self.lastLayoutBounds) && !CGRectEqualToRect(bounds, self.lastLayoutBounds) && self.panelOpen && self.quickEnabled) [self closePanel:NO];
+    if (!CGRectIsEmpty(self.lastLayoutBounds) && !CGRectEqualToRect(bounds, self.lastLayoutBounds) && self.panelOpen) [self closePanel:NO];
     self.lastLayoutBounds = bounds;
     if (self.dragging && !CGRectEqualToRect(bounds, self.dragBounds)) [self cancelHandleDrag];
     CGRect handleFrame = MTKbdHandleFrame(bounds, safe.top, safe.bottom,
@@ -559,16 +505,13 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     self.handleIconView.frame = UIEdgeInsetsInsetRect(self.handleMaterial.bounds,
         UIEdgeInsetsMake(MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset));
 
-    NSUInteger items = self.panelItems.count;
-    CGRect panelFrame = MTKbdHandlePanelFrame(bounds, safe.top, safe.bottom, handleFrame, items);
-    self.panelView.bounds = CGRectMake(0, 0, panelFrame.size.width, panelFrame.size.height);
-    self.panelView.center = CGPointMake(CGRectGetMidX(panelFrame), CGRectGetMidY(panelFrame));
     if (self.quickView) {
-        CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.alignment);
-        // Keep the small handle available alongside the bottom panel.
-        if (self.panelOpen && self.quickEnabled && CGRectIntersectsRect(quickFrame, handleFrame)) {
+        // 停靠侧独立于把手停靠位（kbdlauncherside，默认靠右紧贴右缘）。
+        CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide);
+        // 面板与把手同侧重叠时缩宽避让，保证把手仍可点按。
+        if (self.panelOpen && CGRectIntersectsRect(quickFrame, handleFrame)) {
             quickFrame.size.width = MAX(0, quickFrame.size.width - MTKbdHandleSide - 6);
-            if (self.alignment == 0) quickFrame.origin.x += MTKbdHandleSide + 6;
+            if (self.launcherSide == 0) quickFrame.origin.x += MTKbdHandleSide + 6;
         }
         self.quickView.frame = quickFrame;
     }
@@ -583,11 +526,9 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     if (!self.window) return;
     [self.handleView.layer removeAllAnimations];
     self.handleView.transform = CGAffineTransformIdentity;
-    [self rebuildPanel];
     self.panelOpen = NO;
     self.backdrop.hidden = YES;
     self.backdrop.alpha = 0;
-    self.panelView.hidden = YES;
     self.window.hidden = NO;
     [self layoutForBounds:self.window.bounds];
     if (animated) {
@@ -602,8 +543,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         self.handleView.transform = CGAffineTransformIdentity;
     }
     [self armAutoHideTimer];
-    NSLog(@"[MetisKeyboard][KbdHandle] handle shown items=%lu pinned=%d", (unsigned long)self.panelItems.count,
-        self.selectedIdentifiers.count > 0);
+    NSLog(@"[MetisKeyboard][KbdHandle] handle shown side=%ld launcherSide=%ld", (long)self.alignment, (long)self.launcherSide);
 }
 
 - (void)hideHandleWithReason:(NSString *)reason {
@@ -720,30 +660,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
             [self layoutForBounds:self.window.bounds];
         } completion:nil];
     }
-    if (self.quickEnabled) { [self openQuickLauncher]; return; }
-    [self rebuildPanel];
-    if (self.panelItems.count == 0) {
-        NSLog(@"[MetisKeyboard][KbdHandle] panel skipped empty");
-        return;
-    }
-    // 面板使用中不整体隐藏；closePanel 收起后重新计时。
-    [self cancelAutoHideTimer];
-    self.panelGeneration++;
-    [self.panelView.layer removeAllAnimations];
-    self.panelView.transform = CGAffineTransformIdentity;
-    self.panelOpen = YES;
-    self.backdrop.hidden = NO;
-    self.backdrop.alpha = 0;
-    self.panelView.hidden = NO;
-    self.panelView.alpha = 0;
-    self.panelView.transform = CGAffineTransformMakeScale(0.92, 0.92);
-    [UIView animateWithDuration:0.18 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
-        self.panelView.alpha = 1;
-        self.panelView.transform = CGAffineTransformIdentity;
-        self.backdrop.alpha = 1;
-    } completion:nil];
-    NSLog(@"[MetisKeyboard][KbdHandle] panel opened items=%lu pinned=%d", (unsigned long)self.panelItems.count,
-        self.selectedIdentifiers.count > 0);
+    [self openQuickLauncher];
 }
 
 - (void)closePanel:(BOOL)animated {
@@ -753,17 +670,11 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self.quickView endSession]; self.quickView.hidden = YES;
     void (^finish)(void) = ^{
         if (self.panelGeneration != generation || self.panelOpen) return;
-        [self.panelView.layer removeAllAnimations];
-        self.panelView.hidden = YES;
         self.backdrop.hidden = YES;
         self.backdrop.alpha = 0;
-        self.panelView.alpha = 0;
-        self.panelView.transform = CGAffineTransformIdentity;
     };
     if (animated) {
         [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
-            self.panelView.alpha = 0;
-            self.panelView.transform = CGAffineTransformMakeScale(0.92, 0.92);
             self.backdrop.alpha = 0;
         } completion:^(__unused BOOL done) { finish(); }];
     } else {
@@ -774,7 +685,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
     [self armAutoHideTimer];
 }
 
-// Each opening freezes favorites and recents; the legacy rail keeps its original ordering.
+// 每次打开冻结常用应用与最近悬浮快照；面板停靠侧由 kbdlauncherside 决定。
 - (void)openQuickLauncher {
     if (!self.quickView) {
         self.quickView = [[MTQuickLauncherView alloc] initWithFrame:CGRectZero];
@@ -807,9 +718,9 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         usage:[usage isKindOfClass:NSDictionary.class] ? usage : @{}];
     self.quickView.launching = self.launchPending;
     [self cancelAutoHideTimer]; self.panelGeneration++; self.panelOpen = YES;
-    self.backdrop.hidden = NO; self.backdrop.alpha = 1; self.panelView.hidden = YES;
+    self.backdrop.hidden = NO; self.backdrop.alpha = 1;
     self.quickView.hidden = NO; [self layoutForBounds:self.window.bounds];
-    NSLog(@"[MetisKeyboard][Launcher] session opened favorites=%lu", (unsigned long)favorites.count);
+    NSLog(@"[MetisKeyboard][Launcher] session opened favorites=%lu side=%ld", (unsigned long)favorites.count, (long)self.launcherSide);
 }
 
 - (void)recordQuickSuccess:(NSString *)identifier {
@@ -837,7 +748,7 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
 }
 
 - (void)launchQuickIdentifier:(NSString *)identifier {
-    if (!NSThread.isMainThread || !self.quickEnabled || !self.panelOpen || self.window.hidden ||
+    if (!NSThread.isMainThread || !self.panelOpen || self.window.hidden ||
         self.keyboardVisible || self.dragging || self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
     self.launchPending = YES; self.quickView.launching = YES;
     NSUInteger generation = self.panelGeneration, request = ++self.launchRequest;
@@ -851,68 +762,6 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         if (!host.panelOpen || host.panelGeneration != generation || host.window.hidden) return;
         if (result == MTSystemOpenSucceeded) [host closePanel:YES];
         else [host.quickView showOpenFailure];
-    });
-}
-
-- (void)rebuildPanel {
-    if (!self.panelView) return;
-    self.panelItems = [self panelIdentifiers];
-    for (UIButton *button in self.panelButtons) [button removeFromSuperview];
-    [self.panelButtons removeAllObjects];
-    NSUInteger count = self.panelItems.count;
-    CGFloat side = MTKbdPanelTileSide;
-    CGFloat tileX = MAX(0, (CGRectGetWidth(self.panelView.bounds) - side) / 2);
-    for (NSUInteger index = 0; index < count; index++) {
-        NSString *identifier = [self.panelItems objectAtIndex:index];
-        if (![identifier isKindOfClass:[NSString class]]) continue;
-        // 瓦片与把手同款：34pt SystemThinMaterial、8pt 连续圆角、同阴影参数，
-        // 图标内缩 5pt 显示 24pt（PullOver-X POAppRailTile 的比例）。
-        UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
-        button.frame = CGRectMake(tileX, index * (side + MTKbdPanelTileGap), side, side);
-        button.layer.cornerRadius = MTKbdHandleCornerRadius;
-        button.layer.cornerCurve = kCACornerCurveContinuous;
-        button.layer.shadowColor = [UIColor blackColor].CGColor;
-        button.layer.shadowOpacity = 0.25;
-        button.layer.shadowRadius = 6;
-        button.layer.shadowOffset = CGSizeMake(0, 2);
-        button.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:button.bounds
-                                                                cornerRadius:MTKbdHandleCornerRadius].CGPath;
-        UIVisualEffectView *material = [[UIVisualEffectView alloc]
-            initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterial]];
-        material.frame = button.bounds;
-        material.layer.cornerRadius = MTKbdHandleCornerRadius;
-        material.layer.cornerCurve = kCACornerCurveContinuous;
-        material.clipsToBounds = YES;
-        material.userInteractionEnabled = NO;
-        UIImageView *iconView = [[UIImageView alloc] initWithImage:MTKbdHandleApplicationIcon(identifier)];
-        iconView.frame = UIEdgeInsetsInsetRect(material.bounds,
-            UIEdgeInsetsMake(MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset));
-        iconView.contentMode = UIViewContentModeScaleAspectFit;
-        iconView.clipsToBounds = YES;
-        [material.contentView addSubview:iconView];
-        [button addSubview:material];
-        button.accessibilityLabel = MTKbdHandleDisplayName(identifier);
-        button.tag = (NSInteger)index;
-        [button addTarget:self action:@selector(appButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-        [self.panelView addSubview:button];
-        [self.panelButtons addObject:button];
-    }
-    // 面板高度随条目数变化，重建后立刻按当前内容重排。
-    if (self.window && !self.window.hidden) [self layoutForBounds:self.window.bounds];
-}
-
-- (void)appButtonTapped:(UIButton *)button {
-    if (!self.panelOpen || self.window.hidden || self.keyboardVisible || self.dragging) return;
-    NSUInteger index = (NSUInteger)button.tag;
-    if (index >= self.panelItems.count) return;  // 陈旧点击：面板可能已按新列表重建
-    NSString *identifier = [self.panelItems objectAtIndex:index];
-    if (![identifier isKindOfClass:[NSString class]]) return;
-    NSLog(@"[MetisKeyboard][KbdHandle] panel open bundleID=%@", identifier);
-    [self closePanel:YES];
-    // 目标切换语义由 MTFloatingAppCoordinator.open 承接：同 App 短路，不同 App
-    // 走 target-switch 收旧开新，悬浮卡只剩一个。截止时间由 open 通道自建。
-    MTOpenFloatingApplication(identifier, ^(MTSystemOpenResult result) {
-        NSLog(@"[MetisKeyboard][KbdHandle] float result=%llu bundleID=%@", (unsigned long long)result, identifier);
     });
 }
 
