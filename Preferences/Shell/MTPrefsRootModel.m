@@ -47,18 +47,17 @@ static NSArray *MTRootCategoryConfigs(void) {
 + (MTSettingsPageModel *)rootPageModel {
     NSMutableArray<MTSettingsRow *> *toggleRows = [NSMutableArray array];
 
+    BOOL enabled = [self globalEnabled];
     MTSettingsRow *toggle = [MTSettingsRow linkRowWithIdentifier:@"global-enabled" title:@"启用 Metis"];
     toggle.kind = MTSettingsRowKindToggle;
-    toggle.userInfo = @([self globalEnabled]); // 开关初始状态（cell 读取 boolValue）
+    toggle.iconName = @"power";
+    toggle.userInfo = @(enabled); // 开关初始状态（cell 读取 boolValue）
+    // 与模块行保持同一「图标 + 两行文字」结构：开启态说明作用，暂停态说明
+    // 现状（02 §1：总开关关闭后仍允许配置——原独立提示行并入本行副标题）。
+    toggle.subtitle = enabled
+        ? @"关闭后暂停全部功能，配置仍保留"
+        : @"所有入口已停止；配置仍可修改，重新开启后生效";
     [toggleRows addObject:toggle];
-
-    // 总开关关闭时仍允许配置，仅追加一条整体暂停提示（02 §1；非模块状态行）。
-    if (![self globalEnabled]) {
-        MTSettingsRow *paused = [MTSettingsRow linkRowWithIdentifier:@"metis-paused-notice" title:@"Metis 已暂停"];
-        paused.kind = MTSettingsRowKindInfo;
-        paused.subtitle = @"所有入口已停止；配置仍可修改，重新开启后生效";
-        [toggleRows addObject:paused];
-    }
 
     MTSettingsSection *toggleSection = [MTSettingsSection sectionWithRows:toggleRows];
 
@@ -70,7 +69,7 @@ static NSArray *MTRootCategoryConfigs(void) {
     model.sections = @[toggleSection, categorySection];
     model.footerText = @"按功能分类，统一配置";
     MTLogInfo(MTLogModulePrefs, @"state=root-model-ready paused=%@",
-              [self globalEnabled] ? @"0" : @"1");
+              enabled ? @"0" : @"1");
     return model;
 }
 

@@ -31,12 +31,22 @@ static NSString *const MTOtherPrefsChanged = @"com.lindo.metis.keyboard/prefscha
         [specs addObject:[self mtSubbundleLinkWithTitle:@"悬浮应用" icon:@"macwindow.on.rectangle"
             bundle:@"MetisKeyboardPrefs" className:@"MTPFloatingAppController"]];
 
+        // 自动化区：AI 问答保留分区头；两个功能开关各自独立成组（用户要求
+        // 拆分成单独条目、不合并），与链接条目视觉对齐。
         PSSpecifier *automationGroup = [PSSpecifier groupSpecifierWithName:@"自动化"];
         [specs addObject:automationGroup];
         [specs addObject:[self mtSubbundleLinkWithTitle:@"AI 问答" icon:@"bubble.left.and.bubble.right"
             bundle:@"MetisKeyboardPrefs" className:@"MTPAIChatController"]];
-        [specs addObject:[self mtSwitchWithTitle:@"短信验证码自动复制" key:@"smscodecopyBOOL" defaultValue:NO]];
-        [specs addObject:[self mtSwitchWithTitle:@"浏览器重定向" key:@"browserredirectBOOL" defaultValue:NO]];
+
+        PSSpecifier *smsGroup = [PSSpecifier groupSpecifierWithName:nil];
+        [specs addObject:smsGroup];
+        [specs addObject:[self mtSwitchWithTitle:@"短信验证码自动复制" icon:@"message.badge.fill"
+                                             key:@"smscodecopyBOOL" defaultValue:NO]];
+
+        PSSpecifier *redirectGroup = [PSSpecifier groupSpecifierWithName:nil];
+        [specs addObject:redirectGroup];
+        [specs addObject:[self mtSwitchWithTitle:@"浏览器重定向" icon:@"arrow.uturn.forward.circle.fill"
+                                             key:@"browserredirectBOOL" defaultValue:NO]];
 
         PSSpecifier *footer = [PSSpecifier groupSpecifierWithName:nil];
         [footer setProperty:@"JavaScript 动作源码在「全局 · 自定义动作」中编辑。" forKey:@"footerText"];
@@ -56,6 +66,9 @@ static NSString *const MTOtherPrefsChanged = @"com.lindo.metis.keyboard/prefscha
         detail:nil
         cell:PSLinkCell
         edit:nil];
+    // 条目图标：Automatic symbol 经 PS imageView 默认 tint 渲染为蓝色，与全库
+    // 条目统一；此处不套 MTSettingsStyle 的 22pt 配置——宿主测试只链接
+    // Foundation（PrefsStubs 无 UIKit），Shell 控制器不得引用 MTSettingsStyle。
     UIImage *icon = [UIImage systemImageNamed:iconName];
     if (icon) [link setProperty:icon forKey:@"iconImage"];
     [link setProperty:bundleName forKey:@"metis-subbundle"];
@@ -64,7 +77,8 @@ static NSString *const MTOtherPrefsChanged = @"com.lindo.metis.keyboard/prefscha
     return link;
 }
 
-- (PSSpecifier *)mtSwitchWithTitle:(NSString *)title key:(NSString *)key defaultValue:(BOOL)defaultValue {
+- (PSSpecifier *)mtSwitchWithTitle:(NSString *)title icon:(NSString *)iconName
+                               key:(NSString *)key defaultValue:(BOOL)defaultValue {
     PSSpecifier *toggle = [PSSpecifier preferenceSpecifierNamed:title
         target:self
         set:@selector(setPreferenceValue:specifier:)
@@ -76,6 +90,9 @@ static NSString *const MTOtherPrefsChanged = @"com.lindo.metis.keyboard/prefscha
     [toggle setProperty:MTOtherKeyboardDomain forKey:@"defaults"];
     [toggle setProperty:defaultValue ? @YES : @NO forKey:@"default"];
     [toggle setProperty:MTOtherPrefsChanged forKey:@"PostNotification"];
+    // 与链接条目同一 iconImage 契约：PSSwitchCell 经 Preferences 默认渲染。
+    UIImage *icon = [UIImage systemImageNamed:iconName];
+    if (icon) [toggle setProperty:icon forKey:@"iconImage"];
     return toggle;
 }
 

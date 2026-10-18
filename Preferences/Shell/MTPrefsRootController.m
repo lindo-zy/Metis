@@ -68,8 +68,9 @@
     return container;
 }
 
-// 包内品牌图按屏幕倍率取最合适的一档（PreferenceLoader 入口图标是独立拷贝，
-// 页内展示直接读 MetisPrefs.bundle 资源）。
+// 包内品牌图按屏幕倍率取最合适的一档。设置入口图（Metis.png 系列）已按
+// PreferenceLoader 标准 29/58/87 缩小，与系统插件列表其他条目一致；页内
+// 品牌头需要 56pt 展示，独立使用未缩放的 MetisBrand 系列，两者互不影响。
 - (UIImage *)mtBrandIconImage {
     NSBundle *bundle = [NSBundle bundleForClass:self.class];
     CGFloat scale = self.view.window.screen.scale ?: UIScreen.mainScreen.scale ?: 2.0;
@@ -77,10 +78,10 @@
         CGFloat candidateScale = candidate.doubleValue;
         if (candidateScale > scale && candidateScale != 1.0) continue;
         NSString *suffix = candidateScale == 3.0 ? @"@3x" : (candidateScale == 2.0 ? @"@2x" : @"");
-        NSString *path = [bundle pathForResource:[NSString stringWithFormat:@"Metis%@", suffix] ofType:@"png"];
+        NSString *path = [bundle pathForResource:[NSString stringWithFormat:@"MetisBrand%@", suffix] ofType:@"png"];
         if (path) return [UIImage imageWithContentsOfFile:path];
     }
-    NSString *fallback = [bundle pathForResource:@"Metis" ofType:@"png"];
+    NSString *fallback = [bundle pathForResource:@"MetisBrand" ofType:@"png"];
     return fallback ? [UIImage imageWithContentsOfFile:fallback] : nil;
 }
 
