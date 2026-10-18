@@ -7,7 +7,6 @@
 
 NSString *const kMTSearchTokenTypeCategory = @"category";
 NSString *const kMTSearchTokenTypeApp = @"app";
-NSString *const kMTSearchTokenTypeTag = @"tag";
 
 NSString *const kMTSearchCategoryText = @"text";
 NSString *const kMTSearchCategoryLink = @"link";
@@ -110,23 +109,20 @@ NSString *const kMTSearchCategoryImage = @"image";
 #pragma mark - Construction
 
 + (instancetype)emptyCriteria {
-    return [[self alloc] initWithSearchText:nil categoryValue:nil appBundleIdentifier:nil tagUUID:nil];
+    return [[self alloc] initWithSearchText:nil categoryValue:nil appBundleIdentifier:nil];
 }
 
 + (instancetype)criteriaWithSearchText:(nullable NSString *)searchText
                          categoryValue:(nullable NSString *)categoryValue
-                   appBundleIdentifier:(nullable NSString *)appBundleIdentifier
-                               tagUUID:(nullable NSString *)tagUUID {
+                   appBundleIdentifier:(nullable NSString *)appBundleIdentifier {
     return [[self alloc] initWithSearchText:searchText
                               categoryValue:categoryValue
-                        appBundleIdentifier:appBundleIdentifier
-                                    tagUUID:tagUUID];
+                        appBundleIdentifier:appBundleIdentifier];
 }
 
 - (instancetype)initWithSearchText:(nullable NSString *)searchText
                      categoryValue:(nullable NSString *)categoryValue
-               appBundleIdentifier:(nullable NSString *)appBundleIdentifier
-                           tagUUID:(nullable NSString *)tagUUID {
+               appBundleIdentifier:(nullable NSString *)appBundleIdentifier {
     self = [super init];
     if (self) {
         NSString *trimmedText =
@@ -134,7 +130,6 @@ NSString *const kMTSearchCategoryImage = @"image";
         _searchText = [trimmedText copy];
         _categoryValue = [categoryValue length] > 0 ? [categoryValue copy] : nil;
         _appBundleIdentifier = [appBundleIdentifier length] > 0 ? [appBundleIdentifier copy] : nil;
-        _tagUUID = [tagUUID length] > 0 ? [tagUUID copy] : nil;
     }
     return self;
 }
@@ -144,8 +139,7 @@ NSString *const kMTSearchCategoryImage = @"image";
 - (id)copyWithZone:(NSZone *)zone {
     return [[[self class] allocWithZone:zone] initWithSearchText:[self searchText]
                                                    categoryValue:[self categoryValue]
-                                             appBundleIdentifier:[self appBundleIdentifier]
-                                                         tagUUID:[self tagUUID]];
+                                             appBundleIdentifier:[self appBundleIdentifier]];
 }
 
 - (BOOL)hasCategoryToken {
@@ -156,16 +150,12 @@ NSString *const kMTSearchCategoryImage = @"image";
     return [[self appBundleIdentifier] length] > 0;
 }
 
-- (BOOL)hasTagToken {
-    return [[self tagUUID] length] > 0;
-}
-
 - (BOOL)hasSearchText {
     return [[self searchText] length] > 0;
 }
 
 - (BOOL)hasActiveFilters {
-    return [self hasSearchText] || [self hasCategoryToken] || [self hasAppToken] || [self hasTagToken];
+    return [self hasSearchText] || [self hasCategoryToken] || [self hasAppToken];
 }
 
 #pragma mark - Mutations
@@ -173,28 +163,19 @@ NSString *const kMTSearchCategoryImage = @"image";
 - (MTSearchCriteria *)criteriaByReplacingSearchText:(nullable NSString *)searchText {
     return [[MTSearchCriteria alloc] initWithSearchText:searchText
                                               categoryValue:[self categoryValue]
-                                        appBundleIdentifier:[self appBundleIdentifier]
-                                                    tagUUID:[self tagUUID]];
+                                        appBundleIdentifier:[self appBundleIdentifier]];
 }
 
 - (MTSearchCriteria *)criteriaBySelectingToken:(MTSearchToken *)token {
     if ([[token type] isEqualToString:kMTSearchTokenTypeCategory]) {
         return [[MTSearchCriteria alloc] initWithSearchText:[self searchText]
                                                   categoryValue:[token value]
-                                            appBundleIdentifier:[self appBundleIdentifier]
-                                                        tagUUID:[self tagUUID]];
+                                            appBundleIdentifier:[self appBundleIdentifier]];
     }
     if ([[token type] isEqualToString:kMTSearchTokenTypeApp]) {
         return [[MTSearchCriteria alloc] initWithSearchText:[self searchText]
                                                   categoryValue:[self categoryValue]
-                                            appBundleIdentifier:[token value]
-                                                        tagUUID:[self tagUUID]];
-    }
-    if ([[token type] isEqualToString:kMTSearchTokenTypeTag]) {
-        return [[MTSearchCriteria alloc] initWithSearchText:[self searchText]
-                                                  categoryValue:[self categoryValue]
-                                            appBundleIdentifier:[self appBundleIdentifier]
-                                                        tagUUID:[token value]];
+                                            appBundleIdentifier:[token value]];
     }
     return [self copy];
 }
@@ -202,22 +183,17 @@ NSString *const kMTSearchCategoryImage = @"image";
 - (MTSearchCriteria *)criteriaByRemovingToken:(MTSearchToken *)token {
     NSString *categoryValue = [self categoryValue];
     NSString *appBundleIdentifier = [self appBundleIdentifier];
-    NSString *tagUUID = [self tagUUID];
     if ([[token type] isEqualToString:kMTSearchTokenTypeCategory] &&
         [[token value] isEqualToString:categoryValue ?: @""]) {
         categoryValue = nil;
     } else if ([[token type] isEqualToString:kMTSearchTokenTypeApp] &&
                [[token value] isEqualToString:appBundleIdentifier ?: @""]) {
         appBundleIdentifier = nil;
-    } else if ([[token type] isEqualToString:kMTSearchTokenTypeTag] &&
-               [[token value] isEqualToString:tagUUID ?: @""]) {
-        tagUUID = nil;
     }
 
     return [[MTSearchCriteria alloc] initWithSearchText:[self searchText]
                                               categoryValue:categoryValue
-                                        appBundleIdentifier:appBundleIdentifier
-                                                    tagUUID:tagUUID];
+                                        appBundleIdentifier:appBundleIdentifier];
 }
 
 #pragma mark - Equality
@@ -239,13 +215,11 @@ NSString *const kMTSearchCategoryImage = @"image";
 
     return [[self searchText] isEqualToString:[criteria searchText]] &&
            [([self categoryValue] ?: @"") isEqualToString:([criteria categoryValue] ?: @"")] &&
-           [([self appBundleIdentifier] ?: @"") isEqualToString:([criteria appBundleIdentifier] ?: @"")] &&
-           [([self tagUUID] ?: @"") isEqualToString:([criteria tagUUID] ?: @"")];
+           [([self appBundleIdentifier] ?: @"") isEqualToString:([criteria appBundleIdentifier] ?: @"")];
 }
 
 - (NSUInteger)hash {
-    return [[self searchText] hash] ^ [[self categoryValue] hash] ^ [[self appBundleIdentifier] hash] ^
-           [[self tagUUID] hash];
+    return [[self searchText] hash] ^ [[self categoryValue] hash] ^ [[self appBundleIdentifier] hash];
 }
 
 @end

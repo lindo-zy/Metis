@@ -806,7 +806,6 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)setNote:(NSString *)note
-         tagUUID:(NSString *)tagUUID
 forPasteboardItem:(MTPasteboardItem *)item
  inHistoryWithKey:(NSString *)historyKey
        completion:(void (^)(BOOL success))completion {
@@ -826,7 +825,6 @@ forPasteboardItem:(MTPasteboardItem *)item
 
     NSDictionary<NSString *, id> *dictionary = [item dictionaryRepresentation];
     [_historyRepository setNote:note
-                        tagUUID:tagUUID
                forItemDictionary:dictionary
                     inHistoryKey:historyKey
                       completion:completion];

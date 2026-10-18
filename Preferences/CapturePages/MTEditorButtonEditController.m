@@ -1,4 +1,5 @@
 #import "MTEditorButtonEditController.h"
+#import "MTPSFSymbolPickerController.h"
 
 static const CGFloat MTIconItemSide = 52.0;
 
@@ -80,6 +81,15 @@ static const CGFloat MTIconItemSide = 52.0;
     symbolCaption.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:symbolCaption];
 
+    // 「图标库」入口：打开全量 SF Symbols 分类选择器（MetisCore 共享组件）。
+    UIButton *libraryButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [libraryButton setTitle:@"图标库" forState:UIControlStateNormal];
+    [libraryButton.titleLabel setFont:[UIFont systemFontOfSize:14 weight:UIFontWeightMedium]];
+    [libraryButton setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [libraryButton addTarget:self action:@selector(mtOpenSymbolLibrary) forControlEvents:UIControlEventTouchUpInside];
+    libraryButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:libraryButton];
+
     _symbolField = [[UITextField alloc] init];
     _symbolField.borderStyle = UITextBorderStyleRoundedRect;
     _symbolField.clearButtonMode = UITextFieldViewModeWhileEditing;
@@ -133,7 +143,9 @@ static const CGFloat MTIconItemSide = 52.0;
         [_nameField.heightAnchor constraintEqualToConstant:38],
         [symbolCaption.topAnchor constraintEqualToAnchor:_nameField.bottomAnchor constant:16],
         [symbolCaption.leadingAnchor constraintEqualToAnchor:self.view.layoutMarginsGuide.leadingAnchor],
-        [symbolCaption.trailingAnchor constraintEqualToAnchor:self.view.layoutMarginsGuide.trailingAnchor],
+        [symbolCaption.trailingAnchor constraintLessThanOrEqualToAnchor:libraryButton.leadingAnchor constant:-8],
+        [libraryButton.trailingAnchor constraintEqualToAnchor:self.view.layoutMarginsGuide.trailingAnchor],
+        [libraryButton.centerYAnchor constraintEqualToAnchor:symbolCaption.centerYAnchor],
         [_symbolField.topAnchor constraintEqualToAnchor:symbolCaption.bottomAnchor constant:6],
         [_symbolField.leadingAnchor constraintEqualToAnchor:self.view.layoutMarginsGuide.leadingAnchor],
         [_symbolField.trailingAnchor constraintEqualToAnchor:_symbolPreview.leadingAnchor constant:-12],
@@ -156,8 +168,7 @@ static const CGFloat MTIconItemSide = 52.0;
 #pragma mark - 符号清单
 
 /// 精选符号（目录默认图标之外的可选集）；运行时过滤当前系统加载不到的符号。
-- (NSArray<NSString *> *)mtAvailableSymbols {
-    NSArray<NSString *> *candidates = @[
+- (NSArray<NSString *> *)mtAvailableSymbols {    NSArray<NSString *> *candidates = @[
         @"star", @"heart", @"flag", @"scissors", @"wand.and.stars", @"eyedropper",
         @"highlighter", @"signature", @"square.and.pencil", @"ruler", @"eraser", @"paintpalette",
         @"face.smiling", @"hand.raised", @"hand.tap", @"link", @"paperplane", @"bookmark",
@@ -171,6 +182,24 @@ static const CGFloat MTIconItemSide = 52.0;
         if ([UIImage systemImageNamed:symbol]) [available addObject:symbol];
     }
     return available;
+}
+
+#pragma mark - 图标库
+
+// 打开全量 SF Symbols 分类选择器；选中后回填符号输入框并刷新预览与网格。
+- (void)mtOpenSymbolLibrary {
+    MTPSFSymbolPickerController *picker = [[MTPSFSymbolPickerController alloc] init];
+    picker.selectedSymbolName = [self.selectedIcon isKindOfClass:[NSString class]] ? self.selectedIcon : nil;
+    __weak typeof(self) weakSelf = self;
+    picker.completion = ^(NSString *symbolName) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) {
+            return;
+        }
+        strongSelf.symbolField.text = symbolName ?: @"";
+        [strongSelf mtSymbolChanged:strongSelf.symbolField];
+    };
+    [self.navigationController pushViewController:picker animated:YES];
 }
 
 #pragma mark - 名称与符号输入

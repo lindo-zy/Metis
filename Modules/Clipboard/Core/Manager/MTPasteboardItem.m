@@ -41,10 +41,6 @@ NSString *const kMTContinuityBundleIdentifier = @"com.apple.continuity";
     MTPasteboardItem *item = [[MTPasteboardItem alloc] initWithBundleIdentifier:bundleIdentifier
                                                                              andContent:content
                                                                          withImageNamed:imageName];
-    id tagUUID = dictionary[kMTItemKeyTagUUID];
-    if ([tagUUID isKindOfClass:[NSString class]] && [tagUUID length] > 0) {
-        [item setTagUUID:tagUUID];
-    }
     id note = dictionary[kMTItemKeyNote];
     if ([note isKindOfClass:[NSString class]] && [note length] > 0) {
         [item setNote:note];
@@ -95,9 +91,6 @@ NSString *const kMTContinuityBundleIdentifier = @"com.apple.continuity";
         kMTItemKeyImagePixelHeight : @([self imagePixelHeight]),
         kMTItemKeyImageByteCount : @([self imageByteCount])
     } mutableCopy];
-    if ([[self tagUUID] length] > 0) {
-        dictionary[kMTItemKeyTagUUID] = [self tagUUID];
-    }
     if ([[self note] length] > 0) {
         dictionary[kMTItemKeyNote] = [self note];
     }

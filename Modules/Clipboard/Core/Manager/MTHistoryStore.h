@@ -59,7 +59,6 @@ typedef NS_ENUM(NSInteger, MTHistoryStoreLockingMode) {
            shouldRemoveImage:(BOOL)shouldRemoveImage
                        error:(NSError *_Nullable *_Nullable)error;
 - (BOOL)setNote:(nullable NSString *)note
-         tagUUID:(nullable NSString *)tagUUID
 forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
      inHistoryKey:(NSString *)historyKey
             error:(NSError *_Nullable *_Nullable)error;

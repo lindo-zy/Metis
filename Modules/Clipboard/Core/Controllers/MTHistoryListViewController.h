@@ -75,7 +75,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeItemDictionary:(NSDictionary<NSString *, id> *)dictionary;
 - (void)removeItemAtIndexPath:(NSIndexPath *)indexPath completion:(nullable void (^)(BOOL success))completion;
 - (void)updateNote:(nullable NSString *)note
-            tagUUID:(nullable NSString *)tagUUID
             forItem:(MTPasteboardItem *)item
          completion:(nullable void (^)(void))completion;
 - (void)replaceContent:(NSString *)content

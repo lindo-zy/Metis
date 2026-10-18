@@ -85,12 +85,11 @@ internal-stage::
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/var/mobile/Library/Metis/Global$(ECHO_END)
 	$(ECHO_NOTHING)chmod 0777 $(THEOS_STAGING_DIR)/var/mobile/Library/Metis/Global$(ECHO_END)
 
-# Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）与 Shared Tags/Actions
+# Clipboard（MetisClipboard）共享层：SwipeUp 识别器（SB+UIKit 共用）
 CLIPBOARD = ../Modules/Clipboard
 MetisCore_FILES += $(CLIPBOARD)/Helper/MTSwipeUpGestureRecognizer.m \
-	$(wildcard $(CLIPBOARD)/Shared/Tags/*.m) \
 	$(wildcard $(CLIPBOARD)/Shared/Actions/*.m)
-MetisCore_CFLAGS += -I$(CLIPBOARD)/Shared/Tags -I$(CLIPBOARD)/Shared/Actions -I../Preferences/ClipboardPages
+MetisCore_CFLAGS += -I$(CLIPBOARD)/Shared/Actions -I../Preferences/ClipboardPages
 
 MetisCore_FRAMEWORKS = Foundation CoreFoundation UIKit CoreGraphics QuartzCore ImageIO SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
 MetisCore_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices SpringBoardServices MobileCoreServices

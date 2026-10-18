@@ -14,7 +14,6 @@
 #import "MTPasteboardItem.h"
 #import "MTPreferenceKeys.h"
 #import "MTQuickAction.h"
-#import "MTQuickActionPanelViewController.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
@@ -1117,30 +1116,8 @@ NS_ASSUME_NONNULL_END
     }
 
     [self cancelFloatingPreviewExpiration];
-    if ([actions count] == 1) {
-        [self openFloatingPreviewAction:[actions firstObject] forItem:item];
-        return;
-    }
-
-    MTFloatingPreviewViewController *viewController = self.floatingPreviewViewController;
-    UIWindow *window = self.floatingPreviewWindow;
-    if (!viewController || !window || [window isHidden] || [viewController presentedViewController]) {
-        return;
-    }
-
-    __weak typeof(self) weakSelf = self;
-    MTQuickActionPanelViewController *panel = [[MTQuickActionPanelViewController alloc]
-        initWithActions:actions
-        anchoringAboveView:nil
-        placement:MTQuickActionPanelPlacementScreenUpperCenter
-        selectionHandler:^(NSDictionary<NSString *, id> *action) {
-          [weakSelf openFloatingPreviewAction:action forItem:item];
-        }];
-    [panel setDismissalHandler:^{
-      [weakSelf hideFloatingPreviewAnimated:NO];
-    }];
-    [[viewController button] setHidden:YES];
-    [viewController presentViewController:panel animated:YES completion:nil];
+    // 悬浮面板已移除：直接执行第一个动作（单动作与多动作行为一致）。
+    [self openFloatingPreviewAction:[actions firstObject] forItem:item];
 }
 
 - (void)openFloatingPreviewAction:(NSDictionary<NSString *, id> *)action
@@ -1460,8 +1437,6 @@ NS_ASSUME_NONNULL_END
         kMTPreferenceKeyFloatingPreviewColor : kMTPreferenceKeyFloatingPreviewColorDefaultValue,
         kMTPreferenceKeyFloatingPreviewDockedRight : @(kMTPreferenceKeyFloatingPreviewDockedRightDefaultValue),
         kMTPreferenceKeyFloatingPreviewVerticalPosition : @(kMTPreferenceKeyFloatingPreviewVerticalPositionDefaultValue),
-        kMTPreferenceKeyFloatingPanelScale : @(kMTPreferenceKeyFloatingPanelScaleDefaultValue),
-        kMTPreferenceKeyFloatingPanelColor : kMTPreferenceKeyFloatingPanelColorDefaultValue,
         kMTPreferenceKeyImageDoubleTapActionURL : kMTPreferenceKeyImageDoubleTapActionURLDefaultValue,
         kMTPreferenceKeyGestureRecognizerMode : @(kMTPreferenceKeyGestureRecognizerModeDefaultValue),
         kMTPreferenceKeyMaximumHistoryAmount : @(kMTPreferenceKeyMaximumHistoryAmountDefaultValue),

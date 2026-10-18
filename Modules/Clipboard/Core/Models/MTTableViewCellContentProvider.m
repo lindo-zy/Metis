@@ -8,8 +8,6 @@
 #import "MTPasteboardItem.h"
 #import "MTPasteboardManager.h"
 #import "MTTableViewCellContent.h"
-#import "MTTag.h"
-#import "MTTagCatalog.h"
 
 #import <stdint.h>
 
@@ -169,8 +167,6 @@ NS_ASSUME_NONNULL_END
     [content setAttributedDisplayName:[[item note] length] > 0 ? [self attributedTextForText:displayName
                                                                                   searchText:searchText]
                                                                : nil];
-    MTTag *tag = [[MTTagCatalog sharedCatalog] tagForUUID:[item tagUUID]];
-    [content setTagHexColor:[tag hexColor]];
     [content setContentText:displayContentText];
     [content setAttributedContentText:[self privacyMode] ? nil
                                                          : [self attributedTextForText:contentText searchText:searchText]];

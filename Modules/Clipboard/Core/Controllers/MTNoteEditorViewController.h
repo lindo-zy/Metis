@@ -15,11 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol MTNoteEditorViewControllerDelegate <NSObject>
 
 - (void)noteEditorViewController:(MTNoteEditorViewController *)controller
-              didRequestSaveNote:(nullable NSString *)note
-                       tagUUID:(nullable NSString *)tagUUID;
+              didRequestSaveNote:(nullable NSString *)note;
 - (void)noteEditorViewControllerDidRequestCancel:(MTNoteEditorViewController *)controller;
-- (void)noteEditorViewController:(MTNoteEditorViewController *)controller
-                 didSelectTagUUID:(nullable NSString *)tagUUID;
 - (void)noteEditorViewController:(MTNoteEditorViewController *)controller
     didUpdateKeyboardBottomInset:(CGFloat)keyboardBottomInset
                animationDuration:(NSTimeInterval)animationDuration

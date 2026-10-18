@@ -17,6 +17,12 @@
 #import "MTTableViewCellContent.h"
 #import "MTTableViewCellContentProvider.h"
 
+// 系统动作（Keyboard 共享层，经 MetisCore 链接）：目录 + 执行器 + 截图集成检查。
+#import "common.h"
+#import "MTCaptureIntegration.h"
+#import "MTSystemActionCatalog.h"
+#import "MTSystemActionExecutor.h"
+
 #import <math.h>
 #import <objc/runtime.h>
 
@@ -858,7 +864,6 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)updateNote:(NSString *)note
-            tagUUID:(NSString *)tagUUID
             forItem:(MTPasteboardItem *)item
          completion:(void (^)(void))completion {
     if (!item) {
@@ -872,7 +877,6 @@ NS_ASSUME_NONNULL_END
     if ([self isGalleryModeEnabled]) {
         NSUInteger displayedIndex = NSNotFound;
         [[self dataStore] updateNote:note
-                             tagUUID:tagUUID
               forItemMatchingDictionary:dictionary
                      displayedItemIndex:&displayedIndex];
         [self reloadTableView];
@@ -887,7 +891,6 @@ NS_ASSUME_NONNULL_END
     [[self tableView]
         performBatchUpdates:^{
           update = [[self dataStore] updateNote:note
-                                        tagUUID:tagUUID
                          forItemMatchingDictionary:dictionary
                                 displayedItemIndex:&displayedIndex];
           if (displayedIndex == NSNotFound) {
@@ -1410,7 +1413,99 @@ forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
         }];
         [actions addObject:linkAction];
     }
+
+    MTGalleryAction *systemAction = [[MTGalleryAction alloc] init];
+    [systemAction setStyle:UIContextualActionStyleNormal];
+    [systemAction setImage:[UIImage systemImageNamed:@"switch.2"]];
+    [systemAction setBackgroundColor:[UIColor systemIndigoColor]];
+    [systemAction setAccessibilityLabel:[bundle localizedStringForKey:@"System Actions"
+                                                               value:@"System Actions"
+                                                               table:@"Tweak"]];
+    [systemAction setHandler:^(UIView *sourceView, void (^completionHandler)(BOOL)) {
+      __strong typeof(weakSelf) strongSelf = weakSelf;
+      if (!strongSelf) {
+          completionHandler(NO);
+          return;
+      }
+      completionHandler(YES);
+      [strongSelf presentSystemActionSheetFromView:sourceView];
+    }];
+    [actions addObject:systemAction];
     return actions;
+}
+
+#pragma mark - System Actions
+
+// 左滑「系统动作」：弹出系统动作选择面板（与键盘系统动作同一目录），
+// 选中后经 MetisCore 的执行器在 SpringBoard 主线程执行。
+- (void)presentSystemActionSheetFromView:(UIView *)sourceView {
+    if (!NSThread.isMainThread) {
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+          [weakSelf presentSystemActionSheetFromView:sourceView];
+        });
+        return;
+    }
+
+    BOOL pixPinInstalled = MTCaptureInstalledAtPath(MT_ROOT_PATH_NS(MTCaptureDylibPath));
+    NSArray<NSDictionary *> *catalog = MTVisibleSystemActionCatalog(pixPinInstalled);
+    if ([catalog count] == 0) {
+        return;
+    }
+
+    NSBundle *keyboardBundle = [NSBundle bundleWithPath:bundlePath];
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:nil
+                                                                 message:nil
+                                                          preferredStyle:UIAlertControllerStyleActionSheet];
+    for (NSDictionary *definition in catalog) {
+        NSString *action = definition[@"id"];
+        NSString *title = [keyboardBundle localizedStringForKey:definition[@"title"] value:action table:nil];
+        __weak typeof(self) weakSelf = self;
+        UIAlertAction *alertAction = [UIAlertAction actionWithTitle:title
+                                                             style:UIAlertActionStyleDefault
+                                                           handler:^(__unused UIAlertAction *selectedAction) {
+                                                             [weakSelf performClipboardSystemAction:action];
+                                                           }];
+        [sheet addAction:alertAction];
+    }
+
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:[keyboardBundle localizedStringForKey:@"CANCEL"
+                                                                                                value:@"Cancel"
+                                                                                                table:nil]
+                                                              style:UIAlertActionStyleCancel
+                                                            handler:nil];
+    [sheet addAction:cancelAction];
+
+    UIPopoverPresentationController *popoverController = [sheet popoverPresentationController];
+    if (popoverController) {
+        [popoverController setSourceView:sourceView ?: [self view]];
+        [popoverController setSourceRect:sourceView ? [sourceView bounds] : CGRectZero];
+    }
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)performClipboardSystemAction:(NSString *)action {
+    if (!NSThread.isMainThread || ![action isKindOfClass:[NSString class]]) {
+        return;
+    }
+    NSDictionary *definition = MTSystemActionDefinition(action);
+    if (!definition) {
+        return;
+    }
+    if (MTSystemActionIsRecording(action)) {
+        MTPerformSystemRecordingAction(action, ^(MTSystemOpenResult result) {
+          NSLog(@"[MetisClipboard][SystemAction] recording id=%@ result=%llu", action, (unsigned long long)result);
+        });
+        return;
+    }
+    if ([definition[@"destructive"] boolValue]) {
+        // 破坏性动作（注销/安全模式/关机/重启）走执行器内置的确认弹窗。
+        NSProgress *operation = [NSProgress discreteProgressWithTotalUnitCount:1];
+        MTConfirmSystemExitAction(action, operation);
+        return;
+    }
+    MTSystemOpenResult result = MTPerformSystemAction(action);
+    NSLog(@"[MetisClipboard][SystemAction] id=%@ result=%llu", action, (unsigned long long)result);
 }
 
 - (MTGalleryAction *)deleteActionForItem:(MTPasteboardItem *)item indexPath:(NSIndexPath *)indexPath {

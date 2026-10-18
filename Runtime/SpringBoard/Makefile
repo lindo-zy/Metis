@@ -50,7 +50,6 @@ MetisSpringBoard_CFLAGS += -I../../Modules/Clipboard/Core \
 	-I../../Modules/Clipboard/Core/Manager \
 	-I../../Modules/Clipboard/Core/Actions \
 	-I../../Modules/Clipboard/Shared/Actions \
-	-I../../Modules/Clipboard/Shared/Tags \
 	-I../../Modules/Clipboard/Core/Controllers \
 	-I../../Modules/Clipboard/Core/Coordinators \
 	-I../../Modules/Clipboard/Core/Models \

@@ -248,10 +248,9 @@ static NSInteger const kMTClipboardCoreHistoryStoreBusyTimeoutMilliseconds = 250
     }];
 }
 
-#pragma mark - Note and Tag Persistence
+#pragma mark - Note Persistence
 
 - (void)setNote:(NSString *)note
-         tagUUID:(NSString *)tagUUID
 forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
      inHistoryKey:(NSString *)historyKey
        completion:(void (^)(BOOL success))completion {
@@ -259,12 +258,11 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
       NSError *error = nil;
       MTHistoryStore *historyStore = [self preparedHistoryStoreOnQueueWithError:&error];
       BOOL success = historyStore && [historyStore setNote:note
-                                                   tagUUID:tagUUID
                                           forItemDictionary:dictionary
                                                inHistoryKey:historyKey
                                                       error:&error];
       if (!success) {
-          HBLogDebug(@"Mt: Failed to set history item note and tag: %@", error);
+          HBLogDebug(@"Mt: Failed to set history item note: %@", error);
       }
       [self dispatchCompletion:completion success:success];
     }];

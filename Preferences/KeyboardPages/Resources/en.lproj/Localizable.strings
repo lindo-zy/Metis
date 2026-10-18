@@ -439,6 +439,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_USERSPACE_REBOOT" = "Reboot userspace";
 "SYSTEM_HOME" = "Home";
 "SYSTEM_SWITCHER" = "App switcher";
+"SYSTEM_REACHABILITY" = "Reachability";
 "SYSTEM_SCREENSHOT" = "System Screenshot";
 "SYSTEM_CONTROL_CENTER" = "Open Control Center";
 "SYSTEM_SCREEN_RECORDING" = "Screen Recording";

@@ -498,7 +498,6 @@ NS_ASSUME_NONNULL_END
 #pragma mark - Note and Tag Persistence
 
 - (BOOL)setNote:(NSString *)note
-         tagUUID:(NSString *)tagUUID
 forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
      inHistoryKey:(NSString *)historyKey
             error:(NSError **)error {
@@ -508,7 +507,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
     }
 
     NSString *normalizedNote = [note length] > 0 ? note : nil;
-    NSString *normalizedTagUUID = [tagUUID length] > 0 ? tagUUID : nil;
     if (![self beginTransactionWithError:error]) {
         return NO;
     }
@@ -538,10 +536,8 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
     NSString *imageName = [self stringFromColumn:statement index:2] ?: @"";
     sqlite3_finalize(statement);
 
-    NSArray<id> *bindings = @[
-        normalizedNote ?: [NSNull null], normalizedTagUUID ?: [NSNull null], historyKey, content
-    ];
-    BOOL success = [self executeStatement:@"UPDATE history_items SET note = ?, tag_uuid = ? "
+    NSArray<id> *bindings = @[ normalizedNote ?: [NSNull null], historyKey, content ];
+    BOOL success = [self executeStatement:@"UPDATE history_items SET note = ? "
                                            "WHERE history_key = ? AND content = ?"
                                  bindings:bindings
                                     error:error];
@@ -551,7 +547,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                                    bundleIdentifier:bundleIdentifier
                                             content:content
                                           imageName:imageName
-                                            tagUUID:normalizedTagUUID
                                               error:error];
     }
 
@@ -741,17 +736,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                            ")"];
         [bindings addObject:kMTSearchTokenTypeApp];
         [bindings addObject:[searchCriteria appBundleIdentifier] ?: @""];
-    }
-    if ([searchCriteria hasTagToken]) {
-        [sql appendString:@" AND EXISTS ("
-                           "SELECT 1 FROM history_item_search_tokens token "
-                           "WHERE token.item_id = history_items.id "
-                           "AND token.history_key = history_items.history_key "
-                           "AND token.token_type = ? "
-                           "AND token.token_value = ?"
-                           ")"];
-        [bindings addObject:kMTSearchTokenTypeTag];
-        [bindings addObject:[searchCriteria tagUUID] ?: @""];
     }
     [sql appendString:@" ORDER BY sequence DESC"];
 
@@ -1247,7 +1231,7 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
 
 - (BOOL)rebuildStaleSearchIndexesWithError:(NSError **)error {
     sqlite3_stmt *statement = NULL;
-    const char *sql = "SELECT id, history_key, bundle_identifier, content, image_name, tag_uuid "
+    const char *sql = "SELECT id, history_key, bundle_identifier, content, image_name "
                       "FROM history_items WHERE search_index_version <> ?";
     if (![self prepareStatement:sql statement:&statement error:error]) {
         return NO;
@@ -1262,8 +1246,7 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
             @"history_key" : [self stringFromColumn:statement index:1] ?: @"",
             @"bundle_identifier" : [self stringFromColumn:statement index:2] ?: @"com.apple.springboard",
             @"content" : [self stringFromColumn:statement index:3] ?: @"",
-            @"image_name" : [self stringFromColumn:statement index:4] ?: @"",
-            @"tag_uuid" : [self stringFromColumn:statement index:5] ?: @""
+            @"image_name" : [self stringFromColumn:statement index:4] ?: @""
         }];
     }
     if (stepResult != SQLITE_DONE) {
@@ -1279,7 +1262,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                               bundleIdentifier:row[@"bundle_identifier"]
                                        content:row[@"content"]
                                      imageName:row[@"image_name"]
-                                       tagUUID:row[@"tag_uuid"]
                                          error:error]) {
             return NO;
         }
@@ -1293,7 +1275,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                    bundleIdentifier:(NSString *)bundleIdentifier
                             content:(NSString *)content
                           imageName:(NSString *)imageName
-                            tagUUID:(NSString *)tagUUID
                               error:(NSError **)error {
     if (![self executeStatement:@"DELETE FROM history_item_search_tokens WHERE item_id = ?"
                        bindings:@[ @(itemID) ]
@@ -1318,14 +1299,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                                 tokenType:kMTSearchTokenTypeApp
                                tokenValue:appValue
                                     error:error]) {
-        return NO;
-    }
-
-    if ([tagUUID length] > 0 && ![self insertSearchTokenForItemID:itemID
-                                                       historyKey:historyKey
-                                                        tokenType:kMTSearchTokenTypeTag
-                                                       tokenValue:tagUUID
-                                                            error:error]) {
         return NO;
     }
 
@@ -1629,7 +1602,6 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
                             bundleIdentifier:bundleIdentifier
                                      content:content
                                    imageName:imageName
-                                     tagUUID:tagUUID
                                        error:error];
 }
 

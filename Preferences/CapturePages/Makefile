@@ -2,6 +2,9 @@ BUNDLE_NAME = MetisCapturePrefs
 
 # Capture（MetisCapture）详细设置子包：从统一设置壳的模块页进入。
 # 不再注册独立 PreferenceLoader 入口（原 PixPinPrefs.plist 不安装）。
+# SF 符号库选择器（MTPSFSymbolPickerController/MTPSFSymbolCatalog）已移入
+# MetisCore 单一镜像（与 KeyboardPages 共用，保证 Preferences.app 内类唯一），
+# 本子包经 MetisCore.dylib 链接使用。
 MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	MTEditorOrderController.m \
 	MTEditorButtonEditController.m \
@@ -15,9 +18,11 @@ MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 
 MetisCapturePrefs_CFLAGS = -fobjc-arc
 MetisCapturePrefs_CFLAGS += -I../../Modules/Capture/Sources/Common
+MetisCapturePrefs_CFLAGS += -I../../Core/PrefsUI
 MetisCapturePrefs_INSTALL_PATH = /Library/PreferenceBundles
 MetisCapturePrefs_FRAMEWORKS = UIKit CoreGraphics QuartzCore
 MetisCapturePrefs_PRIVATE_FRAMEWORKS = Preferences AppSupport
+MetisCapturePrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/bundle.mk

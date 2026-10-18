@@ -34,9 +34,8 @@ typedef NS_ENUM(NSInteger, MTTableDataStoreDisplayedItemUpdate) {
                                     inItems:(NSArray<NSDictionary<NSString *, id> *> *)items;
 - (BOOL)removeDisplayedItemAtIndex:(NSUInteger)displayedIndex;
 - (MTTableDataStoreDisplayedItemUpdate)updateNote:(nullable NSString *)note
-                                               tagUUID:(nullable NSString *)tagUUID
-                                forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
-                                       displayedItemIndex:(NSUInteger *)displayedItemIndex;
+                             forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
+                                    displayedItemIndex:(NSUInteger *)displayedItemIndex;
 - (MTTableDataStoreDisplayedItemUpdate)replaceContent:(NSString *)content
                                  forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
                                         displayedItemIndex:(NSUInteger *)displayedItemIndex;

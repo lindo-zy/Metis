@@ -15,7 +15,9 @@ static CGFloat const kMTTitleTapControlTrailingSpacing = 8;
 static CGFloat const kMTHistorySegmentWidth = 146;
 static CGFloat const kMTHistorySegmentHeight = 28;
 static CGFloat const kMTGrabberTopInset = 8;
-static CGFloat const kMTSegmentBottomInset = 10;
+// 分段控件（剪贴板/收藏夹开关）与下方搜索框的视觉间距：底边距 + kMTHeaderContentSpacing(4)。
+// 原 10pt 时间距过近，2026-10-18 调大为 16pt（总视觉间距 20pt）。
+static CGFloat const kMTSegmentBottomInset = 16;
 
 @interface MTHeaderView ()
 

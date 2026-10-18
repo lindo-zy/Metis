@@ -5,17 +5,12 @@
 
 #import "MTSearchTokenCollectionViewCell.h"
 
-#import "MTTagDotView.h"
-
 #import <QuartzCore/QuartzCore.h>
 
 static CGFloat const kMTSearchTokenCellIconSize = 20;
-static CGFloat const kMTSearchTokenCellDotSize = 14;
-static CGFloat const kMTSearchTokenCellDotBorderWidth = 1.25;
 
 @interface MTSearchTokenCollectionViewCell ()
 @property(nonatomic, strong) UIImageView *iconView;
-@property(nonatomic, strong) MTTagDotView *dotView;
 @property(nonatomic, strong) UILabel *titleLabel;
 @end
 
@@ -37,12 +32,6 @@ static CGFloat const kMTSearchTokenCellDotBorderWidth = 1.25;
         [_iconView setTintColor:[UIColor labelColor]];
         [[self contentView] addSubview:_iconView];
 
-        _dotView = [[MTTagDotView alloc] init];
-        [_dotView setHidden:YES];
-        [_dotView setDotDiameter:kMTSearchTokenCellDotSize];
-        [_dotView setBorderWidth:kMTSearchTokenCellDotBorderWidth];
-        [[self contentView] addSubview:_dotView];
-
         _titleLabel = [[UILabel alloc] init];
         [_titleLabel setFont:[UIFont systemFontOfSize:14 weight:UIFontWeightMedium]];
         [_titleLabel setTextColor:[UIColor labelColor]];
@@ -60,7 +49,6 @@ static CGFloat const kMTSearchTokenCellDotBorderWidth = 1.25;
     CGFloat iconY = floor((CGRectGetHeight(bounds) - kMTSearchTokenCellIconSize) / 2.0);
     CGRect iconFrame = CGRectMake(iconX, iconY, kMTSearchTokenCellIconSize, kMTSearchTokenCellIconSize);
     [[self iconView] setFrame:iconFrame];
-    [[self dotView] setFrame:iconFrame];
 
     CGFloat titleX = CGRectGetMaxX([[self iconView] frame]) + 8;
     [[self titleLabel] setFrame:CGRectMake(titleX, 0, CGRectGetWidth(bounds) - titleX - 10, CGRectGetHeight(bounds))];
@@ -70,8 +58,6 @@ static CGFloat const kMTSearchTokenCellDotBorderWidth = 1.25;
     [super prepareForReuse];
     [[self iconView] setImage:nil];
     [[self iconView] setHidden:NO];
-    [[self dotView] setHidden:YES];
-    [[self dotView] configureWithFillColor:nil borderColor:nil];
     [[self titleLabel] setText:nil];
     [self setActiveFilterHighlighted:NO];
 }
@@ -90,19 +76,9 @@ static CGFloat const kMTSearchTokenCellDotBorderWidth = 1.25;
 }
 
 - (void)configureWithTitle:(NSString *)title icon:(nullable UIImage *)icon {
-    [self configureWithTitle:title icon:icon dotColor:nil dotBorderColor:nil];
-}
-
-- (void)configureWithTitle:(NSString *)title
-                      icon:(nullable UIImage *)icon
-                  dotColor:(nullable UIColor *)dotColor
-            dotBorderColor:(nullable UIColor *)dotBorderColor {
     [[self titleLabel] setText:title];
     [[self iconView] setImage:icon];
-    BOOL showsDot = dotColor != nil;
-    [[self iconView] setHidden:showsDot];
-    [[self dotView] setHidden:!showsDot];
-    [[self dotView] configureWithFillColor:dotColor borderColor:dotBorderColor];
+    [[self iconView] setHidden:icon == nil];
 }
 
 @end

@@ -14,7 +14,6 @@
 #import "MTPreferenceKeys.h"
 #import "MTPreviewView.h"
 #import "MTQuickAction.h"
-#import "MTQuickActionPanelViewController.h"
 
 static NSString *mtPreviewTextByTrimmingBoundaryNewlines(NSString *text) {
     return [(text ?: @"") stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
@@ -263,24 +262,8 @@ NS_ASSUME_NONNULL_END
         return;
     }
 
-    if ([actions count] == 1) {
-        [self openImageAction:actions.firstObject];
-        return;
-    }
-
-    if ([self presentedViewController] || [self isBeingDismissed]) {
-        return;
-    }
-
-    __weak typeof(self) weakSelf = self;
-    MTQuickActionPanelViewController *panel = [[MTQuickActionPanelViewController alloc]
-        initWithActions:actions
-        anchoringAboveView:[[self parentViewController] view]
-        placement:MTQuickActionPanelPlacementAboveAnchor
-        selectionHandler:^(NSDictionary<NSString *, id> *action) {
-          [weakSelf openImageAction:action];
-        }];
-    [self presentViewController:panel animated:YES completion:nil];
+    // 悬浮面板已移除：直接执行第一个动作（单动作与多动作行为一致）。
+    [self openImageAction:actions.firstObject];
 }
 
 - (void)handleImageDoubleTapGesture:(UITapGestureRecognizer *)gestureRecognizer {

@@ -24,9 +24,7 @@
 #import "MTTextEditorView.h"
 #import "MTTextEditorViewController.h"
 #import "MTSearchController.h"
-#import "MTTagChipBarView.h"
 #import "MTTableViewCell.h"
-#import "MTTagCatalog.h"
 #import "MTWordSelectionView.h"
 #import "MTWordSelectionViewController.h"
 
@@ -756,8 +754,7 @@ NS_ASSUME_NONNULL_END
         MTNoteEditorView *noteEditorView = [[self noteEditorViewController] noteEditorView];
         if ([view isDescendantOfView:[noteEditorView textField]] ||
             [view isDescendantOfView:[noteEditorView saveButton]] ||
-            [view isDescendantOfView:[noteEditorView cancelButton]] ||
-            [view isDescendantOfView:[noteEditorView tagChipBarView]]) {
+            [view isDescendantOfView:[noteEditorView cancelButton]]) {
             return NO;
         }
         return [view isDescendantOfView:noteEditorView];
@@ -1479,17 +1476,13 @@ NS_ASSUME_NONNULL_END
         [bundle localizedStringForKey:@"Categories" value:nil table:@"Tweak"],
         [searchController favoritesFilterShowsCategories],
         ^(MTSearchController *controller, BOOL value) { [controller setFavoritesFilterShowsCategories:value]; });
-    UIAction *tags = makeAction(
-        [bundle localizedStringForKey:@"Tags" value:nil table:@"Tweak"],
-        [searchController favoritesFilterShowsTags],
-        ^(MTSearchController *controller, BOOL value) { [controller setFavoritesFilterShowsTags:value]; });
     UIAction *apps = makeAction(
         [bundle localizedStringForKey:@"Applications" value:nil table:@"Tweak"],
         [searchController favoritesFilterShowsApps],
         ^(MTSearchController *controller, BOOL value) { [controller setFavoritesFilterShowsApps:value]; });
 
     return [UIMenu menuWithTitle:@""
-                        children:@[ [self galleryModeActionForHistoryKey:kMTHistoryKeyFavorites], categories, tags,
+                        children:@[ [self galleryModeActionForHistoryKey:kMTHistoryKeyFavorites], categories,
                                     apps ]];
 }
 
@@ -1976,7 +1969,6 @@ NS_ASSUME_NONNULL_END
     [[noteEditorView previewCell] setFrame:sourceFrame];
     [[noteEditorView previewCell] setAlpha:hasSourceFrame ? 1 : 0];
     [[noteEditorView inputRowView] setAlpha:0];
-    [[noteEditorView tagChipBarView] setAlpha:0];
 
     MTHeaderView *headerView = [[self mainView] headerView];
     [[self mainView] setAnimating:YES];
@@ -1994,8 +1986,7 @@ NS_ASSUME_NONNULL_END
           [[noteEditorView previewCell] setFrame:[noteEditorView targetPreviewCellFrame]];
           [[noteEditorView previewCell] setAlpha:1];
           [[noteEditorView inputRowView] setAlpha:1];
-          [[noteEditorView tagChipBarView] setAlpha:1];
-        }
+              }
         completion:^(__unused BOOL finished) {
           [listViewController setCellPresentationHidden:NO forItem:item];
           if ([self noteEditingRequestIdentifier] != requestIdentifier || ![self isNoteEditing]) {
@@ -2020,7 +2011,6 @@ NS_ASSUME_NONNULL_END
     [noteEditorView setAlpha:1];
     [noteEditorView setAutomaticallyPositionsPreviewCell:YES];
     [[noteEditorView inputRowView] setAlpha:1];
-    [[noteEditorView tagChipBarView] setAlpha:1];
     [[self noteEditorViewController] reset];
     [self setNoteEditingItem:nil];
     [self setNoteEditingHistoryKey:nil];
@@ -2080,8 +2070,7 @@ NS_ASSUME_NONNULL_END
           [sourceView setAlpha:1];
           [headerView setAlpha:1];
           [[noteEditorView inputRowView] setAlpha:0];
-          [[noteEditorView tagChipBarView] setAlpha:0];
-          MTTableViewCell *targetCell = [listViewController visibleCellForItem:item];
+                MTTableViewCell *targetCell = [listViewController visibleCellForItem:item];
           if (targetCell && [targetCell window]) {
               [[noteEditorView previewCell] setFrame:[targetCell convertRect:[targetCell bounds]
                                                                       toView:noteEditorView]];
@@ -2146,15 +2135,7 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)noteEditorViewController:(MTNoteEditorViewController *)controller
-                 didSelectTagUUID:(NSString *)tagUUID {
-    (void)controller;
-    (void)tagUUID;
-    [[self panelPresentationController] triggerHapticFeedbackWithStyle:UIImpactFeedbackStyleLight];
-}
-
-- (void)noteEditorViewController:(MTNoteEditorViewController *)controller
-              didRequestSaveNote:(NSString *)note
-                       tagUUID:(NSString *)tagUUID {
+              didRequestSaveNote:(NSString *)note {
     MTPasteboardItem *item = [self noteEditingItem];
     NSString *historyKey = [self noteEditingHistoryKey];
     MTHistoryListViewController *listViewController = [self noteEditingSourceListViewController];
@@ -2166,7 +2147,6 @@ NS_ASSUME_NONNULL_END
 
     [[MTPasteboardManager sharedInstance]
                   setNote:note
-                  tagUUID:tagUUID
         forPasteboardItem:item
          inHistoryWithKey:historyKey
                completion:^(BOOL success) {
@@ -2180,9 +2160,7 @@ NS_ASSUME_NONNULL_END
                  }
 
                  [item setNote:note];
-                 [item setTagUUID:tagUUID];
                  [listViewController updateNote:note
-                                        tagUUID:tagUUID
                                         forItem:item
                                      completion:^{
                                        [self finishNoteEditingWithRequestIdentifier:requestIdentifier];
@@ -2470,7 +2448,6 @@ NS_ASSUME_NONNULL_END
     [[noteEditorView previewCell] setFrame:[noteEditorView targetPreviewCellFrame]];
     [[noteEditorView previewCell] setAlpha:1];
     [[noteEditorView inputRowView] setAlpha:1];
-    [[noteEditorView tagChipBarView] setAlpha:1];
 
     CGRect targetPanelFrame = [self noteEditingPanelFrameForKeyboardBottomInset:keyboardBottomInset];
     [[self mainView] setAnimating:YES];
@@ -2571,7 +2548,6 @@ NS_ASSUME_NONNULL_END
     [[noteEditorView previewCell] setFrame:[noteEditorView targetPreviewCellFrame]];
     [[noteEditorView previewCell] setAlpha:1];
     [[noteEditorView inputRowView] setAlpha:1];
-    [[noteEditorView tagChipBarView] setAlpha:1];
 
     CGRect targetPanelFrame = [self noteEditingPanelFrameForKeyboardBottomInset:keyboardBottomInset];
     [[self mainView] setAnimating:YES];
@@ -2903,7 +2879,6 @@ NS_ASSUME_NONNULL_END
     [self clearExternalHideCoordinator];
     [self setDismissingPanel:NO];
     [self setPreparingToShow:YES];
-    [[MTTagCatalog sharedCatalog] reloadTags];
     NSUInteger showRequestIdentifier = [self showRequestIdentifier] + 1;
     [self setShowRequestIdentifier:showRequestIdentifier];
     [self resetClearConfirmationIfNeeded];

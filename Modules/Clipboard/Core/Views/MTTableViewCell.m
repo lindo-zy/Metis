@@ -7,9 +7,7 @@
 
 #import "MTTableViewCell.h"
 #import "MTTableViewCellContent.h"
-#import "MTTagColorFormatter.h"
 
-static CGFloat const kMTTableViewCellTagDotSize = 7;
 static CGFloat const kMTTableViewCellContentImageWidth = 70;
 static CGFloat const kMTTableViewCellContentImageSingleLineHeight = 40;
 static CGFloat const kMTTableViewCellContentImageAdditionalLineHeight = 15;
@@ -38,17 +36,14 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
 + (NSString *)reuseIdentifierForContent:(MTTableViewCellContent *)content {
     NSUInteger lineCount = MIN(MAX([content previewLineCount], 1), kMTTableViewCellMaximumPreviewLineCount);
     BOOL hasContentImageSlot = [content contentImage] || [[content thumbnailImageName] length] > 0;
-    BOOL hasTagDot = [[content tagHexColor] length] > 0;
     BOOL hasContentText = [[content contentText] length] > 0;
-    return [NSString stringWithFormat:@"MTTableViewCell-%lu-%d-%d-%d-%d", (unsigned long)lineCount,
-                                      hasContentImageSlot, hasTagDot, hasContentText, [content showsDetail]];
+    return [NSString stringWithFormat:@"MTTableViewCell-%lu-%d-%d-%d", (unsigned long)lineCount,
+                                      hasContentImageSlot, hasContentText, [content showsDetail]];
 }
 
 + (NSString *)galleryReuseIdentifierForContent:(MTTableViewCellContent *)content {
     BOOL hasContentImageSlot = [content contentImage] || [[content thumbnailImageName] length] > 0;
-    BOOL hasTagDot = [[content tagHexColor] length] > 0;
-    return [NSString stringWithFormat:@"MTGalleryCell-%d-%d-%d", hasContentImageSlot, hasTagDot,
-                                      [content showsDetail]];
+    return [NSString stringWithFormat:@"MTGalleryCell-%d-%d", hasContentImageSlot, [content showsDetail]];
 }
 
 + (CGSize)contentImageViewSizeForPreviewLineCount:(NSUInteger)previewLineCount {
@@ -108,13 +103,6 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
     [[self detailLabel] setLineBreakMode:NSLineBreakByTruncatingTail];
     [[self contentView] addSubview:[self detailLabel]];
     [[self detailLabel] setTranslatesAutoresizingMaskIntoConstraints:NO];
-
-    if ([[content tagHexColor] length] > 0) {
-        [self setTagDotView:[[UIView alloc] init]];
-        [[[self tagDotView] layer] setCornerRadius:kMTTableViewCellTagDotSize / 2.0];
-        [[self contentView] addSubview:[self tagDotView]];
-        [[self tagDotView] setTranslatesAutoresizingMaskIntoConstraints:NO];
-    }
 
     BOOL hasContentImageSlot = [content contentImage] || [[content thumbnailImageName] length] > 0;
     UIImageView *contentTypeImageView = nil;
@@ -185,15 +173,6 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
             [[contentTypeImageView bottomAnchor] constraintEqualToAnchor:[[self contentView] bottomAnchor] constant:-8],
             [[contentTypeImageView widthAnchor] constraintEqualToConstant:16],
             [[contentTypeImageView heightAnchor] constraintEqualToConstant:16]
-        ]];
-    }
-
-    if ([self tagDotView]) {
-        [NSLayoutConstraint activateConstraints:@[
-            [[[self tagDotView] trailingAnchor] constraintEqualToAnchor:[[self contentView] trailingAnchor] constant:-7],
-            [[[self tagDotView] topAnchor] constraintEqualToAnchor:[[self contentView] topAnchor] constant:7],
-            [[[self tagDotView] widthAnchor] constraintEqualToConstant:kMTTableViewCellTagDotSize],
-            [[[self tagDotView] heightAnchor] constraintEqualToConstant:kMTTableViewCellTagDotSize]
         ]];
     }
 
@@ -281,25 +260,9 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
             [self contentImageView] ? [[self contentImageView] leadingAnchor] : [self trailingAnchor];
         CGFloat textTrailingConstant = [self contentImageView] ? -16 : -24;
 
-        if ([[content tagHexColor] length] > 0) {
-            [self setTagDotView:[[UIView alloc] init]];
-            [[[self tagDotView] layer] setCornerRadius:kMTTableViewCellTagDotSize / 2.0];
-            [self addSubview:[self tagDotView]];
-            [[self tagDotView] setTranslatesAutoresizingMaskIntoConstraints:NO];
-            [NSLayoutConstraint activateConstraints:@[
-                [[[self tagDotView] leadingAnchor] constraintEqualToAnchor:[[self headerLabel] trailingAnchor]
-                                                                  constant:6],
-                [[[self tagDotView] widthAnchor] constraintEqualToConstant:kMTTableViewCellTagDotSize],
-                [[[self tagDotView] heightAnchor] constraintEqualToConstant:kMTTableViewCellTagDotSize],
-                [[[self tagDotView] centerYAnchor] constraintEqualToAnchor:[[self headerLabel] centerYAnchor]],
-                [[[self tagDotView] trailingAnchor] constraintLessThanOrEqualToAnchor:textTrailingAnchor
-                                                                             constant:textTrailingConstant]
-            ]];
-        } else {
-            [NSLayoutConstraint activateConstraints:@[ [[[self headerLabel] trailingAnchor]
-                                                        constraintEqualToAnchor:textTrailingAnchor
-                                                                       constant:textTrailingConstant] ]];
-        }
+        [NSLayoutConstraint activateConstraints:@[ [[[self headerLabel] trailingAnchor]
+                                                    constraintEqualToAnchor:textTrailingAnchor
+                                                                   constant:textTrailingConstant] ]];
 
         if (hasContentText) {
             [self setContentLabel:[[MTTableViewCellPreviewLabel alloc] init]];
@@ -374,7 +337,6 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
     [[self iconImageView] setImage:nil];
     [[self headerLabel] setAttributedText:nil];
     [[self headerLabel] setText:nil];
-    [[self tagDotView] setBackgroundColor:nil];
     [[self contentLabel] setAttributedText:nil];
     [[self contentLabel] setText:nil];
     [[self detailLabel] setAttributedText:nil];
@@ -412,10 +374,6 @@ static NSUInteger const kMTTableViewCellMaximumPreviewLineCount = 3;
     } else {
         [[self headerLabel] setAttributedText:nil];
         [[self headerLabel] setText:[content displayName]];
-    }
-
-    if ([self tagDotView]) {
-        [[self tagDotView] setBackgroundColor:[MTTagColorFormatter visibleColorFromHexColor:[content tagHexColor]]];
     }
 
     NSUInteger lineCount = MIN(MAX([content previewLineCount], 1), kMTTableViewCellMaximumPreviewLineCount);

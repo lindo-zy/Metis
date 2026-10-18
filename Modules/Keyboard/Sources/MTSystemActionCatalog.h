@@ -17,6 +17,7 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"userspace-reboot", @"SYSTEM_USERSPACE_REBOOT", @"arrow.triangle.2.circlepath", @"device"],
             @[@"home", @"SYSTEM_HOME", @"house.fill", @"device"],
             @[@"switcher", @"SYSTEM_SWITCHER", @"square.stack", @"device"],
+            @[@"reachability", @"SYSTEM_REACHABILITY", @"hand.point.up.left.fill", @"device"],
             @[@"screenshot", @"SYSTEM_SCREENSHOT", @"camera.viewfinder", @"device"],
             @[@"control-center", @"SYSTEM_CONTROL_CENTER", @"switch.2", @"control"],
             @[@"screen-recording", @"SYSTEM_SCREEN_RECORDING", @"record.circle", @"control"],

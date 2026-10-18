@@ -207,6 +207,14 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
         if (!supported) coordinator = MTSystemShared(@"SBMainSwitcherViewController", @"sharedInstance");
         return MTSystemCallFirstAvailable(coordinator, interfaces);
     }
+    // 单手模式（Reachability）：经 SpringBoard 的 SBReachabilityManager 切换。
+    // 多候选容错：不同 iOS 版本的切换接口命名不一致，均不可用时返回 Unavailable。
+    if ([action isEqual:@"reachability"]) {
+        id manager = MTSystemShared(@"SBReachabilityManager", @"sharedInstance");
+        return MTSystemCallFirstAvailable(manager, @[
+            @[@"toggleReachability", @[]],
+            @[@"toggleReachabilityWithCompletion:", @[NSNull.null]]]);
+    }
     if ([action isEqual:@"control-center"]) return MTSystemCallFirstAvailable(MTSystemShared(@"SBControlCenterController", @"sharedInstance"), @[
         @[@"presentAnimated:completion:", @[@YES, NSNull.null]], @[@"presentAnimated:", @[@YES]]]);
     if ([action isEqual:@"wifi"]) return MTSystemToggle(MTSystemShared(@"SBWiFiManager", @"sharedInstance"), @"wiFiEnabled", @"setWiFiEnabled:");

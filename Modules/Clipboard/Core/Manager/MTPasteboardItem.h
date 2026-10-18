@@ -15,6 +15,8 @@ static NSString *const kMTItemKeyBundleIdentifier = @"bundle_identifier";
 static NSString *const kMTItemKeyContent = @"content";
 static NSString *const kMTItemKeyImageName = @"image_name";
 static NSString *const kMTItemKeyHasLink = @"has_link";
+// 旧版「自定义标签」功能的遗留键：标签功能已移除，此键仅用于历史数据库
+// 行的兼容读写（不再产生新值，UI 不再消费）。
 static NSString *const kMTItemKeyTagUUID = @"tag_uuid";
 static NSString *const kMTItemKeyNote = @"note";
 static NSString *const kMTItemKeyCapturedAt = @"captured_at";
@@ -30,7 +32,6 @@ static NSString *const kMTItemKeyImageByteCount = @"image_byte_count";
 @property(nonatomic, copy) NSString *displayName;
 @property(nonatomic, copy) NSString *content;
 @property(nonatomic, copy) NSString *imageName;
-@property(nonatomic, copy, nullable) NSString *tagUUID;
 @property(nonatomic, copy, nullable) NSString *note;
 @property(nonatomic, copy) NSDate *capturedAt;
 @property(nonatomic, assign) NSUInteger imagePixelWidth;

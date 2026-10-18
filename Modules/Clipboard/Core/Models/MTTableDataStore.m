@@ -150,19 +150,8 @@ NS_ASSUME_NONNULL_END
     return YES;
 }
 
-- (NSDictionary<NSString *, id> *)dictionaryBySettingTagUUID:(NSString *)tagUUID
-                                                inDictionary:(NSDictionary<NSString *, id> *)dictionary {
-    NSMutableDictionary<NSString *, id> *updatedDictionary = [dictionary mutableCopy];
-    if ([tagUUID length] > 0) {
-        updatedDictionary[kMTItemKeyTagUUID] = tagUUID;
-    } else {
-        [updatedDictionary removeObjectForKey:kMTItemKeyTagUUID];
-    }
-    return updatedDictionary;
-}
-
 - (NSDictionary<NSString *, id> *)dictionaryBySettingNote:(NSString *)note
-                                             inDictionary:(NSDictionary<NSString *, id> *)dictionary {
+                                              inDictionary:(NSDictionary<NSString *, id> *)dictionary {
     NSMutableDictionary<NSString *, id> *updatedDictionary = [dictionary mutableCopy];
     if ([note length] > 0) {
         updatedDictionary[kMTItemKeyNote] = note;
@@ -170,13 +159,6 @@ NS_ASSUME_NONNULL_END
         [updatedDictionary removeObjectForKey:kMTItemKeyNote];
     }
     return updatedDictionary;
-}
-
-- (NSDictionary<NSString *, id> *)dictionaryBySettingNote:(NSString *)note
-                                                   tagUUID:(NSString *)tagUUID
-                                              inDictionary:(NSDictionary<NSString *, id> *)dictionary {
-    NSDictionary<NSString *, id> *dictionaryWithNote = [self dictionaryBySettingNote:note inDictionary:dictionary];
-    return [self dictionaryBySettingTagUUID:tagUUID inDictionary:dictionaryWithNote];
 }
 
 - (BOOL)dictionaryMatchesSearchText:(NSDictionary<NSString *, id> *)dictionary {
@@ -199,17 +181,9 @@ NS_ASSUME_NONNULL_END
     return contentMatches || noteMatches;
 }
 
-- (BOOL)displayedItemWithTagUUID:(NSString *)tagUUID matchesSearchCriteria:(MTSearchCriteria *)searchCriteria {
-    if (![searchCriteria hasTagToken]) {
-        return YES;
-    }
-    return [(tagUUID ?: @"") isEqualToString:([searchCriteria tagUUID] ?: @"")];
-}
-
 - (MTTableDataStoreDisplayedItemUpdate)updateNote:(NSString *)note
-                                               tagUUID:(NSString *)tagUUID
-                                forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
-                                       displayedItemIndex:(NSUInteger *)displayedItemIndex {
+                             forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
+                                    displayedItemIndex:(NSUInteger *)displayedItemIndex {
     if (displayedItemIndex) {
         *displayedItemIndex = NSNotFound;
     }
@@ -223,7 +197,7 @@ NS_ASSUME_NONNULL_END
     }
 
     NSDictionary<NSString *, id> *updatedDictionary =
-        [self dictionaryBySettingNote:note tagUUID:tagUUID inDictionary:[self items][itemIndex]];
+        [self dictionaryBySettingNote:note inDictionary:[self items][itemIndex]];
     NSMutableArray<NSDictionary<NSString *, id> *> *items = [[self items] mutableCopy];
     items[itemIndex] = updatedDictionary;
     [self setItems:items];
@@ -237,8 +211,7 @@ NS_ASSUME_NONNULL_END
     }
 
     BOOL matchesSearch = [self dictionaryMatchesSearchText:updatedDictionary];
-    BOOL matchesTag = [self displayedItemWithTagUUID:tagUUID matchesSearchCriteria:[self searchCriteria]];
-    if (!matchesSearch || !matchesTag) {
+    if (!matchesSearch) {
         NSMutableArray<NSDictionary<NSString *, id> *> *displayedItems = [[self displayedItems] mutableCopy];
         [displayedItems removeObjectAtIndex:displayedIndex];
         [self setDisplayedItems:displayedItems];
@@ -284,9 +257,7 @@ NS_ASSUME_NONNULL_END
     }
 
     BOOL matchesSearch = [self dictionaryMatchesSearchText:updatedDictionary];
-    BOOL matchesTag = [self displayedItemWithTagUUID:updatedDictionary[kMTItemKeyTagUUID]
-                                matchesSearchCriteria:[self searchCriteria]];
-    if (!matchesSearch || !matchesTag) {
+    if (!matchesSearch) {
         NSMutableArray<NSDictionary<NSString *, id> *> *displayedItems = [[self displayedItems] mutableCopy];
         [displayedItems removeObjectAtIndex:displayedIndex];
         [self setDisplayedItems:displayedItems];

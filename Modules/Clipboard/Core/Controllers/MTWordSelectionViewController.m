@@ -11,7 +11,6 @@
 #import "MTPasteboardItem.h"
 #import "MTPasteboardManager.h"
 #import "MTQuickAction.h"
-#import "MTQuickActionPanelViewController.h"
 #import "MTSystemTranslationPresenter.h"
 #import "MTWordSelectionView.h"
 
@@ -363,20 +362,8 @@ NS_ASSUME_NONNULL_END
         return;
     }
 
-    if ([actions count] == 1) {
-        [self openTextAction:actions.firstObject];
-        return;
-    }
-
-    __weak typeof(self) weakSelf = self;
-    MTQuickActionPanelViewController *panel = [[MTQuickActionPanelViewController alloc]
-        initWithActions:actions
-        anchoringAboveView:[[self parentViewController] view]
-        placement:MTQuickActionPanelPlacementAboveAnchor
-        selectionHandler:^(NSDictionary<NSString *, id> *action) {
-          [weakSelf openTextAction:action];
-        }];
-    [self presentViewController:panel animated:YES completion:nil];
+    // 悬浮面板已移除：直接执行第一个动作（单动作与多动作行为一致）。
+    [self openTextAction:actions.firstObject];
 }
 
 - (NSArray<NSDictionary<NSString *, id> *> *)loadTextActions {

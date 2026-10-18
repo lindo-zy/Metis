@@ -9,7 +9,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 extern NSString *const kMTSearchTokenTypeCategory;
 extern NSString *const kMTSearchTokenTypeApp;
-extern NSString *const kMTSearchTokenTypeTag;
 
 extern NSString *const kMTSearchCategoryText;
 extern NSString *const kMTSearchCategoryLink;
@@ -56,23 +55,19 @@ extern NSString *const kMTSearchCategoryImage;
 @property(nonatomic, copy, readonly) NSString *searchText;
 @property(nonatomic, copy, readonly, nullable) NSString *categoryValue;
 @property(nonatomic, copy, readonly, nullable) NSString *appBundleIdentifier;
-@property(nonatomic, copy, readonly, nullable) NSString *tagUUID;
 @property(nonatomic, assign, readonly) BOOL hasCategoryToken;
 @property(nonatomic, assign, readonly) BOOL hasAppToken;
-@property(nonatomic, assign, readonly) BOOL hasTagToken;
 @property(nonatomic, assign, readonly) BOOL hasSearchText;
 @property(nonatomic, assign, readonly) BOOL hasActiveFilters;
 
 + (instancetype)emptyCriteria;
 + (instancetype)criteriaWithSearchText:(nullable NSString *)searchText
                          categoryValue:(nullable NSString *)categoryValue
-                   appBundleIdentifier:(nullable NSString *)appBundleIdentifier
-                               tagUUID:(nullable NSString *)tagUUID;
+                   appBundleIdentifier:(nullable NSString *)appBundleIdentifier;
 
 - (instancetype)initWithSearchText:(nullable NSString *)searchText
                      categoryValue:(nullable NSString *)categoryValue
-               appBundleIdentifier:(nullable NSString *)appBundleIdentifier
-                           tagUUID:(nullable NSString *)tagUUID NS_DESIGNATED_INITIALIZER;
+               appBundleIdentifier:(nullable NSString *)appBundleIdentifier NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;
 

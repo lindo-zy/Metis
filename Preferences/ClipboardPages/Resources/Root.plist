@@ -40,18 +40,6 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>defaults</key>
-			<string>com.lindo.metis.clipboard</string>
-			<key>detail</key>
-			<string>MTFloatingPanelSettingsViewController</string>
-			<key>id</key>
-			<string>floating-panel</string>
-			<key>label</key>
-			<string>Floating Panel</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSLinkListCell</string>
 			<key>default</key>
 			<integer>38</integer>
@@ -150,16 +138,6 @@
 			<string>SaveImages</string>
 			<key>label</key>
 			<string>Save Images</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTTagManagementViewController</string>
-			<key>id</key>
-			<string>custom-tags</string>
-			<key>label</key>
-			<string>CUSTOM_TAGS</string>
 		</dict>
 		<dict>
 			<key>cell</key>

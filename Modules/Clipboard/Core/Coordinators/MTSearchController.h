@@ -45,10 +45,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setFavoritesFilterPanelVisible:(BOOL)favoritesFilterPanelVisible;
 - (void)toggleFavoritesFilterPanelVisible;
 - (void)setFavoritesFilterShowsCategories:(BOOL)showsCategories;
-- (void)setFavoritesFilterShowsTags:(BOOL)showsTags;
 - (void)setFavoritesFilterShowsApps:(BOOL)showsApps;
 - (BOOL)favoritesFilterShowsCategories;
-- (BOOL)favoritesFilterShowsTags;
 - (BOOL)favoritesFilterShowsApps;
 - (void)attachToListViewController:(MTHistoryListViewController *)listViewController
                     hidesSearchBar:(BOOL)hidesSearchBar;

@@ -54,7 +54,6 @@ typedef void (^MTHistoryAppBundleIdentifiersCompletion)(NSArray<NSString *> *bun
               toHistoryKey:(NSString *)destinationHistoryKey
                 completion:(nullable void (^)(BOOL success))completion;
 - (void)setNote:(nullable NSString *)note
-         tagUUID:(nullable NSString *)tagUUID
 forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
      inHistoryKey:(NSString *)historyKey
        completion:(nullable void (^)(BOOL success))completion;

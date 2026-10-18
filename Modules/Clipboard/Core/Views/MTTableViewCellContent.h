@@ -12,7 +12,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, nullable) UIImage *icon;
 @property(nonatomic, copy) NSString *displayName;
 @property(nonatomic, copy, nullable) NSAttributedString *attributedDisplayName;
-@property(nonatomic, copy, nullable) NSString *tagHexColor;
 @property(nonatomic, copy) NSString *contentText;
 @property(nonatomic, copy, nullable) NSAttributedString *attributedContentText;
 @property(nonatomic, copy, nullable) NSAttributedString *attributedDetailText;

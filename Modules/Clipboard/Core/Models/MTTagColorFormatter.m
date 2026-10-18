@@ -5,16 +5,36 @@
 
 #import "MTTagColorFormatter.h"
 
-#import "MTTag.h"
-
 @interface MTTagColorFormatter ()
 + (UIColor *)borderColorForVisibleColor:(UIColor *)color;
 @end
 
 @implementation MTTagColorFormatter
 
+// 标签功能移除后自包含实现：把 #RRGGBBAA（8 位，可省略 #）规范化为大写
+// #RRGGBBAA；无法解析时返回 nil（调用方回退默认色）。
++ (NSString *)normalizedHexColorFromString:(NSString *)hexColor {
+    if (![hexColor isKindOfClass:NSString.class]) {
+        return nil;
+    }
+    NSString *trimmed = [hexColor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([trimmed hasPrefix:@"#"]) {
+        trimmed = [trimmed substringFromIndex:1];
+    }
+    if ([trimmed length] != 8) {
+        return nil;
+    }
+    NSCharacterSet *hexCharacters = [NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"];
+    for (NSUInteger index = 0; index < [trimmed length]; index++) {
+        if (![hexCharacters characterIsMember:[trimmed characterAtIndex:index]]) {
+            return nil;
+        }
+    }
+    return [NSString stringWithFormat:@"#%@", trimmed.uppercaseString];
+}
+
 + (UIColor *)colorFromHexColor:(NSString *)hexColor {
-    NSString *candidate = [MTTag normalizedHexColorFromString:hexColor] ?: @"#00000000";
+    NSString *candidate = [self normalizedHexColorFromString:hexColor] ?: @"#00000000";
     NSString *valueString = [candidate substringFromIndex:1];
     unsigned long long value = 0;
     NSScanner *scanner = [NSScanner scannerWithString:valueString];

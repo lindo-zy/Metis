@@ -14,9 +14,6 @@
 #import "MTSearchCriteria.h"
 #import "MTSearchPresentationController.h"
 #import "MTSearchTokenListViewController.h"
-#import "MTTag.h"
-#import "MTTagCatalog.h"
-#import "MTTagColorFormatter.h"
 
 static NSTimeInterval const kMTSearchInputDebounceInterval = 0.15;
 
@@ -36,7 +33,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - Tokens
 
-@property(nonatomic, copy) NSArray<MTSearchToken *> *tagTokens;
 @property(nonatomic, copy) NSArray<MTSearchToken *> *historyAppTokens;
 @property(nonatomic, copy) NSArray<MTSearchToken *> *favoritesAppTokens;
 @property(nonatomic, strong) MTApplicationMetadataProvider *metadataProvider;
@@ -60,7 +56,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) BOOL deferredSearchTokenBootstrapPending;
 @property(nonatomic, assign, readwrite, getter=isFavoritesFilterPanelVisible) BOOL favoritesFilterPanelVisible;
 @property(nonatomic, assign) BOOL favoritesFilterShowsCategories;
-@property(nonatomic, assign) BOOL favoritesFilterShowsTags;
 @property(nonatomic, assign) BOOL favoritesFilterShowsApps;
 @end
 
@@ -94,14 +89,12 @@ NS_ASSUME_NONNULL_END
         [_favoritesTokenListViewController setContentHeightDidChange:^{
           [weakSelf updateSearchTokenHeaderHeights];
         }];
-        _tagTokens = @[];
         _historyAppTokens = @[];
         _favoritesAppTokens = @[];
         _metadataProvider = [[MTApplicationMetadataProvider alloc] init];
         _appTokensDirty = YES;
         _favoritesFilterPanelVisible = kMTPreferenceKeyFavoritesFilterPanelVisibleDefaultValue;
         _favoritesFilterShowsCategories = kMTPreferenceKeyFavoritesFilterShowsCategoriesDefaultValue;
-        _favoritesFilterShowsTags = kMTPreferenceKeyFavoritesFilterShowsTagsDefaultValue;
         _favoritesFilterShowsApps = kMTPreferenceKeyFavoritesFilterShowsAppsDefaultValue;
         [self loadFavoritesFilterPreferences];
 
@@ -299,23 +292,9 @@ NS_ASSUME_NONNULL_END
     return [self tokenWithType:kMTSearchTokenTypeApp value:bundleIdentifier inTokens:appTokens];
 }
 
-- (MTSearchToken *)selectedTagTokenForCriteria:(MTSearchCriteria *)criteria {
-    NSString *tagUUID = [criteria tagUUID];
-    if ([tagUUID length] == 0) {
-        return nil;
-    }
-    return [self tokenWithType:kMTSearchTokenTypeTag value:tagUUID inTokens:[self tagTokens]];
-}
-
 - (UIImage *)iconForSearchToken:(MTSearchToken *)token {
     if ([[token type] isEqualToString:kMTSearchTokenTypeApp]) {
         return [[self metadataProvider] smallIconForBundleIdentifier:[token value]];
-    }
-    if ([[token type] isEqualToString:kMTSearchTokenTypeTag]) {
-        return [MTTagColorFormatter dotImageWithHexColor:[token displaySignature]
-                                                    diameter:14.0
-                                              canvasDiameter:20
-                                                 borderWidth:1.25];
     }
     if ([[token imageName] length] > 0) {
         return [UIImage systemImageNamed:[token imageName]];
@@ -330,7 +309,6 @@ NS_ASSUME_NONNULL_END
     NSMutableArray<MTSearchToken *> *searchTokens = [[NSMutableArray alloc] init];
     NSArray<MTSearchToken *> *tokens = @[
         [self selectedCategoryTokenForCriteria:criteria tokenListController:tokenListController] ?: (id)[NSNull null],
-        [self selectedTagTokenForCriteria:criteria] ?: (id)[NSNull null],
         [self selectedAppTokenForCriteria:criteria
                                 appTokens:(tokenListController == [self favoritesTokenListViewController]
                                                ? [self favoritesAppTokens]
@@ -426,20 +404,6 @@ NS_ASSUME_NONNULL_END
     [self pruneFavoritesFilterCriteriaForHiddenSections];
 }
 
-- (void)setFavoritesFilterShowsTags:(BOOL)showsTags {
-    if (_favoritesFilterShowsTags == showsTags) {
-        return;
-    }
-    _favoritesFilterShowsTags = showsTags;
-    [self persistFavoritesFilterPreferences];
-    if (showsTags) {
-        [self bootstrapSearchTokenSourcesIfNeeded];
-    }
-    [self applyFavoritesFilterSectionVisibility];
-    [self updateAllTokenLists];
-    [self pruneFavoritesFilterCriteriaForHiddenSections];
-}
-
 - (void)setFavoritesFilterShowsApps:(BOOL)showsApps {
     if (_favoritesFilterShowsApps == showsApps) {
         return;
@@ -484,10 +448,6 @@ NS_ASSUME_NONNULL_END
     if (showsCategories != nil) {
         _favoritesFilterShowsCategories = [showsCategories boolValue];
     }
-    id showsTags = [defaults objectForKey:kMTPreferenceKeyFavoritesFilterShowsTags];
-    if (showsTags != nil) {
-        _favoritesFilterShowsTags = [showsTags boolValue];
-    }
     id showsApps = [defaults objectForKey:kMTPreferenceKeyFavoritesFilterShowsApps];
     if (showsApps != nil) {
         _favoritesFilterShowsApps = [showsApps boolValue];
@@ -498,16 +458,13 @@ NS_ASSUME_NONNULL_END
     NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:kMTClipboardPreferencesIdentifier];
     [defaults setBool:[self isFavoritesFilterPanelVisible] forKey:kMTPreferenceKeyFavoritesFilterPanelVisible];
     [defaults setBool:[self favoritesFilterShowsCategories] forKey:kMTPreferenceKeyFavoritesFilterShowsCategories];
-    [defaults setBool:[self favoritesFilterShowsTags] forKey:kMTPreferenceKeyFavoritesFilterShowsTags];
     [defaults setBool:[self favoritesFilterShowsApps] forKey:kMTPreferenceKeyFavoritesFilterShowsApps];
 }
 
 - (void)applyFavoritesFilterSectionVisibility {
     [[self historyTokenListViewController] setShowsCategorySectionEnabled:YES];
-    [[self historyTokenListViewController] setShowsTagSectionEnabled:NO];
     [[self historyTokenListViewController] setShowsAppSectionEnabled:YES];
     [[self favoritesTokenListViewController] setShowsCategorySectionEnabled:[self favoritesFilterShowsCategories]];
-    [[self favoritesTokenListViewController] setShowsTagSectionEnabled:[self favoritesFilterShowsTags]];
     [[self favoritesTokenListViewController] setShowsAppSectionEnabled:[self favoritesFilterShowsApps]];
 }
 
@@ -520,13 +477,11 @@ NS_ASSUME_NONNULL_END
     BOOL panelVisible = [self isFavoritesFilterPanelVisible];
     NSString *categoryValue =
         (panelVisible && [self favoritesFilterShowsCategories]) ? [criteria categoryValue] : nil;
-    NSString *tagUUID = (panelVisible && [self favoritesFilterShowsTags]) ? [criteria tagUUID] : nil;
     NSString *appBundleIdentifier =
         (panelVisible && [self favoritesFilterShowsApps]) ? [criteria appBundleIdentifier] : nil;
     MTSearchCriteria *prunedCriteria = [MTSearchCriteria criteriaWithSearchText:[criteria searchText]
                                                                           categoryValue:categoryValue
-                                                                    appBundleIdentifier:appBundleIdentifier
-                                                                                tagUUID:tagUUID];
+                                                                    appBundleIdentifier:appBundleIdentifier];
     if ([prunedCriteria isEqualToCriteria:criteria]) {
         return;
     }
@@ -543,7 +498,7 @@ NS_ASSUME_NONNULL_END
     if (![self isFavoritesFilterPanelVisible]) {
         return NO;
     }
-    return [self favoritesFilterShowsCategories] || [self favoritesFilterShowsTags] || [self favoritesFilterShowsApps];
+    return [self favoritesFilterShowsCategories] || [self favoritesFilterShowsApps];
 }
 
 - (void)updateSearchTokenHeaderHeights {
@@ -568,15 +523,12 @@ NS_ASSUME_NONNULL_END
         [self tokenListViewControllerForListViewController:listViewController];
     if ([self listViewControllerIsFavorites:listViewController]) {
         [tokenListController setShowsCategorySectionEnabled:[self favoritesFilterShowsCategories]];
-        [tokenListController setShowsTagSectionEnabled:[self favoritesFilterShowsTags]];
         [tokenListController setShowsAppSectionEnabled:[self favoritesFilterShowsApps]];
     } else {
         [tokenListController setShowsCategorySectionEnabled:YES];
-        [tokenListController setShowsTagSectionEnabled:NO];
         [tokenListController setShowsAppSectionEnabled:YES];
     }
     [tokenListController updateWithSearchCriteria:[listViewController searchCriteria]
-                                        tagTokens:[self tagTokens]
                                         appTokens:([self listViewControllerIsFavorites:listViewController]
                                                        ? [self favoritesAppTokens]
                                                        : [self historyAppTokens])];
@@ -615,27 +567,6 @@ NS_ASSUME_NONNULL_END
 }
 
 #pragma mark - Token Loading
-
-- (BOOL)reloadTagTokens {
-    NSArray<MTTag *> *tags = [[MTTagCatalog sharedCatalog] reloadTagsForcingDiskRead:NO];
-    NSMutableArray<MTSearchToken *> *tagTokens = [[NSMutableArray alloc] initWithCapacity:[tags count]];
-    for (MTTag *tag in tags) {
-        if ([[tag uuid] length] == 0) {
-            continue;
-        }
-        [tagTokens addObject:[MTSearchToken tokenWithType:kMTSearchTokenTypeTag
-                                                        value:[tag uuid]
-                                                        title:[tag title]
-                                                    imageName:nil
-                                             displaySignature:([MTTag normalizedHexColorFromString:[tag hexColor]]
-                                                                   ?: @"#00000000")]];
-    }
-    if ([self tokenArray:[self tagTokens] isDisplayEqualToTokenArray:tagTokens]) {
-        return NO;
-    }
-    [self setTagTokens:tagTokens];
-    return YES;
-}
 
 - (NSArray<MTSearchToken *> *)appTokensFromBundleIdentifiers:(NSArray<NSString *> *)bundleIdentifiers {
     NSMutableArray<NSString *> *installedBundleIdentifiers = [[NSMutableArray alloc] init];
@@ -913,10 +844,9 @@ NS_ASSUME_NONNULL_END
 - (void)refreshForListViewController:(MTHistoryListViewController *)listViewController {
     [self attachToListViewController:listViewController hidesSearchBar:![self isSearchActive]];
     if ([self isSearchActive]) {
-        [self reloadTagTokens];
         [self loadAppTokensIfNeeded];
     } else if ([self listViewControllerIsFavorites:listViewController] && [self isFavoritesFilterPanelVisible] &&
-               ([self favoritesFilterShowsTags] || [self favoritesFilterShowsApps])) {
+               [self favoritesFilterShowsApps]) {
         [self bootstrapSearchTokenSourcesIfNeeded];
     } else if (![self listViewControllerIsFavorites:listViewController]) {
         [self loadAppTokensIfNeeded];
@@ -948,9 +878,6 @@ NS_ASSUME_NONNULL_END
                                       targetContentOffset:(CGPoint)targetContentOffset {
     CGPoint currentContentOffset = [[listViewController tableView] contentOffset];
     [[self presentationController] layout];
-    if ([self isSearchActive]) {
-        [self reloadTagTokens];
-    }
     [self syncSearchBarForListViewController:listViewController];
     [self updateTokenListForListViewController:listViewController];
     [self updateSearchTokenHeaderHeights];
@@ -987,12 +914,7 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)bootstrapSearchTokenSourcesIfNeeded {
-    BOOL tagsChanged = [self reloadTagTokens];
     [self loadAppTokensIfNeeded];
-    if (tagsChanged) {
-        [self updateAllTokenLists];
-        [self syncSearchBarsAfterTokenSourceChange];
-    }
 }
 
 - (void)performDeferredSearchTokenBootstrapIfNeeded {
@@ -1242,9 +1164,6 @@ NS_ASSUME_NONNULL_END
     NSString *type = [token type];
     if ([type isEqualToString:kMTSearchTokenTypeCategory]) {
         return [[token value] isEqualToString:([criteria categoryValue] ?: @"")];
-    }
-    if ([type isEqualToString:kMTSearchTokenTypeTag]) {
-        return [[token value] isEqualToString:([criteria tagUUID] ?: @"")];
     }
     if ([type isEqualToString:kMTSearchTokenTypeApp]) {
         return [[token value] isEqualToString:([criteria appBundleIdentifier] ?: @"")];

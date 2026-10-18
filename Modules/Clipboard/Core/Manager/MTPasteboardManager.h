@@ -78,7 +78,6 @@ static NSString *const kMTPasteboardManagerHistoryChangeTypeClear = @"clear";
           toHistoryWithKey:(NSString *)destinationHistoryKey
                 completion:(nullable void (^)(BOOL success))completion;
 - (void)setNote:(nullable NSString *)note
-         tagUUID:(nullable NSString *)tagUUID
 forPasteboardItem:(MTPasteboardItem *)item
  inHistoryWithKey:(NSString *)historyKey
        completion:(nullable void (^)(BOOL success))completion;

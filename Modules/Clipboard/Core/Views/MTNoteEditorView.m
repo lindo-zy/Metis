@@ -5,7 +5,6 @@
 
 #import "MTNoteEditorView.h"
 
-#import "MTTagChipBarView.h"
 #import "MTTableViewCell.h"
 
 static CGFloat const kMTNoteEditorDefaultCellHeight = 65;
@@ -14,8 +13,6 @@ static CGFloat const kMTNoteEditorHorizontalInset = 24;
 static CGFloat const kMTNoteEditorPreviewTopSpacing = 10;
 static CGFloat const kMTNoteEditorInputTopSpacing = 12;
 static CGFloat const kMTNoteEditorInputBottomSpacing = 16;
-static CGFloat const kMTNoteEditorTagBarTopSpacing = 6;
-static CGFloat const kMTNoteEditorTagBarBottomSpacing = 10;
 static CGFloat const kMTNoteEditorTextLeadingInset = 14;
 static CGFloat const kMTNoteEditorTextTrailingInset = 6;
 static CGFloat const kMTNoteEditorMinimumButtonWidth = 68;
@@ -23,8 +20,6 @@ static CGFloat const kMTNoteEditorSeparatorVerticalInset = 9;
 static CGFloat const kMTNoteEditorCompactPreviewTopSpacing = 8;
 static CGFloat const kMTNoteEditorCompactInputTopSpacing = 8;
 static CGFloat const kMTNoteEditorCompactInputHeight = 40;
-static CGFloat const kMTNoteEditorCompactTagBarTopSpacing = 4;
-static CGFloat const kMTNoteEditorCompactTagBarHeight = 44;
 static CGFloat const kMTNoteEditorCompactInputBottomSpacing = 10;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -35,7 +30,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, readwrite) UITextField *textField;
 @property(nonatomic, strong, readwrite) UIButton *saveButton;
 @property(nonatomic, strong, readwrite) UIButton *cancelButton;
-@property(nonatomic, strong, readwrite) MTTagChipBarView *tagChipBarView;
 @property(nonatomic, strong, readwrite, nullable) MTTableViewCell *previewCell;
 @property(nonatomic, strong) UIView *keyboardSpacerView;
 @property(nonatomic, strong) UIView *saveSeparatorView;
@@ -99,11 +93,6 @@ NS_ASSUME_NONNULL_BEGIN
         [_cancelButton setBackgroundColor:[UIColor clearColor]];
         [[_cancelButton titleLabel] setFont:[UIFont systemFontOfSize:16 weight:UIFontWeightRegular]];
         [_inputRowView addSubview:_cancelButton];
-
-        _tagChipBarView = [[MTTagChipBarView alloc] initWithFrame:CGRectZero];
-        [_tagChipBarView setBottomMaterialExtension:0];
-        [_tagChipBarView setSettled:YES animated:NO];
-        [self addSubview:_tagChipBarView];
     }
     return self;
 }
@@ -163,37 +152,11 @@ NS_ASSUME_NONNULL_BEGIN
     return [self usesCompactLayout] ? kMTNoteEditorCompactInputHeight : kMTNoteEditorInputHeight;
 }
 
-- (CGFloat)tagBarTopSpacing {
-    return [self usesCompactLayout] ? kMTNoteEditorCompactTagBarTopSpacing : kMTNoteEditorTagBarTopSpacing;
-}
-
-- (CGFloat)visibleTagBarHeight {
-    if ([[self tagChipBarView] isHidden]) {
-        return 0;
-    }
-    return [self usesCompactLayout] ? kMTNoteEditorCompactTagBarHeight : [MTTagChipBarView preferredHeight];
-}
-
 - (CGFloat)editingContentHeight {
-    CGFloat tagBarHeight = [self visibleTagBarHeight];
-    CGFloat inputBottomSpacing = tagBarHeight > 0
-                                     ? [self tagBarTopSpacing] + tagBarHeight +
-                                           ([self usesCompactLayout] ? kMTNoteEditorCompactInputBottomSpacing
-                                                                     : kMTNoteEditorTagBarBottomSpacing)
-                                     : ([self usesCompactLayout] ? kMTNoteEditorCompactInputBottomSpacing
-                                                                 : kMTNoteEditorInputBottomSpacing);
+    CGFloat inputBottomSpacing =
+        [self usesCompactLayout] ? kMTNoteEditorCompactInputBottomSpacing : kMTNoteEditorInputBottomSpacing;
     return [self previewTopSpacing] + [self previewCellHeight] + [self inputTopSpacing] + [self inputHeight] +
            inputBottomSpacing;
-}
-
-- (void)configureTagBarWithTags:(NSArray<MTTag *> *)tags
-                selectedTagUUID:(nullable NSString *)selectedTagUUID
-               selectionHandler:(nullable void (^)(NSString *_Nullable tagUUID))selectionHandler {
-    [[self tagChipBarView] setSelectionHandler:selectionHandler];
-    [[self tagChipBarView] configureWithTags:tags ?: @[] selectedTagUUID:selectedTagUUID];
-    [[self tagChipBarView] setBottomMaterialExtension:0];
-    [[self tagChipBarView] setSettled:YES animated:NO];
-    [self setNeedsLayout];
 }
 
 - (CGRect)targetPreviewCellFrame {
@@ -252,15 +215,6 @@ NS_ASSUME_NONNULL_BEGIN
     [[self cancelButton]
         setFrame:CGRectMake(cancelOriginX + separatorWidth, 0, MAX(cancelButtonWidth - separatorWidth, 0),
                             inputHeight)];
-
-    CGFloat tagBarHeight = [self visibleTagBarHeight];
-    if (tagBarHeight > 0) {
-        CGFloat tagBarY = CGRectGetMaxY([[self inputRowView] frame]) + [self tagBarTopSpacing];
-        [[self tagChipBarView] setFrame:CGRectMake(leadingInset, tagBarY, availableWidth, tagBarHeight)];
-        [[self tagChipBarView] layoutIfNeeded];
-    } else {
-        [[self tagChipBarView] setFrame:CGRectZero];
-    }
 
     CGFloat spacerHeight = MIN([self keyboardBottomInset], CGRectGetHeight(bounds));
     [[self keyboardSpacerView]
