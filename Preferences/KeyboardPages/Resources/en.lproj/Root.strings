@@ -22,7 +22,6 @@
 "LONG_PRESS" = "Long Press";
 "SPACE_BAR_SCROLLING" = "SpaceBar Swipe Scrolling";
 "FOOTER_SPACE_BAR_SCROLLING" = "Set the granularity of scrolling when swiping space bar left/right.";
-"FOOTER_CREDITS" = "Special thanks\nudevs, lclrc乌贼,Aransh";
 
 "PASTE_CHIP" = "Clipboard Image Quick Paste";
 "PASTE_CHIP_FOOTER" = "Only in enabled apps: when a NEW image or text lands on the clipboard, a chip floats at the screen's right edge, level with the text caret above the keyboard, for 3 seconds (image thumbnail or text preview); tap it to paste. While enabled, the system paste-permission prompt is answered automatically. All apps are off by default.";
@@ -33,12 +32,6 @@
 "BROWSER_REDIRECT_SECTION" = "Default Browser";
 "BROWSER_REDIRECT" = "Open Links in Reynard";
 "BROWSER_REDIRECT_FOOTER" = "Off by default. When enabled, links that would open Safari, Firefox, Chrome, or Brave open in the Reynard browser instead; http/https links are handed over as reynard:// URLs and decoded by Reynard, other links keep their URL. Requires Reynard to be installed. Requires MetisKeyboard to be enabled.";
-
-// Configuration backup
-"BACKUP_SECTION" = "Configuration Backup";
-"BACKUP_CONFIG" = "Back Up Configuration";
-"RESTORE_CONFIG" = "Restore Configuration";
-"BACKUP_FOOTER" = "Export all settings to a file and keep it safe in the Files app; restoring a backup overwrites the entire current configuration. Backup files contain the full configuration (including AI engine API keys) — do not share them.";
 
 "KEYBOARD_PANEL_SETTINGS" = "Panel settings";
 "FLOATING_APP_SETTINGS" = "Floating Apps";
