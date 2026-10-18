@@ -1,11 +1,13 @@
 #import <UIKit/UIKit.h>
+#import <Preferences/PSTableCell.h>
 
 // Own the labels/accessory instead of relying on Preferences' private labels
 // or its treatment of a getter on PSLinkCell/PSButtonCell.
 static inline UITableViewCell *MTPGestureActionCell(UITableView *table, NSString *reuse,
-    NSString *title, NSString *record, UIImage *icon, UITableViewCellAccessoryType accessory) {
-    UITableViewCell *cell = [table dequeueReusableCellWithIdentifier:reuse];
-    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuse];
+    NSString *title, NSString *record, UIImage *icon, UITableViewCellAccessoryType accessory, PSSpecifier *specifier) {
+    PSTableCell *cell = (PSTableCell *)[table dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[PSTableCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuse specifier:specifier];
+    cell.specifier = specifier;
     cell.textLabel.text = title;
     cell.textLabel.textColor = UIColor.labelColor;
     cell.detailTextLabel.text = record;

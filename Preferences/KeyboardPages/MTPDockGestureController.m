@@ -48,6 +48,7 @@ static BOOL MTDockSaveSelector(NSString *direction, NSString *selector) {
         [items addObject:enabled];
         PSSpecifier *action = [PSSpecifier preferenceSpecifierNamed:MTDockLocalized([@"DOCK_ACTION_" stringByAppendingString:suffix]) target:self
             set:nil get:@selector(readActionName:) detail:MTPDockActionPicker.class cell:PSLinkCell edit:nil];
+        action.identifier = [@"dock-action-" stringByAppendingString:direction];
         [action setProperty:direction forKey:@"dockDirection"];
         [items addObject:action];
     }
@@ -74,7 +75,7 @@ static BOOL MTDockSaveSelector(NSString *direction, NSString *selector) {
     PSSpecifier *item = [self specifierAtIndexPath:indexPath];
     if (item.cellType == PSLinkCell && [item propertyForKey:@"dockDirection"])
         return MTPGestureActionCell(tableView, @"MTPDockActionRecord", item.name, [self readActionName:item], nil,
-            UITableViewCellAccessoryDisclosureIndicator);
+            UITableViewCellAccessoryDisclosureIndicator, item);
     return [super tableView:tableView cellForRowAtIndexPath:indexPath];
 }
 @end
@@ -131,7 +132,7 @@ static BOOL MTDockSaveSelector(NSString *direction, NSString *selector) {
         NSString *chosen = MTGlobalPanelString(MTDockGestureConfiguredSelector([MTPrefsManager.sharedInstance readPrefs], self.direction));
         BOOL checked = [chosen isEqual:[item propertyForKey:@"actionSelector"]];
         return MTPGestureActionCell(tableView, @"MTPDockActionChoice", item.name, nil, [item propertyForKey:@"iconImage"],
-            checked ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone);
+            checked ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone, item);
     }
     return [super tableView:tableView cellForRowAtIndexPath:indexPath];
 }

@@ -46,6 +46,7 @@ static NSString *MTToolbarActionName(PSSpecifier *specifier) {
         [items addObject:[PSSpecifier groupSpecifierWithName:nil]];
         PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:MTGestureLocalized(category[0]) target:self
             set:nil get:nil detail:category[1] cell:PSLinkCell edit:nil];
+        link.identifier = [@"gesture-" stringByAppendingString:category[2]];
         [link setProperty:[MTHelper imageForIconConfig:category[2] defaultSymbolName:@"hand.draw"] forKey:@"iconImage"];
         [items addObject:link];
     }
@@ -94,6 +95,7 @@ static NSString *MTToolbarActionName(PSSpecifier *specifier) {
         [items addObject:[self toggle:@"ENABLED" key:[configuration isEqual:@"top"] ? kMTPanelTopEnabled : kMTPanelBottomEnabled]];
         for (NSString *direction in @[@"left", @"right"]) {
             PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:MTGestureLocalized([direction isEqual:@"left"] ? @"STATUS_BAR_LEFTSWIPE" : @"STATUS_BAR_RIGHTSWIPE") target:self set:nil get:@selector(readActionName:) detail:MTPToolbarBindingController.class cell:PSLinkCell edit:nil];
+            link.identifier = [NSString stringWithFormat:@"toolbar-%@-%@", configuration, direction];
             [link setProperty:configuration forKey:@"toolbarConfiguration"]; [link setProperty:direction forKey:@"toolbarDirection"]; [items addObject:link];
         }
     }
@@ -105,7 +107,7 @@ static NSString *MTToolbarActionName(PSSpecifier *specifier) {
     PSSpecifier *item = [self specifierAtIndexPath:path];
     if (item.cellType == PSLinkCell && MTToolbarBindingSlot([item propertyForKey:@"toolbarConfiguration"], [item propertyForKey:@"toolbarDirection"]))
         return MTPGestureActionCell(tableView, @"MTPToolbarGestureRecord", item.name, [self readActionName:item], nil,
-            UITableViewCellAccessoryDisclosureIndicator);
+            UITableViewCellAccessoryDisclosureIndicator, item);
     return [super tableView:tableView cellForRowAtIndexPath:path];
 }
 @end
@@ -159,7 +161,7 @@ static NSString *MTToolbarActionName(PSSpecifier *specifier) {
     PSSpecifier *item = [self specifierAtIndexPath:path];
     if (item && item->action == @selector(chooseAction:)) {
         return MTPGestureActionCell(tableView, @"MTPToolbarActionRecord", item.name, [self readActionName:item], nil,
-            UITableViewCellAccessoryDisclosureIndicator);
+            UITableViewCellAccessoryDisclosureIndicator, item);
     }
     return [super tableView:tableView cellForRowAtIndexPath:path];
 }

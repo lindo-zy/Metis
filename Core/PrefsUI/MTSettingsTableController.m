@@ -1,6 +1,8 @@
 #import "MTSettingsTableController.h"
 #import "MTSettingsRowCell.h"
 #import "MTSettingsNavigation.h"
+#import "MTSettingsSpecifierBridge.h"
+#import <Preferences/PSSpecifier.h>
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
 // 导航条已存在，这里只声明本页需要大标题，不改宿主全局行为。
@@ -10,24 +12,11 @@
     UILabel *_footerLabel;
 }
 
-// 所有构造路径统一收敛到 inset grouped（设计稿卡片风格）；mtCommonInit
-// 只在 viewDidLoad 做，避免 init 期触碰 self.tableView 触发提前 loadView。
-// 说明：UITableViewController 自身就以 initWithStyle: 收敛 initWithNibName 链，
-// 这里的转发模式与之相同；对 clang 的 DI 链检查局部豁免。
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wobjc-designated-initializers"
-- (instancetype)init {
-    return [self initWithStyle:UITableViewStyleInsetGrouped];
+// 由 PSListController 创建并持有真实的 _table。QuickPrefs 在此父类的
+// viewDidAppear: 上安装长按手势；另建 UIKit 表格会让手势落在不可见表格上。
+- (UITableViewStyle)tableViewStyle {
+    return UITableViewStyleInsetGrouped;
 }
-
-- (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
-    return [self initWithStyle:UITableViewStyleInsetGrouped];
-}
-
-- (instancetype)initWithStyle:(UITableViewStyle)style {
-    return [super initWithStyle:UITableViewStyleInsetGrouped];
-}
-#pragma clang diagnostic pop
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -38,6 +27,8 @@
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
     [self.tableView registerClass:[MTSettingsRowCell class] forCellReuseIdentifier:@"MTSettingsRowCell"];
     self.tableView.separatorInsetReference = UITableViewSeparatorInsetFromCellEdges;
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 56.0;
     if (@available(iOS 15.0, *)) self.tableView.sectionHeaderTopPadding = 0.0;
 }
 
@@ -53,11 +44,34 @@
 
 #pragma mark - Model rendering
 
+// 不尝试载入不存在的 Root.plist。分组顺序与自定义 datasource 完全一致，
+// 使 Preferences 的 specifierForID:/indexPathForSpecifier:/URL 路由可直接使用。
+- (NSArray *)specifiers {
+    if (!_specifiers) _specifiers = [self mtBuildSpecifiers];
+    return _specifiers;
+}
+
+- (NSMutableArray *)mtBuildSpecifiers {
+    return MTSettingsBuildSpecifiers(self.displayedModel, self, self.overlayModel == nil,
+        ^Class(MTSettingsRow *row) { return [self controllerClassForSettingsRow:row]; });
+}
+
+- (id)mtReadRowValue:(PSSpecifier *)specifier {
+    MTSettingsRow *row = [self.displayedModel rowWithIdentifier:specifier.identifier];
+    return row.kind == MTSettingsRowKindToggle ? row.userInfo : nil;
+}
+
+- (void)mtSetRowValue:(id)value specifier:(PSSpecifier *)specifier {
+    MTSettingsRow *row = [self.displayedModel rowWithIdentifier:specifier.identifier];
+    if (row.kind == MTSettingsRowKindToggle && row.toggleHandler) row.toggleHandler([value boolValue]);
+}
+
 - (MTSettingsPageModel *)displayedModel {
     return self.overlayModel ?: self.model;
 }
 
 - (void)render {
+    self.specifiers = [self mtBuildSpecifiers];
     if (!_introLabel) _introLabel = [[UILabel alloc] init];
     _introLabel.text = self.displayedModel.introSubtitle;
     if (!self.tableView.tableHeaderView) {
@@ -131,6 +145,10 @@
 
 #pragma mark - UITableViewDataSource / Delegate
 
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+    return UITableViewAutomaticDimension;
+}
+
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     return self.displayedModel.sections.count;
 }
@@ -152,6 +170,7 @@
     MTSettingsRowCell *cell = [tableView dequeueReusableCellWithIdentifier:@"MTSettingsRowCell" forIndexPath:indexPath];
     MTSettingsRow *row = [self rowAtIndexPath:indexPath];
     if (row) [cell configureWithRow:row];
+    cell.specifier = [self specifierAtIndexPath:indexPath];
     return cell;
 }
 
@@ -190,15 +209,15 @@
         return;
     }
     if (row.routeKind == MTSettingsRouteNone) return;
-    Class controllerClass = nil;
-    if (row.routeKind == MTSettingsRouteShellClass) {
-        controllerClass = row.className.length ? NSClassFromString(row.className) : Nil;
-    }
-    // Subbundle 路由需要加载外部 bundle：由 Shell 侧子类（MTPrefsShellTableController）
-    // 覆写补齐；基础层无法感知子包布局，这里不猜测路径。
+    Class controllerClass = [self controllerClassForSettingsRow:row];
     if (!controllerClass) return;
     id controller = [[controllerClass alloc] init];
-    MTSettingsPushController(self, controller, nil, YES);
+    MTSettingsPushController(self, controller, [self specifierForID:row.identifier], YES);
+}
+
+- (Class)controllerClassForSettingsRow:(MTSettingsRow *)row {
+    if (row.routeKind != MTSettingsRouteShellClass || !row.className.length) return Nil;
+    return NSClassFromString(row.className);
 }
 
 - (void)flashRowWithIdentifier:(NSString *)identifier {

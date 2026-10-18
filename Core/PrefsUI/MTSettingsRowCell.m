@@ -12,7 +12,7 @@
 }
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
-    if (self = [super initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:reuseIdentifier]) {
+    if (self = [super initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:reuseIdentifier specifier:nil]) {
         self.preservesSuperviewLayoutMargins = NO;
         self.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
         self.selectionStyle = UITableViewCellSelectionStyleDefault;
@@ -126,6 +126,7 @@
 
 - (void)prepareForReuse {
     [super prepareForReuse];
+    self.specifier = nil;
     _currentRow = nil;
     self.accessoryView = nil;
     self.accessoryType = UITableViewCellAccessoryNone;

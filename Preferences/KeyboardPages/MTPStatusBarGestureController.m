@@ -85,6 +85,7 @@ static BOOL MTStatusSaveBinding(NSString *slot, NSString *field, id value) {
         for (NSString *gesture in MTStatusBarGestures()) {
             PSSpecifier *item = [PSSpecifier preferenceSpecifierNamed:MTStatusTitle(gesture) target:self set:nil get:nil
                 detail:MTPStatusBarGestureEntryController.class cell:PSLinkCell edit:nil];
+            item.identifier = MTStatusBarSlot(region, gesture);
             [item setProperty:MTStatusBarSlot(region, gesture) forKey:@"statusBarSlot"];
             [item setProperty:[NSString stringWithFormat:@"%@ · %@", MTStatusTitle(region), MTStatusTitle(gesture)] forKey:@"entryTitle"];
             [items addObject:item];
@@ -104,7 +105,7 @@ static BOOL MTStatusSaveBinding(NSString *slot, NSString *field, id value) {
     NSString *slot = [item propertyForKey:@"statusBarSlot"];
     if (item.cellType == PSLinkCell && slot.length)
         return MTPGestureActionCell(tableView, @"MTPStatusGestureRecord", item.name,
-            MTStatusActionName([MTPrefsManager.sharedInstance readPrefs], slot), nil, UITableViewCellAccessoryDisclosureIndicator);
+            MTStatusActionName([MTPrefsManager.sharedInstance readPrefs], slot), nil, UITableViewCellAccessoryDisclosureIndicator, item);
     return [super tableView:tableView cellForRowAtIndexPath:indexPath];
 }
 @end
@@ -125,6 +126,7 @@ static BOOL MTStatusSaveBinding(NSString *slot, NSString *field, id value) {
     [items addObject:enabled];
     PSSpecifier *action = [PSSpecifier preferenceSpecifierNamed:MTStatusLocalized(@"CHOOSE_ACTION") target:self set:nil get:@selector(readActionName:)
         detail:MTPStatusBarActionPicker.class cell:PSLinkCell edit:nil];
+    action.identifier = @"choose-action";
     [action setProperty:slot forKey:@"statusBarSlot"];
     [items addObject:action];
     PSSpecifier *clear = [PSSpecifier preferenceSpecifierNamed:MTStatusLocalized(@"STATUS_BAR_CLEAR") target:self set:nil get:nil detail:nil cell:PSButtonCell edit:nil];
@@ -142,7 +144,7 @@ static BOOL MTStatusSaveBinding(NSString *slot, NSString *field, id value) {
     PSSpecifier *item = [self specifierAtIndexPath:indexPath];
     if (item.cellType == PSLinkCell)
         return MTPGestureActionCell(tableView, @"MTPStatusActionRecord", item.name, [self readActionName:item], nil,
-            UITableViewCellAccessoryDisclosureIndicator);
+            UITableViewCellAccessoryDisclosureIndicator, item);
     return [super tableView:tableView cellForRowAtIndexPath:indexPath];
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
@@ -212,7 +214,7 @@ static BOOL MTStatusSaveBinding(NSString *slot, NSString *field, id value) {
         NSString *chosen = MTGlobalPanelString(MTStatusBarBinding([MTPrefsManager.sharedInstance readPrefs], self.slot)[@"selector"]);
         BOOL checked = chosen.length && [chosen isEqual:[item propertyForKey:@"actionSelector"]];
         return MTPGestureActionCell(tableView, @"MTPStatusActionChoice", item.name, nil, [item propertyForKey:@"iconImage"],
-            checked ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone);
+            checked ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone, item);
     }
     return [super tableView:tableView cellForRowAtIndexPath:indexPath];
 }

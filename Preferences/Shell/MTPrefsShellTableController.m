@@ -5,11 +5,17 @@
 
 @implementation MTPrefsShellTableController
 
+- (Class)controllerClassForSettingsRow:(MTSettingsRow *)row {
+    if (row.routeKind == MTSettingsRouteSubbundle) {
+        return [MTPrefsSubbundleLoader loadControllerClassFromBundle:row.subBundle
+                                                         classNamed:row.className error:nil];
+    }
+    return [super controllerClassForSettingsRow:row];
+}
+
 - (void)performRouteForRow:(MTSettingsRow *)row {
     if (row.routeKind == MTSettingsRouteSubbundle) {
-        Class controllerClass = [MTPrefsSubbundleLoader loadControllerClassFromBundle:row.subBundle
-                                                                           classNamed:row.className
-                                                                                error:nil];
+        Class controllerClass = [self controllerClassForSettingsRow:row];
         if (!controllerClass) {
             MTLogError(MTLogModulePrefs, @"state=shell-route-load-failed bundle=%@ class=%@ row=%@",
                        row.subBundle, row.className, row.identifier);
@@ -17,7 +23,7 @@
             return;
         }
         id controller = [[controllerClass alloc] init];
-        MTSettingsPushController(self, controller, nil, YES);
+        MTSettingsPushController(self, controller, [self specifierForID:row.identifier], YES);
         return;
     }
     // ShellClass / InPage / None 交给基础层默认实现。

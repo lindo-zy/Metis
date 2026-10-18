@@ -82,6 +82,7 @@ static NSString *MTPanelLocalized(NSString *key) {
             [items addObject:[PSSpecifier groupSpecifierWithName:MTPanelLocalized([kind isEqual:MTPanelKeyboardKind] ? @"PANEL_KIND_KEYBOARD" : @"PANEL_KIND_GESTURE")]];
             for (NSDictionary *panel in MTPanelDefinitions(preferences, kind)) {
                 PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:MTPanelString(panel[@"name"]) target:self set:nil get:nil detail:MTPKeyboardPanelController.class cell:PSLinkCell edit:nil];
+                link.identifier = MTPanelSelector(panel[@"id"]);
                 [link setProperty:MTPanelSelector(panel[@"id"]) forKey:@"panelSelector"];
                 [link setProperty:[MTHelper imageForIconConfig:MTPanelDefaultIconName(panel[@"kind"]) defaultSymbolName:@"square.grid.2x2"] forKey:@"iconImage"];
                 [items addObject:link];
@@ -98,6 +99,7 @@ static NSString *MTPanelLocalized(NSString *key) {
     [items addObject:[self setting:@"KEYBOARD_PANEL_SYSTEM_TOGGLES" key:kMTPanelSystemTogglesVisible defaultValue:@YES cell:PSSwitchCell]];
     [items addObject:[self setting:@"KEYBOARD_PANEL_SYSTEM_SLIDERS" key:kMTPanelSystemSlidersVisible defaultValue:@YES cell:PSSwitchCell]];
     PSSpecifier *actions = [PSSpecifier preferenceSpecifierNamed:MTPanelLocalized(@"KEYBOARD_PANEL_ACTIONS") target:self set:nil get:nil detail:MTPKeyboardPanelItemsController.class cell:PSLinkCell edit:nil];
+    actions.identifier = @"panel-actions";
     [actions setProperty:selector forKey:@"panelSelector"]; [items addObject:actions];
     [items addObject:[PSSpecifier groupSpecifierWithName:MTPanelLocalized(@"KEYBOARD_PANEL_APPEARANCE")]];
     for (NSArray *row in @[@[@"KEYBOARD_PANEL_COLUMNS", kMTPanelColumns, @4, @3, @5], @[@"KEYBOARD_PANEL_SCALE", kMTPanelScale, @100, @70, @120]]) {

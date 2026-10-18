@@ -33,6 +33,8 @@
 			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>MTFloatingPreviewSettingsViewController</string>
+			<key>id</key>
+			<string>floating-preview</string>
 			<key>label</key>
 			<string>Floating Preview</string>
 		</dict>
@@ -43,6 +45,8 @@
 			<string>com.lindo.metis.clipboard</string>
 			<key>detail</key>
 			<string>MTFloatingPanelSettingsViewController</string>
+			<key>id</key>
+			<string>floating-panel</string>
 			<key>label</key>
 			<string>Floating Panel</string>
 		</dict>
@@ -152,6 +156,8 @@
 			<string>PSLinkCell</string>
 			<key>detail</key>
 			<string>MTTagManagementViewController</string>
+			<key>id</key>
+			<string>custom-tags</string>
 			<key>label</key>
 			<string>CUSTOM_TAGS</string>
 		</dict>
@@ -160,6 +166,8 @@
 			<string>PSLinkCell</string>
 			<key>detail</key>
 			<string>MTCustomJumpManagementViewController</string>
+			<key>id</key>
+			<string>custom-jumps</string>
 			<key>label</key>
 			<string>CUSTOM_JUMPS</string>
 		</dict>
@@ -168,6 +176,8 @@
 			<string>PSLinkCell</string>
 			<key>detail</key>
 			<string>MTImageActionManagementViewController</string>
+			<key>id</key>
+			<string>image-actions</string>
 			<key>label</key>
 			<string>IMAGE_ACTIONS</string>
 		</dict>
@@ -176,6 +186,8 @@
 			<string>PSLinkCell</string>
 			<key>detail</key>
 			<string>MTImageDoubleTapActionViewController</string>
+			<key>id</key>
+			<string>image-double-tap-action</string>
 			<key>label</key>
 			<string>IMAGE_DOUBLE_TAP_ACTION</string>
 		</dict>
@@ -522,6 +534,8 @@
 			<string>PSLinkCell</string>
 			<key>detail</key>
 			<string>MTAdvancedOptionsListController</string>
+			<key>id</key>
+			<string>advanced-options</string>
 			<key>label</key>
 			<string>Advanced Options</string>
 		</dict>

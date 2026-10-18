@@ -78,6 +78,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
         forKey:@"titles"];
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
+    manage.identifier = @"quick-launcher-apps";
     _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
         handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds, quickGroup, launcherSide, manage] mutableCopy];
     return _specifiers;
