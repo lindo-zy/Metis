@@ -288,8 +288,15 @@ static UIImage *MTKbdHandleApplicationIcon(NSString *bundleIdentifier) {
         usingBlock:^(__unused NSNotification *notification) {
             dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf finishStartup]; });
         }];
-    [self applyPreferences];
-    NSLog(@"[MetisKeyboard][KbdHandle] host started");
+        [self applyPreferences];
+        // 主路径同步置位 startupReady：本块由 %ctor dispatch_async(main) 入队，
+        // 执行时 UIApplicationDidFinishLaunchingNotification 通常已广播完毕
+        // （didFinishLaunching 返回即发通知，早于主队列块执行），仅依赖通知
+        // 观察者会把 startupReady 永远留在 NO、把手永不显示。finishStartup
+        // 幂等：与 SMS/浏览器重定向一致「ctor 同步先跑 + 通知兜底」，块若
+        // 确实早于通知执行也走同一路径，观察者保留作双保险。
+        [self finishStartup];
+        NSLog(@"[MetisKeyboard][KbdHandle] host started");
 }
 
 - (void)finishStartup {
