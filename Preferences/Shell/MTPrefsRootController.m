@@ -18,6 +18,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"";
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    self.navigationItem.backButtonTitle = @"Metis";
     self.model = [MTPrefsRootModel rootPageModel];
     [self mtAttachToggleHandler];
     [self render];
@@ -26,7 +28,7 @@
 #pragma mark - Brand header + search
 
 - (UIView *)makeTableHeaderView {
-    // Brand mark and version share the same margins as the inset grouped cards.
+    // 品牌区和搜索框对齐系统分组边距；高度随标题/版本字号一起增长。
     UIView *container = [[UIView alloc] init];
     container.layoutMargins = self.tableView.layoutMargins;
     container.insetsLayoutMarginsFromSafeArea = NO;
@@ -36,8 +38,17 @@
     brandIcon.layer.cornerCurve = kCACornerCurveContinuous;
     brandIcon.layer.masksToBounds = YES;
     brandIcon.contentMode = UIViewContentModeScaleAspectFit;
+    brandIcon.isAccessibilityElement = NO;
     brandIcon.translatesAutoresizingMaskIntoConstraints = NO;
-    [container addSubview:brandIcon];
+
+    UILabel *brandTitle = [[UILabel alloc] init];
+    brandTitle.text = @"Metis";
+    brandTitle.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleTitle1]
+        scaledFontForFont:[UIFont systemFontOfSize:28.0 weight:UIFontWeightBold]];
+    brandTitle.textColor = UIColor.labelColor;
+    brandTitle.adjustsFontForContentSizeCategory = YES;
+    brandTitle.numberOfLines = 0;
+    brandTitle.accessibilityTraits |= UIAccessibilityTraitHeader;
 
     UILabel *brandSubtitle = [[UILabel alloc] init];
     // 副标题带当前版本号：关于页移除后主页即版本信息的唯一展示位。
@@ -45,8 +56,19 @@
     brandSubtitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
     brandSubtitle.textColor = UIColor.secondaryLabelColor;
     brandSubtitle.adjustsFontForContentSizeCategory = YES;
-    brandSubtitle.translatesAutoresizingMaskIntoConstraints = NO;
-    [container addSubview:brandSubtitle];
+    brandSubtitle.numberOfLines = 0;
+
+    UIStackView *brandText = [[UIStackView alloc] initWithArrangedSubviews:@[brandTitle, brandSubtitle]];
+    brandText.axis = UILayoutConstraintAxisVertical;
+    brandText.alignment = UIStackViewAlignmentLeading;
+    brandText.spacing = 2.0;
+
+    UIStackView *brandRow = [[UIStackView alloc] initWithArrangedSubviews:@[brandIcon, brandText]];
+    brandRow.axis = UILayoutConstraintAxisHorizontal;
+    brandRow.alignment = UIStackViewAlignmentCenter;
+    brandRow.spacing = 14.0;
+    brandRow.translatesAutoresizingMaskIntoConstraints = NO;
+    [container addSubview:brandRow];
 
     _searchField = [[UISearchTextField alloc] init];
     _searchField.placeholder = @"搜索设置";
@@ -60,14 +82,12 @@
     [container addSubview:_searchField];
 
     [NSLayoutConstraint activateConstraints:@[
-        [brandIcon.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
-        [brandIcon.topAnchor constraintEqualToAnchor:container.topAnchor constant:6.0],
+        [brandRow.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
+        [brandRow.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
+        [brandRow.topAnchor constraintEqualToAnchor:container.topAnchor constant:8.0],
         [brandIcon.widthAnchor constraintEqualToConstant:56.0],
         [brandIcon.heightAnchor constraintEqualToConstant:56.0],
-        [brandSubtitle.leadingAnchor constraintEqualToAnchor:brandIcon.trailingAnchor constant:14.0],
-        [brandSubtitle.centerYAnchor constraintEqualToAnchor:brandIcon.centerYAnchor],
-        [brandSubtitle.trailingAnchor constraintLessThanOrEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
-        [_searchField.topAnchor constraintEqualToAnchor:brandIcon.bottomAnchor constant:12.0],
+        [_searchField.topAnchor constraintEqualToAnchor:brandRow.bottomAnchor constant:16.0],
         [_searchField.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
         [_searchField.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
         [_searchField.heightAnchor constraintGreaterThanOrEqualToConstant:40.0],
