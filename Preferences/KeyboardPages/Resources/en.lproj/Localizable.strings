@@ -412,7 +412,6 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "GLOBAL_PANEL_FOOTER" = "Independent panels work without showing the keyboard and support system controls, links, apps, and quick actions. Use keyboard panels for text or scripts that require an input field.";
 "GLOBAL_PANEL_INPUT_REQUIRED" = "Action failed: gesture panels cannot read or replace input. Run this action from a keyboard panel.";
 "KEYBOARD_PANEL_APPEARANCE" = "Panel appearance";
-"KEYBOARD_PANEL_DARK" = "Dark background";
 "KEYBOARD_PANEL_COLUMNS" = "Icons per row";
 "KEYBOARD_PANEL_SCALE" = "Content size (%)";
 "KEYBOARD_PANEL_ITEMS_FOOTER" = "Keyboard panels support all actions. Gesture panels support actions without a keyboard and other gesture panels. Swipe to remove an item, hold to reorder or tap to edit. Removing an item keeps its original action or panel.";

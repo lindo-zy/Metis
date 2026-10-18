@@ -55,7 +55,6 @@
 @property(nonatomic, weak) UIScreen *keyboardScreen;
 @property(nonatomic, assign) CGRect keyboardFrame;
 @property(nonatomic, assign) BOOL hasKeyboardFrame;
-@property(nonatomic, assign) BOOL dark;
 @property(nonatomic, assign) CGFloat scale;
 @property(nonatomic, assign) NSInteger columns;
 @property(nonatomic, copy) NSDictionary *snapshot;
@@ -247,8 +246,7 @@
     preferences = MTPanelPreferences(preferences, selector);
     self.scale = MTKeyboardPanelNumber(preferences, kMTPanelScale, 100, 70, 120) / 100;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
-    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
-    self.dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
+    // 面板固定浅色渲染 + 深色按钮（深色偏好已移除）。
 
     UIWindow *window = [self keyboardHostForScene:scene];
     if (!window) {
@@ -266,18 +264,18 @@
     UIView *panel = [[UIView alloc] init];
     // A remote keyboard backdrop may not be sampled by UIVisualEffectView.
     // Keep an opaque base so its keys cannot bleed through on SpringBoard.
-    panel.backgroundColor = self.dark ? [UIColor colorWithWhite:0.10 alpha:1] : UIColor.systemBackgroundColor;
+    panel.backgroundColor = UIColor.systemBackgroundColor;
     panel.layer.cornerRadius = 22;
     panel.clipsToBounds = YES;
     self.panel = panel;
     [self.overlay addSubview:panel];
-    UIVisualEffectView *blur = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:
-        self.dark ? UIBlurEffectStyleSystemMaterialDark : UIBlurEffectStyleSystemMaterialLight]];
+    UIVisualEffectView *blur = [[UIVisualEffectView alloc] initWithEffect:
+        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterialLight]];
     blur.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     blur.frame = panel.bounds;
-    blur.contentView.backgroundColor = self.dark ? [UIColor colorWithWhite:0.08 alpha:0.5] : [UIColor colorWithWhite:1 alpha:0.5];
+    blur.contentView.backgroundColor = [UIColor colorWithWhite:1 alpha:0.5];
     [panel addSubview:blur];
-    UIColor *text = self.dark ? UIColor.whiteColor : UIColor.labelColor;
+    UIColor *text = UIColor.labelColor;
     UIControl *header = [[UIControl alloc] init];
     header.tag = 30;
     [header addTarget:self action:@selector(dismiss) forControlEvents:UIControlEventTouchUpInside];
@@ -417,8 +415,8 @@
             circleView = [[UIView alloc] init];
             circleView.tag = 10;
             circleView.userInteractionEnabled = NO;
-            // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
-            circleView.backgroundColor = self.dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
+            // 按钮圆：浅色面板配深色圆 + 白色内容。
+            circleView.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
             [button insertSubview:circleView atIndex:0];
         }
         circleView.frame = CGRectMake((itemWidth - circle) / 2, 4, circle, circle);

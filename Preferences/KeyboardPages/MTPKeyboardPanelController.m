@@ -100,7 +100,6 @@ static NSString *MTPanelLocalized(NSString *key) {
     PSSpecifier *actions = [PSSpecifier preferenceSpecifierNamed:MTPanelLocalized(@"KEYBOARD_PANEL_ACTIONS") target:self set:nil get:nil detail:MTPKeyboardPanelItemsController.class cell:PSLinkCell edit:nil];
     [actions setProperty:selector forKey:@"panelSelector"]; [items addObject:actions];
     [items addObject:[PSSpecifier groupSpecifierWithName:MTPanelLocalized(@"KEYBOARD_PANEL_APPEARANCE")]];
-    [items addObject:[self setting:@"KEYBOARD_PANEL_DARK" key:kMTPanelDark defaultValue:@NO cell:PSSwitchCell]];
     for (NSArray *row in @[@[@"KEYBOARD_PANEL_COLUMNS", kMTPanelColumns, @4, @3, @5], @[@"KEYBOARD_PANEL_SCALE", kMTPanelScale, @100, @70, @120]]) {
         PSSpecifier *slider = [self setting:row[0] key:row[1] defaultValue:row[2] cell:PSStaticTextCell];
         [slider setProperty:MTPPanelSliderCell.class forKey:@"cellClass"]; [slider setProperty:row[3] forKey:@"min"]; [slider setProperty:row[4] forKey:@"max"];

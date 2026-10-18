@@ -92,7 +92,7 @@ static inline NSDictionary *MTPanelPreferences(NSDictionary *preferences, NSStri
     NSMutableDictionary *result = [preferences mutableCopy] ?: [NSMutableDictionary dictionary];
     id values = MTPanelDefinition(preferences, selector)[@"preferences"];
     if ([values isKindOfClass:NSDictionary.class])
-        for (NSString *key in @[kMTPanelColumns, kMTPanelScale, kMTPanelDark, kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible])
+        for (NSString *key in @[kMTPanelColumns, kMTPanelScale, kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible])
             if (values[key]) result[key] = values[key];
     return result;
 }
@@ -155,7 +155,7 @@ static inline NSDictionary *MTPanelMigratePreferences(NSDictionary *preferences)
             number++;
             NSDictionary *profile = MTKeyboardPanelProfilePreferences(preferences, side);
             NSMutableDictionary *options = [NSMutableDictionary dictionary];
-            for (NSString *key in @[kMTPanelColumns, kMTPanelScale, kMTPanelDark, kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible])
+            for (NSString *key in @[kMTPanelColumns, kMTPanelScale, kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible])
                 if (profile[key]) options[key] = profile[key];
             for (NSString *kind in @[MTPanelKeyboardKind, MTPanelGestureKind]) {
                 NSString *identifier = [NSString stringWithFormat:@"legacy-%@-%@", kind, side];

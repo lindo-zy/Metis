@@ -9,7 +9,6 @@
 #define kMTPanelSystemSlidersVisible @"keyboardpanelsystemslidersBOOL"
 #define kMTPanelColumns @"keyboardpanelcolumns"
 #define kMTPanelScale @"keyboardpanelscale"
-#define kMTPanelDark @"keyboardpaneldarkBOOL"
 #define kMTPanelLeftItems @"keyboardpanelleftitems"
 #define kMTPanelRightItems @"keyboardpanelrightitems"
 #define kMTPanelCommonItems @"keyboardpanelcommonitems"
@@ -23,7 +22,7 @@ static inline NSString *MTKeyboardPanelProfileKey(NSString *key, NSString *side)
 
 static inline NSDictionary *MTKeyboardPanelProfilePreferences(NSDictionary *preferences, NSString *side) {
     NSMutableDictionary *profile = [preferences isKindOfClass:NSDictionary.class] ? [preferences mutableCopy] : [NSMutableDictionary dictionary];
-    for (NSString *key in @[kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible, kMTPanelColumns, kMTPanelScale, kMTPanelDark]) {
+    for (NSString *key in @[kMTPanelSystemTogglesVisible, kMTPanelSystemSlidersVisible, kMTPanelColumns, kMTPanelScale]) {
         NSString *scopedKey = MTKeyboardPanelProfileKey(key, side);
         id value = scopedKey ? profile[scopedKey] : nil;
         if (value) profile[key] = value;

@@ -411,7 +411,6 @@
 "GLOBAL_PANEL_FOOTER" = "独立面板无需弹出键盘，支持系统控制、链接、应用和快捷操作；需要输入框的文字和脚本动作请在键盘面板中执行。";
 "GLOBAL_PANEL_INPUT_REQUIRED" = "执行失败：手势面板无法读取或替换输入内容，请从键盘面板执行。";
 "KEYBOARD_PANEL_APPEARANCE" = "面板外观";
-"KEYBOARD_PANEL_DARK" = "深色背景";
 "KEYBOARD_PANEL_COLUMNS" = "每行图标数";
 "KEYBOARD_PANEL_SCALE" = "内容大小（%）";
 "KEYBOARD_PANEL_ITEMS_FOOTER" = "键盘面板支持全部操作，手势面板只支持无需键盘的动作及手势面板。左滑删除当前条目，长按拖动排序，点击编辑；条目删除不删除原动作或原面板。";

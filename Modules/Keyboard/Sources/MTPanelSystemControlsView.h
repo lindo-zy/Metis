@@ -7,7 +7,7 @@
 @property(nonatomic, readonly) BOOL showsSliderRow;
 - (void)configureWithPreferences:(NSDictionary *)preferences preview:(BOOL)preview;
 - (CGFloat)preferredHeightForWidth:(CGFloat)width;
-- (void)configureDark:(BOOL)dark preview:(BOOL)preview;
+- (void)configurePreview:(BOOL)preview;
 - (void)applyState:(NSDictionary *)state busy:(BOOL)busy;
 - (void)showMessage:(NSString *)message;
 @end

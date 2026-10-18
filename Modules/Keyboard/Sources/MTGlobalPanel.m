@@ -218,9 +218,8 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     preferences = MTPanelPreferences(preferences, selector);
     self.scale = MTKeyboardPanelNumber(preferences, kMTPanelScale, 100, 70, 120) / 100;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
-    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
-    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
-    UIColor *text = dark ? UIColor.whiteColor : UIColor.labelColor;
+    // 面板固定浅色渲染 + 深色按钮（深色偏好已移除）。
+    UIColor *text = UIColor.labelColor;
 
     // SpringBoard has scene-less windows on some supported systems. A fresh
     // owned window is used per presentation and never made key.
@@ -250,7 +249,7 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     [outside addTarget:self action:@selector(dismiss) forControlEvents:UIControlEventTouchUpInside];
     [controller.view addSubview:outside];
     self.panel = [UIView new];
-    self.panel.backgroundColor = dark ? [UIColor colorWithWhite:0.10 alpha:1] : UIColor.systemBackgroundColor;
+    self.panel.backgroundColor = UIColor.systemBackgroundColor;
     self.panel.layer.cornerRadius = 22;
     self.panel.clipsToBounds = YES;
     [controller.view addSubview:self.panel];
@@ -322,8 +321,8 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
         MTGlobalPanelItem *button = [MTGlobalPanelItem buttonWithType:UIButtonTypeCustom];
         button.actionSelector = entry[@"selector"];
         button.circle = [UIView new];
-        // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
-        button.circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
+        // 按钮圆：浅色面板配深色圆 + 白色内容。
+        button.circle.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
         button.circle.userInteractionEnabled = NO;
         [button addSubview:button.circle];
         button.icon = [UIImageView new];

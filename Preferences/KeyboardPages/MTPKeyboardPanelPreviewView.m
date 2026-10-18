@@ -43,10 +43,9 @@
     self.gesturePanel = [panel[@"kind"] isEqual:MTPanelGestureKind];
     preferences = MTPanelPreferences(preferences, selector);
     self.titleLabel.text = MTPanelString(panel[@"name"]);
-    // 默认浅色面板 + 深色按钮；深色面板经偏好显式开启（TypeX 原有深色语言）。
-    BOOL dark = MTKeyboardPanelBool(preferences, kMTPanelDark, NO);
-    UIColor *textColor = dark ? UIColor.whiteColor : UIColor.labelColor;
-    self.backgroundColor = dark ? [UIColor colorWithWhite:0.10 alpha:1] : UIColor.systemBackgroundColor;
+    // 面板固定浅色渲染 + 深色按钮（深色偏好已移除）。
+    UIColor *textColor = UIColor.labelColor;
+    self.backgroundColor = UIColor.systemBackgroundColor;
     [self.systemControls configureWithPreferences:preferences preview:YES];
     self.titleLabel.textColor = textColor;
     self.columns = (NSInteger)MTKeyboardPanelNumber(preferences, kMTPanelColumns, 4, 3, 5);
@@ -59,8 +58,8 @@
         UIView *item = [UIView new];
         UIView *circle = [UIView new];
         circle.tag = 1;
-        // 按钮圆：深色模式沿用半透明黑圆；浅色面板配深色圆 + 白色内容。
-        circle.backgroundColor = dark ? [UIColor colorWithWhite:0 alpha:0.45] : [UIColor colorWithWhite:0.12 alpha:0.88];
+        // 按钮圆：浅色面板配深色圆 + 白色内容。
+        circle.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.88];
         [item addSubview:circle];
         UIImageView *icon = [UIImageView new];
         icon.tag = 2;

@@ -16,18 +16,16 @@
         self.icon = [UIImageView new]; self.icon.contentMode = UIViewContentModeScaleAspectFit;
         self.fill.userInteractionEnabled = NO; self.icon.userInteractionEnabled = NO;
         [self addSubview:self.fill]; [self addSubview:self.icon];
+        // The white fill needs a fixed capsule outline against a light panel,
+        // including at 100%, when no unfilled track remains visible.
+        self.layer.borderWidth = 1;
+        self.layer.borderColor = [UIColor colorWithWhite:0.35 alpha:0.8].CGColor;
         self.isAccessibilityElement = YES; self.accessibilityTraits = UIAccessibilityTraitAdjustable;
     }
     return self;
 }
 - (void)setValue:(float)value { _value = MIN(1, MAX(0, value)); [self setNeedsLayout]; }
 - (void)setEnabled:(BOOL)enabled { [super setEnabled:enabled]; self.alpha = enabled ? 1 : 0.35; }
-- (void)configureDark:(BOOL)dark {
-    // The white fill needs a fixed capsule outline against a light panel,
-    // including at 100%, when no unfilled track remains visible.
-    self.layer.borderWidth = dark ? 0 : 1;
-    self.layer.borderColor = dark ? NULL : [UIColor colorWithWhite:0.35 alpha:0.8].CGColor;
-}
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat width = self.bounds.size.width, height = self.bounds.size.height;
@@ -59,7 +57,6 @@
 @property(nonatomic, strong) MTPanelPillSlider *volume;
 @property(nonatomic, strong) NSDictionary *state;
 @property(nonatomic, strong) UILabel *message;
-@property(nonatomic) BOOL dark;
 @property(nonatomic) BOOL preview;
 @property(nonatomic) BOOL busy;
 @property(nonatomic, readwrite) BOOL showsToggleRow;
@@ -94,7 +91,7 @@
         self.message.textAlignment = NSTextAlignmentCenter; self.message.adjustsFontSizeToFitWidth = YES;
         [self addSubview:self.message];
         self.showsToggleRow = YES; self.showsSliderRow = YES;
-        [self configureDark:NO preview:NO];
+        [self configurePreview:NO];
     }
     return self;
 }
@@ -108,15 +105,14 @@
     self.volume.hidden = !self.showsSliderRow;
     self.hidden = !self.showsToggleRow && !self.showsSliderRow;
     self.message.hidden = self.hidden;
-    [self configureDark:MTKeyboardPanelBool(preferences, kMTPanelDark, NO) preview:preview];
+    [self configurePreview:preview];
     [self setNeedsLayout];
 }
 - (CGFloat)preferredHeightForWidth:(CGFloat)width {
     return MTPanelSystemControlsHeightForRows(width, self.showsToggleRow, self.showsSliderRow);
 }
-- (void)configureDark:(BOOL)dark preview:(BOOL)preview {
-    self.dark = dark; self.preview = preview; self.userInteractionEnabled = !preview;
-    [self.brightness configureDark:dark]; [self.volume configureDark:dark];
+- (void)configurePreview:(BOOL)preview {
+    self.preview = preview; self.userInteractionEnabled = !preview;
     if (preview) self.state = @{@"do-not-disturb": @NO, @"wifi": @YES, @"silent": @YES, @"bluetooth": @YES, @"orientation-lock": @YES, @"brightness": @0.62, @"volume": @0.38};
     [self applyState:self.state ?: @{} busy:NO];
 }
@@ -126,20 +122,19 @@
         self.state = [state copy];
     }
     self.busy = busy;
-    self.message.textColor = self.dark ? UIColor.whiteColor : UIColor.labelColor;
+    self.message.textColor = UIColor.labelColor;
     NSArray *ids = MTPanelToggleIdentifiers();
     for (NSUInteger index = 0; index < self.buttons.count; index++) {
         UIButton *button = self.buttons[index]; NSNumber *value = self.state[ids[index]];
         BOOL known = [value isKindOfClass:NSNumber.class], on = known && value.boolValue;
-        // 关闭态圆钮统一深色底 + 白图标（浅色面板配深色按钮；深色模式沿用半透明黑圆）。
-        button.backgroundColor = on ? UIColor.systemBlueColor :
-            (self.dark ? [UIColor colorWithWhite:0 alpha:0.5] : [UIColor colorWithWhite:0.12 alpha:0.88]);
+        // 关闭态圆钮统一深色底 + 白图标（浅色面板配深色按钮）。
+        button.backgroundColor = on ? UIColor.systemBlueColor : [UIColor colorWithWhite:0.12 alpha:0.88];
         button.tintColor = UIColor.whiteColor;
         button.alpha = known ? 1 : 0.35;
         BOOL enabled = known && !busy;
         if (button.enabled != enabled) button.enabled = enabled;
         button.accessibilityValue = known ? (on ? @"已开启" : @"已关闭") : @"不可用";
-        self.labels[index].textColor = self.dark ? UIColor.whiteColor : UIColor.labelColor;
+        self.labels[index].textColor = UIColor.labelColor;
     }
     for (NSUInteger index = 0; index < 2; index++) {
         MTPanelPillSlider *slider = index ? self.volume : self.brightness;
