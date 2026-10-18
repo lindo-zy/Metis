@@ -1,16 +1,13 @@
 #import "MTPRootListController.h"
-#import <spawn.h>
-#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "common.h"
 #import "MTHelper.h"
 #import "MTSettingsSearch.h"
 
 static NSBundle *mtpLocalBundle;
 
-@interface MTPRootListController () <UIDocumentPickerDelegate, UISearchResultsUpdating>
+@interface MTPRootListController () <UISearchResultsUpdating>
 @property(nonatomic, strong) UISearchController *settingsSearch;
 @property(nonatomic, copy) NSArray<PSSpecifier *> *allSettingsSpecifiers;
-@property(nonatomic, retain) NSURL *pendingExportURL;
 @end
 
 
@@ -170,131 +167,6 @@ static NSBundle *mtpLocalBundle;
         [MTHelper showSearchCountEasterAlertFor:self searchController:self.settingsSearch count:tappedCount+1 delay:0.5];
     }
     return YES;
-}
-
-#pragma mark - 配置备份与恢复
-
-// 备份信封：preferences 才是配置本体，其余是元信息。恢复只接受本包导出的
-// 信封格式，不兼容旧 TypeX 插件域拷出的裸 plist（不读取其他插件的旧值）。
-static NSString *const MTPBackupFormatKey = @"_typexBackupFormat";
-static NSString *const MTPBackupDateKey = @"_typexBackupDate";
-static NSString *const MTPBackupPayloadKey = @"preferences";
-static const NSInteger MTPBackupFormatVersion = 1;
-
-- (void)showSimpleAlert:(NSString *)message {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"MetisKeyboard"
-                                                                   message:message
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_YES") style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)backupConfig:(PSSpecifier *)specifier {
-    // Settings 进程是非沙盒身份，readPrefs 读的是权威偏好域（cfprefsd +
-    // plist fallback 的合并结果），涵盖工具栏、手势、快捷方式、自定义动作、
-    // AI 引擎/人设等全部配置。
-    NSDictionary *prefs = [[MTPrefsManager sharedInstance] readPrefs];
-    if (![prefs isKindOfClass:[NSDictionary class]] || prefs.count == 0) {
-        [self showSimpleAlert:LOCALIZED(@"BACKUP_EMPTY")];
-        return;
-    }
-
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
-    formatter.dateFormat = @"yyyyMMdd-HHmmss";
-    NSString *timestamp = [formatter stringFromDate:[NSDate date]];
-
-    NSDictionary *envelope = @{
-        MTPBackupFormatKey: @(MTPBackupFormatVersion),
-        MTPBackupDateKey: timestamp,
-        MTPBackupPayloadKey: prefs,
-    };
-    NSURL *fileURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:
-        [NSString stringWithFormat:@"MetisKeyboard-Config-%@.plist", timestamp]]];
-    if (![envelope writeToFile:fileURL.path atomically:YES]) {
-        [self showSimpleAlert:LOCALIZED(@"BACKUP_FAILED")];
-        return;
-    }
-    self.pendingExportURL = fileURL;
-
-    UIDocumentPickerViewController *picker =
-        [[UIDocumentPickerViewController alloc] initForExportingURLs:@[fileURL] asCopy:YES];
-    picker.delegate = self;
-    [self presentViewController:picker animated:YES completion:nil];
-}
-
-- (void)restoreConfig:(PSSpecifier *)specifier {
-    // data 兜底保证改名丢扩展名的备份文件也能选中。
-    UIDocumentPickerViewController *picker =
-        [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypePropertyList, UTTypeData]];
-    picker.delegate = self;
-    [self presentViewController:picker animated:YES completion:nil];
-}
-
-- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
-    // pendingExportURL 非空说明这是导出选择器：临时文件已被系统复制到目标
-    // 位置，清理后直接返回。恢复流程里该属性恒为 nil。
-    NSURL *pendingExport = self.pendingExportURL;
-    self.pendingExportURL = nil;
-    if (pendingExport) {
-        [[NSFileManager defaultManager] removeItemAtURL:pendingExport error:nil];
-        return;
-    }
-
-    NSURL *url = urls.firstObject;
-    if (url) [self importBackupFromURL:url];
-}
-
-- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
-    NSURL *pendingExport = self.pendingExportURL;
-    self.pendingExportURL = nil;
-    if (pendingExport) [[NSFileManager defaultManager] removeItemAtURL:pendingExport error:nil];
-}
-
-- (void)importBackupFromURL:(NSURL *)url {
-    BOOL accessing = [url startAccessingSecurityScopedResource];
-    NSDictionary *file = [NSDictionary dictionaryWithContentsOfFile:url.path];
-    if (accessing) [url stopAccessingSecurityScopedResource];
-
-    NSDictionary *restored = nil;
-    if ([file isKindOfClass:[NSDictionary class]]) {
-        NSNumber *format = file[MTPBackupFormatKey];
-        id payload = file[MTPBackupPayloadKey];
-        if ([format isKindOfClass:[NSNumber class]] && format.integerValue == MTPBackupFormatVersion &&
-            [payload isKindOfClass:[NSDictionary class]]) {
-            restored = payload;
-        }
-        // 只接受本包导出的信封格式：不再兼容裸字典（旧 TypeX 插件直接从
-        // /var/mobile/Library/Preferences 拷出的 plist），避免导入其他插件
-        // 的配置旧值。
-    }
-    if (restored.count == 0) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:LOCALIZED(@"RESTORE_FAILED_TITLE")
-                                                                       message:LOCALIZED(@"RESTORE_FAILED_MESSAGE")
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_YES") style:UIAlertActionStyleCancel handler:nil]];
-        [self presentViewController:alert animated:YES completion:nil];
-        return;
-    }
-
-    NSString *message = [NSString stringWithFormat:LOCALIZED(@"RESTORE_CONFIRM_MESSAGE"), (unsigned long)restored.count];
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:LOCALIZED(@"RESTORE_CONFIRM_TITLE")
-                                                                   message:message
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_NO") style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_YES") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        // Settings 进程（非沙盒）里 writePrefs 替换整个权威偏好域并镜像
-        // 快照，末尾广播 prefschanged：SpringBoard 与键盘进程自动重载。
-        [[MTPrefsManager sharedInstance] writePrefs:restored];
-        [self reloadSpecifiers];
-
-        UIAlertController *done = [UIAlertController alertControllerWithTitle:@"MetisKeyboard"
-                                                                      message:LOCALIZED(@"RESTORE_DONE")
-                                                               preferredStyle:UIAlertControllerStyleAlert];
-        [done addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_YES") style:UIAlertActionStyleCancel handler:nil]];
-        [self presentViewController:done animated:YES completion:nil];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end

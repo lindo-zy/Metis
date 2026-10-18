@@ -336,8 +336,6 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "PASTE_CHIP" = "Paste Chip";
 "PASTE_CHIP_FOOTER" = "Shows a floating paste chip above the keyboard when the clipboard holds new content, and auto-answers the system paste-permission alert.";
 "PASTE_CHIP_APPS" = "Enabled Apps";
-"FOOTER_CREDITS" = "MetisKeyboard by lindo. Thanks for your support.";
-
 // App quick actions
 "ACTION_TYPE_SHORTCUT" = "App Shortcut";
 "TYPE_FOOTER_SHORTCUT" = "Choose a quick action from an app’s Home Screen menu. If the app no longer provides it, choose another shortcut.";
@@ -375,15 +373,6 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "TEXT_RECORD_REQUIRED" = "Enter text for each record, or delete unused records in Edit mode.";
 "TEXT_RECORD_INPUT_UNAVAILABLE" = "The current input field is unavailable.";
 "TEXT_RECORD_COUNT" = "%lu records";
-
-// Configuration backup
-"BACKUP_EMPTY" = "There is no configuration to back up";
-"BACKUP_FAILED" = "Failed to create the backup file, please try again";
-"RESTORE_CONFIRM_TITLE" = "Restore Configuration";
-"RESTORE_CONFIRM_MESSAGE" = "The backup contains %lu settings.\nRestoring overwrites the entire current configuration and cannot be undone. Continue?";
-"RESTORE_DONE" = "Configuration restored";
-"RESTORE_FAILED_TITLE" = "Restore Failed";
-"RESTORE_FAILED_MESSAGE" = "The file is not a valid MetisKeyboard backup";
 
 // Keyboard-covering swipe panels
 "GESTURE_SETTINGS" = "Gesture Settings";

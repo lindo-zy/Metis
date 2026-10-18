@@ -335,8 +335,6 @@
 "PASTE_CHIP" = "粘贴悬浮窗";
 "PASTE_CHIP_FOOTER" = "剪贴板有新内容时在键盘上方弹出悬浮粘贴窗，并自动放行系统「允许粘贴」弹窗。";
 "PASTE_CHIP_APPS" = "生效应用";
-"FOOTER_CREDITS" = "MetisKeyboard 由 lindo 开发，感谢使用与支持";
-
 // App quick actions
 "ACTION_TYPE_SHORTCUT" = "快捷方式";
 "TYPE_FOOTER_SHORTCUT" = "选择应用图标长按菜单中的快捷项。执行时使用应用当前的快捷项；若该项已失效，请重新选择。";
@@ -374,15 +372,6 @@
 "TEXT_RECORD_REQUIRED" = "请为每条记录填写文本，或在编辑模式下删除不用的记录。";
 "TEXT_RECORD_INPUT_UNAVAILABLE" = "当前输入框不可用。";
 "TEXT_RECORD_COUNT" = "%lu 条记录";
-
-// 配置备份
-"BACKUP_EMPTY" = "当前没有可备份的配置";
-"BACKUP_FAILED" = "备份文件创建失败，请重试";
-"RESTORE_CONFIRM_TITLE" = "恢复配置";
-"RESTORE_CONFIRM_MESSAGE" = "备份包含 %lu 项配置。\n恢复将覆盖当前全部配置且无法撤销，确定继续吗？";
-"RESTORE_DONE" = "配置已恢复";
-"RESTORE_FAILED_TITLE" = "恢复失败";
-"RESTORE_FAILED_MESSAGE" = "无法读取有效的 MetisKeyboard 备份文件";
 
 // Keyboard-covering swipe panels
 "GESTURE_SETTINGS" = "手势设置";

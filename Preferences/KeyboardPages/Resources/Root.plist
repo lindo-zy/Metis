@@ -134,48 +134,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>BACKUP_FOOTER</string>
-			<key>id</key>
-			<string>backupGroup</string>
-			<key>label</key>
-			<string>BACKUP_SECTION</string>
-		</dict>
-		<dict>
-			<key>action</key>
-			<string>backupConfig:</string>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>BACKUP_CONFIG</string>
-		</dict>
-		<dict>
-			<key>action</key>
-			<string>restoreConfig:</string>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>RESTORE_CONFIG</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
 			<key>footerAlignment</key>
 			<string>1</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerAlignment</key>
-			<string>1</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerAlignment</key>
-			<string>1</string>
-			<key>footerText</key>
-			<string>FOOTER_CREDITS</string>
 		</dict>
 	</array>
 	<key>title</key>
