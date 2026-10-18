@@ -23,11 +23,5 @@ static NSString *const kMTNotificationKeyHelperPaste = @"com.lindo.metis.clipboa
 static NSString *const kMTNotificationKeyHelperRestoreFocus = @"com.lindo.metis.clipboard.helper.restore-focus";
 static NSString *const kMTNotificationKeyPreferencesReload = @"com.lindo.metis.clipboard.preferences.reload";
 static NSString *const kMTNotificationKeyPreferencesHeightReload = @"com.lindo.metis.clipboard.preferences.height.reload";
-static NSString *const kMTNotificationKeyExternalImportRequiresRestart =
-    @"com.lindo.metis.clipboard.preferences.external-import-requires-restart";
-static NSString *const kMTNotificationUserInfoKeyExternalImportSucceeded = @"succeeded";
-static NSString *const kMTNotificationUserInfoKeyExternalImportSource = @"source";
-static NSString *const kMTExternalImportSourceCopyLog = @"CopyLog";
-static NSString *const kMTExternalImportSourceCopyVault = @"CopyVault";
 static NSString *const kMTNotificationKeyPasteWillStart = @"com.lindo.metis.clipboard.paste.willstart";
 static NSString *const kMTNotificationKeyPasteFeedback = @"com.lindo.metis.clipboard.paste.feedback";

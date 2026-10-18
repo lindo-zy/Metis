@@ -603,10 +603,18 @@
 }
 
 + (MTSelectionToolbarArrangement)selectionToolbarArrangement {
-    Boolean valid = false;
-    BOOL swipe = CFPreferencesGetAppBooleanValue((__bridge CFStringRef)MTKeySelectionButtonLayout,
-                                                (__bridge CFStringRef)MTCapturePreferencesDomain, &valid);
-    return (valid && swipe) ? MTSelectionToolbarArrangementSwipe : MTSelectionToolbarArrangementRows;
+    id value = CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)MTKeySelectionButtonLayout,
+                                                          (__bridge CFStringRef)MTCapturePreferencesDomain));
+    return [value isKindOfClass:NSNumber.class] && [value isEqualToNumber:@(MTSelectionToolbarArrangementSwipe)]
+        ? MTSelectionToolbarArrangementSwipe : MTSelectionToolbarArrangementRows;
+}
+
++ (void)saveSelectionToolbarArrangement:(MTSelectionToolbarArrangement)arrangement {
+    if (arrangement != MTSelectionToolbarArrangementSwipe) arrangement = MTSelectionToolbarArrangementRows;
+    CFPreferencesSetAppValue((__bridge CFStringRef)MTKeySelectionButtonLayout,
+                            (__bridge CFTypeRef)@(arrangement),
+                            (__bridge CFStringRef)MTCapturePreferencesDomain);
+    CFPreferencesAppSynchronize((__bridge CFStringRef)MTCapturePreferencesDomain);
 }
 
 + (void)saveSelectionButtonStyle:(MTSelectionButtonStyle)style {

@@ -26,11 +26,6 @@
 "Continue" = "Continue";
 "Continuity" = "Continuity";
 "Copy" = "Copy";
-"CopyLog data directory was not found." = "CopyLog data directory was not found.";
-"CopyLog data is invalid: %@" = "CopyLog data is invalid: %@";
-"CopyVault contains unsupported content: %@" = "CopyVault contains unsupported content: %@";
-"CopyVault data directory was not found." = "CopyVault data directory was not found.";
-"CopyVault data is invalid: %@" = "CopyVault data is invalid: %@";
 "Dates" = "Dates";
 "Delete" = "Delete";
 "Edit" = "Edit";
@@ -79,12 +74,8 @@
 "Swipe to select text" = "Swipe to select text";
 "Unable to Load History" = "Unable to Load History";
 "Unable to checkpoint history database" = "Unable to checkpoint history database";
-"Unable to import CopyLog data." = "Unable to import CopyLog data.";
-"Unable to import CopyVault data." = "Unable to import CopyVault data.";
 "Unable to migrate history source %@. Reinstalling Metis may resolve this issue." = "Unable to migrate history source %@. Reinstalling Metis may resolve this issue.";
 "Unable to open history database" = "Unable to open history database";
-"Unable to read CopyLog data: %@" = "Unable to read CopyLog data: %@";
-"Unable to read CopyVault data: %@" = "Unable to read CopyVault data: %@";
 "conflicting image %@" = "conflicting image %@";
 "conflicting rich text %@" = "conflicting rich text %@";
 "database is busy" = "Metis’s database is still in use. Restart SpringBoard and try again.";

@@ -185,6 +185,9 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
     if (![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"] || !NSThread.isMainThread) return MTSystemOpenUnavailable;
     if (MTSystemActionDefinition(action)[@"captureNotification"])
         return MTPostCaptureSystemAction(action, MT_ROOT_PATH_NS(MTCaptureDylibPath));
+    // 剪切板核心常驻 SpringBoard，复用 show 的锁屏、宿主选择与重复展示保护。
+    if ([action isEqual:@"clipboard"])
+        return MTSystemCall(MTSystemShared(@"MTClipboardCoreRuntime", @"sharedRuntime"), @"show", @[]);
     MTLoadSystemActionFrameworks();
     NSLog(@"[MetisKeyboard][SystemAction] execute id=%@", action);
     if ([action isEqual:@"previous-track"] || [action isEqual:@"next-track"]) {

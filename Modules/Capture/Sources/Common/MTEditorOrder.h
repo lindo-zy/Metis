@@ -110,6 +110,7 @@ typedef NS_ENUM(NSUInteger, MTSelectionToolbarArrangement) {
 + (void)saveSelectionButtonStyle:(MTSelectionButtonStyle)style;
 /// 截图按钮排布：多排换行（默认）或单排滑动；无效值回退多排。
 + (MTSelectionToolbarArrangement)selectionToolbarArrangement;
++ (void)saveSelectionToolbarArrangement:(MTSelectionToolbarArrangement)arrangement;
 
 // MARK: 外观
 

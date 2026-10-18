@@ -642,3 +642,5 @@
 "QUICK_DELETE" = "删除，长按清空";
 "QUICK_CANCEL" = "取消";
 "QUICK_SAVE" = "保存";
+
+"SYSTEM_CLIPBOARD" = "剪切板动作";

@@ -19,6 +19,7 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"switcher", @"SYSTEM_SWITCHER", @"square.stack", @"device"],
             @[@"reachability", @"SYSTEM_REACHABILITY", @"hand.point.up.left.fill", @"device"],
             @[@"screenshot", @"SYSTEM_SCREENSHOT", @"camera.viewfinder", @"device"],
+            @[@"clipboard", @"SYSTEM_CLIPBOARD", @"doc.on.clipboard", @"device"],
             @[@"control-center", @"SYSTEM_CONTROL_CENTER", @"switch.2", @"control"],
             @[@"screen-recording", @"SYSTEM_SCREEN_RECORDING", @"record.circle", @"control"],
             @[@"screen-recording-microphone", @"SYSTEM_SCREEN_RECORDING_MICROPHONE", @"mic.circle.fill", @"control"],

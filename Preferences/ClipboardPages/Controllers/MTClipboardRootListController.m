@@ -28,7 +28,6 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface MTClipboardRootListController () <UISearchResultsUpdating>
-- (void)presentExternalImportRestartReminderIfNeeded;
 - (void)updateOverlayWindowLevelSpecifierAvailability;
 @end
 
@@ -39,9 +38,6 @@ NS_ASSUME_NONNULL_END
     ActivationMethod _lastActivationMethod;
     BOOL _hasActivationMethodSnapshot;
     UISearchController *_testInputSearchController;
-    BOOL _externalImportRestartReminderPending;
-    BOOL _externalImportRestartReminderSucceeded;
-    NSString *_externalImportRestartReminderSource;
 }
 
 #pragma mark - Lifecycle
@@ -64,10 +60,6 @@ NS_ASSUME_NONNULL_END
 
     [[self navigationItem] setLargeTitleDisplayMode:UINavigationItemLargeTitleDisplayModeNever];
     [[self navigationItem] setRightBarButtonItem:respringButton];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(externalImportRequiresRestart:)
-                                                 name:kMTNotificationKeyExternalImportRequiresRestart
-                                               object:nil];
 }
 
 - (void)dealloc {
@@ -201,56 +193,6 @@ NS_ASSUME_NONNULL_END
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [[self navigationController] setToolbarHidden:YES animated:animated];
-    [self presentExternalImportRestartReminderIfNeeded];
-}
-
-- (void)externalImportRequiresRestart:(NSNotification *)notification {
-    _externalImportRestartReminderPending = YES;
-    _externalImportRestartReminderSucceeded =
-        [notification.userInfo[kMTNotificationUserInfoKeyExternalImportSucceeded] boolValue];
-    NSString *source = notification.userInfo[kMTNotificationUserInfoKeyExternalImportSource];
-    _externalImportRestartReminderSource = [source isKindOfClass:[NSString class]] ? [source copy] : nil;
-}
-
-- (void)presentExternalImportRestartReminderIfNeeded {
-    if (!_externalImportRestartReminderPending || self.presentedViewController) {
-        return;
-    }
-    _externalImportRestartReminderPending = NO;
-
-    NSBundle *bundle = [NSBundle bundleForClass:[self class]];
-    NSString *message = nil;
-    if (_externalImportRestartReminderSucceeded && [_externalImportRestartReminderSource length] > 0) {
-        NSString *format = [bundle localizedStringForKey:@"%@ data was imported successfully. Restart SpringBoard "
-                                                          "now to finish the import and continue using Mt."
-                                                   value:nil
-                                                   table:@"Root"];
-        message = [NSString stringWithFormat:format, _externalImportRestartReminderSource];
-    } else if (_externalImportRestartReminderSucceeded) {
-        message = [bundle localizedStringForKey:@"The data was imported successfully. Restart SpringBoard now to "
-                                                 "finish the import and continue using Mt."
-                                          value:nil
-                                          table:@"Root"];
-    } else {
-        message = [bundle localizedStringForKey:@"Mt entered maintenance mode before the import failed. Restart "
-                                                 "SpringBoard now to continue using Mt."
-                                          value:nil
-                                          table:@"Root"];
-    }
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:[bundle localizedStringForKey:@"Restart Required" value:nil table:@"Root"]
-                         message:message
-                  preferredStyle:UIAlertControllerStyleAlert];
-    UIAlertAction *restartAction = [UIAlertAction actionWithTitle:[bundle localizedStringForKey:@"Respring Now"
-                                                                                          value:nil
-                                                                                          table:@"Root"]
-                                                            style:UIAlertActionStyleDestructive
-                                                          handler:^(UIAlertAction *action) {
-                                                            (void)action;
-                                                            [self respring];
-                                                          }];
-    [alert addAction:restartAction];
-    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (ActivationMethod)currentActivationMethod {

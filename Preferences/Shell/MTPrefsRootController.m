@@ -91,7 +91,7 @@
         [_searchField.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
         [_searchField.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
         [_searchField.heightAnchor constraintGreaterThanOrEqualToConstant:40.0],
-        [_searchField.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-4.0],
+        [_searchField.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-24.0],
     ]];
     return container;
 }

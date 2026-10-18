@@ -25,12 +25,12 @@
 @implementation MTEditorOrderController
 
 // 三个入口共用行交互，sectionKinds 只列出当前页面实际拥有的分组。
-// kind：0=编辑操作 1=标记工具 2=截图按钮 3=外观滑杆 4=截图按钮显示样式。
+// kind：0=编辑操作 1=标记工具 2=截图按钮 3=外观滑杆 4=截图按钮显示样式 5=截图按钮排布。
 // 外观滑杆三页都放在预览下方：所有按钮图标共用一个大小，任意页面均可滑动调整。
 - (BOOL)mtFullscreen { return NO; }
 - (BOOL)mtRegion { return NO; }
 - (NSArray<NSNumber *> *)mtSectionKinds {
-    if ([self mtRegion]) return @[@3, @2, @4];
+    if ([self mtRegion]) return @[@3, @5, @2, @4];
     return @[@3, @0, @1];
 }
 - (NSInteger)mtKindForSection:(NSInteger)section {
@@ -345,14 +345,15 @@
         CGFloat toolbarHeight = [toolbar preferredHeightForAvailableWidth:toolbarWidth];
         toolbar.frame = CGRectMake(inset + (contentWidth - toolbarWidth) / 2.0, y,
                                    toolbarWidth, toolbarHeight);
-        toolbar.userInteractionEnabled = NO;
+        // 保留滚动手势，禁用按钮点击，便于直接预览滑动排布。
+        for (UIButton *button in toolbar.buttons) button.userInteractionEnabled = NO;
         for (UIButton *button in toolbar.buttons) button.accessibilityTraits = UIAccessibilityTraitImage;
         [header addSubview:toolbar];
         y += toolbarHeight + 14.0;
     }
     UILabel *note = [[UILabel alloc] initWithFrame:CGRectMake(inset + 4, y, contentWidth - 8, 0)];
     note.text = [self mtRegion]
-        ? @"拖动手柄排序，开关控制截图按钮显隐，点击行修改名称与图标。“显示样式”可选图标、文字、图标＋文字（上图下字），预览与大小调整同步。修改即时保存，下次打开生效；冻结截图共用此配置，即时模式仅显示 取消、全屏。大小与编辑器共用。"
+        ? @"拖动手柄排序，开关控制截图按钮显隐，点击行修改名称与图标。“按钮排布”可选多排或单排横向滑动，默认多排；“显示样式”可选图标、文字、图标＋文字（上图下字），预览与大小调整同步。修改即时保存，下次打开生效；冻结截图共用此配置，即时模式仅显示 取消、全屏。大小与编辑器共用。"
         : ([self mtFullscreen] ? @"预览显示面板的初始按钮状态，排序、开关、图标名称和大小即时更新；关闭、取色、撤销、完成固定为四角键，不参与修改。仅设置全屏标记的顺序与显隐，与截图按钮和普通图片编辑相互独立。名称、图标和大小与普通图片编辑共用，修改即时保存，实际面板下次打开生效。"
                               : @"预览按实际顶部操作栏、线宽条和工具网格排列，展示初始按钮状态；排序、开关、图标名称和大小即时更新。名称、图标和大小仍与全屏标记共用，顺序与显隐相互独立。修改即时保存，实际编辑器下次打开生效。");
     note.font = [UIFont systemFontOfSize:12];
@@ -375,6 +376,7 @@
     if (section == 1) return self.toolOrder.count;
     if (section == 2) return self.selectionOrder.count;
     if (section == 4) return [self mtSelectionStyles].count;
+    if (section == 5) return 2;
     return 1;   // 外观：图标大小
 }
 
@@ -384,6 +386,7 @@
     if (section == 1) return @"标记工具图标";
     if (section == 2) return @"截图按钮";
     if (section == 4) return @"显示样式";
+    if (section == 5) return @"按钮排布";
     return @"外观";
 }
 
@@ -400,6 +403,7 @@
     if (section == 2) {
         return @"截图/冻结截图选区工具栏的按钮排序与显隐；“取消”始终显示，“悬浮”把选区结果以可拖动悬浮窗常驻屏幕，“全屏标记”无视当前框选直接对全屏标记。即时模式仅显示 取消/全屏。点击行可修改名称与图标。";
     }
+    if (section == 5) return @"默认多排，宽度不足时换行；滑动模式只占一排，横向滑动查看其余按钮。预览可直接滑动，下次打开截图生效。";
     if (section == 4) {
         return @"可选图标、文字、图标＋文字；图标＋文字采用上图下字。预览即时更新，下次打开截图生效；三种样式均支持自定义名称和大小调整。";
     }
@@ -410,6 +414,9 @@
     NSInteger kind = [self mtKindForSection:indexPath.section];
     if (kind == 3) {
         return [self mtSliderCellForTableView:tableView];
+    }
+    if (kind == 5) {
+        return [self mtArrangementCellForTableView:tableView indexPath:indexPath];
     }
     if (kind == 4) {
         return [self mtStyleCellForTableView:tableView indexPath:indexPath];
@@ -490,6 +497,19 @@
     return cell;
 }
 
+- (UITableViewCell *)mtArrangementCellForTableView:(UITableView *)tableView indexPath:(NSIndexPath *)indexPath {
+    NSString *reuse = @"MTSelectionArrangementCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuse];
+    BOOL selected = indexPath.row == (NSInteger)[MTEditorOrder selectionToolbarArrangement];
+    cell.textLabel.text = indexPath.row == 0 ? @"多排" : @"滑动";
+    cell.accessoryType = selected ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
+    cell.editingAccessoryType = cell.accessoryType;
+    cell.accessibilityTraits = UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
+    cell.showsReorderControl = NO;
+    return cell;
+}
+
 - (NSString *)identifierAtIndexPath:(NSIndexPath *)indexPath {
     NSInteger kind = [self mtKindForSection:indexPath.section];
     if (kind == 0) return self.actionOrder[indexPath.row];
@@ -532,6 +552,13 @@
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:NO];
     NSInteger kind = [self mtKindForSection:indexPath.section];
+    if (kind == 5) {
+        [MTEditorOrder saveSelectionToolbarArrangement:(MTSelectionToolbarArrangement)indexPath.row];
+        [tableView reloadSections:[NSIndexSet indexSetWithIndex:indexPath.section]
+                 withRowAnimation:UITableViewRowAnimationNone];
+        [self mtRefreshPreview];
+        return;
+    }
     if (kind == 4) {
         MTSelectionButtonStyle style = [self mtSelectionStyles][indexPath.row].integerValue;
         [MTEditorOrder saveSelectionButtonStyle:style];
@@ -681,7 +708,7 @@
 - (void)mtResetTapped:(UIBarButtonItem *)sender {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"恢复默认"
                                                                    message:([self mtRegion]
-        ? @"恢复截图按钮顺序与开关，清除自定义名称与图标，显示样式复位为图标；不影响其他模式。"
+        ? @"恢复截图按钮顺序与开关，清除自定义名称与图标，显示样式复位为图标，按钮排布复位为多排；不影响其他模式。"
         : ([self mtFullscreen] ? @"仅恢复当前页面的按钮顺序与开关，不影响其他模式。" : @"恢复图片编辑按钮顺序与开关，以及共用的名称、图标和大小；全屏标记和区域选区的顺序与开关不变。"))
                                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
@@ -695,6 +722,7 @@
                 [MTEditorOrder saveSelectionIconName:nil forIdentifier:identifier];
             }
             [MTEditorOrder saveSelectionButtonStyle:MTSelectionButtonStyleIcon];
+            [MTEditorOrder saveSelectionToolbarArrangement:MTSelectionToolbarArrangementRows];
         } else {
             [MTEditorOrder saveActionOrderString:nil fullscreenMarkup:[self mtFullscreen]];
             [MTEditorOrder saveToolOrderString:nil fullscreenMarkup:[self mtFullscreen]];

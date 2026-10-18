@@ -25,12 +25,6 @@
 "Ignore clipboard events received through iOS Continuity’s Universal Clipboard, so Metis does not save content copied from nearby Apple devices." = "忽略通过 iOS「连续互通」功能的「通用剪贴板」传来的剪贴板事件，避免 Metis 保存附近 Apple 设备拷贝的内容。";
 "Import" = "导入";
 "Import Complete" = "导入完成";
-"Import from CopyLog" = "从 CopyLog 导入";
-"Import from CopyVault" = "从 CopyVault 导入";
-"Importing from CopyLog…" = "正在从 CopyLog 导入…";
-"Importing from CopyVault…" = "正在从 CopyVault 导入…";
-"Metis will merge CopyLog snippets and favorite items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes." = "Metis 会将 CopyLog 的片段和收藏内容合并到现有数据中，并保留已有的 Metis 条目。导入完成后需要注销。";
-"Metis will merge CopyVault history and archived items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes." = "Metis 会将 CopyVault 的历史记录和归档内容合并到现有数据中，并保留已有的 Metis 条目。导入完成后需要注销。";
 "Maintenance" = "维护";
 "OK" = "好";
 "Off" = "关闭";
@@ -45,7 +39,6 @@
 "Tap the screen to restart SpringBoard and finish importing." = "轻点屏幕以注销并完成导入。";
 "Tap the screen to restart SpringBoard and restore Metis." = "轻点屏幕以注销并恢复 Metis。";
 "The %@ data directory could not be found or read." = "找不到 %@ 数据目录，或当前无法读取该目录。";
-"The CopyVault data directory could not be found or read." = "找不到 CopyVault 数据目录，或当前无法读取该目录。";
 "The import could not be completed." = "无法完成导入。";
 "Unable to Import" = "导入失败";
 "Unable to Open Filza" = "无法打开 Filza";

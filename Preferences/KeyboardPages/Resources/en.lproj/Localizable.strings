@@ -643,3 +643,5 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_DELETE" = "Delete; hold to clear";
 "QUICK_CANCEL" = "Cancel";
 "QUICK_SAVE" = "Save";
+
+"SYSTEM_CLIPBOARD" = "Show Clipboard";

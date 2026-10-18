@@ -25,12 +25,6 @@
 "Ignore clipboard events received through iOS Continuity’s Universal Clipboard, so Metis does not save content copied from nearby Apple devices." = "Ignore clipboard events received through iOS Continuity’s Universal Clipboard, so Metis does not save content copied from nearby Apple devices.";
 "Import" = "Import";
 "Import Complete" = "Import Complete";
-"Import from CopyLog" = "Import from CopyLog";
-"Import from CopyVault" = "Import from CopyVault";
-"Importing from CopyLog…" = "Importing from CopyLog…";
-"Importing from CopyVault…" = "Importing from CopyVault…";
-"Metis will merge CopyLog snippets and favorite items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes." = "Metis will merge CopyLog snippets and favorite items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes.";
-"Metis will merge CopyVault history and archived items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes." = "Metis will merge CopyVault history and archived items with your current data. Existing Metis items will be kept. SpringBoard must restart when the import finishes.";
 "Maintenance" = "Maintenance";
 "OK" = "OK";
 "Off" = "Off";
@@ -45,7 +39,6 @@
 "Tap the screen to restart SpringBoard and finish importing." = "Tap the screen to restart SpringBoard and finish importing.";
 "Tap the screen to restart SpringBoard and restore Metis." = "Tap the screen to restart SpringBoard and restore Metis.";
 "The %@ data directory could not be found or read." = "The %@ data directory could not be found or read.";
-"The CopyVault data directory could not be found or read." = "The CopyVault data directory could not be found or read.";
 "The import could not be completed." = "The import could not be completed.";
 "Unable to Import" = "Unable to Import";
 "Unable to Open Filza" = "Unable to Open Filza";
