@@ -61,9 +61,11 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
     return !CGRectIsEmpty(frame) && !CGRectIsEmpty(CGRectIntersection(frame, window.bounds));
 }
 
-// The bar owns its handler. Apps attach recognizers to the bar; SpringBoard
-// attaches them to its window so sibling status touch receivers are covered.
-// Every touch must still fall inside the visible bar geometry.
+// Keep recognizers on the native status-bar receiver in every process. On the
+// desktop, the displayed bar and the window UIKit uses to deliver its touches
+// can move independently. View-owned recognizers follow the receiver without
+// waiting for a window notification or a scan to move them to another window.
+// Only the island uses a window-owned set, as its containers are replaceable.
 @interface MTStatusGestureSession : NSObject
 @property(nonatomic, weak) UIWindow *window;
 @property(nonatomic, weak) UIView *receiver;
@@ -80,7 +82,6 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 @property(nonatomic, weak) UIView *anchor;
 @property(nonatomic, weak) UIWindow *window;
 @property(nonatomic) BOOL aperture;
-@property(nonatomic) BOOL windowHosted;
 @property(nonatomic, strong) NSArray<UIGestureRecognizer *> *recognizers;
 @property(nonatomic, copy) NSString *lastRejection;
 @property(nonatomic, copy) NSString *lastConfiguration;
@@ -169,14 +170,6 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 }
 - (void)refresh {
     if (!NSThread.isMainThread) return;
-    // Desktop status-bar content can be a sibling of the touch receiver.
-    // Follow reparenting without creating a screen-wide overlay.
-    if (self.windowHosted) for (UIGestureRecognizer *gesture in self.recognizers) {
-        if (gesture.view != self.anchor.window) {
-            [gesture.view removeGestureRecognizer:gesture];
-            if (self.anchor.window) [self.anchor.window addGestureRecognizer:gesture];
-        }
-    }
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     NSArray *regions = self.aperture ? @[@"middle"] : MTStatusBarRegions();
     NSArray *kinds = self.aperture ? @[@"tap"] : MTStatusBarGestures();
@@ -230,7 +223,7 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
         CGRect bounds = self.anchor.bounds;
         region = MTStatusBarRegion(point.x - bounds.origin.x, point.y - bounds.origin.y, bounds.size.width, bounds.size.height);
     }
-    // Window-hosted desktop recognizers must reject every touch outside the bar.
+    // Require the touch to fall within this status bar's current bounds.
     if (!region) return NO;
     for (UIView *view = touch.view; view && view != receiver; view = view.superview) {
         if (!apertureTap && ([view isKindOfClass:UIControl.class] || [NSStringFromClass(view.class) containsString:@"Aperture"])) return [self reject:@"native-control"];
@@ -380,12 +373,10 @@ static void MTInstallStatusGestures(UIView *view) {
     id owner = aperture ? (id)anchor.window : (id)anchor;
     const void *key = aperture ? &MTStatusApertureHandlerKey : &MTStatusHandlerKey;
     MTStatusGestureHandler *handler = objc_getAssociatedObject(owner, key);
-    // Bars bind recognizers to the view itself, so an existing handler already
-    // survived every window move; only a first install creates the set.
+    // View-owned recognizers survive window moves without being reinstalled.
     if (handler) { [handler refresh]; return; }
     handler = [MTStatusGestureHandler new]; handler.anchor = anchor; handler.window = anchor.window;
     handler.aperture = aperture;
-    handler.windowHosted = !aperture && [NSProcessInfo.processInfo.processName isEqual:@"SpringBoard"];
     NSMutableArray *recognizers = [NSMutableArray array];
     for (NSString *kind in aperture ? @[@"tap"] : @[@"tap", @"doubletap", @"longpress", @"horizontal"]) {
         UIGestureRecognizer *gesture;
@@ -409,7 +400,7 @@ static void MTInstallStatusGestures(UIView *view) {
     handler.recognizers = recognizers;
     objc_setAssociatedObject(owner, key, handler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [MTStatusHandlers addObject:handler];
-    UIView *gestureHost = (aperture || handler.windowHosted) ? (UIView *)anchor.window : anchor;
+    UIView *gestureHost = aperture ? (UIView *)anchor.window : anchor;
     for (UIGestureRecognizer *gesture in recognizers) [gestureHost addGestureRecognizer:gesture];
     [handler refresh];
     NSLog(@"[MetisKeyboard][StatusBarGesture] installed host=%@ view=%@ window=%@", NSProcessInfo.processInfo.processName,
