@@ -74,7 +74,7 @@ static const CGFloat MTFloatSnapBarHeight = 44.0;
     snap.shadowEnabled = shadowEnabled;
     [snap mtApplyShadow];
 
-    window.windowLevel = 999000.0;   // 低于选区/编辑器（1000000）与结果气泡（1000001）
+    window.windowLevel = 999000.0;   // 低于选区/编辑器（1000000）
     window.frame = screenBounds;
     window.passesTouchesOutsideHostedContent = YES;
     snap.overlayWindow = window;

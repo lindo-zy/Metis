@@ -52,7 +52,6 @@ NSString * const MTKeyDefaultResultAction = @"DefaultResultAction";
 NSString * const MTKeySaveAlsoCopy = @"SaveAlsoCopy";
 NSString * const MTKeyAutoSaveToPhotos = @"AutoSaveToPhotos";
 NSString * const MTKeyCopyToClipboard = @"CopyToClipboard";
-NSString * const MTKeyShowResultBubble = @"ShowResultBubble";
 NSString * const MTKeyFloatingSnapShadow = @"FloatingSnapShadow";
 // 选区边缘吸附距离：0=关闭，拖动选框时边距屏幕边缘不超过该值即对齐边缘。
 NSString * const MTKeySelectionSnapEdgeDistance = @"SelectionSnapEdgeDistance";

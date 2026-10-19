@@ -12,7 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)longShotSessionDidFinish:(MTLongShotSession *)session resultImage:(UIImage *)image;
 /// 用户主动取消（HUD 取消键或锁屏）。会话已自行清理窗口与临时引用。
 - (void)longShotSessionDidCancel:(MTLongShotSession *)session;
-/// 拼接失败，走任务失败路径（诊断气泡）。
+/// 拼接失败，走任务失败路径（记录诊断日志）。
 - (void)longShotSessionDidFail:(MTLongShotSession *)session message:(NSString *)message;
 @end
 

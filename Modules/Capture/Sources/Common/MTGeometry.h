@@ -42,7 +42,7 @@ typedef NS_ENUM(NSInteger, MTOutputAction) {
     MTOutputActionShare = 2,
     MTOutputActionSaveAndCopy = 3,
     MTOutputActionSaveAndDeleteSource = 4,
-    /// 内部哨兵值：表示"使用配置的默认动作"/"仅显示预览气泡"，不作为相册/剪贴板动作执行。
+    /// 内部哨兵值：表示"使用配置的默认动作"，不作为相册/剪贴板动作执行。
     MTOutputActionPreviewOnly = 5,
 };
 

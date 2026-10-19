@@ -77,7 +77,6 @@ FOUNDATION_EXPORT NSString * const MTKeyDefaultResultAction;
 FOUNDATION_EXPORT NSString * const MTKeySaveAlsoCopy;
 FOUNDATION_EXPORT NSString * const MTKeyAutoSaveToPhotos;
 FOUNDATION_EXPORT NSString * const MTKeyCopyToClipboard;
-FOUNDATION_EXPORT NSString * const MTKeyShowResultBubble;
 FOUNDATION_EXPORT NSString * const MTKeyFloatingSnapShadow;
 /// 选区边缘吸附距离（点）：0=关闭，>0=拖动选框时某边距屏幕边缘不超过该值即对齐边缘。
 FOUNDATION_EXPORT NSString * const MTKeySelectionSnapEdgeDistance;

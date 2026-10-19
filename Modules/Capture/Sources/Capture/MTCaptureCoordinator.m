@@ -5,15 +5,13 @@
 #import "MTLongShotSession.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
-#import "../Common/MTPhotoShortcut.h"
 #import "../Common/MTCapturePreferences.h"
 #import "../Common/MTShellXBridge.h"
 #import "../Output/MTOutputPipeline.h"
-#import "../Output/MTLongImageComposer.h"
+#import "../Output/MTLongImageComposer.h"   // MTLongShotCopyMaxPixelHeight 等长图常量
 #import "../Output/MTTemporaryFileStore.h"
 #import "../Overlay/MTCaptureWindow.h"
 #import "../Overlay/MTSelectionView.h"
-#import "../Overlay/MTResultBubble.h"
 #import "../Overlay/MTFloatingSnap.h"
 #import "../Editor/MTEditorViewController.h"
 
@@ -44,7 +42,7 @@ static void MTDismissActiveKeyboardForEditor(void) {
     }
 }
 
-@interface MTCaptureCoordinator () <MTSelectionViewDelegate, MTResultBubbleDelegate,
+@interface MTCaptureCoordinator () <MTSelectionViewDelegate,
                                     MTFloatingSnapDelegate,
                                     MTLongShotSessionDelegate,
                                     MTEditorViewControllerDelegate>
@@ -56,7 +54,6 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) MTCaptureWindow *captureWindow;
 @property (nonatomic, strong, nullable) MTSelectionView *selectionView;
 @property (nonatomic, copy, nullable) NSString *selectionCaptureRequestID; // 实时区域在途抓屏，主线程
-@property (nonatomic, strong, nullable) MTResultBubble *resultBubble;
 @property (nonatomic, strong, nullable) MTLongShotSession *longShotSession;   // 三模式长截图会话（主线程）
 @property (nonatomic, strong) NSMutableArray<MTFloatingSnap *> *floatingSnaps; // 主线程，多图独立保留
 @property (nonatomic, strong, nullable) MTFloatingSnap *editingFloatingSnap;
@@ -421,7 +418,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     if (!task || !image) return;
 
     task.resultImage = image;
-    // 拼接产物在任务临时目录：登记路径供气泡缩略图降采样（此刻目录尚未清理）。
+    // 拼接产物在任务临时目录：登记路径供输出管线读取（此刻目录尚未清理）。
     NSString *stitchedPath = [[[task ensureTemporaryDirectory]
         stringByAppendingPathComponent:@"longshot.jpg"] copy];
     if ([[NSFileManager defaultManager] fileExistsAtPath:stitchedPath]) {
@@ -677,7 +674,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             [haptic impactOccurred];
         }
     } else {
-        // 输出失败：保留临时文件供诊断，失败原因在气泡中显示（重新截图重试）。
+        // 输出失败：保留临时文件供诊断与重试，失败原因写入日志。
         [task transitionToState:MTCaptureStateFailed];
         [task unclaimOutputAction:MTOutputActionSave];
         [task unclaimOutputAction:MTOutputActionCopy];
@@ -685,38 +682,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureLogWarn(@"output failed, temp files kept for retry (task %@)", task.taskID);
     }
 
-    if (task.configSnapshot.showResultBubble) {
-        // 先同步弹出气泡（即时反馈，也消除“待弹泡窗口期被新截图截入”的竞态），
-        // 缩略图后台渲染后回填（P1-4：大图解码不占主线程）。
-        CGFloat screenScale = [UIScreen mainScreen].scale;
-        UIImage *resultImage = task.resultImage;
-        // 长图优先从落盘产物降采样（受限解码，不为 88pt 小图整幅解出 8MP 位图，
-        // 两次长截图之间不给 SpringBoard 抬基线）；无落盘文件时回退内存解码。
-        NSString *thumbnailPath = task.resultFilePath;
-        self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                     message:(message ?: @"截图完成")
-                                                        task:task
-                                                   succeeded:ok
-                                                    delegate:self];
-        MTResultBubble *bubble = self.resultBubble;
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            @autoreleasepool {
-                UIImage *thumbnail = thumbnailPath.length
-                    ? [MTLongImageComposer thumbnailImageFromFile:thumbnailPath screenScale:screenScale
-                                                     maxPixelSize:88.0 * MAX(2.0, screenScale)]
-                    : nil;
-                if (!thumbnail) thumbnail = [self mtThumbnailForImage:resultImage screenScale:screenScale];
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [bubble updateThumbnailImage:thumbnail];
-                });
-                // 缩略图已独立于源文件，输出成功后再回收任务临时目录（失败路径保留）。
-                if (ok) [MTTemporaryFileStore removeTaskDirectory:task.taskID];
-            }
-        });
-    } else if (ok) {
-        // 输出成功不再需要重试，任务临时目录立即回收（失败路径保留供诊断）。
-        [MTTemporaryFileStore removeTaskDirectory:task.taskID];
-    }
+    // 输出成功不再需要重试，任务临时目录立即回收（失败路径保留供诊断）。
+    if (ok) [MTTemporaryFileStore removeTaskDirectory:task.taskID];
 
     [[NSNotificationCenter defaultCenter] postNotificationName:MTNotificationResultUpdated object:nil];
     [self mtClearSlotIfCurrent:task];
@@ -761,11 +728,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     MTCaptureTask *task = [self mtAcquireTaskForMode:mode config:MTCapturePreferences.config];
     if (!task) {
         MTCaptureLogWarn(@"float re-edit ignored: another task is busy");
-        self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                     message:@"当前有任务进行中，请稍后重试"
-                                                        task:nil
-                                                   succeeded:NO
-                                                    delegate:self];
         return;
     }
     task.isReedit = YES;
@@ -782,11 +744,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     MTCaptureTask *task = [self mtAcquireTaskForMode:mode config:config];
     if (!task) {
         MTCaptureLogWarn(@"float output ignored: another task is busy");
-        self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                     message:@"当前有任务进行中，请稍后重试"
-                                                        task:nil
-                                                   succeeded:NO
-                                                    delegate:self];
         return;
     }
     task.baseImage = image;
@@ -838,7 +795,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     MTCaptureLogInfo(@"editor visible (mode %@, task %@)", MTStringFromCaptureMode(task.mode), task.taskID);
 }
 
-/// 气泡重编辑入口：以新任务进入编辑器。
+/// 外部图片编辑入口：以新任务进入编辑器。
 - (void)openEditorWithImage:(UIImage *)image mode:(MTCaptureMode)mode {
     if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self openEditorWithImage:image mode:mode]; });
@@ -856,8 +813,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
 /// 图片编辑入口（系统动作「图片编辑」经 Darwin 通知到达）：编辑剪贴板里的图片，不抓屏。
 /// 与 openEditorWithImage: 同为 isReedit 任务路径——取消即结束任务、不回写输出动作；
-/// 完成键按编辑器语义输出（0.4.6 起为复制图片）。剪贴板无图/任务槽占用时以气泡反馈，
-/// 不静默丢弃。区域模式使编辑器沿用区域图片卡片布局，与设置页独立入口一致。
+/// 完成键按编辑器语义输出（0.4.6 起为复制图片）。剪贴板无图/任务槽占用时记录日志
+/// 并放弃。区域模式使编辑器沿用区域图片卡片布局，与设置页独立入口一致。
 - (void)mtEditPasteboardImage {
     if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self mtEditPasteboardImage]; });
@@ -879,21 +836,11 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     }
     if (!image) {
         MTCaptureLogInfo(@"pasteboard edit rejected: no image on pasteboard");
-        self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                     message:@"剪贴板没有图片"
-                                                        task:nil
-                                                   succeeded:NO
-                                                    delegate:self];
         return;
     }
     MTCaptureTask *task = [self mtAcquireTaskForMode:MTCaptureModeArea config:config];
     if (!task) {
         MTCaptureLogWarn(@"pasteboard edit rejected: another task is busy");
-        self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                     message:@"当前有任务进行中，请稍后重试"
-                                                        task:nil
-                                                   succeeded:NO
-                                                    delegate:self];
         return;
     }
     MTCaptureLogInfo(@"pasteboard edit accepted (%.0fx%.0f pt, task %@)",
@@ -939,7 +886,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     self.preEditImage = nil;
     if (![task transitionToState:MTCaptureStatePresenting]) return;
 
-    // 关闭/取消一律终止任务：不产出、不弹结果气泡。旧实现在此处对非重编辑
+    // 关闭/取消一律终止任务：不产出、不提示。旧实现在此处对非重编辑
     // 任务补发 defaultResultAction，SaveAlsoCopy 默认开后变成「取消仍保存+复制」。
     [self mtCancelCurrentTaskClosingFloatingSnaps:NO];
 }
@@ -955,39 +902,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureWindow *window = self.editorWindow;
         self.editorWindow = nil;
         [window hideAndDestroyWithCompletion:nil];
-    }
-}
-
-#pragma mark - 气泡回调
-
-/// 点气泡主体（气泡只有缩略图/文案区）：按本次输出动作分流。
-/// 保存类（保存 / 保存并复制）→ 进相册最近照片；纯复制 → 关闭气泡；
-/// 其余动作进编辑器；失败气泡不响应。
-- (void)resultBubbleDidTapBody:(MTResultBubble *)bubble {
-    MTCaptureTask *task = bubble.task;
-    if (!task || [task currentState] != MTCaptureStateFinished) return;
-    if ([task isOutputActionClaimed:MTOutputActionSave]) {
-        // 保存并复制同时认领两个动作，按保存类处理。
-        MTCaptureLogInfo(@"result bubble tap -> photos recents (task %@)", task.taskID);
-        [MTPhotoShortcut openMostRecentPhoto];
-        [bubble dismissWithCompletion:nil];
-        return;
-    }
-    if ([task isOutputActionClaimed:MTOutputActionCopy]) {
-        MTCaptureLogInfo(@"result bubble tap -> dismiss (copy action, task %@)", task.taskID);
-        [bubble dismissWithCompletion:nil];
-        return;
-    }
-    UIImage *image = task.resultImage ?: task.baseImage;
-    if (!image) return;
-    [bubble dismissWithCompletion:nil];
-    [self openEditorWithImage:image mode:task.mode];
-}
-
-- (void)resultBubbleDidDismiss:(MTResultBubble *)bubble {
-    // 只清理仍指向该气泡的引用，避免误清新气泡（交叠窗口极短但存在）。
-    if (self.resultBubble == bubble) {
-        self.resultBubble = nil;
     }
 }
 
@@ -1018,21 +932,12 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [task transitionToState:MTCaptureStateFailed];
     [MTTemporaryFileStore removeTaskDirectory:task.taskID];
     MTCaptureLogError(@"task failed [%@]: %@", code, message);
-    // 失败气泡不受 ShowResultBubble 控制：失败原因必须可见（诊断优先）。
-    self.resultBubble = [MTResultBubble presentWithImage:nil
-                                                 message:message
-                                                    task:nil
-                                               succeeded:NO
-                                                delegate:self];
     [self mtClearSlotIfCurrent:task];
     self.editingFloatingSnap = nil;
     [self mtRestoreFloatingSnaps];
 }
 
 - (void)mtHideOwnOverlays {
-    if (self.resultBubble) {
-        [self.resultBubble dismissWithCompletion:nil];
-    }
     // 悬浮窗是新任务的抓屏对象之一：抓屏前隐藏，任务收尾再恢复。
     for (MTFloatingSnap *snap in self.floatingSnaps) [snap hideForCapture];
 }
@@ -1048,22 +953,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         self.captureWindow = nil;
         [window hideAndDestroyWithCompletion:nil];
     }
-}
-
-- (UIImage *)mtThumbnailForImage:(UIImage *)image screenScale:(CGFloat)screenScale {
-    if (!image) return nil;
-    CGSize target = CGSizeMake(88, 88);
-    UIGraphicsImageRendererFormat *format = [[UIGraphicsImageRendererFormat alloc] init];
-    format.scale = screenScale;
-    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:target format:format];
-    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
-        CGFloat scale = MAX(target.width / image.size.width, target.height / image.size.height);
-        CGSize drawSize = CGSizeMake(image.size.width * scale, image.size.height * scale);
-        CGRect drawRect = CGRectMake((target.width - drawSize.width) / 2,
-                                     (target.height - drawSize.height) / 2,
-                                     drawSize.width, drawSize.height);
-        [image drawInRect:drawRect];
-    }];
 }
 
 #pragma mark - 任务槽（taskLock 只保护这些临界区）

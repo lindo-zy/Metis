@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// 首次认领返回 YES；重复认领返回 NO 且无副作用。
 - (BOOL)claimAction:(NSInteger)action;
 
-/// 撤回认领（输出失败后允许气泡入口重试）。
+/// 撤回认领（输出失败后允许重新输出重试）。
 - (void)unclaimAction:(NSInteger)action;
 
 - (BOOL)isActionClaimed:(NSInteger)action;

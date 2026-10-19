@@ -23,12 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL areaFrameFrozen;
 /// 当前结果图（裁剪/编辑后的输出源）。
 @property (nonatomic, strong, nullable) UIImage *resultImage;
-/// 结果图对应的磁盘文件（长截图为拼接产物 longshot.jpg）：气泡缩略图优先从此
-/// 降采样，避免为小图整幅解码大图；非长截图任务为 nil，回退内存解码路径。
+/// 结果图对应的磁盘文件（长截图为拼接产物 longshot.jpg）：输出管线优先读取落盘产物；
+/// 非长截图任务为 nil，输出直接使用内存中的 resultImage。
 @property (nonatomic, copy, nullable) NSString *resultFilePath;
 @property (nonatomic, assign) BOOL isPartialCapture;   // 回退路径仅捕获到 SpringBoard 自身窗口
 @property (nonatomic, copy, nullable) NSString *savedAssetIdentifier;  // 相册写入成功后的资产 ID
-@property (nonatomic, assign) BOOL isReedit;                           // 气泡重编辑产生的新任务
+@property (nonatomic, assign) BOOL isReedit;                           // 重编辑产生的新任务
 @property (nonatomic, copy, nullable) NSString *errorCode;
 @property (nonatomic, copy, nullable) NSString *errorMessage;
 
@@ -46,7 +46,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// 输出幂等：同一动作只会被认领一次，重复触发返回 NO。
 - (BOOL)claimOutputAction:(MTOutputAction)action;
 - (BOOL)isOutputActionClaimed:(MTOutputAction)action;
-/// 输出失败后撤回认领，允许气泡入口重试。
+/// 输出失败后撤回认领，允许重新输出重试。
 - (void)unclaimOutputAction:(MTOutputAction)action;
 
 /// 任务数据目录（临时文件），惰性创建。

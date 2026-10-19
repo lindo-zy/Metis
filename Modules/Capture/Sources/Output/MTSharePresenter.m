@@ -40,7 +40,7 @@
 
     dispatch_async(dispatch_get_main_queue(), ^{
         // present 失败（宿主已有 presented VC、窗口不可见等）时 completionWithItemsHandler
-        // 不会触发，completion 必须兜底回调，否则任务卡在分享态、气泡 hold 永不释放。
+        // 不会触发，completion 必须兜底回调，否则任务卡在分享态、结果状态永不结束。
         if (hostViewController.presentedViewController) {
             MTCaptureLogError(@"share sheet skipped: host already presenting %@", hostViewController);
             dispatch_async(dispatch_get_main_queue(), ^{ completion(NO); });

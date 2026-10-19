@@ -8,7 +8,6 @@
 @property (nonatomic, readwrite) BOOL enabled;
 @property (nonatomic, readwrite) MTOutputAction defaultResultAction;
 @property (nonatomic, readwrite) BOOL saveAlsoCopy;
-@property (nonatomic, readwrite) BOOL showResultBubble;
 @property (nonatomic, readwrite) BOOL floatingSnapShadow;
 @property (nonatomic, readwrite) CGFloat selectionSnapEdgeDistance;
 @property (nonatomic, readwrite) BOOL screenshotHaptic;
@@ -24,7 +23,6 @@
         _enabled = YES;
         _defaultResultAction = (MTOutputAction)MTDefaultResultAction;
         _saveAlsoCopy = YES;
-        _showResultBubble = YES;
         _floatingSnapShadow = YES;
         _selectionSnapEdgeDistance = 12.0;
         _screenshotHaptic = YES;
@@ -36,9 +34,9 @@
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"<MTConfig enabled=%d action=%ld saveAlsoCopy=%d bubble=%d snapShadow=%d haptic=%d rememberRect=%d lineWidth=%.1f>",
+    return [NSString stringWithFormat:@"<MTConfig enabled=%d action=%ld saveAlsoCopy=%d snapShadow=%d haptic=%d rememberRect=%d lineWidth=%.1f>",
             self.enabled, (long)self.defaultResultAction, self.saveAlsoCopy,
-            self.showResultBubble, self.floatingSnapShadow, self.screenshotHaptic, self.areaRememberLastRect,
+            self.floatingSnapShadow, self.screenshotHaptic, self.areaRememberLastRect,
             self.editorDefaultLineWidth];
 }
 
@@ -90,13 +88,15 @@ static MTConfig *_currentConfig = nil;
     // 旧 Enabled key 仅在迁移 importer 中读取，运行端不再消费。
     [MTModuleGate reload];
     config.enabled = [MTModuleGate globalEnabled];
-    config.showResultBubble = MTPrefBool(MTKeyShowResultBubble, YES);
     config.floatingSnapShadow = MTPrefBool(MTKeyFloatingSnapShadow, YES);
     config.selectionSnapEdgeDistance = MAX(0.0, MIN(60.0, MTPrefDouble(MTKeySelectionSnapEdgeDistance, 12.0)));
     config.screenshotHaptic = MTPrefBool(MTKeyScreenshotHaptic, YES);
     config.areaRememberLastRect = MTPrefBool(MTKeyAreaRememberLastRect, NO);
 
     NSInteger action = MTPrefInteger(MTKeyDefaultResultAction, MTDefaultResultAction);
+    // 「仅显示预览气泡」(5) 随结果气泡一并退役：历史值回落默认动作，
+    // 避免被下方夹取成 4（保存并删除源）这类非预期行为。
+    if (action == MTOutputActionPreviewOnly) action = MTDefaultResultAction;
     config.defaultResultAction = (MTOutputAction)MAX(0, MIN(4, action));
     config.saveAlsoCopy = MTPrefBool(MTKeySaveAlsoCopy, YES);
 

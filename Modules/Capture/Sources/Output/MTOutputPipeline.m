@@ -77,7 +77,7 @@
                 }
                 [self mtRunSave:task completion:^(BOOL saveOK, NSString *saveMsg) {
                     // 文案必须区分混合失败：保存成功复制失败时 ok=NO，
-                    // 若仍报「已保存并复制」气泡会以失败样式展示成功文案。
+                    // 若仍报「已保存并复制」会把成功文案当成失败原因。
                     NSString *message = !saveOK ? saveMsg
                         : (copyOK ? @"已保存并复制" : @"已保存，复制失败");
                     completion(copyOK && saveOK, message);
@@ -129,7 +129,7 @@
 #pragma mark - 状态守卫
 
 /// 输出动作允许的任务状态：Exporting（正常输出）与 Finished/Failed
-/// （气泡快捷动作、失败重试）都放行；仅拒绝取消路径与空闲
+/// （失败重试）都放行；仅拒绝取消路径与空闲
 /// （DEVELOPMENT.md 5.1：任务取消时不得继续写入相册）。
 static BOOL MTOutputAllowedForState(MTCaptureState state) {
     switch (state) {

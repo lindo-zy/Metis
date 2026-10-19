@@ -16,14 +16,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// 避免后续设置 rootViewController 时把覆盖层压在下面。
 - (void)hostContentView:(UIView *)contentView;
 
-/// 用于结果气泡：命中根视图空白区时穿透，不阻断整个 SpringBoard 的触摸。
+/// 命中根视图空白区时穿透，不阻断整个 SpringBoard 的触摸。
 @property (nonatomic, assign) BOOL passesTouchesOutsideHostedContent;
 
 /// 设置页运行诊断使用，不包含用户数据。
 @property (nonatomic, copy, readonly) NSString *hostingDescription;
 
 - (void)showAnimated:(BOOL)animated;
-/// becomeKey=YES 用于选区/编辑器；结果气泡应传 NO，避免抢键盘焦点。
+/// becomeKey=YES 用于选区/编辑器；非抢焦点窗口传 NO，避免抢键盘焦点。
 - (void)showAnimated:(BOOL)animated becomeKey:(BOOL)becomeKey;
 /// 抓屏会临时隐藏窗口，key 可能被系统转移；恢复可见后调用，仅当本窗口此前请求过 key 时补回。
 - (void)reassertKeyIfNeeded;
