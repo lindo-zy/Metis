@@ -643,3 +643,15 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "AI_BALANCE_LOADING" = "Checking balance…";
 "AI_BALANCE_REFRESH" = "Tap to refresh balance";
 "AI_BALANCE_FAILED" = "Balance unavailable · Tap to retry";
+
+// Screen corner gestures
+"CORNER_GESTURE_SETTINGS" = "Screen Corner Gestures";
+"CORNER_GESTURE_FOOTER" = "Swipe up inside the fan-shaped areas at the bottom-left / bottom-right corners of the screen to trigger an action. The sliders adjust the fan radius and angle, and the preview marks the live trigger range in color. Only gesture panels or keyboard-free custom actions can be assigned.";
+"CORNER_ENABLE" = "Enable Swipe Up";
+"CORNER_ACTION" = "Action";
+"CORNER_ACTION_NONE" = "No action";
+"CORNER_BOTTOMLEFT" = "Bottom-Left Corner";
+"CORNER_BOTTOMRIGHT" = "Bottom-Right Corner";
+"CORNER_RADIUS" = "Fan Radius";
+"CORNER_ANGLE" = "Fan Angle";
+"CORNER_UNASSIGNED" = "Unassigned";

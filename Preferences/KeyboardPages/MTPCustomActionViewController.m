@@ -6,6 +6,7 @@
 #import "MTPanelRegistry.h"
 #import "MTStatusBarGesturePolicy.h"
 #import "MTDockGesturePolicy.h"
+#import "MTCornerGesturePolicy.h"
 #import "MTPSubActionPickerController.h"
 #import "MTPLinkActionEditorController.h"
 #import "MTHelper.h"
@@ -137,6 +138,7 @@ static NSBundle *mtpLocalBundle;
     MTPanelRemoveReferences(preferences, selector);
     MTStatusBarRemoveActionReferences(preferences, selector);
     MTDockGestureRemoveActionReferences(preferences, selector);
+    MTCornerGestureRemoveActionReferences(preferences, selector);
     NSMutableSet<NSString *> *keys = [NSMutableSet set];
     for (NSString *configuration in @[@"bottom", @"top"]) {
         for (NSInteger gesture = MTShortcutGestureLongPress; gesture <= MTShortcutGestureTap; gesture++) {

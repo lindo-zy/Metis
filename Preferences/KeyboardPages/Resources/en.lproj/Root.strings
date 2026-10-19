@@ -54,3 +54,14 @@
 "STATUS_BAR_CLEAR" = "Clear Action";
 "STATUS_BAR_PANELS" = "Open Panel";
 "STATUS_BAR_PICKER_FOOTER" = "Choose or add a system action, app, App Quick Action, or link. Text, JavaScript, and actions requiring the current input are unavailable here.";
+
+// Screen corner gestures
+"CORNER_GESTURE_SETTINGS" = "Screen Corner Gestures";
+"CORNER_ENABLE" = "Enable Swipe Up";
+"CORNER_ACTION" = "Action";
+"CORNER_ACTION_NONE" = "No action";
+"CORNER_BOTTOMLEFT" = "Bottom-Left Corner";
+"CORNER_BOTTOMRIGHT" = "Bottom-Right Corner";
+"CORNER_RADIUS" = "Fan Radius";
+"CORNER_ANGLE" = "Fan Angle";
+"CORNER_UNASSIGNED" = "Unassigned";

@@ -9,6 +9,7 @@ FOUNDATION_EXPORT void MTOpenSystemShortcut(NSString *bundleIdentifier, NSString
 FOUNDATION_EXPORT BOOL MTStartSystemOpenBroker(void);
 FOUNDATION_EXPORT void MTRunSystemAction(NSString *identifier, MTSystemOpenReply reply);
 FOUNDATION_EXPORT void MTRequestStatusBarGesture(NSString *slot, NSString *expectedSelector, BOOL landscape, MTSystemOpenReply reply);
+FOUNDATION_EXPORT void MTRequestCornerGesture(NSString *slot, NSString *expectedSelector, MTSystemOpenReply reply);
 typedef void (^MTPanelSystemControlReply)(MTSystemOpenResult result, NSDictionary *state);
 FOUNDATION_EXPORT NSProgress *MTRequestPanelSystemControl(NSString *action, NSNumber *value, NSString *source, MTPanelSystemControlReply reply);
 
