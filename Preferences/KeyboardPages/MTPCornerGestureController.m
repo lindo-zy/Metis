@@ -268,7 +268,7 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     for (id entry in [definitions isKindOfClass:NSArray.class] ? definitions : @[]) {
         if (!MTGlobalCustomActionSupported(entry) || !MTIsLinkActionSelector(entry[@"selector"])) continue;
         NSString *name = MTGlobalPanelString(entry[@"name"]);
-        PSSpecifier *item = [self action:name.length ? name : MTCornerLocalized(@"DEFAULT_BUTTON_NAME") entry[@"selector"]];
+        PSSpecifier *item = [self action:name.length ? name : MTCornerLocalized(@"DEFAULT_BUTTON_NAME") selector:entry[@"selector"]];
         [item setProperty:[MTHelper imageForIconConfig:entry[@"icon"] defaultSymbolName:@"link"] forKey:@"iconImage"];
         [items addObject:item];
     }
