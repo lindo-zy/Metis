@@ -3,6 +3,7 @@
 #import "MTPLinkActionEditorController.h"
 #import "MTPGestureActionCell.h"
 #import "MTCornerGesturePolicy.h"
+#import "MTGlobalPanelPolicy.h"
 #import "MTHelper.h"
 #import "common.h"
 #import <Preferences/PSSpecifier.h>
@@ -97,9 +98,9 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [body stroke];
     CGFloat radius = MAX(4, self.radius * scale);
     double half = self.angle * M_PI / 180 / 2;
-    [self drawFanAtCorner:CGPointMake(device.minX, device.maxY) radius:radius halfAngle:half
+    [self drawFanAtCorner:CGPointMake(CGRectGetMinX(device), CGRectGetMaxY(device)) radius:radius halfAngle:half
         bisector:-M_PI / 4 color:UIColor.systemBlueColor assigned:self.leftAssigned];
-    [self drawFanAtCorner:CGPointMake(device.maxX, device.maxY) radius:radius halfAngle:half
+    [self drawFanAtCorner:CGPointMake(CGRectGetMaxX(device), CGRectGetMaxY(device)) radius:radius halfAngle:half
         bisector:-M_PI * 3 / 4 color:UIColor.systemOrangeColor assigned:self.rightAssigned];
 }
 @end
