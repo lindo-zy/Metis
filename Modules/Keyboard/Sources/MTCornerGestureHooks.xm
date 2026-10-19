@@ -22,14 +22,13 @@ static NSHashTable *MTCornerHandlers;
 static void MTTryCornerHooks(void);
 
 static BOOL MTCornerWindowEligible(UIWindow *window) {
-    if (!window || window.hidden || !window.windowScene) return NO;
+    if (!window || window.hidden || window.alpha <= 0.01 || !window.userInteractionEnabled || !window.windowScene) return NO;
     NSString *name = NSStringFromClass(window.class);
     if ([name containsString:@"Keyboard"] || [name containsString:@"StatusBar"] || [name containsString:@"TextEffects"]) return NO;
     // 弹窗/键盘/状态栏等系统窗口都在高层级；角落扇形锚定屏幕底角，
     // 只应挂普通层级的整屏窗口，避免在弹窗上截胡角落触摸。
     if (window.windowLevel != UIWindowLevelNormal) return NO;
-    CGRect reference = window.windowScene.screen.bounds;
-    return CGRectContainsRect(CGRectInset(reference, -2.5, -2.5), window.frame);
+    return MTCornerGestureWindowMatchesBounds(window.frame, window.bounds, window.windowScene.coordinateSpace.bounds);
 }
 
 @interface MTCornerGestureSession : NSObject
@@ -37,7 +36,7 @@ static BOOL MTCornerWindowEligible(UIWindow *window) {
 @property(nonatomic, copy) NSDictionary *preferences;
 @property(nonatomic, copy) NSString *region;
 @property(nonatomic, copy) NSString *selector;
-@property(nonatomic, assign) CGSize windowSize;
+@property(nonatomic, assign) CGRect windowBounds;
 @property(nonatomic) BOOL dispatched;
 @end
 @implementation MTCornerGestureSession @end
@@ -76,7 +75,7 @@ static BOOL MTCornerWindowEligible(UIWindow *window) {
 - (BOOL)available {
     if (!NSThread.isMainThread) return NO;
     UIWindow *window = self.window;
-    if (!window || window.hidden) return [self reject:@"window"];
+    if (!MTCornerWindowEligible(window)) return [self reject:@"window"];
     BOOL springBoard = [NSProcessInfo.processInfo.processName isEqual:@"SpringBoard"];
     if (springBoard) {
         if (![MTGlobalPanel deviceUnlocked] || [MTGlobalPanel.sharedInstance isVisible]) return [self reject:@"lock/panel"];
@@ -102,6 +101,8 @@ static BOOL MTCornerWindowEligible(UIWindow *window) {
 }
 - (void)refresh {
     if (!NSThread.isMainThread || !self.pan) return;
+    // 配置、前后台、锁屏或旋转通知都使旧触摸失效，恢复后必须重新起手。
+    objc_setAssociatedObject(self.pan, &MTCornerSessionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     NSUInteger configured = 0;
     for (NSString *region in MTCornerGestureRegions())
@@ -137,7 +138,7 @@ static BOOL MTCornerWindowEligible(UIWindow *window) {
     session.selector = [MTCornerGestureSelector(preferences, MTCornerGestureSlot(region)) copy];
     session.window = window;
     session.preferences = [preferences copy];
-    session.windowSize = window.bounds.size;
+    session.windowBounds = window.bounds;
     objc_setAssociatedObject(gesture, &MTCornerSessionKey, session, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSLog(@"[MetisKeyboard][CornerGesture] touch host=%@ region=%@ origin=(%.0f,%.0f) view=%@",
         NSProcessInfo.processInfo.processName, region, point.x, point.y, NSStringFromClass(touch.view.class));
@@ -146,7 +147,7 @@ static BOOL MTCornerWindowEligible(UIWindow *window) {
 - (BOOL)sessionIsCurrent:(MTCornerGestureSession *)session {
     if (!session || session.dispatched) return NO;
     return [self available] && session.window == self.window &&
-        CGSizeEqualToSize(session.windowSize, self.window.bounds.size) &&
+        CGRectEqualToRect(session.windowBounds, self.window.bounds) &&
         [session.preferences isEqual:MTPrefsManager.sharedInstance.prefs];
 }
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture {

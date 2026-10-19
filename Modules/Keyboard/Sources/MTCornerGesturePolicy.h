@@ -23,7 +23,10 @@ static inline NSString *MTCornerGestureSlot(NSString *region) {
     return [NSString stringWithFormat:@"%@.up", region];
 }
 static inline BOOL MTCornerGestureSlotValid(id slot) {
-    return [slot isKindOfClass:NSString.class] && [MTCornerGestureSlot(slot) isEqual:slot];
+    if (![slot isKindOfClass:NSString.class]) return NO;
+    for (NSString *region in MTCornerGestureRegions())
+        if ([MTCornerGestureSlot(region) isEqual:slot]) return YES;
+    return NO;
 }
 static inline BOOL MTCornerGestureFlag(id value) { return [value isKindOfClass:NSNumber.class] && [value boolValue]; }
 // 总开关缺省开：不绑定动作时手势本就不生效，无需强制用户先开开关。
@@ -38,14 +41,18 @@ static inline NSDictionary *MTCornerGestureBinding(NSDictionary *preferences, NS
     id value = [bindings isKindOfClass:NSDictionary.class] ? bindings[slot] : nil;
     return [value isKindOfClass:NSDictionary.class] ? value : @{};
 }
-static inline NSString *MTCornerGestureSelector(NSDictionary *preferences, NSString *slot) {
+// 设置页保留关闭角落的已选动作；运行端另行检查 enabled。
+static inline NSString *MTCornerGestureConfiguredSelector(NSDictionary *preferences, NSString *slot) {
     NSDictionary *entry = MTCornerGestureBinding(preferences, slot);
     id selector = entry[@"selector"];
+    return [selector isKindOfClass:NSString.class] && [(NSString *)selector length] ? selector : nil;
+}
+static inline NSString *MTCornerGestureSelector(NSDictionary *preferences, NSString *slot) {
+    NSDictionary *entry = MTCornerGestureBinding(preferences, slot);
     // enabled 缺省视为开：与状态栏手势一致的宽松缺省，绑定即生效。
     id enabled = entry[@"enabled"];
-    if (([enabled isKindOfClass:NSNumber.class] && ![enabled boolValue]) ||
-        ![selector isKindOfClass:NSString.class] || ![(NSString *)selector length]) return nil;
-    return selector;
+    if ([enabled isKindOfClass:NSNumber.class] && ![enabled boolValue]) return nil;
+    return MTCornerGestureConfiguredSelector(preferences, slot);
 }
 static inline double MTCornerGestureClamp(double value, double min, double max, double fallback) {
     return isfinite(value) && value >= min && value <= max ? value : fallback;
@@ -66,6 +73,7 @@ static inline double MTCornerGestureAngle(NSDictionary *preferences) {
 // （手指贴边上滑的常见起点），但绝不接受低于底边的点。
 static inline NSString *MTCornerRegionAtPoint(CGPoint point, CGSize size, double radius, double angle) {
     if (!isfinite(point.x) || !isfinite(point.y) || !isfinite(radius) || !isfinite(angle) ||
+        !isfinite(size.width) || !isfinite(size.height) || radius <= 0 || angle <= 0 || angle > 180 ||
         size.width <= 0 || size.height <= 0 || point.x < 0 || point.x > size.width ||
         point.y < 0 || point.y > size.height) return nil;
     double dx = point.x <= size.width / 2 ? point.x : point.x - size.width;
@@ -91,7 +99,26 @@ static inline BOOL MTCornerGestureCompletes(double dx, double dy) {
 static inline NSString *MTCornerGestureClaimedSlot(NSDictionary *preferences, CGSize size, CGPoint point) {
     if (!MTCornerGestureMasterEnabled(preferences)) return nil;
     NSString *region = MTCornerRegionAtPoint(point, size, MTCornerGestureRadius(preferences), MTCornerGestureAngle(preferences));
-    return region && MTCornerGestureSelector(preferences, MTCornerGestureSlot(region)) ? region : nil;
+    NSString *slot = MTCornerGestureSlot(region);
+    return MTCornerGestureSelector(preferences, slot) ? slot : nil;
+}
+
+// 窗口必须覆盖当前 Scene；仅被屏幕包含的小窗口不能拥有“屏幕角落”。
+static inline BOOL MTCornerGestureWindowMatchesBounds(CGRect frame, CGRect bounds, CGRect sceneBounds) {
+    if (CGRectIsEmpty(frame) || CGRectIsEmpty(bounds) || CGRectIsEmpty(sceneBounds) ||
+        !isfinite(frame.origin.x) || !isfinite(frame.origin.y) ||
+        !isfinite(frame.size.width) || !isfinite(frame.size.height) ||
+        !isfinite(bounds.origin.x) || !isfinite(bounds.origin.y) ||
+        !isfinite(bounds.size.width) || !isfinite(bounds.size.height) ||
+        !isfinite(sceneBounds.origin.x) || !isfinite(sceneBounds.origin.y) ||
+        !isfinite(sceneBounds.size.width) || !isfinite(sceneBounds.size.height)) return NO;
+    return fabs(CGRectGetMinX(frame) - CGRectGetMinX(sceneBounds)) <= 2.5 &&
+        fabs(CGRectGetMinY(frame) - CGRectGetMinY(sceneBounds)) <= 2.5 &&
+        fabs(frame.size.width - sceneBounds.size.width) <= 2.5 &&
+        fabs(frame.size.height - sceneBounds.size.height) <= 2.5 &&
+        CGPointEqualToPoint(bounds.origin, CGPointZero) &&
+        fabs(bounds.size.width - sceneBounds.size.width) <= 2.5 &&
+        fabs(bounds.size.height - sceneBounds.size.height) <= 2.5;
 }
 
 // Relay only a configured slot and the selector the touch observed. Never

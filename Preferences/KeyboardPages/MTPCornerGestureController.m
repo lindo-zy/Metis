@@ -19,7 +19,7 @@ static NSDictionary *MTCornerDefinition(NSDictionary *preferences, NSString *sel
     return nil;
 }
 static NSString *MTCornerActionName(NSDictionary *preferences, NSString *slot) {
-    NSString *selector = MTCornerGestureSelector(preferences, slot);
+    NSString *selector = MTCornerGestureConfiguredSelector(preferences, slot);
     NSDictionary *panel = MTPanelDefinition(preferences, selector);
     if ([panel[@"kind"] isEqual:MTPanelGestureKind]) return MTPanelString(panel[@"name"]);
     NSDictionary *entry = MTCornerDefinition(preferences, selector);
@@ -48,10 +48,8 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     bindings[slot] = entry;
     preferences[kMTCornerGestureBindings] = bindings;
     [manager writePrefs:preferences];
-    id saved = bindings[slot];
-    BOOL success = [selector isKindOfClass:NSString.class] && selector.length
-        ? [[saved isKindOfClass:NSDictionary.class] ? saved[@"selector"] : nil isEqual:selector]
-        : ![saved isKindOfClass:NSDictionary.class] || ![((NSDictionary *)saved)[@"selector"] length];
+    NSString *saved = MTCornerGestureConfiguredSelector([manager readPrefs], slot);
+    BOOL success = selector.length ? [saved isEqual:selector] : saved == nil;
     NSLog(@"[MetisKeyboard][CornerSettings] save slot=%@ cleared=%d success=%d", slot, ![selector length], success);
     return success;
 }
@@ -114,6 +112,7 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 // 滑杆落盘去抖：拖动期间只更新示意图，停止拖动后才写偏好，避免连续写盘
 // 持续广播 prefschanged（宿主会 reload 并全量重扫窗口）。
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *pendingSliderValues;
+@property(nonatomic) NSUInteger sliderCommitGeneration;
 @end
 
 @implementation MTPCornerGestureController
@@ -123,7 +122,8 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     MTPCornerPreviewView *preview = [[MTPCornerPreviewView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 190)];
     preview.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     preview.backgroundColor = UIColor.clearColor;
-    self.tableView.tableHeaderView = preview;
+    // PSListController 在 iOS 16 上提供 table，不保证实现头文件声明的 tableView。
+    [self table].tableHeaderView = preview;
     self.previewView = preview;
     [self refreshPreview];
 }
@@ -134,11 +134,13 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 }
 - (void)refreshPreview {
     if (!self.previewView) return;
-    NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
+    NSMutableDictionary *preferences = [[MTPrefsManager.sharedInstance readPrefs] mutableCopy];
+    [preferences addEntriesFromDictionary:self.pendingSliderValues ?: @{}];
     self.previewView.radius = MTCornerGestureRadius(preferences);
     self.previewView.angle = MTCornerGestureAngle(preferences);
-    self.previewView.leftAssigned = [self assigned:@[@"bottomleft"] inPreferences:preferences];
-    self.previewView.rightAssigned = [self assigned:@[@"bottomright"] inPreferences:preferences];
+    BOOL enabled = MTCornerGestureMasterEnabled(preferences);
+    self.previewView.leftAssigned = enabled && [self assigned:@[@"bottomleft"] inPreferences:preferences];
+    self.previewView.rightAssigned = enabled && [self assigned:@[@"bottomright"] inPreferences:preferences];
 }
 - (BOOL)assigned:(NSArray<NSString *> *)regions inPreferences:(NSDictionary *)preferences {
     for (NSString *region in regions)
@@ -194,7 +196,9 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
     NSString *key = [specifier propertyForKey:@"key"];
     if (key) {
-        id value = preferences[key];
+        id value = self.pendingSliderValues[key] ?: preferences[key];
+        if ([key isEqual:kMTCornerGestureRadiusKey]) return @(MTCornerGestureRadius(@{key: value ?: @0}));
+        if ([key isEqual:kMTCornerGestureAngleKey]) return @(MTCornerGestureAngle(@{key: value ?: @0}));
         return [value isKindOfClass:NSNumber.class] ? value : [specifier propertyForKey:@"default"];
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
@@ -206,7 +210,13 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
     NSString *key = [specifier propertyForKey:@"key"];
-    if (key) {
+    if ([key isEqual:kMTCornerGesturesEnabled]) {
+        if (![value isKindOfClass:NSNumber.class]) return;
+        [[MTPrefsManager sharedInstance] setValue:@([value boolValue]) forKey:key];
+        [self refreshPreview];
+        return;
+    }
+    if ([key isEqual:kMTCornerGestureRadiusKey] || [key isEqual:kMTCornerGestureAngleKey]) {
         double clamped = MTCornerGestureClamp([value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN,
             [specifier propertyForKey:@"min"] ? [(NSNumber *)[specifier propertyForKey:@"min"] doubleValue] : -INFINITY,
             [specifier propertyForKey:@"max"] ? [(NSNumber *)[specifier propertyForKey:@"max"] doubleValue] : INFINITY,
@@ -218,7 +228,7 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         return;
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
-    if (slot) {
+    if (MTCornerGestureSlotValid(slot) && [value isKindOfClass:NSNumber.class]) {
         MTPrefsManager *manager = MTPrefsManager.sharedInstance;
         NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
         if (!preferences) return;
@@ -230,6 +240,7 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         bindings[slot] = entry;
         preferences[kMTCornerGestureBindings] = bindings;
         [manager writePrefs:preferences];
+        [self refreshPreview];
     }
 }
 // 停止拖动 0.4s 后落盘一次；期间的新值覆盖旧值，只保留最后一次。
@@ -237,22 +248,25 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     if (![key length]) return;
     if (!self.pendingSliderValues) self.pendingSliderValues = [NSMutableDictionary dictionary];
     self.pendingSliderValues[key] = value;
+    NSUInteger generation = ++self.sliderCommitGeneration;
     __weak typeof(self) weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         MTPCornerGestureController *controller = weakSelf;
-        if (!controller) return;
-        NSNumber *pending = controller.pendingSliderValues[key];
-        if (!pending) return;
-        [controller.pendingSliderValues removeObjectForKey:key];
-        [[MTPrefsManager sharedInstance] setValue:pending forKey:key];
+        if (!controller || controller.sliderCommitGeneration != generation) return;
+        [controller flushPendingSliderValues];
     });
 }
 // 页面离开前补写未落盘的滑杆值（含 push 到动作选择页），避免拖动结果丢失。
 - (void)flushPendingSliderValues {
+    self.sliderCommitGeneration++;
     NSDictionary<NSString *, NSNumber *> *pending = [self.pendingSliderValues copy];
     if (!pending.count) return;
+    MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+    NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
+    if (!preferences) return;
+    [preferences addEntriesFromDictionary:pending];
+    [manager writePrefs:preferences];
     [self.pendingSliderValues removeAllObjects];
-    for (NSString *key in pending) [[MTPrefsManager sharedInstance] setValue:pending[key] forKey:key];
 }
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
@@ -322,8 +336,9 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     PSSpecifier *item = [self specifierAtIndexPath:indexPath];
     if (item && (item->action == @selector(selectAction:) || item->action == @selector(addAction:))) {
-        NSString *chosen = MTCornerGestureSelector([MTPrefsManager.sharedInstance readPrefs], self.slot);
-        BOOL checked = [chosen isEqual:[item propertyForKey:@"actionSelector"]] || (!chosen.length && ![[item propertyForKey:@"actionSelector"] length]);
+        NSString *chosen = MTCornerGestureConfiguredSelector([MTPrefsManager.sharedInstance readPrefs], self.slot);
+        BOOL checked = item->action == @selector(selectAction:) &&
+            ([chosen isEqual:[item propertyForKey:@"actionSelector"]] || (!chosen.length && ![[item propertyForKey:@"actionSelector"] length]));
         return MTPGestureActionCell(tableView, @"MTPCornerActionChoice", item.name, nil, [item propertyForKey:@"iconImage"],
             checked ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone, item);
     }
