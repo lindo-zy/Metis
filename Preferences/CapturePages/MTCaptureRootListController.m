@@ -1,9 +1,12 @@
 #import "MTCaptureRootListController.h"
+#import "MTStandaloneEditorController.h"
 #import "../../Modules/Capture/Sources/Common/MTConstants.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
 
 @interface MTCaptureRootListController ()
 @property (nonatomic, assign) NSInteger copyFeedbackGeneration;
+/// 独立编辑器宿主：强引用保证一轮「取图 → 编辑 → 输出」期间不被释放。
+@property (nonatomic, strong) MTStandaloneEditorController *standaloneEditor;
 @end
 
 // 模块内不再挂品牌 logo 头（2026-10-17 需求）：品牌只在系统设置首页出现，
@@ -29,6 +32,7 @@
         [items insertObject:specifier atIndex:insertIndex];
         insertIndex++;
     }
+    [items insertObject:[self mtStandaloneEditorSpecifier] atIndex:insertIndex];
     return items;
 }
 
@@ -71,6 +75,22 @@
     return specifiers;
 }
 
+// 独立图片编辑入口：不发 Darwin 通知，直接在本页进程内拉起编辑器
+// （剪贴板取图 / 相册导入），区域截图链路与协调器均不参与。
+- (PSSpecifier *)mtStandaloneEditorSpecifier {
+    NSString *title = @"图片编辑";
+    PSSpecifier *specifier = [PSSpecifier preferenceSpecifierNamed:title
+                                                            target:self
+                                                               set:NULL
+                                                               get:NULL
+                                                            detail:Nil
+                                                              cell:PSButtonCell
+                                                               edit:Nil];
+    [specifier setProperty:@YES forKey:@"mtStandaloneEditor"];
+    [specifier setProperty:title forKey:@"mtTitle"];
+    return specifier;
+}
+
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     // specifierAtIndexPath: 是 Preferences 私有方法，缺失时回退系统转发，避免整页点击崩溃。
     if (![self respondsToSelector:@selector(specifierAtIndexPath:)]) {
@@ -81,6 +101,11 @@
     if ([[specifier propertyForKey:@"mtCaptureNotification"] isKindOfClass:NSString.class]) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         [self mtTriggerCaptureTest:specifier];
+        return;
+    }
+    if ([[specifier propertyForKey:@"mtStandaloneEditor"] boolValue]) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        [self mtLaunchStandaloneEditor:specifier];
         return;
     }
     [super tableView:tableView didSelectRowAtIndexPath:indexPath];
@@ -100,19 +125,7 @@
     UISelectionFeedbackGenerator *haptic = [[UISelectionFeedbackGenerator alloc] init];
     [haptic selectionChanged];
 
-    // 同一行连续点击时，仅最新一轮反馈恢复标题；切走设置页后只恢复模型。
-    NSUInteger rowGeneration = [[specifier propertyForKey:@"mtFeedbackGeneration"] unsignedIntegerValue] + 1;
-    [specifier setProperty:@(rowGeneration) forKey:@"mtFeedbackGeneration"];
-    specifier.name = @"已发送请求 ✓";
-    [self reloadSpecifier:specifier animated:NO];
-    __weak typeof(self) weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-        if ([[specifier propertyForKey:@"mtFeedbackGeneration"] unsignedIntegerValue] != rowGeneration) return;
-        specifier.name = title;
-        __strong typeof(weakSelf) self = weakSelf;
-        if (self.isViewLoaded && self.view.window) [self reloadSpecifier:specifier animated:NO];
-    });
+    [self mtFlashSpecifier:specifier message:@"已发送请求 ✓"];
 
     self.copyFeedbackGeneration++;
     NSInteger generation = self.copyFeedbackGeneration;
@@ -124,12 +137,41 @@
     }
     [group setProperty:feedbackFooter forKey:@"footerText"];
     [self reloadSpecifier:group animated:NO];
+    __weak typeof(self) weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         __strong typeof(weakSelf) self = weakSelf;
         if (!self || generation != self.copyFeedbackGeneration) return;
         [group setProperty:([group propertyForKey:@"mtOriginalFooter"] ?: @"") forKey:@"footerText"];
         if (self.isViewLoaded && self.view.window) [self reloadSpecifier:group animated:NO];
+    });
+}
+
+// 独立图片编辑入口：在本页进程内拉起编辑器，不经过 Darwin 通知与协调器。
+- (void)mtLaunchStandaloneEditor:(PSSpecifier *)specifier {
+    if ([[specifier propertyForKey:@"mtTitle"] length] == 0) return;
+    if (!self.standaloneEditor) {
+        self.standaloneEditor = [[MTStandaloneEditorController alloc] initWithHostViewController:self];
+    }
+    BOOL launched = [self.standaloneEditor start];
+    [self mtFlashSpecifier:specifier message:(launched ? @"已打开编辑器 ✓" : @"暂时无法打开")];
+}
+
+/// 行内即时反馈：标题短暂替换后自动恢复；同一行连续点击时仅最新一轮恢复。
+- (void)mtFlashSpecifier:(PSSpecifier *)specifier message:(NSString *)message {
+    NSString *title = [specifier propertyForKey:@"mtTitle"];
+    if (title.length == 0 || message.length == 0) return;
+    NSUInteger rowGeneration = [[specifier propertyForKey:@"mtFeedbackGeneration"] unsignedIntegerValue] + 1;
+    [specifier setProperty:@(rowGeneration) forKey:@"mtFeedbackGeneration"];
+    specifier.name = message;
+    [self reloadSpecifier:specifier animated:NO];
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        if ([[specifier propertyForKey:@"mtFeedbackGeneration"] unsignedIntegerValue] != rowGeneration) return;
+        specifier.name = title;
+        __strong typeof(weakSelf) self = weakSelf;
+        if (self.isViewLoaded && self.view.window) [self reloadSpecifier:specifier animated:NO];
     });
 }
 

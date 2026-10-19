@@ -9,18 +9,28 @@ MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	MTEditorOrderController.m \
 	MTEditorButtonEditController.m \
 	MTCustomURLController.m \
+	MTStandaloneEditorController.m \
 	../../Modules/Capture/Sources/Common/MTConstants.m \
 	../../Modules/Capture/Sources/Common/MTPanelAppearance.m \
 	../../Modules/Capture/Sources/Common/MTEditorOrder.m \
 	../../Modules/Capture/Sources/Common/MTSelectionToolbar.m \
 	../../Modules/Capture/Sources/Common/MTCaptureLog.m \
-	../../Modules/Capture/Sources/Editor/MTEditorLayout.m
+	../../Modules/Capture/Sources/Editor/MTEditorLayout.m \
+	../../Modules/Capture/Sources/Editor/MTEditorViewController.m \
+	../../Modules/Capture/Sources/Editor/MTEditorCanvas.m \
+	../../Modules/Capture/Sources/Editor/MTEditorDocument.m \
+	../../Modules/Capture/Sources/Editor/MTEditorRenderer.m \
+	../../Modules/Capture/Sources/Editor/MTAnnotation.m \
+	../../Modules/Capture/Sources/Editor/MTUndoManager.m \
+	../../Modules/Capture/Sources/Output/MTClipboardWriter.m \
+	../../Modules/Capture/Sources/Output/MTSharePresenter.m
 
 MetisCapturePrefs_CFLAGS = -fobjc-arc
 MetisCapturePrefs_CFLAGS += -I../../Modules/Capture/Sources/Common
 MetisCapturePrefs_CFLAGS += -I../../Core/PrefsUI
 MetisCapturePrefs_INSTALL_PATH = /Library/PreferenceBundles
-MetisCapturePrefs_FRAMEWORKS = UIKit CoreGraphics QuartzCore
+# PhotosUI：PHPickerViewController（相册导入）；Photos：相册资源类型（PhotosUI 依赖）。
+MetisCapturePrefs_FRAMEWORKS = UIKit CoreGraphics QuartzCore Photos PhotosUI
 MetisCapturePrefs_PRIVATE_FRAMEWORKS = Preferences AppSupport
 MetisCapturePrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 
