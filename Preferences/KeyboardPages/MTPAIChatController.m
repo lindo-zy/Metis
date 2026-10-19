@@ -186,8 +186,11 @@ static NSString *MTAITrim(NSString *text) {
 
 @interface MTPAIChatController ()
 @property (nonatomic, assign) BOOL fetching;
+@property (nonatomic, assign) NSUInteger balanceRequest;
+@property (nonatomic, copy) NSString *balanceText;
 // API Key / 模型列表等输入行滚动到键盘上方（自建 UITableView 无自动避让）。
 @property (nonatomic, strong) MTPKeyboardAvoider *keyboardAvoider;
+- (void)refreshBalance;
 @end
 
 @implementation MTPAIChatController
@@ -211,7 +214,7 @@ static NSString *MTAITrim(NSString *text) {
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     // 引擎/人设子页可能改写了配置，整页随之刷新。
-    [self.tableView reloadData];
+    [self refreshBalance];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -249,7 +252,7 @@ static NSString *MTAITrim(NSString *text) {
     if (section == 2) return 2;
     // API Key + 模型 + 抓取（内置引擎多一个"获取 Key 网址"行；接口地址/名称
     // 在 AI 引擎页的自定义编辑器里改）。
-    NSInteger rows = 3;
+    NSInteger rows = [MTAIEngine supportsBalanceForEngine:[self currentEngine]] ? 4 : 3;
     if (![self currentEngine].custom && [self currentEngine].keysURL.length > 0) rows += 1;
     return rows;
 }
@@ -269,6 +272,7 @@ static NSString *MTAITrim(NSString *text) {
     if (row == 0) return @"text";
     if (row == 1) return @"models";
     if (row == 2) return @"fetch";
+    if (row == 3 && [MTAIEngine supportsBalanceForEngine:[self currentEngine]]) return @"balance";
     return @"keysurl";
 }
 
@@ -312,10 +316,20 @@ static NSString *MTAITrim(NSString *text) {
         __weak typeof(self) weakSelf = self;
         cell.onCommit = ^(NSString *text) {
             __strong typeof(weakSelf) strongSelf = weakSelf;
-            if (!strongSelf) return;
+            if (!strongSelf || [text isEqual:[MTAIEngine apiKeyForEngine:engine]]) return;
             if (engine.custom) [MTAIEngine updateCustomEngineWithID:engine.identifier key:@"key" value:MTAITrim(text) ?: @""];
             else MTAIPrefSetValue(text ?: @"", MTAIKeyPath(MTAIPrefKeyPrefix, engine.identifier));
+            [strongSelf refreshBalance];
         };
+        return cell;
+    }
+
+    if ([kind isEqualToString:@"balance"]) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+        cell.textLabel.text = LOCALIZED(@"AI_BALANCE");
+        cell.textLabel.textColor = UIColor.systemBlueColor;
+        cell.detailTextLabel.text = self.balanceText ?: LOCALIZED(@"AI_BALANCE_REFRESH");
+        cell.detailTextLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
         return cell;
     }
 
@@ -393,6 +407,9 @@ static NSString *MTAITrim(NSString *text) {
     NSString *kind = [self kindForRow:indexPath.row];
     if ([kind isEqualToString:@"fetch"]) {
         [self fetchModelsTapped];
+    } else if ([kind isEqualToString:@"balance"]) {
+        [self.view endEditing:YES];
+        [self refreshBalance];
     } else if ([kind isEqualToString:@"keysurl"]) {
         NSURL *url = [NSURL URLWithString:[self currentEngine].keysURL];
         if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
@@ -401,6 +418,26 @@ static NSString *MTAITrim(NSString *text) {
 
 - (void)streamToggleChanged:(UISwitch *)toggle {
     MTAIPrefSetValue(@(toggle.on), MTAIPrefStream);
+}
+
+- (void)refreshBalance {
+    NSUInteger request = ++self.balanceRequest;
+    MTAIEngineInfo *engine = [self currentEngine];
+    self.balanceText = nil;
+    if (![MTAIEngine supportsBalanceForEngine:engine]) { [self.tableView reloadData]; return; }
+    NSString *key = [MTAIEngine apiKeyForEngine:engine], *endpoint = [MTAIEngine endpointForEngine:engine];
+    self.balanceText = LOCALIZED(@"AI_BALANCE_LOADING");
+    [self.tableView reloadData];
+    __weak typeof(self) weakSelf = self;
+    [MTAIEngine fetchBalanceForEngine:engine completion:^(NSString *balance, NSError *error) {
+        __strong typeof(weakSelf) owner = weakSelf;
+        if (!owner || owner.balanceRequest != request ||
+            ![[owner currentEngine].identifier isEqual:engine.identifier] ||
+            ![[MTAIEngine apiKeyForEngine:[owner currentEngine]] isEqual:key] ||
+            ![[MTAIEngine endpointForEngine:[owner currentEngine]] isEqual:endpoint]) return;
+        owner.balanceText = balance ?: error.localizedDescription ?: LOCALIZED(@"AI_BALANCE_FAILED");
+        [owner.tableView reloadData];
+    }];
 }
 
 - (void)fetchModelsTapped {

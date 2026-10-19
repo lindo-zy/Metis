@@ -61,11 +61,9 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
     return !CGRectIsEmpty(frame) && !CGRectIsEmpty(CGRectIntersection(frame, window.bounds));
 }
 
-// Recognizers ride the status-bar view itself, so the bar instance owns their
-// whole lifetime: replacement re-runs the system construction path, re-parent
-// moves the set along, and nothing but the per-touch gates survives a touch.
-// Only the island keeps its window-hosted set, because its install-time
-// container may be released while the window still serves touches.
+// The bar owns its handler. Apps attach recognizers to the bar; SpringBoard
+// attaches them to its window so sibling status touch receivers are covered.
+// Every touch must still fall inside the visible bar geometry.
 @interface MTStatusGestureSession : NSObject
 @property(nonatomic, weak) UIWindow *window;
 @property(nonatomic, weak) UIView *receiver;
@@ -82,6 +80,7 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 @property(nonatomic, weak) UIView *anchor;
 @property(nonatomic, weak) UIWindow *window;
 @property(nonatomic) BOOL aperture;
+@property(nonatomic) BOOL windowHosted;
 @property(nonatomic, strong) NSArray<UIGestureRecognizer *> *recognizers;
 @property(nonatomic, copy) NSString *lastRejection;
 @property(nonatomic, copy) NSString *lastConfiguration;
@@ -110,17 +109,23 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 }
 - (void)dealloc {
     NSArray *recognizers = _recognizers;
-    if (NSThread.isMainThread) { for (UIGestureRecognizer *gesture in recognizers) gesture.enabled = NO; }
-    else dispatch_async(dispatch_get_main_queue(), ^{ for (UIGestureRecognizer *gesture in recognizers) gesture.enabled = NO; });
+    void (^remove)(void) = ^{
+        for (UIGestureRecognizer *gesture in recognizers) {
+            gesture.enabled = NO;
+            gesture.delegate = nil;
+            [gesture.view removeGestureRecognizer:gesture];
+        }
+    };
+    if (NSThread.isMainThread) remove();
+    else dispatch_async(dispatch_get_main_queue(), remove);
 }
 - (void)invalidate {
     if (!NSThread.isMainThread) return;
-    UIView *anchor = self.anchor;
     for (UIGestureRecognizer *gesture in self.recognizers) {
         gesture.enabled = NO;
         gesture.delegate = nil;
         objc_setAssociatedObject(gesture, &MTStatusSessionKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [anchor removeGestureRecognizer:gesture];
+        [gesture.view removeGestureRecognizer:gesture];
     }
     self.recognizers = @[];
     self.window = nil;
@@ -136,7 +141,8 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
     if (!self.aperture)
         for (UIView *view = self.anchor; view; view = view.superview) if (view.hidden || view.alpha < 0.01) return [self reject:@"hidden-anchor"];
     UIWindowScene *scene = window.windowScene;
-    if (scene && scene.activationState != UISceneActivationStateForegroundActive) return [self reject:@"inactive-scene"];
+    if (scene && scene.activationState != UISceneActivationStateForegroundActive &&
+        !(springBoard && scene.activationState == UISceneActivationStateForegroundInactive)) return [self reject:@"inactive-scene"];
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
     if (!manager.preferencesAvailable) [manager reload];
     if (!manager.preferencesAvailable || !MTKeyboardPanelBool(manager.prefs, kEnabledkey, YES) || !MTStatusBarFlag(manager.prefs[kMTStatusBarEnabled])) return [self reject:@"preferences/enabled"];
@@ -163,6 +169,14 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
 }
 - (void)refresh {
     if (!NSThread.isMainThread) return;
+    // Desktop status-bar content can be a sibling of the touch receiver.
+    // Follow reparenting without creating a screen-wide overlay.
+    if (self.windowHosted) for (UIGestureRecognizer *gesture in self.recognizers) {
+        if (gesture.view != self.anchor.window) {
+            [gesture.view removeGestureRecognizer:gesture];
+            if (self.anchor.window) [self.anchor.window addGestureRecognizer:gesture];
+        }
+    }
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     NSArray *regions = self.aperture ? @[@"middle"] : MTStatusBarRegions();
     NSArray *kinds = self.aperture ? @[@"tap"] : MTStatusBarGestures();
@@ -208,11 +222,6 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
             if (MTIsApertureView(view)) { apertureTap = YES; receiver = view; }
     if (self.aperture && !apertureTap) return [self reject:@"aperture-container"];
     if (!MTStatusReceiverVisible(receiver, self.aperture ? host : receiver.window)) return [self reject:@"hidden-receiver"];
-    // Only a control strictly below the bar defers to its own native action;
-    // a view-hosted set never sees touches outside the bar in the first place.
-    for (UIView *view = touch.view; view && view != receiver; view = view.superview) {
-        if (!apertureTap && ([view isKindOfClass:UIControl.class] || [NSStringFromClass(view.class) containsString:@"Aperture"])) return [self reject:@"native-control"];
-    }
     NSString *region;
     if (self.aperture) {
         region = @"middle";
@@ -221,7 +230,11 @@ static BOOL MTStatusReceiverVisible(UIView *view, UIWindow *window) {
         CGRect bounds = self.anchor.bounds;
         region = MTStatusBarRegion(point.x - bounds.origin.x, point.y - bounds.origin.y, bounds.size.width, bounds.size.height);
     }
+    // Window-hosted desktop recognizers must reject every touch outside the bar.
     if (!region) return NO;
+    for (UIView *view = touch.view; view && view != receiver; view = view.superview) {
+        if (!apertureTap && ([view isKindOfClass:UIControl.class] || [NSStringFromClass(view.class) containsString:@"Aperture"])) return [self reject:@"native-control"];
+    }
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     BOOL enabled = [kind isEqual:@"horizontal"] ? ([self hasAction:@"leftswipe" region:region preferences:preferences] ||
         [self hasAction:@"rightswipe" region:region preferences:preferences]) : [self hasAction:kind region:region preferences:preferences];
@@ -372,6 +385,7 @@ static void MTInstallStatusGestures(UIView *view) {
     if (handler) { [handler refresh]; return; }
     handler = [MTStatusGestureHandler new]; handler.anchor = anchor; handler.window = anchor.window;
     handler.aperture = aperture;
+    handler.windowHosted = !aperture && [NSProcessInfo.processInfo.processName isEqual:@"SpringBoard"];
     NSMutableArray *recognizers = [NSMutableArray array];
     for (NSString *kind in aperture ? @[@"tap"] : @[@"tap", @"doubletap", @"longpress", @"horizontal"]) {
         UIGestureRecognizer *gesture;
@@ -395,7 +409,7 @@ static void MTInstallStatusGestures(UIView *view) {
     handler.recognizers = recognizers;
     objc_setAssociatedObject(owner, key, handler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [MTStatusHandlers addObject:handler];
-    UIView *gestureHost = aperture ? (UIView *)anchor.window : anchor;
+    UIView *gestureHost = (aperture || handler.windowHosted) ? (UIView *)anchor.window : anchor;
     for (UIGestureRecognizer *gesture in recognizers) [gestureHost addGestureRecognizer:gesture];
     [handler refresh];
     NSLog(@"[MetisKeyboard][StatusBarGesture] installed host=%@ view=%@ window=%@", NSProcessInfo.processInfo.processName,

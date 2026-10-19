@@ -911,6 +911,10 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
             [self mtExitCropModeApply:NO];
         }
         self.canvas.currentTool = self.tools[index].type;
+        // One finger draws/selects; two fingers move the image. The explicit
+        // pan tool retains one-finger scrolling.
+        self.scrollView.panGestureRecognizer.minimumNumberOfTouches =
+            self.canvas.currentTool == MTAnnotationTypePan ? 1 : 2;
         self.canvas.currentFillStyle = self.tools[index].fillStyle;
     }
     BOOL stickerTool = (self.tools[index].type == MTAnnotationTypeSticker);

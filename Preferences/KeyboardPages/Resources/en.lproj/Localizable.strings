@@ -648,3 +648,9 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_SAVE" = "Save";
 
 "SYSTEM_CLIPBOARD" = "Show Clipboard";
+
+// API balance
+"AI_BALANCE" = "API balance";
+"AI_BALANCE_LOADING" = "Checking balance…";
+"AI_BALANCE_REFRESH" = "Tap to refresh balance";
+"AI_BALANCE_FAILED" = "Balance unavailable · Tap to retry";

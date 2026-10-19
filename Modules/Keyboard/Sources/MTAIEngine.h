@@ -80,4 +80,9 @@
 // Ollama（/api/tags，无鉴权）；响应形态宽松解析（data[]/models[]/裸数组）。
 + (void)fetchModelsForEngine:(MTAIEngineInfo *)engine
                   completion:(void (^)(NSArray<NSString *> *models, NSError *error))completion;
+
++ (BOOL)supportsBalanceForEngine:(MTAIEngineInfo *)engine;
+// Main-thread completion. Does not persist account data or API keys.
++ (void)fetchBalanceForEngine:(MTAIEngineInfo *)engine
+                 completion:(void (^)(NSString *balance, NSError *error))completion;
 @end

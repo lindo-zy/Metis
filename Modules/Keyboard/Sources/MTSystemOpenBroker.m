@@ -272,6 +272,21 @@ void MTRunSystemAction(NSString *identifier, MTSystemOpenReply reply) {
         if (reply) dispatch_async(dispatch_get_main_queue(), ^{ reply(MTSystemOpenInvalid); });
         return;
     }
+    if ([identifier isEqual:@"image-edit"] && !NSThread.isMainThread) {
+        dispatch_async(dispatch_get_main_queue(), ^{ MTRunSystemAction(identifier, reply); });
+        return;
+    }
+    if ([identifier isEqual:@"image-edit"]) {
+        // End the input session in the originating app before the SB editor opens.
+        Class cls = NSClassFromString(@"UIKeyboardImpl");
+        SEL active = NSSelectorFromString(@"activeInstance"), dismiss = NSSelectorFromString(@"dismissKeyboard");
+        @try {
+            id keyboard = [cls respondsToSelector:active] ? ((id (*)(id, SEL))objc_msgSend)(cls, active) : nil;
+            if ([keyboard respondsToSelector:dismiss]) ((void (*)(id, SEL))objc_msgSend)(keyboard, dismiss);
+        } @catch (__unused NSException *exception) {
+            NSLog(@"[MetisKeyboard][ImageEditor] source keyboard dismiss failed");
+        }
+    }
     MTSubmitSystemOpen(@"system-action", identifier, reply);
 }
 

@@ -45,6 +45,11 @@ static BOOL MTWindowSceneLooksLikeKeyboard(UIWindowScene *scene) {
 
 static NSInteger MTScoreWindowScene(UIWindowScene *scene) {
     if (!scene || MTWindowSceneLooksLikeKeyboard(scene)) return NSIntegerMin;
+    NSString *identity = scene.session.persistentIdentifier.lowercaseString ?: @"";
+    NSString *role = scene.session.role.lowercaseString ?: @"";
+    if ([identity containsString:@"systemaperture"] || [role containsString:@"systemaperture"] ||
+        scene.screen != UIScreen.mainScreen || scene.activationState == UISceneActivationStateBackground ||
+        scene.activationState == UISceneActivationStateUnattached) return NSIntegerMin;
     NSInteger score = 0;
     if (scene.activationState == UISceneActivationStateForegroundActive) score += 1000;
     else if (scene.activationState == UISceneActivationStateForegroundInactive) score += 500;
@@ -56,6 +61,10 @@ static NSInteger MTScoreWindowScene(UIWindowScene *scene) {
             score += 10;
         }
     }
+    // SpringBoard auxiliary scenes can be key/active while their input region
+    // remains restricted to the island. Prefer the desktop scene for editing.
+    if ([scene.session.persistentIdentifier isEqual:@"com.apple.springboard"]) score += 10000;
+    else if ([NSStringFromClass(scene.class) isEqual:@"SBWindowScene"]) score += 5000;
     return score;
 }
 

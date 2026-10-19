@@ -125,7 +125,8 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     UIWindowScene *scene = self.window.windowScene;
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
     // 手势面板恒定启用（原 kMTPanelGlobalEnabled 开关入口已移除），只保留总开关与锁屏判断。
-    return (!scene || scene.activationState == UISceneActivationStateForegroundActive) &&
+    return (!scene || scene.activationState == UISceneActivationStateForegroundActive ||
+        scene.activationState == UISceneActivationStateForegroundInactive) &&
         manager.preferencesAvailable && MTKeyboardPanelBool(manager.prefs, kEnabledkey, YES) &&
         [manager.prefs isEqual:self.snapshot];
 }
@@ -225,12 +226,25 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     // SpringBoard has scene-less windows on some supported systems. A fresh
     // owned window is used per presentation and never made key.
     UIWindowScene *scene = sourceWindow.windowScene;
-    if (scene && scene.activationState != UISceneActivationStateForegroundActive) { [self dismiss]; return; }
+    if (scene && scene.activationState != UISceneActivationStateForegroundActive &&
+        scene.activationState != UISceneActivationStateForegroundInactive) { [self dismiss]; return; }
     if (!scene) {
-        for (UIScene *candidate in UIApplication.sharedApplication.connectedScenes)
-            if ([candidate isKindOfClass:UIWindowScene.class] && candidate.activationState == UISceneActivationStateForegroundActive) {
-                scene = (UIWindowScene *)candidate; break;
-            }
+        NSInteger bestScore = NSIntegerMin;
+        for (UIScene *candidate in UIApplication.sharedApplication.connectedScenes) {
+            if (![candidate isKindOfClass:UIWindowScene.class]) continue;
+            UIWindowScene *windowScene = (UIWindowScene *)candidate;
+            NSString *identity = windowScene.session.persistentIdentifier.lowercaseString ?: @"";
+            NSString *role = windowScene.session.role.lowercaseString ?: @"";
+            if (windowScene.screen != UIScreen.mainScreen || [identity containsString:@"keyboard"] ||
+                [role containsString:@"keyboard"] || [identity containsString:@"systemaperture"] ||
+                [role containsString:@"systemaperture"]) continue;
+            if (candidate.activationState != UISceneActivationStateForegroundActive &&
+                candidate.activationState != UISceneActivationStateForegroundInactive) continue;
+            NSInteger score = [identity isEqual:@"com.apple.springboard"] ? 100 :
+                ([NSStringFromClass(candidate.class) isEqual:@"SBWindowScene"] ? 50 : 0);
+            if (candidate.activationState == UISceneActivationStateForegroundActive) score += 10;
+            if (score > bestScore) { bestScore = score; scene = windowScene; }
+        }
     }
     self.window = scene ? [[MTGlobalPanelWindow alloc] initWithWindowScene:scene] :
         [[MTGlobalPanelWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];

@@ -1,3 +1,4 @@
+#import "MTAIBalancePolicy.h"
 #import "MTAIEngine.h"
 #import "common.h"
 #import "MTShared.h"
@@ -669,6 +670,45 @@ static BOOL MTAIModelsEntrySupportsChat(id entry) {
         if ([method isKindOfClass:[NSString class]] && [method isEqualToString:@"generateContent"]) return YES;
     }
     return NO;
+}
+
+// Both vendors document a Bearer-authenticated, read-only balance endpoint.
++ (BOOL)supportsBalanceForEngine:(MTAIEngineInfo *)engine {
+    return MTAIBalanceURL([self endpointForEngine:engine]) != nil;
+}
+
++ (void)fetchBalanceForEngine:(MTAIEngineInfo *)engine
+                 completion:(void (^)(NSString *balance, NSError *error))completion {
+    NSURL *url = MTAIBalanceURL([self endpointForEngine:engine]);
+    NSString *key = [self apiKeyForEngine:engine];
+    void (^finish)(NSString *, NSError *) = ^(NSString *balance, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(balance, error); });
+    };
+    if (!url || key.length == 0) {
+        finish(nil, [NSError errorWithDomain:@"MTAIBalance" code:-1
+            userInfo:@{NSLocalizedDescriptionKey: !url ? @"当前服务不支持余额查询" : @"请先填写 API Key"}]);
+        return;
+    }
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    request.timeoutInterval = 15;
+    [request setValue:[@"Bearer " stringByAppendingString:key] forHTTPHeaderField:@"Authorization"];
+    NSURLSession *session = [self ephemeralSession];
+    [[session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+        NSString *balance = nil;
+        if (!error && status >= 200 && status < 300) {
+            id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+            balance = MTAIBalanceDisplay(json, url);
+        }
+        if (!error && !balance) {
+            NSString *message = (status == 401 || status == 403) ? @"API Key 无效或无余额查询权限" :
+                (status == 429 ? @"查询过于频繁，请稍后重试" : @"余额查询失败，请稍后重试");
+            error = [NSError errorWithDomain:@"MTAIBalance" code:status ?: -2
+                                   userInfo:@{NSLocalizedDescriptionKey: message}];
+        }
+        finish(balance, error);
+        [session finishTasksAndInvalidate];
+    }] resume];
 }
 
 + (void)fetchModelsForEngine:(MTAIEngineInfo *)engine

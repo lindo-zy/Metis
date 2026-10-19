@@ -335,6 +335,8 @@ static CGRect MTAIProbeKeyboardFrame(void) {
 @property (nonatomic, strong) UIView *headerView;
 @property (nonatomic, strong) UILabel *titleLabel;
 @property (nonatomic, strong) UIButton *modelButton;
+@property (nonatomic, strong) UIButton *balanceButton;
+@property (nonatomic, assign) NSUInteger balanceRequest;
 @property (nonatomic, strong) UIButton *personaButton;
 @property (nonatomic, strong) UIButton *closeButton;
 @property (nonatomic, strong) UIView *headerDivider;
@@ -383,6 +385,7 @@ static CGRect MTAIProbeKeyboardFrame(void) {
 
 - (void)applySeedText;
 - (void)refreshModelButton;
+- (void)refreshBalance;
 - (void)refreshChip;
 - (void)updateAttachedImage:(UIImage *)image;
 - (void)inputFieldTextChanged;
@@ -460,6 +463,13 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     [self.modelButton setTitleColor:MTAIAccent() forState:UIControlStateNormal];
     [self.modelButton addTarget:self action:@selector(modelTapped) forControlEvents:UIControlEventTouchUpInside];
     [self.headerView addSubview:self.modelButton];
+    self.balanceButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.balanceButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    self.balanceButton.titleLabel.font = [UIFont systemFontOfSize:11];
+    self.balanceButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+    [self.balanceButton setTitleColor:UIColor.secondaryLabelColor forState:UIControlStateNormal];
+    [self.balanceButton addTarget:self action:@selector(refreshBalance) forControlEvents:UIControlEventTouchUpInside];
+    [self.headerView addSubview:self.balanceButton];
 
     self.personaButton = [MTAIChatPanelController circleButtonWithSymbol:@"person.circle" action:@selector(personaTapped) target:self];
     self.closeButton = [MTAIChatPanelController circleButtonWithSymbol:@"xmark" action:@selector(closeTapped) target:self];
@@ -636,7 +646,12 @@ static CGRect MTAIProbeKeyboardFrame(void) {
 
     NSString *modelTitle = self.modelButton.currentTitle ?: @"";
     CGFloat modelWidth = ceil([modelTitle sizeWithAttributes:@{NSFontAttributeName: self.modelButton.titleLabel.font}].width) + 8.0;
-    self.modelButton.frame = CGRectMake(20.0 + titleWidth + 10.0, 0.0, modelWidth, 56.0);
+    CGFloat x = 20.0 + titleWidth + 10.0;
+    CGFloat available = MAX(0, rightEdge - x);
+    BOOL showsBalance = !self.balanceButton.hidden;
+    self.modelButton.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    self.modelButton.frame = CGRectMake(x, 0, MIN(modelWidth, available), showsBalance ? 34 : 56);
+    self.balanceButton.frame = CGRectMake(x, 32, available, 20);
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
@@ -739,7 +754,31 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     MTAIEngineInfo *engine = [self currentEngine];
     NSString *model = [MTAIEngine selectedModelForEngine:engine];
     [self.modelButton setTitle:[NSString stringWithFormat:@"%@  ▾", model ?: @""] forState:UIControlStateNormal];
+    [self refreshBalance];
     [self.view setNeedsLayout];
+}
+
+- (void)refreshBalance {
+    NSUInteger request = ++self.balanceRequest;
+    MTAIEngineInfo *engine = [self currentEngine];
+    self.balanceButton.hidden = ![MTAIEngine supportsBalanceForEngine:engine];
+    [self.view setNeedsLayout];
+    if (self.balanceButton.hidden) return;
+    NSString *key = [MTAIEngine apiKeyForEngine:engine], *endpoint = [MTAIEngine endpointForEngine:engine];
+    [self.balanceButton setTitle:MTAILocalized(@"AI_BALANCE_LOADING") forState:UIControlStateNormal];
+    self.balanceButton.accessibilityLabel = MTAILocalized(@"AI_BALANCE_LOADING");
+    __weak typeof(self) weakSelf = self;
+    [MTAIEngine fetchBalanceForEngine:engine completion:^(NSString *balance, NSError *error) {
+        __strong typeof(weakSelf) owner = weakSelf;
+        if (!owner || owner.balanceRequest != request ||
+            ![[owner currentEngine].identifier isEqual:engine.identifier] ||
+            ![[MTAIEngine apiKeyForEngine:[owner currentEngine]] isEqual:key] ||
+            ![[MTAIEngine endpointForEngine:[owner currentEngine]] isEqual:endpoint]) return;
+        NSString *title = balance ? [NSString stringWithFormat:@"%@: %@", MTAILocalized(@"AI_BALANCE"), balance] : MTAILocalized(@"AI_BALANCE_FAILED");
+        [owner.balanceButton setTitle:title forState:UIControlStateNormal];
+        owner.balanceButton.accessibilityLabel = balance ? title : error.localizedDescription;
+        owner.balanceButton.accessibilityHint = MTAILocalized(@"AI_BALANCE_REFRESH");
+    }];
 }
 
 - (void)updatePlaceholder {
@@ -1136,6 +1175,7 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     assistant.streaming = NO;
     self.streaming = NO;
     self.currentRequest = nil;
+    [self refreshBalance];
     if (error && error.code != NSURLErrorCancelled) {
         assistant.isError = YES;
         assistant.text = error.localizedDescription.length > 0 ? error.localizedDescription

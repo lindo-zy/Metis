@@ -976,7 +976,9 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         (self.keyboardVisible && !self.systemPanelOpen) || self.dragging || self.launcherDragging ||
         self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
     self.launchPending = YES; self.quickView.launching = YES;
-    NSUInteger generation = self.panelGeneration, request = ++self.launchRequest;
+    NSUInteger request = ++self.launchRequest;
+    // Release the panel before dispatch, including cold launches and failures.
+    [self dismissPanelAndTuck:NO];
     __weak typeof(self) weakSelf = self;
     MTOpenFloatingApplication(identifier, ^(MTSystemOpenResult result) {
         MTKbdCollapseHandle *host = weakSelf;
@@ -984,9 +986,7 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         host.launchPending = NO; host.quickView.launching = NO;
         if (result == MTSystemOpenSucceeded) [host recordQuickSuccess:identifier];
         NSLog(@"[MetisKeyboard][Launcher] open completed request=%lu result=%llu", (unsigned long)request, (unsigned long long)result);
-        if (!host.panelOpen || host.panelGeneration != generation || host.window.hidden) return;
-        if (result == MTSystemOpenSucceeded) [host dismissPanelAndTuck:YES];
-        else [host.quickView showOpenFailure];
+        // Completion must never close or reopen a subsequently presented panel.
     });
 }
 
