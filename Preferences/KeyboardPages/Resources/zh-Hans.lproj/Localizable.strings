@@ -653,3 +653,15 @@
 "AI_BALANCE_LOADING" = "正在查询余额…";
 "AI_BALANCE_REFRESH" = "点击刷新余额";
 "AI_BALANCE_FAILED" = "余额查询失败 · 点击重试";
+
+// 屏幕角落手势
+"CORNER_GESTURE_SETTINGS" = "屏幕角落手势";
+"CORNER_GESTURE_FOOTER" = "在屏幕左下角 / 右下角的扇形区域内上滑触发动作。滑杆可调整扇形半径与张角，顶部示意图实时用颜色标出生效范围；手势只能选择手势面板或无需键盘的自定义动作。";
+"CORNER_ENABLE" = "启用上滑";
+"CORNER_ACTION" = "触发动作";
+"CORNER_ACTION_NONE" = "不执行动作";
+"CORNER_BOTTOMLEFT" = "左下角";
+"CORNER_BOTTOMRIGHT" = "右下角";
+"CORNER_RADIUS" = "扇形半径";
+"CORNER_ANGLE" = "扇形张角";
+"CORNER_UNASSIGNED" = "未设置";

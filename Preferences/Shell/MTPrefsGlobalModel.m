@@ -45,6 +45,13 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     statusBar.subBundle = @"MetisKeyboardPrefs";
     statusBar.className = @"MTPStatusBarGestureController";
 
+    MTSettingsRow *corner = [MTSettingsRow linkRowWithIdentifier:@"global-corner-gesture" title:@"屏幕角落手势"];
+    corner.iconName = @"arrow.up.forward.square";
+    corner.colorName = @"orange";
+    corner.routeKind = MTSettingsRouteSubbundle;
+    corner.subBundle = @"MetisKeyboardPrefs";
+    corner.className = @"MTPCornerGestureController";
+
     MTSettingsRow *floatingApp = [MTSettingsRow linkRowWithIdentifier:@"global-floating-app" title:@"悬浮应用"];
     floatingApp.iconName = @"macwindow.on.rectangle";
     floatingApp.colorName = @"blue";
