@@ -1326,7 +1326,9 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
 }
 
 - (void)mtDoneTapped:(UIButton *)sender {
-    [self mtFinishWithAction:MTOutputActionPreviewOnly];
+    // 完成键统一为「复制图片」：区域截图链路原先经 PreviewOnly 翻换成默认动作，
+    // 独立宿主（设置页/系统动作入口）不认 PreviewOnly 会导致点击无反应（0.4.6 修复）。
+    [self mtFinishWithAction:MTOutputActionCopy];
 }
 
 - (void)mtFinishWithAction:(MTOutputAction)action {

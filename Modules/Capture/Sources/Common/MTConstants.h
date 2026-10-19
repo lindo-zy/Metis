@@ -20,6 +20,7 @@ FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureInstant;     // com.lindo.met
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureMarkup;      // com.lindo.metis.capture/markup
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureLong;        // com.lindo.metis.capture/long（全屏自动滚动，可切换手动）
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureCancel;      // com.lindo.metis.capture/cancel
+FOUNDATION_EXPORT CFStringRef const MTDarwinEditClipboard;     // com.lindo.metis.capture/edit-clipboard（编辑剪贴板图片，不抓屏）
 FOUNDATION_EXPORT CFStringRef const MTDarwinPreferencesReload;  // com.lindo.metis.capture/preferences/reload
 
 // MARK: - Snapper3 兼容别名（外部按 Snapper3 公开通知约定发信号即可触发 MetisCapture）

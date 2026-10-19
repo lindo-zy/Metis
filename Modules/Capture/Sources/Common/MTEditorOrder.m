@@ -123,7 +123,7 @@
                   @"front": @"置顶",
                   @"dock": @"面板停靠",
                   @"collapse": @"收起面板",
-                  @"done": @"完成"};
+                  @"done": @"完成并复制"};
     });
     return names;
 }

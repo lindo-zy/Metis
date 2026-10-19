@@ -106,6 +106,11 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         [self cancelActiveTask];
         return;
     }
+    // 图片编辑：不抓屏，直接编辑剪贴板图片（与框选链路共用编辑器与任务槽）。
+    if ([name isEqualToString:(__bridge NSString *)MTDarwinEditClipboard]) {
+        [self mtEditPasteboardImage];
+        return;
+    }
 
     MTCaptureMode mode = -1;
     if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFull]) mode = MTCaptureModeFull;
@@ -821,6 +826,54 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureLogWarn(@"re-edit ignored: another task is busy");
         return;
     }
+    task.isReedit = YES;
+    [self mtBeginEditorForAcquiredTask:task image:image];
+}
+
+/// 图片编辑入口（系统动作「图片编辑」经 Darwin 通知到达）：编辑剪贴板里的图片，不抓屏。
+/// 与 openEditorWithImage: 同为 isReedit 任务路径——取消即结束任务、不回写输出动作；
+/// 完成键按编辑器语义输出（0.4.6 起为复制图片）。剪贴板无图/任务槽占用时以气泡反馈，
+/// 不静默丢弃。区域模式使编辑器沿用区域图片卡片布局，与设置页独立入口一致。
+- (void)mtEditPasteboardImage {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self mtEditPasteboardImage]; });
+        return;
+    }
+    MTConfig *config = MTCapturePreferences.config;
+    if (!config.enabled) {
+        MTCaptureLogInfo(@"pasteboard edit ignored: master switch off");
+        return;
+    }
+    UIImage *image = nil;
+    // hasImages 检测不触发 iOS 16+ 读取授权弹窗；无图时明确反馈，不静默。
+    if (UIPasteboard.generalPasteboard.hasImages) {
+        UIImage *candidate = UIPasteboard.generalPasteboard.image;
+        if ([candidate isKindOfClass:UIImage.class] &&
+            candidate.size.width > 0.0 && candidate.size.height > 0.0) {
+            image = candidate;
+        }
+    }
+    if (!image) {
+        MTCaptureLogInfo(@"pasteboard edit rejected: no image on pasteboard");
+        self.resultBubble = [MTResultBubble presentWithImage:nil
+                                                     message:@"剪贴板没有图片"
+                                                        task:nil
+                                                   succeeded:NO
+                                                    delegate:self];
+        return;
+    }
+    MTCaptureTask *task = [self mtAcquireTaskForMode:MTCaptureModeArea config:config];
+    if (!task) {
+        MTCaptureLogWarn(@"pasteboard edit rejected: another task is busy");
+        self.resultBubble = [MTResultBubble presentWithImage:nil
+                                                     message:@"当前有任务进行中，请稍后重试"
+                                                        task:nil
+                                                   succeeded:NO
+                                                    delegate:self];
+        return;
+    }
+    MTCaptureLogInfo(@"pasteboard edit accepted (%.0fx%.0f pt, task %@)",
+              image.size.width, image.size.height, task.taskID);
     task.isReedit = YES;
     [self mtBeginEditorForAcquiredTask:task image:image];
 }

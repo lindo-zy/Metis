@@ -425,6 +425,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_CAPTURE_AREA" = "Area Capture";
 "SYSTEM_CAPTURE_MARKUP" = "Full-Screen Markup";
 "SYSTEM_CAPTURE_LONG" = "Scrolling Capture";
+"SYSTEM_IMAGE_EDIT" = "Edit Image";
 "SYSTEM_DEVICE_FOOTER" = "Respring restarts the interface service; Respring (SB) exits SpringBoard. Safe mode requires jailbreak support and userspace reboot requires system permission. Exit and power actions require confirmation.";
 "SYSTEM_ACTION_CONFIRM" = "This action interrupts the current session. Continue?";
 "SYSTEM_ACTION_UNAVAILABLE" = "No supported system interface is available";

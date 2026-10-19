@@ -65,6 +65,7 @@ static CFNotificationCenterRef MTDistributedCenter(void) {
                 MTDarwinCaptureMarkup,
                 MTDarwinCaptureLong,
                 MTDarwinCaptureCancel,
+                MTDarwinEditClipboard,
                 MTDarwinPreferencesReload,
                 // Snapper3 兼容别名：第三方按 Snapper3 公开约定发通知即可驱动 MetisCapture。
                 MTDarwinSnapperForceOpen,

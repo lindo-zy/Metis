@@ -14,6 +14,7 @@ CFStringRef const MTDarwinCaptureInstant = CFSTR("com.lindo.metis.capture/instan
 CFStringRef const MTDarwinCaptureMarkup = CFSTR("com.lindo.metis.capture/markup");
 CFStringRef const MTDarwinCaptureLong = CFSTR("com.lindo.metis.capture/long");
 CFStringRef const MTDarwinCaptureCancel = CFSTR("com.lindo.metis.capture/cancel");
+CFStringRef const MTDarwinEditClipboard = CFSTR("com.lindo.metis.capture/edit-clipboard");
 CFStringRef const MTDarwinPreferencesReload = CFSTR("com.lindo.metis.capture/preferences/reload");
 
 CFStringRef const MTDarwinSnapperForceOpen = CFSTR("com.jontelang.snapper3.force.open");

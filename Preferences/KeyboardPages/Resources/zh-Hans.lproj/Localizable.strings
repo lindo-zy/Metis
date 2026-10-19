@@ -424,6 +424,7 @@
 "SYSTEM_CAPTURE_AREA" = "区域截图";
 "SYSTEM_CAPTURE_MARKUP" = "全屏标记";
 "SYSTEM_CAPTURE_LONG" = "滚动截图";
+"SYSTEM_IMAGE_EDIT" = "图片编辑";
 "SYSTEM_DEVICE_FOOTER" = "注销会重启界面服务，注销（SB）仅退出 SpringBoard。安全模式依赖越狱环境，重启用户空间需要系统权限。注销、安全模式、关机和重启执行前需要确认。";
 "SYSTEM_ACTION_CONFIRM" = "此操作会中断当前会话。确定继续？";
 "SYSTEM_ACTION_UNAVAILABLE" = "当前系统没有可用的动作接口";

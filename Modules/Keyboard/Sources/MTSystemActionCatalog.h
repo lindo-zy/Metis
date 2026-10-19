@@ -39,7 +39,9 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"pixpin-full", @"SYSTEM_CAPTURE_FULL", @"camera.viewfinder", @"pixpin", @"com.lindo.metis.capture/full"],
             @[@"pixpin-area", @"SYSTEM_CAPTURE_AREA", @"crop", @"pixpin", @"com.lindo.metis.capture/area"],
             @[@"pixpin-markup", @"SYSTEM_CAPTURE_MARKUP", @"pencil.tip.crop.circle", @"pixpin", @"com.lindo.metis.capture/markup"],
-            @[@"pixpin-long", @"SYSTEM_CAPTURE_LONG", @"rectangle.expand.vertical", @"pixpin", @"com.lindo.metis.capture/long"]
+            @[@"pixpin-long", @"SYSTEM_CAPTURE_LONG", @"rectangle.expand.vertical", @"pixpin", @"com.lindo.metis.capture/long"],
+            // 图片编辑：编辑剪贴板图片，不抓屏；同样需要 MetisCapture 注入，随 pixpin 组一起显隐。
+            @[@"image-edit", @"SYSTEM_IMAGE_EDIT", @"square.and.pencil", @"pixpin", @"com.lindo.metis.capture/edit-clipboard"]
         ];
         NSSet *destructive = [NSSet setWithArray:@[@"respring", @"respring-sb", @"safe-mode", @"shutdown", @"reboot", @"userspace-reboot"]];
         for (NSArray *row in rows) {
