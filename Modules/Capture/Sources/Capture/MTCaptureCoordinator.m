@@ -1,3 +1,4 @@
+#import <objc/message.h>
 #import "MTCaptureCoordinator.h"
 #import "MTCaptureTask.h"
 #import "MTCaptureProvider.h"
@@ -23,6 +24,25 @@ static const CGFloat MTSelectionMinimumSize = 44.0;
 // 兼容别名同名，Darwin 中心会把自发通知也投递回本进程，外调前按名武装一次，
 // 回环到达时吞掉，否则画板会双开（MetisCapture 一块、SHELLX 一块）。
 static NSString *_Nullable mtDarwinSelfPostArmedName = nil;
+
+/// 编辑器呈现前收起系统键盘：宿主键盘仍激活时会与 SB 端编辑器窗口竞争触摸路由，
+/// 窗口虽可见（windowLevel 高）却收不到触摸——0.4.6 图片编辑实测「只能打开无法
+/// 编辑」的根因。与 AI 面板「先收键盘再投递」同序（MTCollectionView 既有约定）。
+/// 截图流程进入编辑器时键盘通常已收起，本调用为空操作无害；第三方键盘扩展进程
+/// 内无 UIKeyboardImpl，同样安全跳过。
+static void MTDismissActiveKeyboardForEditor(void) {
+    if (!NSThread.isMainThread) return;
+    Class keyboardClass = NSClassFromString(@"UIKeyboardImpl");
+    if (![keyboardClass respondsToSelector:@selector(activeInstance)]) return;
+    @try {
+        id keyboard = ((id (*)(id, SEL))objc_msgSend)(keyboardClass, @selector(activeInstance));
+        if (keyboard && [keyboard respondsToSelector:@selector(dismissKeyboard)]) {
+            ((void (*)(id, SEL))objc_msgSend)(keyboard, @selector(dismissKeyboard));
+        }
+    } @catch (NSException *exception) {
+        MTCaptureLogWarn(@"editor keyboard dismiss failed: %@", exception.reason);
+    }
+}
 
 @interface MTCaptureCoordinator () <MTSelectionViewDelegate, MTResultBubbleDelegate,
                                     MTFloatingSnapDelegate,
@@ -793,6 +813,10 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureLogWarn(@"cannot enter editing in state %@", MTStringFromCaptureState(task.state));
         return;
     }
+
+    // 先收键盘再建窗口：直达编辑器（图片编辑等）无中间交互替我们收起键盘，
+    // 宿主键盘若仍激活会与编辑器窗口竞争触摸路由（0.4.7 修复）。
+    MTDismissActiveKeyboardForEditor();
 
     // 取消编辑时恢复到进入编辑器前的结果（不是 baseImage 整屏快照）。
     self.preEditImage = task.resultImage;
