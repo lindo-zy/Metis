@@ -132,6 +132,11 @@
 #define kKbdLauncherOrderKey @"kbdlauncherorder"
 #define kKbdLauncherAliasesKey @"kbdlauncheraliases"
 #define kKbdLauncherUsageKey @"kbdlauncherusage"
+// 速启面板拖动摆放：面板中心相对可用区的归一化坐标（0~1）+「已摆放」标记。
+// 未摆放（或缺省/非法值）时回到 kbdlauncherside 决定的贴边底对齐默认位。
+#define kKbdLauncherPlacedKey @"kbdlauncherplacedBOOL"
+#define kKbdLauncherOriginXKey @"kbdlauncheroriginx"
+#define kKbdLauncherOriginYKey @"kbdlauncheroriginy"
 // 最近悬浮列表容量：速启面板常用应用空位的补足来源，超出按最近优先保留。
 #define kKbdCollapsePanelCapacity 6
 // 顶部工具栏固定按"每行个数"换行，第一行紧贴键盘、第二行向上堆叠。
@@ -332,6 +337,24 @@ static inline double MTKbdLauncherScaleFromPreferences(NSDictionary *preferences
     double scale = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : kKbdLauncherScaleDefault;
     if (!isfinite(scale)) scale = kKbdLauncherScaleDefault;
     return MIN(MAX(scale, kKbdLauncherScaleMinimum), kKbdLauncherScaleMaximum);
+}
+
+// 速启面板是否已被拖动摆放：只有显式记录过的才走自由坐标，避免误触把面板
+// 从默认贴边位挪走。非法值一律回退「未摆放」。
+static inline BOOL MTKbdLauncherPlacedFromPreferences(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherPlacedKey] : nil;
+    return [value respondsToSelector:@selector(boolValue)] && [value boolValue];
+}
+
+// 速启面板归一化中心点：非法/缺省一律回退可用区中心（0.5, 0.5），永不外溢。
+static inline CGPoint MTKbdLauncherOriginFromPreferences(NSDictionary *preferences) {
+    id rawX = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherOriginXKey] : nil;
+    id rawY = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherOriginYKey] : nil;
+    double x = [rawX respondsToSelector:@selector(doubleValue)] ? [rawX doubleValue] : 0.5;
+    double y = [rawY respondsToSelector:@selector(doubleValue)] ? [rawY doubleValue] : 0.5;
+    if (!isfinite(x)) x = 0.5;
+    if (!isfinite(y)) y = 0.5;
+    return CGPointMake(MIN(MAX(x, 0.0), 1.0), MIN(MAX(y, 0.0), 1.0));
 }
 
 // 把手自动隐藏时长（秒）：非法/缺省一律回退 3 秒并夹回 0.5~10，永不外溢。

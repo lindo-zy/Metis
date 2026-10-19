@@ -621,7 +621,9 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_TITLE" = "Quick Panel";
 "QUICK_SIDE" = "Quick Launcher Side";
 "QUICK_SIZE" = "Panel Size";
-"QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–100%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Requires the handle to be enabled.";
+"QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–100%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Drag the grabber at the top of the panel to place it anywhere; it reopens where you left it. Double-tap the grabber or use Restore Default Position below to snap back. Requires the handle to be enabled.";
+"QUICK_RESET" = "Restore Default Position";
+"QUICK_MOVE" = "Drag to move, double-tap to reset";
 "QUICK_MANAGE" = "Favorites Order & Search Aliases";
 "QUICK_MANAGE_FOOTER" = "Drag to reorder left to right, top to bottom. Put frequent apps on the right for right-hand use. Swipe for more than six. Tap to edit aliases; + adds apps. Empty slots use recent floating apps.";
 "QUICK_ALIAS_ONLY" = "Other App Aliases";

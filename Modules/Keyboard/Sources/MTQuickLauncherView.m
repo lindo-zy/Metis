@@ -78,9 +78,17 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
 }
 @end
 
-@interface MTQuickLauncherView () <UICollectionViewDataSource, UICollectionViewDelegate>
+// 标题条顶部可拖区域高度（面板基准坐标系）：拖动只在这一条内起手，避开右侧
+// 44pt 关闭按钮，也不与收藏页横向分页、九键按钮抢事件。
+static CGFloat const MTQuickLauncherGrabberZoneHeight = 44.0;
+static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
+
+@interface MTQuickLauncherView () <UICollectionViewDataSource, UICollectionViewDelegate, UIGestureRecognizerDelegate>
 @property(nonatomic, strong) UIVisualEffectView *material;
 @property(nonatomic, strong) UIView *panelContent;
+@property(nonatomic, strong) UIView *grabber;
+@property(nonatomic, strong) UIPanGestureRecognizer *dragPan;
+@property(nonatomic) BOOL dragging;
 @property(nonatomic, strong) UILabel *titleLabel;
 @property(nonatomic, strong) UIButton *closeButton;
 @property(nonatomic, strong) UIButton *clearButton;
@@ -117,6 +125,19 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
         self.material = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark]];
         self.material.userInteractionEnabled = NO; [self addSubview:self.material];
         self.panelContent = [UIView new]; [self addSubview:self.panelContent];
+        self.grabber = [UIView new];
+        self.grabber.backgroundColor = [[UIColor whiteColor] colorWithAlphaComponent:0.38];
+        self.grabber.layer.cornerRadius = 2; self.grabber.userInteractionEnabled = YES;
+        self.grabber.isAccessibilityElement = YES;
+        self.grabber.accessibilityLabel = MTQL(@"QUICK_MOVE");
+        self.grabber.accessibilityTraits = UIAccessibilityTraitButton;
+        [self.panelContent addSubview:self.grabber];
+        self.dragPan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragPanned:)];
+        self.dragPan.maximumNumberOfTouches = 1; self.dragPan.delegate = self;
+        [self addGestureRecognizer:self.dragPan];
+        UITapGestureRecognizer *resetTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(resetTapped:)];
+        resetTap.numberOfTapsRequired = 2;
+        [self.grabber addGestureRecognizer:resetTap];
         self.titleLabel = [UILabel new]; self.titleLabel.text = MTQL(@"QUICK_TITLE");
         self.titleLabel.font = [UIFont boldSystemFontOfSize:17]; self.titleLabel.textColor = UIColor.whiteColor;
         [self.panelContent addSubview:self.titleLabel];
@@ -173,6 +194,8 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
 }
 - (void)endSession {
     self.active = NO; self.session++; self.generation++; self.launching = NO;
+    // 会话结束视为拖动被打断：宿主可能已先取消，这里只兜底清掉本地追踪态。
+    if (self.dragging) { self.dragging = NO; self.dragPan.enabled = NO; self.dragPan.enabled = YES; }
     self.query = @""; self.results = @[];
     [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData];
 }
@@ -181,6 +204,41 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
     UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, self.statusLabel.text);
 }
 - (void)closeTapped { if (self.closeHandler) self.closeHandler(); }
+- (void)resetTapped:(UITapGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateEnded || !self.active || self.launching) return;
+    if (self.resetHandler) self.resetHandler();
+}
+// 落点限定在标题条内且避开关闭按钮：其余区域照旧归收藏页分页与九键按钮。
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture {
+    if (gesture != self.dragPan) return YES;
+    if (!self.active || self.launching) return NO;
+    CGPoint point = [gesture locationInView:self.panelContent];
+    CGSize base = self.panelContent.bounds.size;
+    return point.y >= 0 && point.y <= MTQuickLauncherGrabberZoneHeight &&
+        point.x >= 0 && point.x <= base.width - MTQuickLauncherGrabberZoneTrailing;
+}
+- (void)emitDrag:(MTQuickLauncherDragPhase)phase translation:(CGPoint)translation {
+    if (self.dragHandler) self.dragHandler(phase, translation);
+}
+- (void)dragPanned:(UIPanGestureRecognizer *)gesture {
+    if (!self.dragHandler) return;
+    UIView *reference = self.superview ?: self;
+    CGPoint translation = [gesture translationInView:reference];
+    [gesture setTranslation:CGPointZero inView:reference];
+    if (gesture.state == UIGestureRecognizerStateBegan) { self.dragging = YES; [self emitDrag:MTQuickLauncherDragBegan translation:CGPointZero]; return; }
+    if (!self.dragging) return;
+    if (gesture.state == UIGestureRecognizerStateChanged) { [self emitDrag:MTQuickLauncherDragChanged translation:translation]; return; }
+    self.dragging = NO;
+    if (gesture.state == UIGestureRecognizerStateEnded) [self emitDrag:MTQuickLauncherDragEnded translation:translation];
+    else [self emitDrag:MTQuickLauncherDragCancelled translation:CGPointZero];
+}
+- (void)cancelDrag {
+    if (!self.dragging) return;
+    self.dragging = NO;
+    // 断开并重建手势状态，避免被系统打断的拖动继续追踪后续触摸。
+    self.dragPan.enabled = NO; self.dragPan.enabled = YES;
+    if (self.dragHandler) self.dragHandler(MTQuickLauncherDragCancelled, CGPointZero);
+}
 - (void)clearQuery { if (!self.active || self.launching) return; self.query = @""; [self updateResults]; }
 // 清空键的专用 tag：keyTapped 按 tag 分流，不依赖随本地化变化的标题文本。
 static NSUInteger const MTQuickLauncherKeyTagClear = 100;
@@ -297,6 +355,8 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     self.layer.cornerRadius = 24 * scale;
     CGFloat width = base.width, height = base.height;
     CGFloat contentWidth = wide ? floor(width * 0.47) - 20 : width - 24;
+    // grabber 居中于「标题起点 ~ 关闭按钮起点」之间，不与标题文字重叠。
+    self.grabber.frame = CGRectMake((width - 36) / 2 - 22, 6, 44, 4);
     self.titleLabel.frame = CGRectMake(12, 8, contentWidth - 44, 28);
     self.closeButton.frame = CGRectMake(width - 48, 0, 44, 44);
     self.queryBackground.frame = CGRectMake(12, 44, contentWidth, 36);

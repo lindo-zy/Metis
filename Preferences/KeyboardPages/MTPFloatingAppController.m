@@ -85,12 +85,16 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [launcherScale setProperty:@(kKbdLauncherScaleMinimum) forKey:@"min"];
     [launcherScale setProperty:@(kKbdLauncherScaleMaximum) forKey:@"max"];
     [launcherScale setProperty:@5 forKey:@"step"];
+    // 拖动摆放后的复位入口：清掉归一化摆放位，回到 kbdlauncherside 的贴边底对齐。
+    PSSpecifier *launcherReset = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_RESET") target:self
+        set:nil get:nil detail:nil cell:PSButtonCell edit:nil];
+    launcherReset->action = @selector(resetLauncherPosition:);
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
     _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
         handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds,
-        quickGroup, launcherSide, launcherScale, manage] mutableCopy];
+        quickGroup, launcherSide, launcherScale, launcherReset, manage] mutableCopy];
     return _specifiers;
 }
 
@@ -107,6 +111,12 @@ static NSString *MTFloatingLocalized(NSString *key) {
     Class cellClass = [[self specifierAtIndexPath:path] propertyForKey:@"cellClass"];
     if (cellClass == MTPPanelSliderCell.class || cellClass == MTPPanelSegmentCell.class) return 80;
     return [super tableView:table heightForRowAtIndexPath:path];
+}
+// 只写摆放标记与坐标；SpringBoard 侧收到 prefschanged 后按「未摆放」重排。
+- (void)resetLauncherPosition:(__unused PSSpecifier *)specifier {
+    [MTPrefsManager.sharedInstance setValue:@NO forKey:kKbdLauncherPlacedKey];
+    [MTPrefsManager.sharedInstance setValue:@0.5 forKey:kKbdLauncherOriginXKey];
+    [MTPrefsManager.sharedInstance setValue:@0.5 forKey:kKbdLauncherOriginYKey];
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
     if (![value isKindOfClass:NSNumber.class]) return;

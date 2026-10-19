@@ -11,6 +11,7 @@
 #import "MTKbdCollapseHandle.h"
 #import "MTKbdHandleLayout.h"
 #import "MTQuickLauncherView.h"
+#import "MTQuickLauncherLayout.h"
 #import "MTDarwinOpenChannel.h"
 #import "MTSystemOpenBroker.h"
 #import "MTGlobalPanel.h"
@@ -150,6 +151,15 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 @property(nonatomic, copy) NSDictionary *launcherPreferences;
 @property(nonatomic) NSInteger launcherSide;
 @property(nonatomic) double launcherScale;
+// 速启面板拖动摆放：已摆放标记 + 归一化中心点（0~1）；拖动中为绝对中心点。
+@property(nonatomic) BOOL launcherPlaced;
+@property(nonatomic) CGPoint launcherCenter;
+@property(nonatomic) BOOL launcherDragging;
+@property(nonatomic) CGPoint launcherDragCenter;
+@property(nonatomic) CGPoint launcherDragStartCenter;
+@property(nonatomic) CGPoint launcherDragBaseCenter;
+@property(nonatomic) BOOL launcherDragStartPlaced;
+@property(nonatomic) BOOL launcherSideApplied;
 @property(nonatomic) CGRect lastLayoutBounds;
 @property(nonatomic, strong) UIView *handleView;
 @property(nonatomic, strong) UIVisualEffectView *handleMaterial;
@@ -191,6 +201,10 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 - (void)layoutForBounds:(CGRect)bounds;
 - (void)cancelHandleDrag;
 - (void)saveHandlePlacement;
+- (void)applyLauncherDragPhase:(MTQuickLauncherDragPhase)phase translation:(CGPoint)translation;
+- (void)cancelLauncherDrag;
+- (void)resetLauncherPlacement;
+- (void)saveLauncherPlacement:(BOOL)placed;
 - (void)armAutoHideTimer;
 - (void)cancelAutoHideTimer;
 - (void)autoHideTimerFired:(NSTimer *)timer;
@@ -356,8 +370,21 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     id autoHide = preferences[kKbdHandleAutoHideKey];
     self.autoHideEnabled = [autoHide isKindOfClass:[NSNumber class]] && [autoHide boolValue];
     self.autoHideInterval = MTKbdHandleAutoHideSecondsFromPreferences(preferences);
-    self.launcherSide = MTKbdLauncherSideFromPreferences(preferences);
     self.launcherScale = MTKbdLauncherScaleFromPreferences(preferences);
+    // 拖动中不接受外部配置覆盖，避免面板在手指下跳走。
+    if (!self.launcherDragging) {
+        self.launcherPlaced = MTKbdLauncherPlacedFromPreferences(preferences);
+        self.launcherCenter = MTKbdLauncherOriginFromPreferences(preferences);
+    }
+    NSInteger side = MTKbdLauncherSideFromPreferences(preferences);
+    // 设置里改了停靠侧：拖动摆放位作废回到默认贴边位，否则该项成了死选项。
+    if (self.launcherSideApplied && side != self.launcherSide && self.launcherPlaced && !self.launcherDragging) {
+        self.launcherPlaced = NO;
+        self.launcherCenter = CGPointMake(0.5, 0.5);
+        [self saveLauncherPlacement:NO];
+    }
+    self.launcherSide = side;
+    self.launcherSideApplied = YES;
     // 面板数据源或停靠侧变化时收起旧会话，下次点按按新配置重开。
     BOOL launcherChanged = NO;
     for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdLauncherSideKey]) {
@@ -537,12 +564,25 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         UIEdgeInsetsMake(MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset, MTKbdHandleIconInset));
 
     if (self.quickView) {
-        // 停靠侧独立于把手停靠位（kbdlauncherside，默认靠右紧贴右缘）。
-        CGRect quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide, self.launcherScale);
-        // 面板与把手同侧重叠时缩宽避让，保证把手仍可点按。
-        if (self.panelOpen && !self.handleView.hidden && CGRectIntersectsRect(quickFrame, handleFrame)) {
-            quickFrame.size.width = MAX(0, quickFrame.size.width - MTKbdHandleSide - 6);
-            if (self.launcherSide == 0) quickFrame.origin.x += MTKbdHandleSide + 6;
+        CGRect quickFrame;
+        // 拖动中即使尚未标记「已摆放」也要跟手，落盘后按摆放位还原。
+        if (self.launcherPlaced || self.launcherDragging) {
+            // 拖动摆放位：以归一化中心点定位，落点夹在安全区内的可用区里。
+            // 摆放态不做「与把手重叠时缩宽」避让——用户自选位置优先，把手层级
+            // 仍在面板之上，照旧可点按。
+            CGRect available = MTQuickLauncherAvailableRect(bounds, safe.top, safe.left, safe.bottom, safe.right);
+            CGSize size = MTQuickLauncherDisplayedSize(bounds, available, self.launcherScale);
+            CGPoint normalized = self.launcherDragging
+                ? MTQuickLauncherNormalizedCenter(available, size, self.launcherDragCenter) : self.launcherCenter;
+            quickFrame = MTQuickLauncherPlacedFrame(available, size, normalized);
+        } else {
+            // 停靠侧独立于把手停靠位（kbdlauncherside，默认靠右紧贴右缘）。
+            quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide, self.launcherScale);
+            // 面板与把手同侧重叠时缩宽避让，保证把手仍可点按。
+            if (self.panelOpen && !self.handleView.hidden && CGRectIntersectsRect(quickFrame, handleFrame)) {
+                quickFrame.size.width = MAX(0, quickFrame.size.width - MTKbdHandleSide - 6);
+                if (self.launcherSide == 0) quickFrame.origin.x += MTKbdHandleSide + 6;
+            }
         }
         self.quickView.frame = quickFrame;
     }
@@ -600,6 +640,93 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
     updated[kKbdHandlePositionKey] = @(self.alignment);
     updated[kKbdHandleAnchorKey] = @(MTKbdHandleClamp(self.anchorFraction, 0, 1));
     updated[kKbdHandleNubbedKey] = @(self.nubbed);
+    [manager writePrefs:updated];
+}
+
+#pragma mark 面板拖动摆放
+
+// 面板几何只由 layoutForBounds 写入；拖动期间由 dragCenter 驱动，落指后归一化落盘。
+- (void)applyLauncherDragPhase:(MTQuickLauncherDragPhase)phase translation:(CGPoint)translation {
+    if (!NSThread.isMainThread) {
+        MTQuickLauncherDragPhase captured = phase;
+        dispatch_async(dispatch_get_main_queue(), ^{ [self applyLauncherDragPhase:captured translation:translation]; });
+        return;
+    }
+    if (phase == MTQuickLauncherDragBegan) {
+        if (!self.window || self.window.hidden || !self.panelOpen || !self.quickView) { [self cancelLauncherDrag]; return; }
+        [self cancelAutoHideTimer];
+        self.launcherDragStartPlaced = self.launcherPlaced;
+        self.launcherDragStartCenter = self.launcherCenter;
+        self.launcherDragCenter = CGPointMake(CGRectGetMidX(self.quickView.frame), CGRectGetMidY(self.quickView.frame));
+        self.launcherDragBaseCenter = self.launcherDragCenter;
+        self.launcherDragging = YES;
+        return;
+    }
+    if (!self.launcherDragging) return;
+    if (phase == MTQuickLauncherDragCancelled || !isfinite(translation.x) || !isfinite(translation.y)) {
+        [self cancelLauncherDrag]; return;
+    }
+    self.launcherDragCenter = CGPointMake(self.launcherDragCenter.x + translation.x,
+                                          self.launcherDragCenter.y + translation.y);
+    if (phase == MTQuickLauncherDragChanged) { [self layoutForBounds:self.window.bounds]; return; }
+    // 双击复位等原地微动不应把面板标记为「已摆放」，未越过阈值按取消回滚。
+    CGFloat movedX = self.launcherDragCenter.x - self.launcherDragBaseCenter.x;
+    CGFloat movedY = self.launcherDragCenter.y - self.launcherDragBaseCenter.y;
+    if (!(hypot(movedX, movedY) >= 4.0)) { [self cancelLauncherDrag]; return; }
+    // 落指：先归一化落盘，再动画贴回夹取后的最终位置。
+    self.launcherDragging = NO;
+    [self saveLauncherPlacement:YES];
+    [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
+        animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
+    [self armAutoHideTimer];
+    NSLog(@"[MetisKeyboard][Launcher] panel placed at %.2f,%.2f", self.launcherCenter.x, self.launcherCenter.y);
+}
+
+// 打断拖动（锁屏、键盘弹出、面板关闭）：回滚到起手位置，不写回半途坐标。
+- (void)cancelLauncherDrag {
+    [self.quickView cancelDrag];
+    if (!self.launcherDragging) return;
+    self.launcherDragging = NO;
+    self.launcherPlaced = self.launcherDragStartPlaced;
+    self.launcherCenter = self.launcherDragStartCenter;
+    if (self.window && !self.window.hidden && self.panelOpen) [self layoutForBounds:self.window.bounds];
+    [self armAutoHideTimer];
+}
+
+- (void)resetLauncherPlacement {
+    if (!NSThread.isMainThread) { dispatch_async(dispatch_get_main_queue(), ^{ [self resetLauncherPlacement]; }); return; }
+    [self cancelLauncherDrag];
+    if (!self.launcherPlaced) return;
+    self.launcherPlaced = NO;
+    self.launcherCenter = CGPointMake(0.5, 0.5);
+    [self saveLauncherPlacement:NO];
+    if (self.panelOpen && self.window && !self.window.hidden) {
+        [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
+            animations:^{ [self layoutForBounds:self.window.bounds]; } completion:nil];
+    }
+    NSLog(@"[MetisKeyboard][Launcher] panel placement reset");
+}
+
+- (void)saveLauncherPlacement:(BOOL)placed {
+    CGRect available = CGRectZero;
+    CGSize size = CGSizeZero;
+    if (self.window && !CGRectIsEmpty(self.window.bounds)) {
+        UIEdgeInsets safe = self.window.safeAreaInsets;
+        available = MTQuickLauncherAvailableRect(self.window.bounds, safe.top, safe.left, safe.bottom, safe.right);
+        size = MTQuickLauncherDisplayedSize(self.window.bounds, available, self.launcherScale);
+    }
+    CGPoint normalized = (placed && size.width > 0 && size.height > 0)
+        ? MTQuickLauncherNormalizedCenter(available, size, self.launcherDragCenter) : CGPointMake(0.5, 0.5);
+    self.launcherCenter = normalized;
+    self.launcherPlaced = placed;
+    MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+    [manager reload];
+    NSDictionary *preferences = manager.preferencesAvailable ? manager.readPrefs : nil;
+    if (![preferences isKindOfClass:NSDictionary.class]) return;
+    NSMutableDictionary *updated = [preferences mutableCopy];
+    updated[kKbdLauncherPlacedKey] = @(placed);
+    updated[kKbdLauncherOriginXKey] = @(normalized.x);
+    updated[kKbdLauncherOriginYKey] = @(normalized.y);
     [manager writePrefs:updated];
 }
 
@@ -712,6 +839,8 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 - (void)closePanel:(BOOL)animated {
     if (!self.panelOpen && animated) return;
+    // 任何收起路径都先结束进行中的拖动，避免残留手势或半途坐标。
+    [self cancelLauncherDrag];
     NSUInteger generation = ++self.panelGeneration;
     BOOL wasSystemPanel = self.systemPanelOpen;
     self.systemPanelOpen = NO;
@@ -782,6 +911,10 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
         __weak typeof(self) weakSelf = self;
         self.quickView.closeHandler = ^{ [weakSelf dismissPanelAndTuck:YES]; };
         self.quickView.selectHandler = ^(NSString *identifier) { [weakSelf launchQuickIdentifier:identifier]; };
+        self.quickView.dragHandler = ^(MTQuickLauncherDragPhase phase, CGPoint translation) {
+            [weakSelf applyLauncherDragPhase:phase translation:translation];
+        };
+        self.quickView.resetHandler = ^{ [weakSelf resetLauncherPlacement]; };
         [self.window insertSubview:self.quickView belowSubview:self.handleView];
     }
     // 基准顺序：手动排序优先，其后按名称兜底空出来的条目（写入侧与设置页同源）。
@@ -840,7 +973,8 @@ static NSString *MTKbdHandleDisplayName(NSString *bundleIdentifier) {
 
 - (void)launchQuickIdentifier:(NSString *)identifier {
     if (!NSThread.isMainThread || !self.panelOpen || self.window.hidden ||
-        (self.keyboardVisible && !self.systemPanelOpen) || self.dragging || self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
+        (self.keyboardVisible && !self.systemPanelOpen) || self.dragging || self.launcherDragging ||
+        self.launchPending || !MTIsValidBundleIdentifier(identifier)) return;
     self.launchPending = YES; self.quickView.launching = YES;
     NSUInteger generation = self.panelGeneration, request = ++self.launchRequest;
     __weak typeof(self) weakSelf = self;
