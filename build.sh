@@ -8,7 +8,8 @@
 #
 # 规则：
 #   - 只从本脚本进入 Theos/make；成功后调用本机 local/release.local.sh 通知与归档。
-#   - verify 产物放 packages/verify/<label>/，release 产物放 packages/<label>/，互不混用。
+#   - 产物统一放 packages/<label>/（ios16 / ios17），verify 与 release 同路径，
+#     不再使用 packages/verify/ 子目录；本地目录只保留最新一次构建的 deb。
 #   - release 同一版本重复发布直接拒绝；版本写回不早于全部构建与包检查。
 #   - 构建进程级锁：同一时刻只允许一个 build.sh 写 control/.theos/packages。
 
@@ -200,8 +201,8 @@ deployment_for_label() {
     echo "16.0"
 }
 
+# verify 与 release 统一落到 packages/<label>/（ios16 / ios17），不再分目录。
 OUTPUT_ROOT="$ROOT_DIR/packages"
-[[ "$BUILD_MODE" == "verify" ]] && OUTPUT_ROOT="$ROOT_DIR/packages/verify"
 
 # 必需的 RootHide 加载契约检查，随构建入口入库，不依赖本地 Tests/。
 # 检查每个架构的 LC_ID_DYLIB / LC_LOAD_DYLIB，避免单个切片残留 /var/jb。
