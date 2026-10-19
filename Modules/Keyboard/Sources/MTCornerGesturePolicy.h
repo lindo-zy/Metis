@@ -117,10 +117,10 @@ static inline void MTCornerGestureRemoveActionReferences(NSMutableDictionary *pr
         NSString *slot = MTCornerGestureSlot(region);
         id entry = [bindings[slot] isKindOfClass:NSDictionary.class] ? bindings[slot] : nil;
         if (![entry[@"selector"] isEqual:selector]) continue;
-        NSMutableDictionary *mutable = [entry mutableCopy];
-        [mutable removeObjectForKey:@"selector"];
-        mutable[@"enabled"] = @NO;
-        bindings[slot] = mutable;
+        NSMutableDictionary *updated = [entry mutableCopy];
+        [updated removeObjectForKey:@"selector"];
+        updated[@"enabled"] = @NO;
+        bindings[slot] = updated;
     }
     preferences[kMTCornerGestureBindings] = bindings;
 }
