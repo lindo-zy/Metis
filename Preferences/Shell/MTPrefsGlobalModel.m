@@ -59,7 +59,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     floatingApp.subBundle = @"MetisKeyboardPrefs";
     floatingApp.className = @"MTPFloatingAppController";
 
-    return @[dock, statusBar, floatingApp];
+    return @[dock, statusBar, corner, floatingApp];
 }
 
 // 原「其他」页「自动化」区：AI 问答链接 + 两个功能开关（各自独立成行，

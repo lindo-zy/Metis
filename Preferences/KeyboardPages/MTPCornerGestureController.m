@@ -111,6 +111,9 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 
 @interface MTPCornerGestureController ()
 @property(nonatomic, strong) MTPCornerPreviewView *previewView;
+// 滑杆落盘去抖：拖动期间只更新示意图，停止拖动后才写偏好，避免连续写盘
+// 持续广播 prefschanged（宿主会 reload 并全量重扫窗口）。
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *pendingSliderValues;
 @end
 
 @implementation MTPCornerGestureController
@@ -208,8 +211,10 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
             [specifier propertyForKey:@"min"] ? [(NSNumber *)[specifier propertyForKey:@"min"] doubleValue] : -INFINITY,
             [specifier propertyForKey:@"max"] ? [(NSNumber *)[specifier propertyForKey:@"max"] doubleValue] : INFINITY,
             [(NSNumber *)[specifier propertyForKey:@"default"] doubleValue]);
-        [[MTPrefsManager sharedInstance] setValue:@(clamped) forKey:key];
-        [self refreshPreview];
+        // 示意图直接用拖动值刷新（不等落盘），落盘延后到停止拖动后。
+        if ([key isEqual:kMTCornerGestureRadiusKey]) self.previewView.radius = clamped;
+        else if ([key isEqual:kMTCornerGestureAngleKey]) self.previewView.angle = clamped;
+        [self scheduleSliderCommitForKey:key value:@(clamped)];
         return;
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
@@ -226,6 +231,32 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         preferences[kMTCornerGestureBindings] = bindings;
         [manager writePrefs:preferences];
     }
+}
+// 停止拖动 0.4s 后落盘一次；期间的新值覆盖旧值，只保留最后一次。
+- (void)scheduleSliderCommitForKey:(NSString *)key value:(NSNumber *)value {
+    if (![key length]) return;
+    if (!self.pendingSliderValues) self.pendingSliderValues = [NSMutableDictionary dictionary];
+    self.pendingSliderValues[key] = value;
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        MTPCornerGestureController *controller = weakSelf;
+        if (!controller) return;
+        NSNumber *pending = controller.pendingSliderValues[key];
+        if (!pending) return;
+        [controller.pendingSliderValues removeObjectForKey:key];
+        [[MTPrefsManager sharedInstance] setValue:pending forKey:key];
+    });
+}
+// 页面离开前补写未落盘的滑杆值（含 push 到动作选择页），避免拖动结果丢失。
+- (void)flushPendingSliderValues {
+    NSDictionary<NSString *, NSNumber *> *pending = [self.pendingSliderValues copy];
+    if (!pending.count) return;
+    [self.pendingSliderValues removeAllObjects];
+    for (NSString *key in pending) [[MTPrefsManager sharedInstance] setValue:pending[key] forKey:key];
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [self flushPendingSliderValues];
 }
 - (id)readActionName:(PSSpecifier *)specifier {
     return MTCornerActionName([MTPrefsManager.sharedInstance readPrefs], [specifier propertyForKey:@"cornerSlot"]);
