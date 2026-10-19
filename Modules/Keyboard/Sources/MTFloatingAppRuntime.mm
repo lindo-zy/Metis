@@ -6,7 +6,7 @@
 #import "MTFloatingAppShelfChannel.h"
 #import "MTFloatingAppGeometry.h"
 #import "MTFloatingAppInput.h"
-#import "MTKbdCollapseHandle.h"
+#import "MTQuickPanelHost.h"
 #import "MTGlobalPanel.h"
 #import "common.h"
 #import <UIKit/UIKit.h>
@@ -1072,8 +1072,8 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
             [self.shelf activate:identifier title:self.controller.titleLabel.text];
             [self publishShelf];
         }
-        // 键盘收起把手的「最近悬浮」列表与 shelf 开关解耦，任何悬浮转 Live 都记录。
-        MTKbdCollapseHandleNoteFloated(identifier);
+        // 快速面板的「最近悬浮」列表与 shelf 开关解耦，任何悬浮转 Live 都记录。
+        MTQuickPanelNoteFloated(identifier);
         [self.session publishLive:generation];
     }
     return YES;
@@ -1166,7 +1166,7 @@ void MTStartFloatingAppHost(void) {
                 // Let the launch notification finish unwinding before asking SB managers.
                 dispatch_async(dispatch_get_main_queue(), ^{ [weakHost finishShelfStartup]; });
             }];
-        // 主路径同步置位 shelfStartupReady，与把手 startupReady 同一修复
+        // 主路径同步置位 shelfStartupReady，与快速面板宿主 startupReady 同一修复
         // （cd22440）：本块由 %ctor dispatch_async(main) 入队，执行时
         // UIApplicationDidFinishLaunchingNotification 通常已广播完毕
         // （didFinishLaunching 返回即发通知，早于主队列块执行），仅依赖通知

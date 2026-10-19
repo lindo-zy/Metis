@@ -104,22 +104,6 @@
 #define kFloatingCardPositionKey @"floatingcardposition"
 // One mode switch: shelf replaces only the keyboard bottom action toolbar.
 #define kFloatingShelfEnabledKey @"floatingappshelfBOOL"
-// 键盘收起把手：解锁亮屏且键盘隐藏时显示的小入口，点按弹出单手速启面板
-// （常用应用与九键搜索；数据源见 kKbdHandleAppsKey）。
-#define kKbdHandleEnabledKey @"kbdhandleBOOL"
-// 把手停靠侧（0=左侧 1=右侧，初始高度在底部；拖动后保存高度与缩边状态）。
-#define kKbdHandlePositionKey @"kbdhandleposition"
-#define kKbdHandleAnchorKey @"kbdhandleanchor"
-#define kKbdHandleNubbedKey @"kbdhandlenubbed"
-// 自动隐藏：开启后把手静置超过设定秒数滑入屏幕边缘只露一小截（与手动缩边
-// 同状态并持久化，PullOver-X 把手 nub 同款语义），点按或向内拖出恢复；
-// 键盘弹出/锁屏/息屏时才整体隐藏。
-#define kKbdHandleAutoHideKey @"kbdhandleautohideBOOL"
-// 自动隐藏时长（秒，0.5~10 步进 0.5，缺省 3 秒；读取侧夹回范围）。
-#define kKbdHandleAutoHideSecondsKey @"kbdhandleautohidesecs"
-#define kKbdHandleAutoHideSecondsDefault 3.0
-#define kKbdHandleAutoHideSecondsMinimum 0.5
-#define kKbdHandleAutoHideSecondsMaximum 10.0
 // 速启面板常用应用：bundleID 数组（「常用应用排序与搜索别名」页写入，含排序）。
 #define kKbdHandleAppsKey @"kbdhandleapps"
 // 速启面板停靠侧（0=靠左 1=靠右，默认靠右紧贴右缘）。
@@ -317,13 +301,6 @@ static inline NSInteger MTFloatingCardPositionFromPreferences(NSDictionary *pref
     return (position >= 0 && position <= 2) ? position : 1;
 }
 
-// 把手停靠角：0=左下、1=右下。非法值一律回退左下，读配置失败不产生危险布局。
-static inline NSInteger MTKbdHandlePositionFromPreferences(NSDictionary *preferences) {
-    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandlePositionKey] : nil;
-    NSInteger position = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 0;
-    return (position == 0 || position == 1) ? position : 0;
-}
-
 // 速启面板停靠侧：0=靠左、1=靠右。缺省与非法值一律回退靠右。
 static inline NSInteger MTKbdLauncherSideFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdLauncherSideKey] : nil;
@@ -355,14 +332,6 @@ static inline CGPoint MTKbdLauncherOriginFromPreferences(NSDictionary *preferenc
     if (!isfinite(x)) x = 0.5;
     if (!isfinite(y)) y = 0.5;
     return CGPointMake(MIN(MAX(x, 0.0), 1.0), MIN(MAX(y, 0.0), 1.0));
-}
-
-// 把手自动隐藏时长（秒）：非法/缺省一律回退 3 秒并夹回 0.5~10，永不外溢。
-static inline double MTKbdHandleAutoHideSecondsFromPreferences(NSDictionary *preferences) {
-    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kKbdHandleAutoHideSecondsKey] : nil;
-    double seconds = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : kKbdHandleAutoHideSecondsDefault;
-    if (!isfinite(seconds)) seconds = kKbdHandleAutoHideSecondsDefault;
-    return MIN(MAX(seconds, kKbdHandleAutoHideSecondsMinimum), kKbdHandleAutoHideSecondsMaximum);
 }
 
 // 速启面板常用应用列表：只接受 bundleID 字符串数组并去重，其余格式回退空表。

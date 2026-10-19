@@ -45,7 +45,7 @@ MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
 	$(KEYBOARD)/MTHelper.m \
 	$(KEYBOARD)/MTJavaScriptEngine.m \
 	$(KEYBOARD)/MTJavaScriptHost.m \
-	$(KEYBOARD)/MTKbdCollapseHandle.m \
+	$(KEYBOARD)/MTQuickPanelHost.m \
 	$(KEYBOARD)/MTKeyboardPanel.m \
 	$(KEYBOARD)/MTPanelControlSession.m \
 	$(KEYBOARD)/MTPanelPagedGridView.m \

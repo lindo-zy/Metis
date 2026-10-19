@@ -4,7 +4,7 @@
 #import "MTSystemRecordingSession.h"
 #import "common.h"
 #import "MTCaptureIntegration.h"
-#import "MTKbdCollapseHandle.h"
+#import "MTQuickPanelHost.h"
 #import "MTAIPanel.h"
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>

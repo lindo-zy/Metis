@@ -11,7 +11,6 @@
 #import "MTSystemOpenBroker.h"
 #import "MTFloatingApp.h"
 #import "MTFloatingAppInput.h"
-#import "MTKbdCollapseHandle.h"
 #import "MTToolbarHorizontalGesture.h"
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -1080,7 +1079,6 @@ static void reloadPrefsNotificationCallback(CFNotificationCenterRef center,
                                                                object:nil];
                     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, reloadPrefsNotificationCallback, (CFStringRef)kPrefsChangedIdentifier, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
                     MTStartFloatingAppInputClient();
-                    MTStartKbdVisibilityReporter();
                 }
             }
         }

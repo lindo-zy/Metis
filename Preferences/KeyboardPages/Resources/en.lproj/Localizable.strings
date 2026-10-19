@@ -607,22 +607,11 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FLOATING_SHELF_PREVIEW" = "App shelf enabled: up to six in one row. Long swipes keep the bottom toolbar panel bindings.";
 "FLOATING_SHELF_FOREGROUND" = "Currently in Foreground";
 
-// Collapsed keyboard handle
-"FLOATING_HANDLE_GROUP" = "Collapsed Keyboard Handle";
-"FLOATING_HANDLE_SWITCH" = "Show Handle After Keyboard Collapses";
-"FLOATING_HANDLE_POSITION" = "Handle Side";
-"FLOATING_HANDLE_AUTO_HIDE" = "Auto Hide";
-"FLOATING_HANDLE_AUTO_HIDE_SECONDS" = "Auto Hide Delay";
-"FLOATING_HANDLE_AUTO_HIDE_FORMAT" = "%.1fs";
-"FLOATING_HANDLE_APPS" = "Panel App List";
-"FLOATING_HANDLE_ACCESSIBILITY" = "MetisKeyboard collapsed keyboard handle";
-"FLOATING_HANDLE_FOOTER" = "When enabled, the small MetisKeyboard handle appears while the keyboard is hidden. It hides as the keyboard opens and returns to its saved position after the keyboard closes. Drag to move it and snap to either edge; drag outward to tuck it into the edge, then tap or drag inward to reveal it. Tap to open the app panel and tap an app icon to open or switch the floating window; pick pinned apps in “Panel App List” (sorted by name), otherwise up to six recently floated apps are shown. With Auto Hide on, the handle slides into the screen edge after the configured idle delay, leaving only a small nub visible (same as a manual tuck); tap or drag inward to bring it back — it never disappears completely. Once the quick launcher closes (tapping the handle, its close button, outside it, or after an app opens) the handle tucks immediately without waiting for the idle delay. Locking or turning off the screen hides it; unlocking restores it. Position and edge state are saved, and the recency list clears when SpringBoard restarts.";
-
 // Single-hand launcher
 "QUICK_TITLE" = "Quick Panel";
 "QUICK_SIDE" = "Quick Launcher Side";
 "QUICK_SIZE" = "Panel Size";
-"QUICK_SETTINGS_FOOTER" = "Tap the handle for favorites and T9, anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–100%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Drag the grabber at the top of the panel to place it anywhere; it reopens where you left it. Double-tap the grabber or use Restore Default Position below to snap back. Requires the handle to be enabled.";
+"QUICK_SETTINGS_FOOTER" = "Invoke favorites and T9 anytime with the Quick Panel system action (gesture or shortcut); the panel is anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–100%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Drag the grabber at the top of the panel to place it anywhere; it reopens where you left it. Double-tap the grabber or use Restore Default Position below to snap back.";
 "QUICK_RESET" = "Restore Default Position";
 "QUICK_MOVE" = "Drag to move, double-tap to reset";
 "QUICK_MANAGE" = "Favorites Order & Search Aliases";

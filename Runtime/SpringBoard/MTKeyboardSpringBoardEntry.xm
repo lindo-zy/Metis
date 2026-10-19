@@ -1,6 +1,6 @@
 // MTKeyboardSpringBoardEntry —— MetisKeyboard（Keyboard 模块）SpringBoard 侧唯一挂接点。
 // 原 MTKeyboardHooks.xm ctor 的 isSpringBoard 分支整体迁入：系统 open broker、全局面板、
-// 悬浮 App 托管、键盘收起把手、状态栏手势、shortcut/AI 请求监听与桌面可见性钩子。
+// 悬浮 App 托管、快速面板宿主、状态栏手势、shortcut/AI 请求监听与桌面可见性钩子。
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <CoreFoundation/CoreFoundation.h>
@@ -9,7 +9,7 @@
 #import "MTPrefsManager.h"
 #import "MTQuickActionProvider.h"
 #import "MTAIPanel.h"
-#import "MTKbdCollapseHandle.h"
+#import "MTQuickPanelHost.h"
 #import "MTStatusBarGestures.h"
 #import "MTGlobalPanel.h"
 #import "MTFloatingApp.h"
@@ -123,8 +123,8 @@ static void mtsbAIChatRequestCallback(CFNotificationCenterRef center,
     if (![MTPrefsManager sharedInstance].preferencesAvailable) MTSBDelayedAIPrefsHeal();
     g_mtsbAIDesktopVisible = YES;
     MTSBDPresentAIPanelWhenDesktop();
-    // 回桌面时收回展开面板，保留边缘常驻把手。
-    MTKbdCollapseHandleDesktopDidAppear();
+    // 回桌面时收回展开的快速面板。
+    MTQuickPanelDesktopDidAppear();
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -179,8 +179,7 @@ static void MTSBDelayedAIPrefsHeal(void) {
                 MTStartSystemOpenBroker();
                 MTStartGlobalPanel();
                 MTStartFloatingAppHost();
-                MTStartKbdCollapseHandle();
-                MTStartKbdVisibilityReporter();
+                MTStartQuickPanelHost();
                 MTLogInfo(MTLogModuleKeyboard, @"state=sb-entry-ready version=%@", MTCoreVersionString);
             }
         });

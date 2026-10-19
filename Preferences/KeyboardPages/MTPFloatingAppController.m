@@ -43,30 +43,6 @@ static NSString *MTFloatingLocalized(NSString *key) {
     PSSpecifier *shelf = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_SHELF_SWITCH") target:self
         set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
     [shelf setProperty:kFloatingShelfEnabledKey forKey:@"key"]; [shelf setProperty:@NO forKey:@"default"];
-    PSSpecifier *handleGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"FLOATING_HANDLE_GROUP")];
-    [handleGroup setProperty:MTFloatingLocalized(@"FLOATING_HANDLE_FOOTER") forKey:@"footerText"];
-    PSSpecifier *handleSwitch = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_HANDLE_SWITCH") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
-    [handleSwitch setProperty:kKbdHandleEnabledKey forKey:@"key"]; [handleSwitch setProperty:@NO forKey:@"default"];
-    PSSpecifier *handlePosition = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_HANDLE_POSITION") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
-    [handlePosition setProperty:kKbdHandlePositionKey forKey:@"key"];
-    [handlePosition setProperty:@0 forKey:@"default"];
-    [handlePosition setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
-    [handlePosition setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")] forKey:@"titles"];
-    PSSpecifier *autoHideSwitch = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_HANDLE_AUTO_HIDE") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
-    [autoHideSwitch setProperty:kKbdHandleAutoHideKey forKey:@"key"]; [autoHideSwitch setProperty:@NO forKey:@"default"];
-    PSSpecifier *autoHideSeconds = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_HANDLE_AUTO_HIDE_SECONDS") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
-    [autoHideSeconds setProperty:kKbdHandleAutoHideSecondsKey forKey:@"key"];
-    [autoHideSeconds setProperty:@(kKbdHandleAutoHideSecondsDefault) forKey:@"default"];
-    [autoHideSeconds setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
-    [autoHideSeconds setProperty:@(kKbdHandleAutoHideSecondsMinimum) forKey:@"min"];
-    [autoHideSeconds setProperty:@(kKbdHandleAutoHideSecondsMaximum) forKey:@"max"];
-    // 0.5 秒步进 + 秒值格式串由 MTPPanelSliderCell 的通用 step/valueFormat 路径消费。
-    [autoHideSeconds setProperty:@(0.5) forKey:@"step"];
-    [autoHideSeconds setProperty:MTFloatingLocalized(@"FLOATING_HANDLE_AUTO_HIDE_FORMAT") forKey:@"valueFormat"];
     PSSpecifier *quickGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"QUICK_TITLE")];
     [quickGroup setProperty:MTFloatingLocalized(@"QUICK_SETTINGS_FOOTER") forKey:@"footerText"];
     PSSpecifier *launcherSide = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SIDE") target:self
@@ -93,7 +69,6 @@ static NSString *MTFloatingLocalized(NSString *key) {
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
     _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
-        handleGroup, handleSwitch, handlePosition, autoHideSwitch, autoHideSeconds,
         quickGroup, launcherSide, launcherScale, launcherReset, manage] mutableCopy];
     return _specifiers;
 }
@@ -121,18 +96,8 @@ static NSString *MTFloatingLocalized(NSString *key) {
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
     if (![value isKindOfClass:NSNumber.class]) return;
     NSString *key = [specifier propertyForKey:@"key"];
-    if ([key isEqual:kFloatingShelfEnabledKey] || [key isEqual:kKbdHandleEnabledKey] ||
-        [key isEqual:kKbdHandleAutoHideKey]) {
+    if ([key isEqual:kFloatingShelfEnabledKey]) {
         [MTPrefsManager.sharedInstance setValue:@([value boolValue]) forKey:key]; return;
-    }
-    if ([key isEqual:kKbdHandleAutoHideSecondsKey]) {
-        // 与滑杆 0.5 秒步进一致；越界值夹回读取侧同款范围，写快照即合法值。
-        double seconds = [value doubleValue];
-        if (!isfinite(seconds)) seconds = kKbdHandleAutoHideSecondsDefault;
-        seconds = lround(seconds * 2) / 2.0;
-        [MTPrefsManager.sharedInstance setValue:@(MIN(MAX(seconds, kKbdHandleAutoHideSecondsMinimum),
-            kKbdHandleAutoHideSecondsMaximum)) forKey:key];
-        return;
     }
     if ([key isEqual:kKbdLauncherScaleKey]) {
         // 面板大小：与滑杆 5% 步进一致；越界值夹回 80~100，避免写快照后触发读取侧缺省回退。
@@ -146,7 +111,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     NSInteger stored;
     if ([key isEqual:kFloatingCardPositionKey]) {
         stored = MIN(2, MAX(0, lround([value doubleValue])));
-    } else if ([key isEqual:kKbdHandlePositionKey] || [key isEqual:kKbdLauncherSideKey]) {
+    } else if ([key isEqual:kKbdLauncherSideKey]) {
         stored = MIN(1, MAX(0, lround([value doubleValue])));
     } else {
         // 与滑杆 5% 步进一致；越界值夹回，避免写进快照后触发读取侧缺省回退。
