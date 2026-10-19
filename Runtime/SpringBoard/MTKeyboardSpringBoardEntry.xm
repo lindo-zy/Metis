@@ -146,6 +146,16 @@ static void MTSBDelayedAIPrefsHeal(void) {
         }
         isSpringBoard = YES;
 
+        // 状态栏手势必须在 ctor 同步启动（此时处于 main 之前的加载线程）：
+        // SpringBoard 启动早期就会构造/挂窗第一批状态栏实例，构造 hook 与
+        // didMoveToWindow hook 晚于实例创建即静默漏挂，只能等后续通知扫描
+        // 补救——刚注销/冷启动后桌面手势会静默失效。TypeX 4.3.3 的分析
+        // （tests/STATUS_BAR_CORE_LIFECYCLE_20261005.md）明确要求"主线程
+        // 调用启动入口时立即注册，减少首次构造之前的异步空隙"；MTStart-
+        // StatusBarGestures 内部自线程路由，pre-main 即主线程，观察者与
+        // 扫描对此刻的空 UI 均为安全空操作。
+        MTStartStatusBarGestures();
+
         dispatch_async(dispatch_get_main_queue(), ^{
             @autoreleasepool {
                 // 不 load MetisKeyboardPrefs.bundle：其链接 SwiftUI/JSContext
@@ -166,7 +176,6 @@ static void MTSBDelayedAIPrefsHeal(void) {
                     });
                 }];
 
-                MTStartStatusBarGestures();
                 MTStartSystemOpenBroker();
                 MTStartGlobalPanel();
                 MTStartFloatingAppHost();
