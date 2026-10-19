@@ -82,7 +82,12 @@
                   completion:(void (^)(NSArray<NSString *> *models, NSError *error))completion;
 
 + (BOOL)supportsBalanceForEngine:(MTAIEngineInfo *)engine;
-// Main-thread completion. Does not persist account data or API keys.
+// Main-thread completion. Throttled: at most one request per 30s per engine
+// configuration (identifier + endpoint + key); triggers inside the window
+// reuse the last result (success text or failure reason) instead of
+// re-querying, and concurrent triggers for the same configuration share one
+// in-flight request. Cache is in-memory only; does not persist account data
+// or API keys.
 + (void)fetchBalanceForEngine:(MTAIEngineInfo *)engine
                  completion:(void (^)(NSString *balance, NSError *error))completion;
 @end

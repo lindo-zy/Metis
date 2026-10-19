@@ -672,6 +672,14 @@ static BOOL MTAIModelsEntrySupportsChat(id entry) {
     return NO;
 }
 
+// 余额查询节流：同一引擎配置（identifier + endpoint + Key）30 秒内最多发起一次
+// 真实请求；窗口内的重复触发直接复用上次结果（成功文案或失败原因），并发触发
+// 合并到同一在途请求，响应到达后统一回调。缓存仅存进程内存、不落盘；切引擎、
+// 改 Key、改端点均换键视为新查询。面板进程与设置进程各自独立计时。
+static const NSTimeInterval MTAIBalanceThrottleInterval = 30.0;
+static NSMutableDictionary<NSString *, NSDictionary *> *MTAIBalanceResultCache;
+static NSMutableDictionary<NSString *, NSMutableArray<void (^)(NSString *, NSError *)> *> *MTAIBalanceInFlight;
+
 // Both vendors document a Bearer-authenticated, read-only balance endpoint.
 + (BOOL)supportsBalanceForEngine:(MTAIEngineInfo *)engine {
     return MTAIBalanceURL([self endpointForEngine:engine]) != nil;
@@ -681,6 +689,7 @@ static BOOL MTAIModelsEntrySupportsChat(id entry) {
                  completion:(void (^)(NSString *balance, NSError *error))completion {
     NSURL *url = MTAIBalanceURL([self endpointForEngine:engine]);
     NSString *key = [self apiKeyForEngine:engine];
+    NSString *endpoint = [self endpointForEngine:engine];
     void (^finish)(NSString *, NSError *) = ^(NSString *balance, NSError *error) {
         dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(balance, error); });
     };
@@ -688,6 +697,29 @@ static BOOL MTAIModelsEntrySupportsChat(id entry) {
         finish(nil, [NSError errorWithDomain:@"MTAIBalance" code:-1
             userInfo:@{NSLocalizedDescriptionKey: !url ? @"当前服务不支持余额查询" : @"请先填写 API Key"}]);
         return;
+    }
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        MTAIBalanceResultCache = [NSMutableDictionary dictionary];
+        MTAIBalanceInFlight = [NSMutableDictionary dictionary];
+    });
+    NSString *throttleKey = [NSString stringWithFormat:@"%@|%@|%@", engine.identifier ?: @"", endpoint, key];
+    @synchronized (MTAIBalanceResultCache) {
+        NSDictionary *cached = MTAIBalanceResultCache[throttleKey];
+        NSDate *cachedAt = [cached isKindOfClass:NSDictionary.class] ? cached[@"date"] : nil;
+        if ([cachedAt isKindOfClass:NSDate.class] && -cachedAt.timeIntervalSinceNow < MTAIBalanceThrottleInterval) {
+            NSString *text = [cached[@"text"] isKindOfClass:NSString.class] ? cached[@"text"] : nil;
+            NSError *cachedError = [cached[@"error"] isKindOfClass:NSError.class] ? cached[@"error"] : nil;
+            finish(text, cachedError); // 30 秒窗口内复用上次结果，不再发起请求
+            return;
+        }
+        NSMutableArray *waiters = MTAIBalanceInFlight[throttleKey];
+        if (waiters) {
+            if (completion) [waiters addObject:[completion copy]]; // 已在途：合并回调
+            return;
+        }
+        MTAIBalanceInFlight[throttleKey] = [NSMutableArray array];
+        if (completion) [MTAIBalanceInFlight[throttleKey] addObject:[completion copy]];
     }
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.timeoutInterval = 15;
@@ -706,7 +738,18 @@ static BOOL MTAIModelsEntrySupportsChat(id entry) {
             error = [NSError errorWithDomain:@"MTAIBalance" code:status ?: -2
                                    userInfo:@{NSLocalizedDescriptionKey: message}];
         }
-        finish(balance, error);
+        NSMutableArray *waiters = nil;
+        @synchronized (MTAIBalanceResultCache) {
+            NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithObject:[NSDate date] forKey:@"date"];
+            entry[@"text"] = balance ?: [NSNull null];   // 零余额是有效值，与失败分开存
+            entry[@"error"] = error ?: [NSNull null];
+            MTAIBalanceResultCache[throttleKey] = entry;
+            waiters = MTAIBalanceInFlight[throttleKey];
+            [MTAIBalanceInFlight removeObjectForKey:throttleKey];
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            for (void (^waiter)(NSString *, NSError *) in waiters) waiter(balance, error);
+        });
         [session finishTasksAndInvalidate];
     }] resume];
 }
