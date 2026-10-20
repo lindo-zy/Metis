@@ -1500,8 +1500,10 @@ forItemMatchingDictionary:(NSDictionary<NSString *, id> *)dictionary
     }
     if ([definition[@"destructive"] boolValue]) {
         // 破坏性动作（注销/安全模式/关机/重启）走执行器内置的确认弹窗。
+        // preferred 只是提示：剪贴板面板装在 SB 状态栏窗口里（installPanelInStatusBarWindow），
+        // 那个窗口承载的弹窗收不到触摸，执行器会拒绝它并落到自建专用窗口。
         NSProgress *operation = [NSProgress discreteProgressWithTotalUnitCount:1];
-        MTConfirmSystemExitAction(action, operation);
+        MTConfirmSystemExitActionFrom(action, operation, self);
         return;
     }
     MTSystemOpenResult result = MTPerformSystemAction(action);

@@ -172,7 +172,8 @@ static void MTPerformSystemOpen(NSDictionary *request, MTSystemOpenReply reply) 
             // A transport success acknowledges the trusted SpringBoard prompt.
             // Execution requires a fresh user choice inside that prompt; callers
             // cannot bypass it by forging a client-side "confirmed" flag.
-            reply(MTConfirmSystemExitAction(payload, operation) ? MTSystemOpenSucceeded : MTSystemOpenUnavailable);
+            // 跨进程调用拿不到调用方 VC，宿主由执行器自行挑选。
+            reply(MTConfirmSystemExitActionFrom(payload, operation, nil) ? MTSystemOpenSucceeded : MTSystemOpenUnavailable);
         } else {
             MTSystemOpenResult result = MTPerformSystemAction(payload);
             NSLog(@"[MetisKeyboard][SystemAction] id=%@ result=%llu", payload, (unsigned long long)result);
