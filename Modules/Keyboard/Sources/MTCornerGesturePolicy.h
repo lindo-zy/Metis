@@ -34,6 +34,35 @@
 #define kMTCornerGestureSensitivityMin 0
 #define kMTCornerGestureSensitivityMax 2
 
+// 二维扇形的命中条件同时约束横向与纵向两个维度，手指必须落在角落附近的更小
+// 一片区域里，这是「App 内难触发」的第二个成因（第一个是进程层级）。这里按
+// SquidGesture 的通行做法补一条一维模型：只看起点到侧边的横向距离，纵向不设限
+// 制。命中区划分三个层级，越靠边的层级优先且可以各自绑定不同动作。
+//   zone 0（标准）/ 1（宽）/ 2（更宽）整体缩放三档宽度。
+#define kMTCornerGestureZoneKey @"cornergestureZone"
+#define kMTCornerGestureZoneStandard 0
+#define kMTCornerGestureZoneWide 1
+#define kMTCornerGestureZoneWidest 2
+#define kMTCornerGestureZoneDefault kMTCornerGestureZoneStandard
+#define kMTCornerGestureZoneMin 0
+#define kMTCornerGestureZoneMax 2
+// 每侧三个层级，宽度按屏幕宽度的比例给出，再由 zone 档位整体缩放。
+#define kMTCornerZoneLevelCount 3
+#define kMTCornerZoneScaleStandard 1.0
+#define kMTCornerZoneScaleWide 1.28
+#define kMTCornerZoneScaleWidest 1.58
+// 单侧最多占用屏幕宽度的一半，避免两侧区域在中线重叠；相邻层级至少差 8pt。
+#define kMTCornerZoneMaxSpanRatio 0.48
+#define kMTCornerZoneStepFloor 8.0
+
+// 手势通道。system：SpringBoard 内挂钩系统自己的 Home 手势管线（默认，跨 App
+// 一致，不与 App 的控件争抢触摸）。legacy：App 进程内自建 pan（0.5.6 及更早的
+// 行为，保留作降级后路）。两者互不并存，避免一次上滑触发两次动作。
+#define kMTCornerGestureSystemChannelKey @"cornergestureSystemChannel"
+#define kMTCornerGestureSystemChannelDefault YES
+#define kMTCornerGestureLegacyChannelKey @"cornergestureLegacyChannel"
+#define kMTCornerGestureLegacyChannelDefault NO
+
 typedef struct {
     double travel;   // 完成所需的最小向上位移（正值）
     double ratio;    // 上滑方向比：-dy >= |dx| × ratio 才视为向上
@@ -46,10 +75,31 @@ static inline NSString *MTCornerGestureSlot(NSString *region) {
     if (![region isKindOfClass:NSString.class] || ![MTCornerGestureRegions() containsObject:region]) return nil;
     return [NSString stringWithFormat:@"%@.up", region];
 }
+// 一维模型下每个角落有三个层级（level 0 最贴边）：每个层级都是独立 slot，可以各
+// 自绑定动作。level 0 沿用既有的 @"<region>.up"，其余为 @"<region>.up.zoneN"。
+static inline NSString *MTCornerZoneSlot(NSString *region, NSInteger level) {
+    NSString *base = MTCornerGestureSlot(region);
+    if (!base || level < 0 || level >= kMTCornerZoneLevelCount) return nil;
+    return level == 0 ? base : [NSString stringWithFormat:@"%@.zone%ld", base, (long)(level + 1)];
+}
+static inline NSArray<NSString *> *MTCornerZoneSlots(NSString *region) {
+    NSMutableArray *slots = [NSMutableArray array];
+    for (NSInteger level = 0; level < kMTCornerZoneLevelCount; level++) {
+        NSString *slot = MTCornerZoneSlot(region, level);
+        if (slot) [slots addObject:slot];
+    }
+    return slots;
+}
+static inline NSArray<NSString *> *MTCornerAllSlots(void) {
+    NSMutableArray *slots = [NSMutableArray array];
+    for (NSString *region in MTCornerGestureRegions()) [slots addObjectsFromArray:MTCornerZoneSlots(region)];
+    return slots;
+}
 static inline BOOL MTCornerGestureSlotValid(id slot) {
     if (![slot isKindOfClass:NSString.class]) return NO;
     for (NSString *region in MTCornerGestureRegions())
-        if ([MTCornerGestureSlot(region) isEqual:slot]) return YES;
+        for (NSInteger level = 0; level < kMTCornerZoneLevelCount; level++)
+            if ([MTCornerZoneSlot(region, level) isEqual:slot]) return YES;
     return NO;
 }
 static inline BOOL MTCornerGestureFlag(id value) { return [value isKindOfClass:NSNumber.class] && [value boolValue]; }
@@ -95,6 +145,26 @@ static inline double MTCornerGestureBottomInset(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureBottomInsetKey] : nil;
     return MTCornerGestureClamp([value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN,
         kMTCornerGestureBottomInsetMin, kMTCornerGestureBottomInsetMax, kMTCornerGestureBottomInsetDefault);
+}
+static inline BOOL MTCornerGestureSystemChannel(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureSystemChannelKey] : nil;
+    return [value isKindOfClass:NSNumber.class] ? [value boolValue] : kMTCornerGestureSystemChannelDefault;
+}
+static inline BOOL MTCornerGestureLegacyChannel(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureLegacyChannelKey] : nil;
+    return [value isKindOfClass:NSNumber.class] ? [value boolValue] : kMTCornerGestureLegacyChannelDefault;
+}
+// App 进程内的自建识别器（legacy 通道）是否允许安装。两条通道互斥：一次上滑只
+// 应被一条通道消费。SpringBoard 上 system 通道开启时不装本地识别器，避免桌面上
+// 同一次上滑既走系统管线又走 window pan，触发两次动作。
+static inline BOOL MTCornerGestureLocalRecognizerAllowed(NSDictionary *preferences, NSString *host) {
+    BOOL springBoard = [host isEqual:@"SpringBoard"];
+    return springBoard ? !MTCornerGestureSystemChannel(preferences) : MTCornerGestureLegacyChannel(preferences);
+}
+static inline NSInteger MTCornerGestureZone(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureZoneKey] : nil;
+    double zone = [value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN;
+    return (NSInteger)MTCornerGestureClamp(zone, kMTCornerGestureZoneMin, kMTCornerGestureZoneMax, kMTCornerGestureZoneDefault);
 }
 static inline NSInteger MTCornerGestureSensitivity(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureSensitivityKey] : nil;
@@ -160,6 +230,50 @@ static inline BOOL MTCornerGestureCompletesWithMetrics(double dx, double dy, dou
     return metrics.velocity > 0 && isfinite(velocity) && velocity <= -metrics.velocity &&
         dy <= -metrics.travel * 0.5;
 }
+// ===== 一维命中模型（system 通道使用） =====
+// 只看起点到屏幕侧边的横向距离：手指从底边任意高度起手都算，纵向交给 travel
+// 门槛把关。相比扇形少一个维度的约束，命中率与 App 内底部的控件分布无关。
+static inline NSArray<NSNumber *> *MTCornerZoneWidths(double width, NSInteger zone) {
+    if (!isfinite(width) || width <= 0) return @[];
+    double scale = zone == kMTCornerGestureZoneWide ? kMTCornerZoneScaleWide :
+        (zone == kMTCornerGestureZoneWidest ? kMTCornerZoneScaleWidest : kMTCornerZoneScaleStandard);
+    double ceiling = width * kMTCornerZoneMaxSpanRatio;
+    NSMutableArray *widths = [NSMutableArray array];
+    double previous = 0;
+    for (NSInteger level = 0; level < kMTCornerZoneLevelCount; level++) {
+        double span = MIN(width * (0.20 + 0.09 * level) * scale, ceiling);
+        span = MAX(span, previous + kMTCornerZoneStepFloor);
+        [widths addObject:@(span)];
+        previous = span;
+    }
+    return widths;
+}
+static inline NSString *MTCornerZoneRegionAtX(double x, double width) {
+    if (!isfinite(x) || !isfinite(width) || width <= 0 || x < 0 || x > width) return nil;
+    return x <= width / 2 ? @"bottomleft" : @"bottomright";
+}
+static inline double MTCornerZoneEdgeDistance(double x, double width) {
+    return x <= width / 2 ? x : width - x;
+}
+static inline NSInteger MTCornerZoneLevelForDistance(double distance, NSArray<NSNumber *> *widths) {
+    for (NSInteger level = 0; level < (NSInteger)widths.count; level++)
+        if (distance <= [widths[level] doubleValue]) return level;
+    return NSNotFound;
+}
+// 命中层级未绑动作时顺延到更外侧的层级；都没有则本次上滑不归角落手势。
+static inline NSInteger MTCornerZoneResolvedLevel(NSDictionary *preferences, NSString *region, NSInteger level) {
+    if (!MTCornerGestureSlotValid(MTCornerZoneSlot(region, level))) return NSNotFound;
+    for (NSInteger index = level; index < kMTCornerZoneLevelCount; index++)
+        if (MTCornerGestureSelector(preferences, MTCornerZoneSlot(region, index))) return index;
+    return NSNotFound;
+}
+static inline BOOL MTCornerZoneConfigured(NSDictionary *preferences) {
+    for (NSString *region in MTCornerGestureRegions())
+        for (NSInteger level = 0; level < kMTCornerZoneLevelCount; level++)
+            if (MTCornerGestureConfiguredSelector(preferences, MTCornerZoneSlot(region, level))) return YES;
+    return NO;
+}
+
 // 无上移量与标准档的等价入口：保持既有行为，供旧宿主测试与 Dock 复用。
 static inline NSString *MTCornerRegionAtPoint(CGPoint point, CGSize size, double radius, double angle) {
     return MTCornerRegionAtPointWithInset(point, size, radius, angle, 0);
@@ -184,14 +298,14 @@ static inline NSString *MTCornerGestureClaimedSlot(NSDictionary *preferences, CG
 // 这不是放宽校验：broker 服务端依旧按 slot 重新解析并要求 selector 相等。
 static inline NSString *MTCornerGestureSessionDigest(NSDictionary *preferences) {
     NSMutableString *digest = [NSMutableString string];
-    for (NSString *region in MTCornerGestureRegions()) {
-        NSString *slot = MTCornerGestureSlot(region);
+    for (NSString *slot in MTCornerAllSlots()) {
         NSString *selector = MTCornerGestureSelector(preferences, slot) ?: @"";
         [digest appendFormat:@"%@=%@;", slot, selector];
     }
-    [digest appendFormat:@"inset=%0.1f;radius=%0.1f;angle=%0.1f;level=%ld;",
+    [digest appendFormat:@"inset=%0.1f;radius=%0.1f;angle=%0.1f;level=%ld;zone=%ld;",
         MTCornerGestureBottomInset(preferences), MTCornerGestureRadius(preferences),
-        MTCornerGestureAngle(preferences), (long)MTCornerGestureSensitivity(preferences)];
+        MTCornerGestureAngle(preferences), (long)MTCornerGestureSensitivity(preferences),
+        (long)MTCornerGestureZone(preferences)];
     return digest;
 }
 
@@ -232,8 +346,7 @@ static inline void MTCornerGestureRemoveActionReferences(NSMutableDictionary *pr
     id stored = preferences[kMTCornerGestureBindings];
     if (![stored isKindOfClass:NSDictionary.class] || ![selector length]) return;
     NSMutableDictionary *bindings = [stored mutableCopy];
-    for (NSString *region in MTCornerGestureRegions()) {
-        NSString *slot = MTCornerGestureSlot(region);
+    for (NSString *slot in MTCornerAllSlots()) {
         id entry = [bindings[slot] isKindOfClass:NSDictionary.class] ? bindings[slot] : nil;
         if (![entry[@"selector"] isEqual:selector]) continue;
         NSMutableDictionary *updated = [entry mutableCopy];

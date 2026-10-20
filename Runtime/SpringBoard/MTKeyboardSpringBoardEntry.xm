@@ -161,6 +161,11 @@ static void MTSBDelayedAIPrefsHeal(void) {
         // main 之后才创建，这里先注册观察者；启动入口内部线程路由同上。
         MTStartCornerGestures();
 
+        // 主通道：挂钩 SpringBoard 自己的 Home 手势管线（运行时自发现目标类）。
+        // 必须排在 MTStartCornerGestures 之后——后者读到 system 通道开启时会
+        // 主动不安装本地识别器，顺序颠倒会让两条通道同时存在一小段时间。
+        MTStartCornerSystemGestures();
+
         dispatch_async(dispatch_get_main_queue(), ^{
             @autoreleasepool {
                 // 不 load MetisKeyboardPrefs.bundle：其链接 SwiftUI/JSContext

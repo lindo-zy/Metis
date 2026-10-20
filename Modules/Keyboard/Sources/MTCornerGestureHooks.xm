@@ -78,17 +78,19 @@ static UISelectionFeedbackGenerator *MTCornerSelectionFeedback(void) {
     self.lastRejection = reason;
     return NO;
 }
-- (void)dealloc {
+- (void)detach {
     UIWindow *window = _window;
     UIPanGestureRecognizer *pan = _pan;
     void (^remove)(void) = ^{
         pan.enabled = NO;
         pan.delegate = nil;
         if (pan.view == window) [window removeGestureRecognizer:pan];
+        objc_setAssociatedObject(window, &MTCornerHandlerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     };
     if (NSThread.isMainThread) remove();
     else dispatch_async(dispatch_get_main_queue(), remove);
 }
+- (void)dealloc { [self detach]; }
 - (BOOL)available {
     if (!NSThread.isMainThread) return NO;
     UIWindow *window = self.window;
@@ -239,6 +241,8 @@ static UISelectionFeedbackGenerator *MTCornerSelectionFeedback(void) {
 
 static void MTInstallCornerGesture(UIWindow *window) {
     if (!NSThread.isMainThread || !MTCornerWindowEligible(window)) return;
+    NSString *host = NSProcessInfo.processInfo.processName;
+    if (!MTCornerGestureLocalRecognizerAllowed(MTPrefsManager.sharedInstance.prefs, host)) return;
     MTCornerGestureHandler *handler = objc_getAssociatedObject(window, &MTCornerHandlerKey);
     if (handler) { [handler refresh]; return; }
     handler = [MTCornerGestureHandler new];
@@ -260,8 +264,25 @@ static void MTInstallCornerGesture(UIWindow *window) {
         NSStringFromClass(window.class), window.bounds.size.width, window.bounds.size.height);
 }
 
+// 通道切换后要把已经挂上的识别器拆干净：否则关掉 legacy 通道后，旧的 window pan
+// 仍留在窗口上，会与新开的 system 通道各自触发一次动作。
+static void MTCornerTeardownHandlers(void) {
+    for (MTCornerGestureHandler *handler in MTCornerHandlers.allObjects.copy) {
+        [handler detach];
+        [MTCornerHandlers removeObject:handler];
+    }
+}
+
 static void MTTryCornerHooks(void) {
     if (!NSThread.isMainThread) return;
+    NSString *host = NSProcessInfo.processInfo.processName;
+    if (!MTCornerGestureLocalRecognizerAllowed(MTPrefsManager.sharedInstance.prefs, host)) {
+        if (MTCornerHandlers.count) {
+            MTCornerTeardownHandlers();
+            NSLog(@"[MetisKeyboard][CornerGesture] legacy channel disabled host=%@", host);
+        }
+        return;
+    }
     NSMutableSet<UIWindow *> *windows = [NSMutableSet set];
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wdeprecated-declarations"

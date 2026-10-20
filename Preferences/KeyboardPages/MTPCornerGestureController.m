@@ -62,6 +62,9 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 @property(nonatomic) double bottomInset;
 @property(nonatomic) BOOL leftAssigned;
 @property(nonatomic) BOOL rightAssigned;
+// 系统通道下 indicator 换成底边三段层级：不再画扇形，因为命中判定只看横向距离。
+@property(nonatomic) BOOL systemChannel;
+@property(nonatomic) NSInteger zone;
 @end
 @implementation MTPCornerPreviewView
 - (void)setRadius:(double)radius { _radius = radius; [self setNeedsDisplay]; }
@@ -69,6 +72,8 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 - (void)setBottomInset:(double)bottomInset { _bottomInset = bottomInset; [self setNeedsDisplay]; }
 - (void)setLeftAssigned:(BOOL)leftAssigned { _leftAssigned = leftAssigned; [self setNeedsDisplay]; }
 - (void)setRightAssigned:(BOOL)rightAssigned { _rightAssigned = rightAssigned; [self setNeedsDisplay]; }
+- (void)setSystemChannel:(BOOL)systemChannel { _systemChannel = systemChannel; [self setNeedsDisplay]; }
+- (void)setZone:(NSInteger)zone { _zone = zone; [self setNeedsDisplay]; }
 - (void)fillRect:(CGRect)rect assigned:(BOOL)assigned blue:(BOOL)blue {
     // 起手容错带：锚点以下到屏幕底边，贴侧边、宽度随半径缩放。
     UIColor *color = blue ? UIColor.systemBlueColor : UIColor.systemOrangeColor;
@@ -89,6 +94,25 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     fan.lineWidth = 1.5;
     [fan stroke];
 }
+// 一维层级：从屏幕底边向上铺三段色带，越贴边颜色越深——直观表达「越靠边越优先」。
+- (void)drawZoneBandsInRect:(CGRect)device {
+    NSArray<NSNumber *> *widths = MTCornerZoneWidths(device.size.width, self.zone);
+    NSArray<NSNumber *> *alphas = @[@0.32, @0.24, @0.17];
+    NSArray<UIColor *> *colors = @[UIColor.systemBlueColor, UIColor.systemOrangeColor];
+    CGFloat bandHeight = device.size.height * 0.5;
+    for (NSInteger side = 0; side < 2; side++) {
+        BOOL assigned = side == 0 ? self.leftAssigned : self.rightAssigned;
+        for (NSInteger level = (NSInteger)widths.count - 1; level >= 0; level--) {
+            CGFloat span = MIN(widths[level].doubleValue, device.size.width / 2);
+            if (span < 1) continue;
+            CGFloat x = side == 0 ? CGRectGetMinX(device) : CGRectGetMaxX(device) - span;
+            CGRect rect = CGRectMake(x, CGRectGetMaxY(device) - bandHeight, span, bandHeight);
+            CGFloat alpha = alphas[level].doubleValue * (assigned ? 1.0 : 0.35);
+            [[colors[side] colorWithAlphaComponent:alpha] setFill];
+            [[UIBezierPath bezierPathWithRect:rect] fill];
+        }
+    }
+}
 - (void)drawRect:(__unused CGRect)rect {
     CGSize screen = UIScreen.mainScreen.bounds.size;
     CGFloat margin = 14;
@@ -102,6 +126,10 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [UIColor.separatorColor setStroke];
     body.lineWidth = 1;
     [body stroke];
+    if (self.systemChannel) {
+        [self drawZoneBandsInRect:device];
+        return;
+    }
     CGFloat radius = MAX(4, self.radius * scale);
     double half = self.angle * M_PI / 180 / 2;
     // 锚点抬到「底部上移 inset」处：上移量决定扇形主体落在内容区还是 Tab bar 上。
@@ -157,13 +185,17 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     self.previewView.radius = MTCornerGestureRadius(preferences);
     self.previewView.angle = MTCornerGestureAngle(preferences);
     self.previewView.bottomInset = MTCornerGestureBottomInset(preferences);
+    self.previewView.systemChannel = MTCornerGestureSystemChannel(preferences);
+    self.previewView.zone = MTCornerGestureZone(preferences);
     BOOL enabled = MTCornerGestureMasterEnabled(preferences);
-    self.previewView.leftAssigned = enabled && [self assigned:@[@"bottomleft"] inPreferences:preferences];
-    self.previewView.rightAssigned = enabled && [self assigned:@[@"bottomright"] inPreferences:preferences];
+    // 系统通道下任一层级绑了动作就算该角落生效（三个层级都会参与判定）。
+    NSArray<NSString *> *(^slots)(NSString *) = ^NSArray<NSString *> *(NSString *region) { return MTCornerZoneSlots(region); };
+    self.previewView.leftAssigned = enabled && [self assigned:slots(@"bottomleft") inPreferences:preferences];
+    self.previewView.rightAssigned = enabled && [self assigned:slots(@"bottomright") inPreferences:preferences];
 }
 - (BOOL)assigned:(NSArray<NSString *> *)regions inPreferences:(NSDictionary *)preferences {
-    for (NSString *region in regions)
-        if (MTCornerGestureSelector(preferences, MTCornerGestureSlot(region))) return YES;
+    for (NSString *slot in regions)
+        if (MTCornerGestureSelector(preferences, slot)) return YES;
     return NO;
 }
 - (PSSpecifier *)toggle {
@@ -189,14 +221,17 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [master setProperty:kMTCornerGesturesEnabled forKey:@"key"];
     [master setProperty:@YES forKey:@"default"];
     [items addObject:master];
-    [items addObject:[self slider:@"CORNER_RADIUS" key:kMTCornerGestureRadiusKey
-        min:kMTCornerGestureRadiusMin max:kMTCornerGestureRadiusMax fallback:kMTCornerGestureRadiusDefault]];
-    [items addObject:[self slider:@"CORNER_ANGLE" key:kMTCornerGestureAngleKey
-        min:kMTCornerGestureAngleMin max:kMTCornerGestureAngleMax fallback:kMTCornerGestureAngleDefault]];
-    // 触发区上移量：把扇形锚点从屏幕几何底角抬起，避开 App 内 Home 指示条与
-    // Tab bar 所在的底部安全带；锚点以下保留贴边起手容错带（预览图里的矩形）。
-    [items addObject:[self slider:@"CORNER_BOTTOM_INSET" key:kMTCornerGestureBottomInsetKey
-        min:kMTCornerGestureBottomInsetMin max:kMTCornerGestureBottomInsetMax fallback:kMTCornerGestureBottomInsetDefault]];
+    PSSpecifier *zoneGroup = [PSSpecifier groupSpecifierWithName:MTCornerLocalized(@"CORNER_ZONE")];
+    [zoneGroup setProperty:MTCornerLocalized(@"CORNER_ZONE_FOOTER") forKey:@"footerText"];
+    [items addObject:zoneGroup];
+    PSSpecifier *zone = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_ZONE") target:self
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSegmentCell edit:nil];
+    [zone setProperty:@[@0, @1, @2] forKey:@"validValues"];
+    [zone setProperty:@[MTCornerLocalized(@"CORNER_ZONE_STANDARD"), MTCornerLocalized(@"CORNER_ZONE_WIDE"),
+        MTCornerLocalized(@"CORNER_ZONE_WIDEST")] forKey:@"validTitles"];
+    [zone setProperty:kMTCornerGestureZoneKey forKey:@"key"];
+    [zone setProperty:@(kMTCornerGestureZoneDefault) forKey:@"default"];
+    [items addObject:zone];
     PSSpecifier *sensitivityGroup = [PSSpecifier groupSpecifierWithName:MTCornerLocalized(@"CORNER_SENSITIVITY")];
     [sensitivityGroup setProperty:MTCornerLocalized(@"CORNER_SENSITIVITY_FOOTER") forKey:@"footerText"];
     [items addObject:sensitivityGroup];
@@ -211,21 +246,51 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [sensitivity setProperty:kMTCornerGestureSensitivityKey forKey:@"key"];
     [sensitivity setProperty:@(kMTCornerGestureSensitivityDefault) forKey:@"default"];
     [items addObject:sensitivity];
-    for (NSString *region in MTCornerGestureRegions()) {
-        NSString *slot = MTCornerGestureSlot(region);
-        [items addObject:[PSSpecifier groupSpecifierWithName:MTCornerLocalized(
-            [region isEqual:@"bottomleft"] ? @"CORNER_BOTTOMLEFT" : @"CORNER_BOTTOMRIGHT")]];
-        PSSpecifier *enabled = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_ENABLE") target:self
-            set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
-        [enabled setProperty:slot forKey:@"cornerSlot"];
-        [enabled setProperty:@YES forKey:@"default"];
-        [items addObject:enabled];
-        PSSpecifier *action = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_ACTION") target:self set:nil get:@selector(readActionName:)
-            detail:MTPCornerActionPicker.class cell:PSLinkCell edit:nil];
-        action.identifier = [@"corner-action-" stringByAppendingString:region];
-        [action setProperty:slot forKey:@"cornerSlot"];
-        [items addObject:action];
+    // 通道选择：默认走 SpringBoard 侧的系统通道；兼容通道是旧行为，留给系统版本
+    // 不支持自发现的场合。两条通道互斥，同时在 *>ИН 会让一次上滑触发两次。
+    PSSpecifier *channelGroup = [PSSpecifier groupSpecifierWithName:MTCornerLocalized(@"CORNER_CHANNEL")];
+    [channelGroup setProperty:MTCornerLocalized(@"CORNER_CHANNEL_FOOTER") forKey:@"footerText"];
+    [items addObject:channelGroup];
+    for (NSArray *entry in @[@[@"CORNER_CHANNEL_SYSTEM", kMTCornerGestureSystemChannelKey, @(kMTCornerGestureSystemChannelDefault)],
+        @[@"CORNER_CHANNEL_LEGACY", kMTCornerGestureLegacyChannelKey, @(kMTCornerGestureLegacyChannelDefault)]]) {
+        PSSpecifier *item = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(entry[0]) target:self
+            set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+            detail:nil cell:PSSwitchCell edit:nil];
+        [item setProperty:entry[1] forKey:@"key"];
+        [item setProperty:entry[2] forKey:@"default"];
+        [items addObject:item];
     }
+    NSArray<NSString *> *levelTitles = @[@"CORNER_ZONE_INNER", @"CORNER_ZONE_MIDDLE", @"CORNER_ZONE_OUTER"];
+    for (NSString *region in MTCornerGestureRegions()) {
+        NSString *corner = MTCornerLocalized([region isEqual:@"bottomleft"] ? @"CORNER_BOTTOMLEFT" : @"CORNER_BOTTOMRIGHT");
+        NSArray<NSString *> *slots = MTCornerZoneSlots(region);
+        for (NSInteger level = 0; level < (NSInteger)slots.count && level < (NSInteger)levelTitles.count; level++) {
+            PSSpecifier *levelGroup = [PSSpecifier groupSpecifierWithName:[NSString stringWithFormat:@"%@ · %@",
+                corner, MTCornerLocalized(levelTitles[level])]];
+            [levelGroup setProperty:MTCornerLocalized(@"CORNER_ZONE_LEVEL_FOOTER") forKey:@"footerText"];
+            [items addObject:levelGroup];
+            PSSpecifier *enabled = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_ENABLE") target:self
+                set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
+            [enabled setProperty:slots[level] forKey:@"cornerSlot"];
+            [enabled setProperty:@YES forKey:@"default"];
+            [items addObject:enabled];
+            PSSpecifier *action = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_ACTION") target:self set:nil get:@selector(readActionName:)
+                detail:MTPCornerActionPicker.class cell:PSLinkCell edit:nil];
+            action.identifier = [NSString stringWithFormat:@"corner-action-%@-%ld", region, (long)level];
+            [action setProperty:slots[level] forKey:@"cornerSlot"];
+            [items addObject:action];
+        }
+    }
+    // 旧三项归到高级区：只影响兼容通道，保留以免丢掉用户既有的调参。
+    PSSpecifier *legacyGroup = [PSSpecifier groupSpecifierWithName:MTCornerLocalized(@"CORNER_ADVANCED")];
+    [legacyGroup setProperty:MTCornerLocalized(@"CORNER_ADVANCED_FOOTER") forKey:@"footerText"];
+    [items addObject:legacyGroup];
+    [items addObject:[self slider:@"CORNER_RADIUS" key:kMTCornerGestureRadiusKey
+        min:kMTCornerGestureRadiusMin max:kMTCornerGestureRadiusMax fallback:kMTCornerGestureRadiusDefault]];
+    [items addObject:[self slider:@"CORNER_ANGLE" key:kMTCornerGestureAngleKey
+        min:kMTCornerGestureAngleMin max:kMTCornerGestureAngleMax fallback:kMTCornerGestureAngleDefault]];
+    [items addObject:[self slider:@"CORNER_BOTTOM_INSET" key:kMTCornerGestureBottomInsetKey
+        min:kMTCornerGestureBottomInsetMin max:kMTCornerGestureBottomInsetMax fallback:kMTCornerGestureBottomInsetDefault]];
     _specifiers = items;
     return items;
 }
@@ -238,6 +303,10 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         if ([key isEqual:kMTCornerGestureAngleKey]) return @(MTCornerGestureAngle(@{key: value ?: @0}));
         if ([key isEqual:kMTCornerGestureBottomInsetKey]) return @(MTCornerGestureBottomInset(@{key: value ?: @0}));
         if ([key isEqual:kMTCornerGestureSensitivityKey]) return @(MTCornerGestureSensitivity(@{key: value ?: @0}));
+        if ([key isEqual:kMTCornerGestureZoneKey]) return @(MTCornerGestureZone(@{key: value ?: @0}));
+        // 布尔键没有值时要回落到 default（系统通道缺省开），不能按 0 处理。
+        if ([key isEqual:kMTCornerGestureSystemChannelKey] || [key isEqual:kMTCornerGestureLegacyChannelKey])
+            return [value isKindOfClass:NSNumber.class] ? @([value boolValue]) : [specifier propertyForKey:@"default"];
         return [value isKindOfClass:NSNumber.class] ? value : [specifier propertyForKey:@"default"];
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
@@ -266,13 +335,33 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         [self scheduleSliderCommitForKey:key value:@(clamped)];
         return;
     }
-    if ([key isEqual:kMTCornerGestureSensitivityKey]) {
+    if ([key isEqual:kMTCornerGestureSensitivityKey] || [key isEqual:kMTCornerGestureZoneKey]) {
         if (![value isKindOfClass:NSNumber.class]) return;
         MTPrefsManager *manager = MTPrefsManager.sharedInstance;
         NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
         if (!preferences) return;
-        preferences[key] = @(MTCornerGestureSensitivity(@{key: value}));
+        BOOL isZone = [key isEqual:kMTCornerGestureZoneKey];
+        preferences[key] = @(isZone ? MTCornerGestureZone(@{key: value}) : MTCornerGestureSensitivity(@{key: value}));
         [manager writePrefs:preferences];
+        if (isZone) [self refreshPreview];
+        return;
+    }
+    if ([key isEqual:kMTCornerGestureSystemChannelKey] || [key isEqual:kMTCornerGestureLegacyChannelKey]) {
+        if (![value isKindOfClass:NSNumber.class]) return;
+        BOOL on = [value boolValue];
+        MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+        NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
+        if (!preferences) return;
+        preferences[key] = @(on);
+        // 两条通道互斥：打开一条就关掉另一条，否则一次上滑会被各处理一次。
+        if (on) {
+            NSString *other = [key isEqual:kMTCornerGestureSystemChannelKey] ?
+                kMTCornerGestureLegacyChannelKey : kMTCornerGestureSystemChannelKey;
+            preferences[other] = @NO;
+        }
+        [manager writePrefs:preferences];
+        [self reloadSpecifiers];
+        [self refreshPreview];
         return;
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
