@@ -27,6 +27,7 @@ MetisSpringBoard_FILES += MTKeyboardSpringBoardEntry.xm \
 	../../Modules/Keyboard/Sources/MTSMSCodePolicy.m \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTStatusBarGestureHooks.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTEdgeGestureHooks.xm \
+	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTArcGestureHooks.xm \
 	../../Modules/Keyboard/Sources/MTEdgeDebugOverlay.m \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTGlobalPanelHooks.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTSMSCodeHooks.xm \
