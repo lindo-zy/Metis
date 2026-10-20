@@ -1,7 +1,7 @@
 Package: com.lindo.metis
 Name: Metis
 Depends: mobilesubstrate, preferenceloader, firmware(>=16.0)
-Version: 0.5.5
+Version: 0.5.6
 Architecture: iphoneos-arm64
 Description: Metis —— 截图标注、键盘效率工具栏、剪贴板管理三合一 iOS 插件（RootHide）。
 Maintainer: lindo

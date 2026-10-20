@@ -59,14 +59,22 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
 @interface MTPCornerPreviewView : UIView
 @property(nonatomic) double radius;
 @property(nonatomic) double angle;
+@property(nonatomic) double bottomInset;
 @property(nonatomic) BOOL leftAssigned;
 @property(nonatomic) BOOL rightAssigned;
 @end
 @implementation MTPCornerPreviewView
 - (void)setRadius:(double)radius { _radius = radius; [self setNeedsDisplay]; }
 - (void)setAngle:(double)angle { _angle = angle; [self setNeedsDisplay]; }
+- (void)setBottomInset:(double)bottomInset { _bottomInset = bottomInset; [self setNeedsDisplay]; }
 - (void)setLeftAssigned:(BOOL)leftAssigned { _leftAssigned = leftAssigned; [self setNeedsDisplay]; }
 - (void)setRightAssigned:(BOOL)rightAssigned { _rightAssigned = rightAssigned; [self setNeedsDisplay]; }
+- (void)fillRect:(CGRect)rect assigned:(BOOL)assigned blue:(BOOL)blue {
+    // 起手容错带：锚点以下到屏幕底边，贴侧边、宽度随半径缩放。
+    UIColor *color = blue ? UIColor.systemBlueColor : UIColor.systemOrangeColor;
+    [[color colorWithAlphaComponent:assigned ? 0.28 : 0.10] setFill];
+    [[UIBezierPath bezierPathWithRect:rect] fill];
+}
 - (void)drawFanAtCorner:(CGPoint)anchor radius:(CGFloat)radius halfAngle:(double)half
     bisector:(double)bisector color:(UIColor *)color assigned:(BOOL)assigned {
     UIBezierPath *fan = [UIBezierPath bezierPath];
@@ -96,10 +104,20 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [body stroke];
     CGFloat radius = MAX(4, self.radius * scale);
     double half = self.angle * M_PI / 180 / 2;
-    [self drawFanAtCorner:CGPointMake(CGRectGetMinX(device), CGRectGetMaxY(device)) radius:radius halfAngle:half
+    // 锚点抬到「底部上移 inset」处：上移量决定扇形主体落在内容区还是 Tab bar 上。
+    CGFloat inset = isnan(self.bottomInset) ? 0 : MAX(0, self.bottomInset) * scale;
+    inset = MIN(inset, MAX(0, height));
+    CGFloat band = MIN(radius * kMTCornerGestureLiftBandRatio, MAX(0, width / 2));
+    [self drawFanAtCorner:CGPointMake(CGRectGetMinX(device), CGRectGetMaxY(device) - inset) radius:radius halfAngle:half
         bisector:-M_PI / 4 color:UIColor.systemBlueColor assigned:self.leftAssigned];
-    [self drawFanAtCorner:CGPointMake(CGRectGetMaxX(device), CGRectGetMaxY(device)) radius:radius halfAngle:half
+    [self drawFanAtCorner:CGPointMake(CGRectGetMaxX(device), CGRectGetMaxY(device) - inset) radius:radius halfAngle:half
         bisector:-M_PI * 3 / 4 color:UIColor.systemOrangeColor assigned:self.rightAssigned];
+    if (inset >= 1 && band >= 1) {
+        CGRect leftBand = CGRectMake(CGRectGetMinX(device), CGRectGetMaxY(device) - inset, band, inset);
+        CGRect rightBand = CGRectMake(CGRectGetMaxX(device) - band, CGRectGetMaxY(device) - inset, band, inset);
+        [self fillRect:leftBand assigned:self.leftAssigned blue:YES];
+        [self fillRect:rightBand assigned:self.rightAssigned blue:NO];
+    }
 }
 @end
 
@@ -138,6 +156,7 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
     [preferences addEntriesFromDictionary:self.pendingSliderValues ?: @{}];
     self.previewView.radius = MTCornerGestureRadius(preferences);
     self.previewView.angle = MTCornerGestureAngle(preferences);
+    self.previewView.bottomInset = MTCornerGestureBottomInset(preferences);
     BOOL enabled = MTCornerGestureMasterEnabled(preferences);
     self.previewView.leftAssigned = enabled && [self assigned:@[@"bottomleft"] inPreferences:preferences];
     self.previewView.rightAssigned = enabled && [self assigned:@[@"bottomright"] inPreferences:preferences];
@@ -174,6 +193,24 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         min:kMTCornerGestureRadiusMin max:kMTCornerGestureRadiusMax fallback:kMTCornerGestureRadiusDefault]];
     [items addObject:[self slider:@"CORNER_ANGLE" key:kMTCornerGestureAngleKey
         min:kMTCornerGestureAngleMin max:kMTCornerGestureAngleMax fallback:kMTCornerGestureAngleDefault]];
+    // 触发区上移量：把扇形锚点从屏幕几何底角抬起，避开 App 内 Home 指示条与
+    // Tab bar 所在的底部安全带；锚点以下保留贴边起手容错带（预览图里的矩形）。
+    [items addObject:[self slider:@"CORNER_BOTTOM_INSET" key:kMTCornerGestureBottomInsetKey
+        min:kMTCornerGestureBottomInsetMin max:kMTCornerGestureBottomInsetMax fallback:kMTCornerGestureBottomInsetDefault]];
+    PSSpecifier *sensitivityGroup = [PSSpecifier groupSpecifierWithName:MTCornerLocalized(@"CORNER_SENSITIVITY")];
+    [sensitivityGroup setProperty:MTCornerLocalized(@"CORNER_SENSITIVITY_FOOTER") forKey:@"footerText"];
+    [items addObject:sensitivityGroup];
+    PSSpecifier *sensitivity = [PSSpecifier preferenceSpecifierNamed:MTCornerLocalized(@"CORNER_SENSITIVITY")
+        target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+        detail:nil cell:PSSegmentCell edit:nil];
+    // 用 validValues/validTitles 而非 -setValues:titles:：后者不在所有版本的
+    // PreferenceLoader 头文件里声明，旧 SDK 会编译失败。
+    [sensitivity setProperty:@[@0, @1, @2] forKey:@"validValues"];
+    [sensitivity setProperty:@[MTCornerLocalized(@"CORNER_SENSITIVITY_STANDARD"),
+        MTCornerLocalized(@"CORNER_SENSITIVITY_HIGH"), MTCornerLocalized(@"CORNER_SENSITIVITY_MAX")] forKey:@"validTitles"];
+    [sensitivity setProperty:kMTCornerGestureSensitivityKey forKey:@"key"];
+    [sensitivity setProperty:@(kMTCornerGestureSensitivityDefault) forKey:@"default"];
+    [items addObject:sensitivity];
     for (NSString *region in MTCornerGestureRegions()) {
         NSString *slot = MTCornerGestureSlot(region);
         [items addObject:[PSSpecifier groupSpecifierWithName:MTCornerLocalized(
@@ -199,6 +236,8 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         id value = self.pendingSliderValues[key] ?: preferences[key];
         if ([key isEqual:kMTCornerGestureRadiusKey]) return @(MTCornerGestureRadius(@{key: value ?: @0}));
         if ([key isEqual:kMTCornerGestureAngleKey]) return @(MTCornerGestureAngle(@{key: value ?: @0}));
+        if ([key isEqual:kMTCornerGestureBottomInsetKey]) return @(MTCornerGestureBottomInset(@{key: value ?: @0}));
+        if ([key isEqual:kMTCornerGestureSensitivityKey]) return @(MTCornerGestureSensitivity(@{key: value ?: @0}));
         return [value isKindOfClass:NSNumber.class] ? value : [specifier propertyForKey:@"default"];
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
@@ -216,15 +255,24 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         [self refreshPreview];
         return;
     }
-    if ([key isEqual:kMTCornerGestureRadiusKey] || [key isEqual:kMTCornerGestureAngleKey]) {
+    if ([key isEqual:kMTCornerGestureRadiusKey] || [key isEqual:kMTCornerGestureAngleKey] ||
+        [key isEqual:kMTCornerGestureBottomInsetKey]) {
         double clamped = MTCornerGestureClamp([value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN,
             [specifier propertyForKey:@"min"] ? [(NSNumber *)[specifier propertyForKey:@"min"] doubleValue] : -INFINITY,
             [specifier propertyForKey:@"max"] ? [(NSNumber *)[specifier propertyForKey:@"max"] doubleValue] : INFINITY,
             [(NSNumber *)[specifier propertyForKey:@"default"] doubleValue]);
         // 示意图直接用拖动值刷新（不等落盘），落盘延后到停止拖动后。
-        if ([key isEqual:kMTCornerGestureRadiusKey]) self.previewView.radius = clamped;
-        else if ([key isEqual:kMTCornerGestureAngleKey]) self.previewView.angle = clamped;
+        [self applyPreviewValue:clamped forKey:key];
         [self scheduleSliderCommitForKey:key value:@(clamped)];
+        return;
+    }
+    if ([key isEqual:kMTCornerGestureSensitivityKey]) {
+        if (![value isKindOfClass:NSNumber.class]) return;
+        MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+        NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
+        if (!preferences) return;
+        preferences[key] = @(MTCornerGestureSensitivity(@{key: value}));
+        [manager writePrefs:preferences];
         return;
     }
     NSString *slot = [specifier propertyForKey:@"cornerSlot"];
@@ -242,6 +290,11 @@ static BOOL MTCornerSaveSelector(NSString *slot, NSString *selector) {
         [manager writePrefs:preferences];
         [self refreshPreview];
     }
+}
+- (void)applyPreviewValue:(double)value forKey:(NSString *)key {
+    if ([key isEqual:kMTCornerGestureRadiusKey]) self.previewView.radius = value;
+    else if ([key isEqual:kMTCornerGestureAngleKey]) self.previewView.angle = value;
+    else if ([key isEqual:kMTCornerGestureBottomInsetKey]) self.previewView.bottomInset = value;
 }
 // 停止拖动 0.4s 后落盘一次；期间的新值覆盖旧值，只保留最后一次。
 - (void)scheduleSliderCommitForKey:(NSString *)key value:(NSNumber *)value {

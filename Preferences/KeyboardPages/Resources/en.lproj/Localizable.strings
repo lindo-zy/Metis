@@ -646,7 +646,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 // Screen corner gestures
 "CORNER_GESTURE_SETTINGS" = "Screen Corner Gestures";
-"CORNER_GESTURE_FOOTER" = "Swipe up inside the fan-shaped areas at the bottom-left / bottom-right corners of the screen to trigger an action. The sliders adjust the fan radius and angle, and the preview marks the live trigger range in color. Only gesture panels or keyboard-free custom actions can be assigned.";
+"CORNER_GESTURE_FOOTER" = "Swipe up inside the fan-shaped areas at the bottom-left / bottom-right corners of the screen to trigger an action. The sliders adjust the fan radius and angle, and the preview marks the live trigger range in color. Only gesture panels or keyboard-free custom actions can be assigned. \"Trigger Area Lift\" raises the fan away from the bottom strip that apps commonly cover with their own bars; the rectangle below the anchor in the preview is the tolerance column that still accepts a swipe starting lower.";
 "CORNER_ENABLE" = "Enable Swipe Up";
 "CORNER_ACTION" = "Action";
 "CORNER_ACTION_NONE" = "No action";
@@ -654,4 +654,10 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CORNER_BOTTOMRIGHT" = "Bottom-Right Corner";
 "CORNER_RADIUS" = "Fan Radius";
 "CORNER_ANGLE" = "Fan Angle";
+"CORNER_BOTTOM_INSET" = "Trigger Area Lift";
+"CORNER_SENSITIVITY" = "Sensitivity";
+"CORNER_SENSITIVITY_FOOTER" = "Sets the travel distance and direction tolerance needed to complete the gesture; higher levels also accept a quick flick. This affects the release check only, not the fan area.";
+"CORNER_SENSITIVITY_STANDARD" = "Standard";
+"CORNER_SENSITIVITY_HIGH" = "Sensitive";
+"CORNER_SENSITIVITY_MAX" = "Maximum";
 "CORNER_UNASSIGNED" = "Unassigned";

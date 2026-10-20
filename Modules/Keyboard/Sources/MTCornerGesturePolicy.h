@@ -16,6 +16,30 @@
 #define kMTCornerGestureAngleMin 30.0
 #define kMTCornerGestureAngleMax 120.0
 
+// 触发区上移量：扇形锚点从窗口几何底角抬起 bottomInset 个点。App 内屏幕底部
+// 20pt 左右是 Home 指示条系统手势区、34pt 起通常是 Tab bar，扇形压在这两段上
+// 会让手指的起手点落进系统/原生控件的争夺范围。上移后扇形主体进入内容区，
+// 锚点以下保留一条贴边起手容错带，供习惯从更靠下的地方划上来的手势使用。
+#define kMTCornerGestureBottomInsetKey @"cornergestureBottomInset"
+#define kMTCornerGestureBottomInsetDefault 34.0
+#define kMTCornerGestureBottomInsetMin 0.0
+#define kMTCornerGestureBottomInsetMax 100.0
+// 起手容错带横向宽度 = 半径 × 该系数，随扇形一起缩放。
+#define kMTCornerGestureLiftBandRatio 0.5
+
+// 灵敏度档位：0 标准（沿用早期固定阈值），1 灵敏（默认），2 极灵敏。
+// 只影响完成位移门槛、上滑方向比与快速甩动兜底，不改变命中几何。
+#define kMTCornerGestureSensitivityKey @"cornergestureSensitivity"
+#define kMTCornerGestureSensitivityDefault 1
+#define kMTCornerGestureSensitivityMin 0
+#define kMTCornerGestureSensitivityMax 2
+
+typedef struct {
+    double travel;   // 完成所需的最小向上位移（正值）
+    double ratio;    // 上滑方向比：-dy >= |dx| × ratio 才视为向上
+    double velocity; // 快速甩动兜底的速度门槛（pt/s，0 表示关闭）
+} MTCornerGestureMetrics;
+
 static inline NSArray<NSString *> *MTCornerGestureRegions(void) { return @[@"bottomleft", @"bottomright"]; }
 static inline NSArray<NSString *> *MTCornerGestureKinds(void) { return @[@"up"]; }
 static inline NSString *MTCornerGestureSlot(NSString *region) {
@@ -67,40 +91,108 @@ static inline double MTCornerGestureAngle(NSDictionary *preferences) {
     return MTCornerGestureClamp([value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN,
         kMTCornerGestureAngleMin, kMTCornerGestureAngleMax, kMTCornerGestureAngleDefault);
 }
+static inline double MTCornerGestureBottomInset(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureBottomInsetKey] : nil;
+    return MTCornerGestureClamp([value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN,
+        kMTCornerGestureBottomInsetMin, kMTCornerGestureBottomInsetMax, kMTCornerGestureBottomInsetDefault);
+}
+static inline NSInteger MTCornerGestureSensitivity(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kMTCornerGestureSensitivityKey] : nil;
+    double level = [value isKindOfClass:NSNumber.class] ? [value doubleValue] : NAN;
+    return (NSInteger)MTCornerGestureClamp(level, kMTCornerGestureSensitivityMin, kMTCornerGestureSensitivityMax,
+        kMTCornerGestureSensitivityDefault);
+}
+// 锚点纵坐标：上移量不得把锚点抬出窗口，短窗口（iPad 分屏/浮层）自动收敛到底边。
+static inline double MTCornerGestureAnchorY(double height, double inset) {
+    if (!isfinite(height) || height <= 0 || !isfinite(inset) || inset <= 0) return MAX(0, height);
+    return MAX(0, height - MIN(inset, height));
+}
+static inline MTCornerGestureMetrics MTCornerGestureMetricsForLevel(NSInteger level) {
+    MTCornerGestureMetrics metrics = { 36.0, 0.75, 0.0 };
+    if (level == 1) { metrics.travel = 28.0; metrics.ratio = 0.60; metrics.velocity = 900.0; }
+    else if (level >= 2) { metrics.travel = 20.0; metrics.ratio = 0.45; metrics.velocity = 650.0; }
+    return metrics;
+}
+static inline MTCornerGestureMetrics MTCornerGestureMetricsForPreferences(NSDictionary *preferences) {
+    return MTCornerGestureMetricsForLevel(MTCornerGestureSensitivity(preferences));
+}
 
-// 扇形命中判定：point 为窗口 bounds 坐标，扇形锚点在窗口底角、角平分线指向
-// 屏幕内侧 45°（上-内对角线），张角以角平分线对称分布。锚点允许 y == 底边
-// （手指贴边上滑的常见起点），但绝不接受低于底边的点。
-static inline NSString *MTCornerRegionAtPoint(CGPoint point, CGSize size, double radius, double angle) {
+// 扇形命中判定：point 为窗口 bounds 坐标，扇形锚点位于「底角抬高 inset」处、
+// 角平分线指向屏幕内侧 45°（上-内对角线），张角以角平分线对称分布。inset = 0
+// 时锚点即几何底角、锚点以下一律拒绝，与早期行为一致；inset > 0 时锚点以下到
+// 屏幕底边保留一条贴侧边的窄列作为起手容错带，让习惯从靠下的位置开始上滑的
+// 手势仍然能被接住。
+static inline NSString *MTCornerRegionAtPointWithInset(CGPoint point, CGSize size, double radius, double angle, double inset) {
     if (!isfinite(point.x) || !isfinite(point.y) || !isfinite(radius) || !isfinite(angle) ||
         !isfinite(size.width) || !isfinite(size.height) || radius <= 0 || angle <= 0 || angle > 180 ||
         size.width <= 0 || size.height <= 0 || point.x < 0 || point.x > size.width ||
         point.y < 0 || point.y > size.height) return nil;
-    double dx = point.x <= size.width / 2 ? point.x : point.x - size.width;
-    double dy = point.y - size.height;
-    if (dy > 0) return nil;
+    BOOL left = point.x <= size.width / 2;
+    NSString *region = left ? @"bottomleft" : @"bottomright";
+    double dx = left ? point.x : point.x - size.width;
+    double dy = point.y - MTCornerGestureAnchorY(size.height, inset);
+    if (dy > 0) {
+        // 锚点以下到屏幕底边的起手容错带：只认贴侧边的窄列，宽度随半径缩放。
+        return fabs(dx) <= radius * kMTCornerGestureLiftBandRatio ? region : nil;
+    }
     double length = hypot(dx, dy);
     if (length > radius) return nil;
     // bisector = (±cos45°, -sin45°)；点积 >= |v|·cos(半张角) 即落在扇形内。
     double cosHalf = cos(MTCornerGestureClamp(angle, 0, 180, 90) * M_PI / 180 / 2);
-    if (length == 0) return point.x <= size.width / 2 ? @"bottomleft" : @"bottomright";
-    double bisectorX = point.x <= size.width / 2 ? M_SQRT1_2 : -M_SQRT1_2;
+    if (length == 0) return region;
+    double bisectorX = left ? M_SQRT1_2 : -M_SQRT1_2;
     if (dx * bisectorX + dy * -M_SQRT1_2 < length * cosHalf) return nil;
-    return point.x <= size.width / 2 ? @"bottomleft" : @"bottomright";
+    return region;
 }
 // 上滑方向：主导向上即可（允许对角上滑），与 Dock 上滑的 1.5:1 相比放宽到 0.75:1。
 static inline BOOL MTCornerGestureUpward(double dx, double dy) {
     return isfinite(dx) && isfinite(dy) && dy < 0 && -dy >= fabs(dx) * 0.75;
 }
+static inline BOOL MTCornerGestureUpwardWithRatio(double dx, double dy, double ratio) {
+    if (!isfinite(dx) || !isfinite(dy) || !isfinite(ratio) || ratio <= 0) return NO;
+    return dy < 0 && -dy >= fabs(dx) * ratio;
+}
+// 仅凭两点位移无法区分「想触发手势」和「想滚动内容」，快速甩动是更强的意图信号：
+// 位移达到门槛一半且抬手速度超过该档阈值时提前放行。
+static inline BOOL MTCornerGestureCompletesWithMetrics(double dx, double dy, double velocity, MTCornerGestureMetrics metrics) {
+    if (!MTCornerGestureUpwardWithRatio(dx, dy, metrics.ratio)) return NO;
+    if (dy <= -metrics.travel) return YES;
+    return metrics.velocity > 0 && isfinite(velocity) && velocity <= -metrics.velocity &&
+        dy <= -metrics.travel * 0.5;
+}
+// 无上移量与标准档的等价入口：保持既有行为，供旧宿主测试与 Dock 复用。
+static inline NSString *MTCornerRegionAtPoint(CGPoint point, CGSize size, double radius, double angle) {
+    return MTCornerRegionAtPointWithInset(point, size, radius, angle, 0);
+}
 static inline BOOL MTCornerGestureCompletes(double dx, double dy) {
-    return MTCornerGestureUpward(dx, dy) && dy <= -36;
+    return MTCornerGestureCompletesWithMetrics(dx, dy, 0, MTCornerGestureMetricsForLevel(0));
 }
 // Dock 手势互斥：命中已配置的角落扇形时，Dock 上滑放行给角落识别器。
-static inline NSString *MTCornerGestureClaimedSlot(NSDictionary *preferences, CGSize size, CGPoint point) {
+static inline NSString *MTCornerGestureClaimedSlotWithInset(NSDictionary *preferences, CGSize size, CGPoint point, double inset) {
     if (!MTCornerGestureMasterEnabled(preferences)) return nil;
-    NSString *region = MTCornerRegionAtPoint(point, size, MTCornerGestureRadius(preferences), MTCornerGestureAngle(preferences));
+    NSString *region = MTCornerRegionAtPointWithInset(point, size, MTCornerGestureRadius(preferences),
+        MTCornerGestureAngle(preferences), inset);
     NSString *slot = MTCornerGestureSlot(region);
     return MTCornerGestureSelector(preferences, slot) ? slot : nil;
+}
+static inline NSString *MTCornerGestureClaimedSlot(NSDictionary *preferences, CGSize size, CGPoint point) {
+    return MTCornerGestureClaimedSlotWithInset(preferences, size, point, 0);
+}
+// 会话摘要：只收录「决定这一次触发是否成立」的字段——角落绑定、几何、灵敏度和
+// 自定义动作支持状态。会话进行中的无关偏好变动（其它页面的编辑、剪切板历史等）
+// 不再打断一次正在进行的滑动，而任何会让变异动作/区域的改动仍然使会话失效。
+// 这不是放宽校验：broker 服务端依旧按 slot 重新解析并要求 selector 相等。
+static inline NSString *MTCornerGestureSessionDigest(NSDictionary *preferences) {
+    NSMutableString *digest = [NSMutableString string];
+    for (NSString *region in MTCornerGestureRegions()) {
+        NSString *slot = MTCornerGestureSlot(region);
+        NSString *selector = MTCornerGestureSelector(preferences, slot) ?: @"";
+        [digest appendFormat:@"%@=%@;", slot, selector];
+    }
+    [digest appendFormat:@"inset=%0.1f;radius=%0.1f;angle=%0.1f;level=%ld;",
+        MTCornerGestureBottomInset(preferences), MTCornerGestureRadius(preferences),
+        MTCornerGestureAngle(preferences), (long)MTCornerGestureSensitivity(preferences)];
+    return digest;
 }
 
 // 窗口必须覆盖当前 Scene；仅被屏幕包含的小窗口不能拥有“屏幕角落”。
