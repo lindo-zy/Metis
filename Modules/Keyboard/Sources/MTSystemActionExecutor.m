@@ -15,41 +15,157 @@
 #include <unistd.h>
 
 static __weak UIAlertController *MTSystemActionConfirmation;
+static UIWindow *MTSystemConfirmHostWindow;
+
+// 确认框存活上限。既是自动收起的兜底，也是「继续」的有效性判定，
+// 两处必须同源，否则会出现框还在、点确认却被判超时的错位。
+static const NSTimeInterval MTSystemActionConfirmTimeout = 30;
+
+// 自建宿主必须随确认框一起销毁，否则常驻窗口会变成下一次的遮挡者
+// （与本次故障同形态）。按实例销毁：dismiss 回调可能晚于下一代宿主的
+// 创建，按全局指针拆会误杀新窗口。
+static void MTReleaseSystemConfirmHostWindow(UIWindow *window) {
+    if (!window) return;
+    if (MTSystemConfirmHostWindow == window) MTSystemConfirmHostWindow = nil;
+    window.hidden = YES;
+    window.rootViewController = nil;
+}
+
+static void MTReleaseSystemConfirmHost(void) {
+    MTReleaseSystemConfirmHostWindow(MTSystemConfirmHostWindow);
+}
+
+// scene 挑选与 MTGlobalPanel 完全同规则（SB 内久经验证可交互的承载）：
+// 主屏、排除键盘/系统孔径、接受 Active/Inactive（覆盖前台 App 时 SB scene
+// 为 Inactive），优先 com.apple.springboard 与 SBWindowScene。
+static UIWindowScene *MTSystemConfirmWindowScene(void) {
+    UIWindowScene *best = nil;
+    NSInteger bestScore = 0;
+    for (UIScene *candidate in UIApplication.sharedApplication.connectedScenes) {
+        if (![candidate isKindOfClass:UIWindowScene.class]) continue;
+        UIWindowScene *windowScene = (UIWindowScene *)candidate;
+        NSString *identity = windowScene.session.persistentIdentifier.lowercaseString ?: @"";
+        NSString *role = windowScene.session.role.lowercaseString ?: @"";
+        if (windowScene.screen != UIScreen.mainScreen || [identity containsString:@"keyboard"] ||
+            [role containsString:@"keyboard"] || [identity containsString:@"systemaperture"] ||
+            [role containsString:@"systemaperture"]) continue;
+        if (windowScene.activationState != UISceneActivationStateForegroundActive &&
+            windowScene.activationState != UISceneActivationStateForegroundInactive) continue;
+        NSInteger score = [identity isEqualToString:@"com.apple.springboard"] ? 100 :
+            ([NSStringFromClass(windowScene.class) isEqualToString:@"SBWindowScene"] ? 50 : 0);
+        if (windowScene.activationState == UISceneActivationStateForegroundActive) score += 10;
+        if (score > bestScore) { bestScore = score; best = windowScene; }
+    }
+    return best;
+}
+
+// 自建专用窗口是外来窗口全不可用时的唯一可靠宿主：配方与 MTGlobalPanel
+// 相同——scene 挂靠、不抢 key（canBecomeKey 保持默认、hidden=NO 即可挂屏）；
+// 找不到 scene 的退化分支才 plain-init + makeKeyAndVisible（MTAIPanel 同款）。
+static UIViewController *MTMakeSystemConfirmHost(void) {
+    if (MTSystemConfirmHostWindow) MTReleaseSystemConfirmHostWindow(MTSystemConfirmHostWindow);
+    UIWindowScene *scene = MTSystemConfirmWindowScene();
+    UIWindow *window = nil;
+    if (scene) {
+        window = [[UIWindow alloc] initWithWindowScene:scene];
+        window.frame = scene.coordinateSpace.bounds;
+    } else {
+        window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
+    }
+    window.backgroundColor = UIColor.clearColor;
+    // 比 Metis 各面板（alert+1）再高一层：确认框必须盖住可能仍开着的面板，
+    // 否则弹窗落在面板后面同样点不到；代价是超出截图捕获范围，可接受。
+    window.windowLevel = UIWindowLevelAlert + 2;
+    UIViewController *host = [UIViewController new];
+    host.view.backgroundColor = UIColor.clearColor;
+    window.rootViewController = host;
+    MTSystemConfirmHostWindow = window;
+    if (scene) window.hidden = NO;
+    else [window makeKeyAndVisible];
+    return host;
+}
+
+// 宿主挑选：调用方指定 > 自建专用窗口。外来窗口一律不挂——SB 的状态栏
+// 窗口（剪贴板面板就装在里面）bounds 全屏、命中区域却只有窄条，尺寸过滤
+// 挡不住它，弹窗挂上去能显示、收不到触摸，正是「点不动、只能等超时」的
+// 成因。判定改用窗口 rootVC 的类名 MT 前缀：Metis 自有面板的根控制器
+// 都以 MT 开头，SB 自己的窗口（含状态栏、锁屏等）不会命中。
+static BOOL MTSystemConfirmWindowIsHostable(UIWindow *window) {
+    if (!window || window.hidden || window.alpha < 0.01) return NO;
+    UIViewController *root = window.rootViewController;
+    if (!root || root.presentedViewController) return NO;
+    if (root.isViewLoaded && root.view.isHidden) return NO;
+    if (![NSStringFromClass(root.class) hasPrefix:@"MT"]) return NO;
+    UIWindowScene *scene = window.windowScene;
+    // 全屏是承载模态的最低要求：小窗口承载的弹窗会被裁剪、按钮收不到触摸。
+    return scene && CGSizeEqualToSize(window.bounds.size, scene.coordinateSpace.bounds.size);
+}
+
+static UIViewController *MTSystemConfirmPresenter(UIViewController *preferred, NSString **hostSource) {
+    if (preferred && [preferred isKindOfClass:UIViewController.class] && !preferred.presentedViewController &&
+        MTSystemConfirmWindowIsHostable(preferred.view.window)) {
+        if (hostSource) *hostSource = @"caller";
+        return preferred;
+    }
+    if (hostSource) *hostSource = @"dedicated";
+    return MTMakeSystemConfirmHost();
+}
 
 void MTCancelSystemActionConfirmation(void) {
     if (!NSThread.isMainThread) return;
-    [MTSystemActionConfirmation dismissViewControllerAnimated:NO completion:nil];
+    UIAlertController *alert = MTSystemActionConfirmation;
     MTSystemActionConfirmation = nil;
+    if (!alert) {
+        MTReleaseSystemConfirmHost();
+        return;
+    }
+    // 捕获当前那一代宿主：dismiss 回调执行时全局指针可能已经指向新窗口。
+    UIWindow *host = MTSystemConfirmHostWindow;
+    // 在 dismiss 回调里拆宿主：直接释放窗口会让正在退场的模态层凭空消失。
+    [alert dismissViewControllerAnimated:NO completion:^{ MTReleaseSystemConfirmHostWindow(host); }];
 }
 
-BOOL MTConfirmSystemExitAction(NSString *action, NSProgress *operation) {
+BOOL MTConfirmSystemExitActionFrom(NSString *action, NSProgress *operation, UIViewController *preferred) {
     if (!MTSystemExitActionAvailable(action) || ![MTSystemActionDefinition(action)[@"destructive"] boolValue]) return NO;
-    UIWindow *window = MTKeyWindow();
-    UIViewController *presenter = window.rootViewController;
-    while (presenter.presentedViewController && !presenter.presentedViewController.isBeingDismissed)
-        presenter = presenter.presentedViewController;
-    if (!presenter || !window || window.hidden || presenter.view.window != window) return NO;
+    NSString *hostSource = nil;
+    UIViewController *presenter = MTSystemConfirmPresenter(preferred, &hostSource);
+    if (!presenter) return NO;
+    // 自建宿主刚创建时 view 可能还没挂进窗口，兜底取全局那一代。
+    UIWindow *window = presenter.view.window ?: MTSystemConfirmHostWindow;
+    if (!window || window.hidden || presenter.presentedViewController) return NO;
+    UIWindowScene *hostScene = window.windowScene;
+    NSLog(@"[MetisKeyboard][SystemConfirm] host=%@ level=%.0f fullscreen=%d source=%@ scene=%@",
+        NSStringFromClass(window.class), (double)window.windowLevel,
+        hostScene ? CGSizeEqualToSize(window.bounds.size, hostScene.coordinateSpace.bounds.size) : NO, hostSource,
+        hostScene.session.persistentIdentifier);
     NSBundle *bundle = [NSBundle bundleWithPath:bundlePath];
     NSString *title = [bundle localizedStringForKey:MTSystemActionDefinition(action)[@"title"] value:action table:nil];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
         message:[bundle localizedStringForKey:@"SYSTEM_ACTION_CONFIRM" value:@"Continue?" table:nil]
         preferredStyle:UIAlertControllerStyleAlert];
-    NSTimeInterval deadline = NSDate.date.timeIntervalSince1970 + 60;
+    NSTimeInterval deadline = NSDate.date.timeIntervalSince1970 + MTSystemActionConfirmTimeout;
     __weak UIWindow *originalWindow = window;
     __weak UIViewController *originalPresenter = presenter;
     __weak UIAlertController *originalAlert = alert;
+    // 本次确认框自己那一代宿主（借用别人窗口时为 nil），清理只针对它。
+    __weak UIWindow *ownedHost = MTSystemConfirmHostWindow;
     [alert addAction:[UIAlertAction actionWithTitle:[bundle localizedStringForKey:@"CANCEL" value:@"Cancel" table:nil]
         style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *choice) {
-            if (MTSystemActionConfirmation == originalAlert) MTSystemActionConfirmation = nil;
+            if (MTSystemActionConfirmation == originalAlert) {
+                MTSystemActionConfirmation = nil;
+                dispatch_async(dispatch_get_main_queue(), ^{ MTReleaseSystemConfirmHostWindow(ownedHost); });
+            }
             [operation cancel];
         }]];
     [alert addAction:[UIAlertAction actionWithTitle:[bundle localizedStringForKey:@"ANSWER_YES" value:@"Continue" table:nil]
         style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *choice) {
             BOOL current = MTSystemActionConfirmation == originalAlert;
             if (current) MTSystemActionConfirmation = nil;
-            UIWindow *source = originalWindow;
-            if (!current || operation.cancelled || !source || source.hidden || MTKeyWindow() != source ||
-                originalPresenter.view.window != source || NSDate.date.timeIntervalSince1970 > deadline) return;
+            UIWindow *host = originalWindow;
+            UIViewController *controller = originalPresenter;
+            // 宿主由执行器指定，不能再拿全局 keyWindow 比对：它会随场景切换漂移。
+            if (!current || operation.cancelled || !host || host.hidden || !controller ||
+                controller.view.window != host || NSDate.date.timeIntervalSince1970 > deadline) return;
             MTSystemOpenResult result = MTPerformSystemAction(action);
             NSLog(@"[MetisKeyboard][SystemAction] confirmed id=%@ result=%llu", action, (unsigned long long)result);
             if (result != MTSystemOpenSucceeded) {
@@ -57,26 +173,39 @@ BOOL MTConfirmSystemExitAction(NSString *action, NSProgress *operation) {
                     message:[bundle localizedStringForKey:@"SYSTEM_ACTION_UNAVAILABLE" value:@"Unavailable" table:nil]
                     preferredStyle:UIAlertControllerStyleAlert];
                 [error addAction:[UIAlertAction actionWithTitle:[bundle localizedStringForKey:@"ANSWER_OK" value:@"OK" table:nil]
-                    style:UIAlertActionStyleDefault handler:nil]];
+                    style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *acknowledged) {
+                        dispatch_async(dispatch_get_main_queue(), ^{ MTReleaseSystemConfirmHostWindow(ownedHost); });
+                    }]];
                 UIAlertController *prompt = originalAlert;
                 [prompt dismissViewControllerAnimated:YES completion:^{
                     UIWindow *currentWindow = originalWindow;
                     UIViewController *currentPresenter = originalPresenter;
-                    if (operation.cancelled || !currentWindow || currentWindow.hidden || MTKeyWindow() != currentWindow ||
+                    if (operation.cancelled || !currentWindow || currentWindow.hidden || !currentPresenter ||
                         currentPresenter.view.window != currentWindow || currentPresenter.presentedViewController ||
                         NSDate.date.timeIntervalSince1970 > deadline) return;
                     [currentPresenter presentViewController:error animated:YES completion:nil];
                 }];
+            } else {
+                // 动作已受理。若它没能让 SpringBoard 退出（重复触发或被底层拒绝），
+                // 自建宿主会留在最上层挡住触摸——正是本次故障的形态，这里兜底回收。
+                // 进程真正退出的分支不会执行到这段。
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    MTReleaseSystemConfirmHostWindow(ownedHost);
+                });
             }
         }]];
     MTSystemActionConfirmation = alert;
     [presenter presentViewController:alert animated:YES completion:nil];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(MTSystemActionConfirmTimeout * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (MTSystemActionConfirmation != originalAlert || !originalAlert) return;
         [operation cancel];
         MTCancelSystemActionConfirmation();
     });
     return YES;
+}
+
+BOOL MTConfirmSystemExitAction(NSString *action, NSProgress *operation) {
+    return MTConfirmSystemExitActionFrom(action, operation, nil);
 }
 
 static void MTLoadSystemActionFrameworks(void) {
