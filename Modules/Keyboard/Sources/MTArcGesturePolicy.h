@@ -5,7 +5,12 @@
 
 #define kMTArcGesturesEnabled @"arcgesturesBOOL"
 #define kMTArcGesturesLandscape @"arcgesturesLandscapeBOOL"
+#define kMTArcGesturesDebug @"arcgesturesDebugBOOL"
 #define kMTArcGestureBindings @"arcgesturebindings"
+
+static const double MTArcRadiusMinimum = 8;
+static const double MTArcRadiusMaximum = 300;
+static const double MTArcRadiusDefault = 40;
 
 static inline NSArray<NSString *> *MTArcGestureSlots(void) { return @[@"bottomLeft", @"bottomRight"]; }
 static inline BOOL MTArcGestureSlotValid(id slot) {
@@ -27,11 +32,13 @@ static inline NSString *MTArcGestureSelector(NSDictionary *preferences, NSString
         [selector length] > 0 && [selector length] <= 256 ? selector : nil;
 }
 // 角点扇形触发半径（pt）：默认 40，收敛到 [8, 300]，与设置页滑杆一致。
+static inline double MTArcGestureClampedRadius(id stored) {
+    double radius = [stored isKindOfClass:NSNumber.class] ? [stored doubleValue] : MTArcRadiusDefault;
+    if (!isfinite(radius)) radius = MTArcRadiusDefault;
+    return round(fmin(MTArcRadiusMaximum, fmax(MTArcRadiusMinimum, radius)));
+}
 static inline double MTArcGestureRadius(NSDictionary *preferences, NSString *slot) {
-    id stored = MTArcGestureBinding(preferences, slot)[@"radius"];
-    double radius = [stored isKindOfClass:NSNumber.class] ? [stored doubleValue] : 40;
-    if (!isfinite(radius)) radius = 40;
-    return round(fmin(300, fmax(8, radius)));
+    return MTArcGestureClampedRadius(MTArcGestureBinding(preferences, slot)[@"radius"]);
 }
 static inline BOOL MTArcGestureEnabled(NSDictionary *preferences, BOOL landscape, NSString *masterKey) {
     if (![preferences isKindOfClass:NSDictionary.class]) return NO;
@@ -45,6 +52,13 @@ static inline CGPoint MTArcPointFromFixed(double x, double y, double width, doub
     if (orientation == 2) return CGPointMake(width - x, height - y);
     if (orientation == 3) return CGPointMake(y, width - x);
     if (orientation == 4) return CGPointMake(height - y, x);
+    return CGPointMake(x, y);
+}
+// Inverse of the recognizer's fixed-to-display mapping, used by debug paths.
+static inline CGPoint MTArcPointToFixed(double x, double y, double width, double height, NSInteger orientation) {
+    if (orientation == 2) return CGPointMake(width - x, height - y);
+    if (orientation == 3) return CGPointMake(width - y, x);
+    if (orientation == 4) return CGPointMake(y, height - x);
     return CGPointMake(x, y);
 }
 // 触点落在以屏幕底角为圆心的四分之一圆内（按显示方向计算）。

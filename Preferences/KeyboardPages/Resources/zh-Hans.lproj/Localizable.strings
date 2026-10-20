@@ -549,7 +549,7 @@
 "ARC_BOTTOMLEFT" = "从左下角划出";
 "ARC_BOTTOMRIGHT" = "从右下角划出";
 "ARC_ZONE" = "触发区域";
-"ARC_ZONE_FOOTER" = "以屏幕角点为圆心的四分之一圆（扇形）。半径越大越容易触发，越小越需要贴着角落起手。向远离角点的任一方向划出约 60pt 即触发。";
+"ARC_ZONE_FOOTER" = "左右角可分别调整扇形半径，范围 8–300 pt，默认 40 pt。半径越大，允许起手的区域越大；向屏幕内划出约 60 pt 触发。松开滑杆后保存，并同步更新识别范围与调试标记；角落详情页可恢复默认半径。";
 "ARC_RADIUS" = "扇形半径";
 "ARC_ZONE_RESET" = "恢复默认半径";
 "EDGE_GESTURES_FOOTER" = "从屏幕最边缘向内滑入，可在解锁后的 App 和主屏幕使用，锁屏时停用。默认关闭；每种手势需启用并选择动作。单指从左侧滑入可能接管 App 的返回手势，双指版本保留单指返回。";
@@ -694,3 +694,8 @@
 "CONTEXT_GROUP_INPUT_SWITCH" = "输入类型";
 "CONTEXT_GROUP_INPUT_FOOTER" = "验证码框显示粘贴验证码，网址框显示打开剪贴板链接。";
 "CONTEXT_GROUP_ORDER_FOOTER" = "刚复制显示粘贴、刚选中显示选区动作：两者都新鲜时，以后发生的那一次为准。";
+
+"ARC_DEBUG" = "调试模式";
+"ARC_DEBUG_FOOTER" = "用半透明红色扇形标记已启用且绑定动作的划弧起手区域。提示层不接收触摸，可透过它操作 App；已配置的划弧手势仍正常触发。关闭手势总开关、锁屏或未允许的横屏会隐藏标记。";
+"ARC_RADIUS_BOTTOMLEFT" = "左下角半径";
+"ARC_RADIUS_BOTTOMRIGHT" = "右下角半径";

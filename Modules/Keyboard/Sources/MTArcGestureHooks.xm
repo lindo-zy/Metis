@@ -6,6 +6,7 @@
 #import <UIKit/UIGestureRecognizerSubclass.h>
 #import <notify.h>
 #import "MTArcGestures.h"
+#import "MTArcDebugOverlay.h"
 #import "MTArcGesturePolicy.h"
 #import "MTPanelRegistry.h"
 #import "MTGlobalPanel.h"
@@ -149,7 +150,10 @@ static void MTArcManagerDidInitialize(SBSystemGestureManager *manager) {
 }
 static void MTUpdateArcGestures(void) {
     if (!NSThread.isMainThread || ![MTArcManager respondsToSelector:@selector(addGestureRecognizer:withType:)] ||
-        ![MTArcManager respondsToSelector:@selector(removeGestureRecognizer:)]) return;
+        ![MTArcManager respondsToSelector:@selector(removeGestureRecognizer:)]) {
+        if (NSThread.isMainThread) MTUpdateArcDebugOverlay(nil, @[], MTArcOrientation(), NO);
+        return;
+    }
     static MTArcTarget *target;
     if (!target) target = [MTArcTarget new];
     if (!MTArcRecognizers) MTArcRecognizers = [NSMutableDictionary dictionary];
@@ -180,6 +184,9 @@ static void MTUpdateArcGestures(void) {
         MTArcRecognizers[slot] = recognizer;
         NSLog(@"[MetisKeyboard][ArcGesture] installed slot=%@ radius=%.0f", slot, radius);
     }
+    MTUpdateArcDebugOverlay(MTPrefsManager.sharedInstance.prefs, MTArcRecognizers.allKeys, MTArcOrientation(),
+        MTPrefsManager.sharedInstance.preferencesAvailable &&
+        MTArcGestureEnabled(MTPrefsManager.sharedInstance.prefs, MTArcLandscape(), kEnabledkey) && [MTGlobalPanel deviceUnlocked]);
 }
 
 %group MTArcSystemHooks

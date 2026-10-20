@@ -21,6 +21,10 @@ static NSString *MTArcActionName(NSDictionary *preferences, NSString *slot) {
 }
 static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
     if (!MTArcGestureSlotValid(slot) || ![@[@"selector", @"enabled", @"radius"] containsObject:field]) return NO;
+    if ([field isEqual:@"radius"] && value) {
+        if (![value isKindOfClass:NSNumber.class]) return NO;
+        value = @(MTArcGestureClampedRadius(value));
+    }
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
     NSMutableDictionary *preferences = [[manager readPrefs] mutableCopy];
     if (!preferences) return NO;
@@ -38,6 +42,21 @@ static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
     id saved = MTArcGestureBinding([manager readPrefs], slot)[field];
     // Shared-resource "none" targets project back as an empty selector.
     return value ? [saved isEqual:value] : (saved == nil || [saved isEqual:@""]);
+}
+
+static PSSpecifier *MTArcRadiusSpecifier(id target, NSString *slot, NSString *title) {
+    PSSpecifier *slider = [PSSpecifier preferenceSpecifierNamed:title target:target
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
+    slider.identifier = [@"arc-radius-" stringByAppendingString:slot];
+    [slider setProperty:slot forKey:@"arcSlot"];
+    [slider setProperty:@"radius" forKey:@"zoneField"];
+    [slider setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
+    [slider setProperty:@(MTArcRadiusMinimum) forKey:@"min"];
+    [slider setProperty:@(MTArcRadiusMaximum) forKey:@"max"];
+    [slider setProperty:@1 forKey:@"step"];
+    [slider setProperty:@YES forKey:@"commitOnRelease"];
+    [slider setProperty:@"%.0f pt" forKey:@"valueFormat"];
+    return slider;
 }
 
 @interface MTPArcGestureEntryController : PSListController
@@ -76,6 +95,14 @@ static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
         item.identifier = key;
         [items addObject:item];
     }
+    PSSpecifier *debugGroup = [PSSpecifier groupSpecifierWithName:nil];
+    [debugGroup setProperty:MTArcLocalized(@"ARC_DEBUG_FOOTER") forKey:@"footerText"];
+    [items addObject:debugGroup];
+    PSSpecifier *debug = [PSSpecifier preferenceSpecifierNamed:MTArcLocalized(@"ARC_DEBUG") target:self
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
+    debug.identifier = kMTArcGesturesDebug;
+    [debug setProperty:kMTArcGesturesDebug forKey:@"key"];
+    [items addObject:debug];
     [items addObject:[PSSpecifier groupSpecifierWithName:nil]];
     for (NSString *slot in MTArcGestureSlots()) {
         PSSpecifier *item = [PSSpecifier preferenceSpecifierNamed:MTArcLocalized([@"ARC_" stringByAppendingString:slot.uppercaseString])
@@ -84,19 +111,34 @@ static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
         [item setProperty:slot forKey:@"arcSlot"];
         [items addObject:item];
     }
+    PSSpecifier *zoneGroup = [PSSpecifier groupSpecifierWithName:MTArcLocalized(@"ARC_ZONE")];
+    [zoneGroup setProperty:MTArcLocalized(@"ARC_ZONE_FOOTER") forKey:@"footerText"];
+    [items addObject:zoneGroup];
+    for (NSString *slot in MTArcGestureSlots())
+        [items addObject:MTArcRadiusSpecifier(self, slot, MTArcLocalized([@"ARC_RADIUS_" stringByAppendingString:slot.uppercaseString]))];
     _specifiers = items; return items;
 }
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
+    if ([specifier propertyForKey:@"zoneField"])
+        return @(MTArcGestureRadius([MTPrefsManager.sharedInstance readPrefs], [specifier propertyForKey:@"arcSlot"]));
     return @(MTArcGestureFlag([MTPrefsManager.sharedInstance readPrefs][[specifier propertyForKey:@"key"]]));
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
+    if ([specifier propertyForKey:@"zoneField"]) {
+        MTArcSaveBinding([specifier propertyForKey:@"arcSlot"], @"radius", value);
+        return;
+    }
     NSString *key = [specifier propertyForKey:@"key"];
     if (key.length) [MTPrefsManager.sharedInstance setValue:@(MTArcGestureFlag(value)) forKey:key];
+}
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)path {
+    if ([[self specifierAtIndexPath:path] propertyForKey:@"zoneField"]) return 80;
+    return [super tableView:tableView heightForRowAtIndexPath:path];
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     PSSpecifier *item = [self specifierAtIndexPath:path];
     NSString *slot = [item propertyForKey:@"arcSlot"];
-    if (slot.length) return MTPGestureActionCell(tableView, @"MTArcGestureRecord", item.name,
+    if (slot.length && ![item propertyForKey:@"zoneField"]) return MTPGestureActionCell(tableView, @"MTArcGestureRecord", item.name,
         MTArcActionName([MTPrefsManager.sharedInstance readPrefs], slot), nil, UITableViewCellAccessoryDisclosureIndicator, item);
     return [super tableView:tableView cellForRowAtIndexPath:path];
 }
@@ -123,17 +165,7 @@ static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
     PSSpecifier *zoneGroup = [PSSpecifier groupSpecifierWithName:MTArcLocalized(@"ARC_ZONE")];
     [zoneGroup setProperty:MTArcLocalized(@"ARC_ZONE_FOOTER") forKey:@"footerText"];
     [items addObject:zoneGroup];
-    PSSpecifier *slider = [PSSpecifier preferenceSpecifierNamed:MTArcLocalized(@"ARC_RADIUS")
-        target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
-    slider.identifier = @"arc-radius";
-    [slider setProperty:@"radius" forKey:@"zoneField"];
-    [slider setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
-    [slider setProperty:@8 forKey:@"min"];
-    [slider setProperty:@300 forKey:@"max"];
-    [slider setProperty:@1 forKey:@"step"];
-    [slider setProperty:@YES forKey:@"commitOnRelease"];
-    [slider setProperty:@"%.0f pt" forKey:@"valueFormat"];
-    [items addObject:slider];
+    [items addObject:MTArcRadiusSpecifier(self, [self.specifier propertyForKey:@"arcSlot"], MTArcLocalized(@"ARC_RADIUS"))];
     PSSpecifier *reset = [PSSpecifier preferenceSpecifierNamed:MTArcLocalized(@"ARC_ZONE_RESET") target:self
         set:nil get:nil detail:nil cell:PSButtonCell edit:nil];
     reset.identifier = @"arc-reset-zone";
@@ -149,15 +181,8 @@ static BOOL MTArcSaveBinding(NSString *slot, NSString *field, id value) {
     if ([[specifier propertyForKey:@"zoneField"] isEqual:@"radius"]) {
         if (![value isKindOfClass:NSNumber.class]) return;
         NSString *slot = [self.specifier propertyForKey:@"arcSlot"];
-        double number = [value doubleValue];
-        number = round(fmin([[specifier propertyForKey:@"max"] doubleValue], fmax([[specifier propertyForKey:@"min"] doubleValue], number)));
-        // Slider labels track continuously; writes and dependent Y limits
-        // refresh only on release, avoiding a prefs broadcast per drag tick.
-        __weak typeof(self) weakSelf = self;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (!MTArcSaveBinding(slot, @"radius", @(number))) return;
-            [weakSelf reloadSpecifiers];
-        });
+        // The cell updates its label while dragging; persist once on release.
+        MTArcSaveBinding(slot, @"radius", value);
         return;
     }
     MTArcSaveBinding([self.specifier propertyForKey:@"arcSlot"], @"enabled", @(MTArcGestureFlag(value)));
