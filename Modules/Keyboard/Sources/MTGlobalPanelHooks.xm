@@ -2,7 +2,6 @@
 #import "MTGlobalPanelPolicy.h"
 #import "MTDockPanelTouchPolicy.h"
 #import "MTDockGesturePolicy.h"
-#import "MTCornerGesturePolicy.h"
 #import "MTGlobalActionExecutor.h"
 #import "MTKeyboardPanelPreferences.h"
 #import "MTPanelRegistry.h"
@@ -105,11 +104,6 @@ static void MTTryInstallGlobalPanelHooks(void);
         }
         return NO;
     }
-    NSDictionary *panelPreferences = MTPrefsManager.sharedInstance.prefs;
-    // 角落手势优先：命中已配置的角落扇形时放行，避免同一次上滑双重响应。
-    // 必须与角落识别器用同一个上移量判定，否则抬起后的互斥结论会与实际触发错位。
-    if (MTCornerGestureClaimedSlotWithInset(panelPreferences, window.bounds.size, point,
-        MTCornerGestureBottomInset(panelPreferences))) return NO;
     if (![self available]) return NO;
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     BOOL active = NO;

@@ -7,7 +7,6 @@
 #import "MTKeyboardPanelPreferences.h"
 #import "MTPanelRegistry.h"
 #import "MTStatusBarGesturePolicy.h"
-#import "MTCornerGesturePolicy.h"
 #import "MTGlobalPanelPolicy.h"
 #import "MTGlobalPanel.h"
 #import "MTGlobalActionExecutor.h"
@@ -107,36 +106,6 @@ static void MTPerformSystemOpen(NSDictionary *request, MTSystemOpenReply reply) 
         BOOL isPanel = MTPanelAllowed(manager.prefs, selector, MTPanelGestureKind);
         if (isPanel) {
             [MTGlobalPanel.sharedInstance presentPanelSelector:selector fromWindow:nil origin:@"statusbar"];
-            reply([MTGlobalPanel.sharedInstance isVisible] ? MTSystemOpenSucceeded : MTSystemOpenUnavailable);
-            return;
-        }
-        id definitions = manager.prefs[kLinkActionskey];
-        for (id entry in [definitions isKindOfClass:NSArray.class] ? definitions : @[]) {
-            if (![entry isKindOfClass:NSDictionary.class] || ![entry[@"selector"] isEqual:selector]) continue;
-            if (!MTIsLinkActionSelector(selector) || !MTGlobalCustomActionSupported(entry)) { reply(MTSystemOpenInvalid); return; }
-            MTExecuteGlobalCustomAction(entry, reply);
-            return;
-        }
-        reply(MTSystemOpenInvalid);
-        return;
-    }
-    if ([kind isEqual:@"corner-gesture"]) {
-        NSTimeInterval age = NSDate.date.timeIntervalSince1970 - [request[@"created"] doubleValue];
-        if (!(age >= 0 && age <= 1.5)) { reply(MTSystemOpenExpired); return; }
-        NSData *data = [payload dataUsingEncoding:NSUTF8StringEncoding];
-        id binding = data.length <= 1024 ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-        if (!MTCornerGestureRequestValid(binding)) { reply(MTSystemOpenInvalid); return; }
-        MTPrefsManager *manager = MTPrefsManager.sharedInstance;
-        [manager reload];
-        NSString *selector = manager.preferencesAvailable ? MTCornerGestureRequestSelector(manager.prefs, binding, kEnabledkey) : nil;
-        if (!selector || ![MTGlobalPanel deviceUnlocked] || [MTGlobalPanel.sharedInstance isVisible]) {
-            NSLog(@"[MetisKeyboard][CornerGesture] dispatch rejected slot=%@ gate=binding/lock/panel", binding[@"slot"]);
-            reply(MTSystemOpenUnavailable); return;
-        }
-        NSLog(@"[MetisKeyboard][CornerGesture] dispatch slot=%@", binding[@"slot"]);
-        BOOL isPanel = MTPanelAllowed(manager.prefs, selector, MTPanelGestureKind);
-        if (isPanel) {
-            [MTGlobalPanel.sharedInstance presentPanelSelector:selector fromWindow:nil origin:@"cornergesture"];
             reply([MTGlobalPanel.sharedInstance isVisible] ? MTSystemOpenSucceeded : MTSystemOpenUnavailable);
             return;
         }
@@ -280,14 +249,6 @@ void MTRequestStatusBarGesture(NSString *slot, NSString *expectedSelector, BOOL 
     NSData *data = [NSJSONSerialization dataWithJSONObject:request options:0 error:nil];
     if (!data.length || data.length > 1024) { if (reply) reply(MTSystemOpenInvalid); return; }
     MTSubmitSystemOpen(@"statusbar-gesture", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding], reply);
-}
-
-void MTRequestCornerGesture(NSString *slot, NSString *expectedSelector, MTSystemOpenReply reply) {
-    NSDictionary *request = @{@"slot": slot ?: @"", @"selector": expectedSelector ?: @""};
-    if (!MTCornerGestureRequestValid(request)) { if (reply) reply(MTSystemOpenInvalid); return; }
-    NSData *data = [NSJSONSerialization dataWithJSONObject:request options:0 error:nil];
-    if (!data.length || data.length > 1024) { if (reply) reply(MTSystemOpenInvalid); return; }
-    MTSubmitSystemOpen(@"corner-gesture", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding], reply);
 }
 
 void MTOpenSystemApplication(NSString *bundleIdentifier, MTSystemOpenReply reply) {

@@ -6,7 +6,6 @@
 #import "MTCore.h"
 #import "common.h"
 #import "MTStatusBarGestures.h"
-#import "MTCornerGestures.h"
 
 // Metis 门控变化 → 走 MetisKeyboard 既有 prefschanged 重载链（幂等 reload）。
 static void MTUIKitPostPrefsChanged(void) {
@@ -37,10 +36,6 @@ static void MTUIKitPostPrefsChanged(void) {
     // 触发经 MetisCore SystemOpenBroker 转发 SpringBoard 执行。
     // 内部宿主门（MTStatusBarHostAllowed）只放行 .app，键盘扩展安全跳过。
     MTStartStatusBarGestures();
-    // App 内屏幕角落上滑手势：识别器挂整屏常规窗口，扇形命中在触摸回调判定；
-    // 触发同样经 SystemOpenBroker corner-gesture 链路转发 SpringBoard 执行，
-    // 宿主门与状态栏手势共用（键盘扩展不挂）。
-    MTStartCornerGestures();
     MTLogInfo(MTLogModuleCore,
               @"state=uikit-loaded version=%@ kind=%lu bundle=%@",
               MTCoreVersionString,

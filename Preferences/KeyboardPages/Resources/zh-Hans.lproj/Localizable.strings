@@ -642,36 +642,3 @@
 "AI_BALANCE_LOADING" = "正在查询余额…";
 "AI_BALANCE_REFRESH" = "点击刷新余额";
 "AI_BALANCE_FAILED" = "余额查询失败 · 点击重试";
-
-// 屏幕角落手势
-"CORNER_GESTURE_SETTINGS" = "屏幕角落手势";
-"CORNER_GESTURE_FOOTER" = "在屏幕左下角 / 右下角的扇形区域内上滑触发动作。滑杆可调整扇形半径与张角，顶部示意图实时用颜色标出生效范围；手势只能选择手势面板或无需键盘的自定义动作。「触发区上移」把扇形抬离屏幕底部容易被 App 底部栏占用的位置，示意图中锚点下方的矩形是允许起手的容错带。";
-"CORNER_ENABLE" = "启用上滑";
-"CORNER_ACTION" = "触发动作";
-"CORNER_ACTION_NONE" = "不执行动作";
-"CORNER_BOTTOMLEFT" = "左下角";
-"CORNER_BOTTOMRIGHT" = "右下角";
-"CORNER_RADIUS" = "扇形半径";
-"CORNER_ANGLE" = "扇形张角";
-"CORNER_BOTTOM_INSET" = "触发区上移";
-"CORNER_SENSITIVITY" = "触发灵敏度";
-"CORNER_SENSITIVITY_FOOTER" = "决定完成手势所需的滑动距离与方向要求，灵敏以上还会识别快速甩动。只影响抬手判定，不改变扇形范围。";
-"CORNER_SENSITIVITY_STANDARD" = "标准";
-"CORNER_SENSITIVITY_HIGH" = "灵敏";
-"CORNER_SENSITIVITY_MAX" = "极灵敏";
-"CORNER_UNASSIGNED" = "未设置";
-"CORNER_ZONE" = "触发区宽度";
-"CORNER_ZONE_FOOTER" = "系统通道下不再要求手指落在扇形里，只看起点到屏幕侧边的横向距离：从屏幕底边任意高度起手都可以。宽度分为三档，每个角落按「贴边 / 中段 / 外侧」划分三段区域，越靠边的段越优先，各段可以绑定不同动作。";
-"CORNER_ZONE_STANDARD" = "标准";
-"CORNER_ZONE_WIDE" = "宽";
-"CORNER_ZONE_WIDEST" = "更宽";
-"CORNER_ZONE_INNER" = "贴边";
-"CORNER_ZONE_MIDDLE" = "中段";
-"CORNER_ZONE_OUTER" = "外侧";
-"CORNER_ZONE_LEVEL_FOOTER" = "一段区域未绑定动作时，会自动顺延到更外侧那一段。";
-"CORNER_CHANNEL" = "手势通道";
-"CORNER_CHANNEL_SYSTEM" = "系统通道（推荐）";
-"CORNER_CHANNEL_LEGACY" = "兼容通道（旧方式）";
-"CORNER_CHANNEL_FOOTER" = "系统通道在 SpringBoard 内接管系统自己的底部手势，各 App 的表现一致，不与 App 的标签栏、按钮与滚动抢同一批触摸；若它未能在当前系统版本上接管，日志里会出现 CornerSystem 的 no grabberTongue target found，此时可改用兼容通道。两条通道不可同时开启，避免一次上滑触发两次动作。";
-"CORNER_ADVANCED" = "扇形参数（仅兼容通道）";
-"CORNER_ADVANCED_FOOTER" = "下列扇形半径、张角与上移量只对兼容通道生效，保留它们是为了让老配置不被丢弃。";

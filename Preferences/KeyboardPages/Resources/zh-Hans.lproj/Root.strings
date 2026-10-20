@@ -54,14 +54,3 @@
 "STATUS_BAR_CLEAR" = "清除动作";
 "STATUS_BAR_PANELS" = "打开面板";
 "STATUS_BAR_PICKER_FOOTER" = "选择或添加系统动作、打开应用、App 快捷项或链接。文字、JavaScript 和需要当前输入内容的动作不适用于状态栏。";
-
-// 屏幕角落手势
-"CORNER_GESTURE_SETTINGS" = "屏幕角落手势";
-"CORNER_ENABLE" = "启用上滑";
-"CORNER_ACTION" = "触发动作";
-"CORNER_ACTION_NONE" = "不执行动作";
-"CORNER_BOTTOMLEFT" = "左下角";
-"CORNER_BOTTOMRIGHT" = "右下角";
-"CORNER_RADIUS" = "扇形半径";
-"CORNER_ANGLE" = "扇形张角";
-"CORNER_UNASSIGNED" = "未设置";

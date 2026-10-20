@@ -9,7 +9,6 @@ TWEAK_NAME = MetisUIKit
 MetisUIKit_FILES = MTUIKitEntry.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTKeyboardHooks.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTStatusBarGestureHooks.xm \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTCornerGestureHooks.xm \
 	../../Modules/Keyboard/Sources/MTPasteChip.m \
 
 MetisUIKit_CFLAGS = -fobjc-arc

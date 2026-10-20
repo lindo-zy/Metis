@@ -45,13 +45,6 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     statusBar.subBundle = @"MetisKeyboardPrefs";
     statusBar.className = @"MTPStatusBarGestureController";
 
-    MTSettingsRow *corner = [MTSettingsRow linkRowWithIdentifier:@"global-corner-gesture" title:@"屏幕角落手势"];
-    corner.iconName = @"arrow.up.forward.square";
-    corner.colorName = @"orange";
-    corner.routeKind = MTSettingsRouteSubbundle;
-    corner.subBundle = @"MetisKeyboardPrefs";
-    corner.className = @"MTPCornerGestureController";
-
     MTSettingsRow *floatingApp = [MTSettingsRow linkRowWithIdentifier:@"global-floating-app" title:@"悬浮应用"];
     floatingApp.iconName = @"macwindow.on.rectangle";
     floatingApp.colorName = @"blue";
@@ -59,7 +52,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     floatingApp.subBundle = @"MetisKeyboardPrefs";
     floatingApp.className = @"MTPFloatingAppController";
 
-    return @[dock, statusBar, corner, floatingApp];
+    return @[dock, statusBar, floatingApp];
 }
 
 // 原「其他」页「自动化」区：AI 问答链接 + 两个功能开关（各自独立成行，
