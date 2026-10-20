@@ -22,6 +22,8 @@
         self.settingValue.font = [UIFont monospacedDigitSystemFontOfSize:14 weight:UIFontWeightRegular];
         self.slider = [UISlider new];
         [self.slider addTarget:self action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
+        [self.slider addTarget:self action:@selector(finished:) forControlEvents:
+            UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
         for (UIView *view in @[self.settingTitle, self.settingValue, self.slider]) [self.contentView addSubview:view];
         [self refreshCellContentsWithSpecifier:specifier];
     }
@@ -64,6 +66,12 @@
         sender.value = columns ? lroundf(sender.value) : lroundf(sender.value / 5) * 5;
     }
     [self updateValueLabel];
+    if ([[self.specifier propertyForKey:@"commitOnRelease"] boolValue]) return;
+    [self.specifier performSetterWithValue:@(sender.value)];
+}
+- (void)finished:(UISlider *)sender {
+    if (![[self.specifier propertyForKey:@"commitOnRelease"] boolValue]) return;
+    [self changed:sender];
     [self.specifier performSetterWithValue:@(sender.value)];
 }
 - (void)layoutSubviews {

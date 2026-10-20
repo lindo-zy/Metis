@@ -5,6 +5,7 @@
 #import <notify.h>
 #import "MTEdgeGestures.h"
 #import "MTEdgeGesturePolicy.h"
+#import "MTEdgeDebugOverlay.h"
 #import "MTPanelRegistry.h"
 #import "MTGlobalPanel.h"
 #import "MTGlobalPanelPolicy.h"
@@ -25,15 +26,16 @@ static const unsigned long long MTEdgeGestureTypeBase = 0x6d746500;
 static SBSystemGestureManager *MTEdgeManager;
 static void MTUpdateEdgeGestures(void);
 
-static BOOL MTEdgeLandscape(void) {
+static UIInterfaceOrientation MTEdgeOrientation(void) {
     // SpringBoard's active orientation follows the display, including apps
     // that do not rotate the device's physical orientation.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     UIInterfaceOrientation orientation = UIApplication.sharedApplication.statusBarOrientation;
 #pragma clang diagnostic pop
-    return UIInterfaceOrientationIsLandscape(orientation);
+    return orientation == UIInterfaceOrientationUnknown ? UIInterfaceOrientationPortrait : orientation;
 }
+static BOOL MTEdgeLandscape(void) { return UIInterfaceOrientationIsLandscape(MTEdgeOrientation()); }
 static NSString *MTEdgeConfiguredSelector(NSString *slot) {
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
     if (!manager.preferencesAvailable || !MTEdgeGestureEnabled(manager.prefs, NO, kEnabledkey)) return nil;
@@ -51,9 +53,10 @@ static NSString *MTEdgeAvailableSelector(NSString *slot) {
 @property(nonatomic, copy) NSString *slot;
 @property(nonatomic, copy) NSString *configuredSelector;
 @property(nonatomic, copy) NSString *sessionSelector;
+@property(nonatomic, copy) NSDictionary *configuredRange;
 @property(nonatomic) NSUInteger fingers;
 @property(nonatomic) BOOL fired;
-@property(nonatomic) BOOL sessionLandscape;
+@property(nonatomic) UIInterfaceOrientation sessionOrientation;
 @end
 @implementation MTEdgeRecognizer
 - (void)reset {
@@ -67,13 +70,33 @@ static NSString *MTEdgeAvailableSelector(NSString *slot) {
         if (touch.phase != UITouchPhaseEnded && touch.phase != UITouchPhaseCancelled) active++;
     NSString *selector = MTEdgeAvailableSelector(self.slot);
     if (active > self.fingers || ![selector isEqual:self.configuredSelector] ||
+        ![self.configuredRange isEqual:MTEdgeGestureRange(MTPrefsManager.sharedInstance.prefs, self.slot)] ||
         (self.sessionSelector && ![self.sessionSelector isEqual:selector])) {
         self.state = UIGestureRecognizerStateFailed;
         return;
     }
+    CGSize fixed = UIScreen.mainScreen.fixedCoordinateSpace.bounds.size;
+    UIInterfaceOrientation orientation = MTEdgeOrientation();
+    BOOL landscape = UIInterfaceOrientationIsLandscape(orientation);
+    for (UITouch *touch in touches) {
+        // Normal UIKit touches provide their window. System-routed touches
+        // without one already report display-oriented coordinates.
+        UIWindow *window = touch.window ?: self.view.window;
+        CGPoint point = [touch locationInView:window];
+        MTEdgePoint origin = {point.x, point.y};
+        if (window) {
+            CGPoint physical = [window convertPoint:point toCoordinateSpace:UIScreen.mainScreen.fixedCoordinateSpace];
+            origin = MTEdgePointFromFixed(physical.x, physical.y, fixed.width, fixed.height, orientation);
+        }
+        if (!MTEdgeGestureOriginAllowed(self.configuredRange, self.slot, origin.x, origin.y,
+                                       landscape ? fixed.height : fixed.width, landscape ? fixed.width : fixed.height)) {
+            self.state = UIGestureRecognizerStateFailed;
+            return;
+        }
+    }
     if (!self.sessionSelector) {
         self.sessionSelector = selector;
-        self.sessionLandscape = MTEdgeLandscape();
+        self.sessionOrientation = orientation;
     }
     [super touchesBegan:touches withEvent:event];
 }
@@ -86,12 +109,13 @@ static NSString *MTEdgeAvailableSelector(NSString *slot) {
 - (void)slid:(MTEdgeRecognizer *)recognizer {
     if (recognizer.fired || (recognizer.state != UIGestureRecognizerStateChanged && recognizer.state != UIGestureRecognizerStateEnded)) return;
     CGPoint translation = [recognizer translationInView:nil];
-    if (!MTEdgeGestureCompletes([recognizer.slot hasPrefix:@"left"], translation.x, translation.y)) return;
+    if (!MTEdgeGestureCompletesWithRange(recognizer.configuredRange, [recognizer.slot hasPrefix:@"left"], translation.x, translation.y)) return;
     recognizer.fired = YES;
     // Resolve the current shared definition, and reject a stale/rebound touch.
     NSString *expected = recognizer.sessionSelector;
     [MTPrefsManager.sharedInstance reload];
-    if (!expected.length || recognizer.sessionLandscape != MTEdgeLandscape() ||
+    if (!expected.length || recognizer.sessionOrientation != MTEdgeOrientation() ||
+        ![recognizer.configuredRange isEqual:MTEdgeGestureRange(MTPrefsManager.sharedInstance.prefs, recognizer.slot)] ||
         ![expected isEqual:MTEdgeAvailableSelector(recognizer.slot)]) return;
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     NSLog(@"[MetisKeyboard][EdgeGesture] trigger slot=%@", recognizer.slot);
@@ -128,7 +152,10 @@ static void MTEdgeManagerDidInitialize(SBSystemGestureManager *manager) {
 }
 static void MTUpdateEdgeGestures(void) {
     if (!NSThread.isMainThread || ![MTEdgeManager respondsToSelector:@selector(addGestureRecognizer:withType:)] ||
-        ![MTEdgeManager respondsToSelector:@selector(removeGestureRecognizer:)]) return;
+        ![MTEdgeManager respondsToSelector:@selector(removeGestureRecognizer:)]) {
+        if (NSThread.isMainThread) MTUpdateEdgeDebugOverlay(nil, @[], MTEdgeOrientation(), NO);
+        return;
+    }
     static MTEdgeTarget *target;
     if (!target) target = [MTEdgeTarget new];
     if (!MTEdgeRecognizers) MTEdgeRecognizers = [NSMutableDictionary dictionary];
@@ -139,8 +166,9 @@ static void MTUpdateEdgeGestures(void) {
         // state. touchesBegan gates each attempt; closing a panel needs no
         // unrelated system notification to make the next gesture available.
         NSString *selector = MTEdgeConfiguredSelector(slot);
+        NSDictionary *range = MTEdgeGestureRange(MTPrefsManager.sharedInstance.prefs, slot);
         MTEdgeRecognizer *existing = MTEdgeRecognizers[slot];
-        if (existing && ![selector isEqual:existing.configuredSelector]) {
+        if (existing && (![selector isEqual:existing.configuredSelector] || ![range isEqual:existing.configuredRange])) {
             existing.enabled = NO; // cancel an in-flight session before removal
             [MTEdgeManager removeGestureRecognizer:existing];
             [MTEdgeRecognizers removeObjectForKey:slot];
@@ -152,15 +180,18 @@ static void MTUpdateEdgeGestures(void) {
         if (!recognizer) continue;
         recognizer.slot = slot;
         recognizer.configuredSelector = selector;
+        recognizer.configuredRange = range;
         recognizer.fingers = [slot hasSuffix:@"2"] ? 2 : 1;
         recognizer.edges = [slot hasPrefix:@"left"] ? UIRectEdgeLeft : UIRectEdgeRight;
         recognizer.minimumNumberOfTouches = recognizer.fingers;
         recognizer.maximumNumberOfTouches = recognizer.fingers;
-        if ([recognizer respondsToSelector:@selector(_setEdgeRegionSize:)]) [recognizer _setEdgeRegionSize:20];
+        if ([recognizer respondsToSelector:@selector(_setEdgeRegionSize:)]) [recognizer _setEdgeRegionSize:[range[@"width"] doubleValue]];
         [MTEdgeManager addGestureRecognizer:recognizer withType:MTEdgeGestureTypeBase + index];
         MTEdgeRecognizers[slot] = recognizer;
         NSLog(@"[MetisKeyboard][EdgeGesture] installed slot=%@ fingers=%lu", slot, (unsigned long)recognizer.fingers);
     }
+    MTUpdateEdgeDebugOverlay(MTPrefsManager.sharedInstance.prefs, MTEdgeRecognizers.allKeys, MTEdgeOrientation(),
+        MTEdgeGestureEnabled(MTPrefsManager.sharedInstance.prefs, MTEdgeLandscape(), kEnabledkey) && [MTGlobalPanel deviceUnlocked]);
 }
 
 %group MTEdgeSystemHooks
@@ -204,7 +235,8 @@ void MTStartEdgeGestures(void) {
             }
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            for (NSString *name in @[UIApplicationDidFinishLaunchingNotification, UIApplicationDidChangeStatusBarOrientationNotification])
+            for (NSString *name in @[UIApplicationDidFinishLaunchingNotification, UIApplicationDidChangeStatusBarOrientationNotification,
+                                     UISceneDidActivateNotification])
                 [NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note) {
                     MTCancelEdgeSessions();
                     [MTPrefsManager.sharedInstance reload];

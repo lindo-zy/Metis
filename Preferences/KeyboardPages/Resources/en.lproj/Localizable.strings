@@ -526,6 +526,15 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 // Independent status-bar gesture entries.
 "STATUS_BAR_SETTINGS" = "Status Bar Gestures";
 "EDGE_GESTURES" = "Screen Edge Gestures";
+"EDGE_DEBUG" = "Debug Mode";
+"EDGE_DEBUG_FOOTER" = "Translucent red marks the start regions of enabled, assigned gestures. The overlay receives no touches, so you can operate apps through it; configured edge gestures still work. Release a range slider to update recognition and highlighting together. Marks hide when disabled, locked, or in disallowed landscape orientation.";
+"EDGE_RANGE" = "Gesture Region and Distance";
+"EDGE_RANGE_WIDTH" = "Edge Width X";
+"EDGE_RANGE_YSTART" = "Region Top Y";
+"EDGE_RANGE_YEND" = "Region Bottom Y";
+"EDGE_RANGE_DISTANCE" = "Inward Trigger Distance X";
+"EDGE_RANGE_RESET" = "Reset Region";
+"EDGE_RANGE_FOOTER" = "Every finger must start within the edge width and between the top and bottom bounds. Y is a percentage of the current display height: 0% at the top, 100% at the bottom. Release a slider to save. Actions run after reaching the inward distance with predominantly horizontal movement. Each gesture has its own settings.";
 "EDGE_LEFT" = "Slide In from Left";
 "EDGE_RIGHT" = "Slide In from Right";
 "EDGE_LEFT2" = "Two Fingers from Left";

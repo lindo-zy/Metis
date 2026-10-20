@@ -525,6 +525,15 @@
 // Independent status-bar gesture entries.
 "STATUS_BAR_SETTINGS" = "状态栏手势";
 "EDGE_GESTURES" = "屏幕边缘手势";
+"EDGE_DEBUG" = "调试模式";
+"EDGE_DEBUG_FOOTER" = "用半透明红色标记已启用且绑定动作的起点区域。提示层不接收触摸，可透过它操作 App；已配置的滑入手势仍正常触发。修改范围并松开滑杆后，标记与识别范围一起更新。关闭总开关、锁屏或未允许的横屏会隐藏标记。";
+"EDGE_RANGE" = "手势区域与距离";
+"EDGE_RANGE_WIDTH" = "边缘区域宽度 X";
+"EDGE_RANGE_YSTART" = "区域顶部 Y";
+"EDGE_RANGE_YEND" = "区域底部 Y";
+"EDGE_RANGE_DISTANCE" = "横向触发距离 X";
+"EDGE_RANGE_RESET" = "恢复默认范围";
+"EDGE_RANGE_FOOTER" = "起点必须在从屏幕边缘向内的 X 宽度及顶部至底部的 Y 范围内。Y 按当前屏幕高度百分比计算，0% 为顶部、100% 为底部；所有手指均需从此区域起滑。松开滑杆后保存。横向向内滑动达到触发距离且不以纵向移动为主时执行动作。每种手势单独设置。";
 "EDGE_LEFT" = "从左侧滑入";
 "EDGE_RIGHT" = "从右侧滑入";
 "EDGE_LEFT2" = "双指从左侧滑入";
