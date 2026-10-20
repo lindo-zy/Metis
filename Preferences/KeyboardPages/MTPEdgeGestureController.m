@@ -35,7 +35,8 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
     preferences[kMTEdgeGestureBindings] = bindings;
     [manager writePrefs:preferences];
     id saved = MTEdgeGestureBinding([manager readPrefs], slot)[field];
-    return value ? [saved isEqual:value] : saved == nil;
+    // Shared-resource "none" targets project back as an empty selector.
+    return value ? [saved isEqual:value] : (saved == nil || [saved isEqual:@""]);
 }
 
 @interface MTPEdgeGestureEntryController : PSListController
