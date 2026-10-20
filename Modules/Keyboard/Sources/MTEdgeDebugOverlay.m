@@ -1,5 +1,6 @@
 #import "MTEdgeDebugOverlay.h"
 #import "MTEdgeGesturePolicy.h"
+#import "MTPathResolver.h"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/message.h>
@@ -31,10 +32,88 @@ static BOOL MTEdgeDisableLayerHitTesting(id layer) {
 
 static MTEdgeDebugWindow *MTEdgeDebugWindowInstance;
 static CAShapeLayer *MTEdgeDebugLayer;
+static CALayer *MTEdgeDistanceLayer;
 static NSDictionary *MTEdgeDebugPreferences;
 static NSArray<NSString *> *MTEdgeDebugSlots;
 static NSInteger MTEdgeDebugOrientation;
 static void MTRenderEdgeDebugRegions(void);
+
+static NSString *MTEdgeDistanceCaption(NSString *slot, double distance) {
+    NSBundle *bundle = [NSBundle bundleWithPath:MTResolvePath(@"/Library/PreferenceBundles/MetisKeyboardPrefs.bundle")];
+    NSString *key = [@"EDGE_DISTANCE_GUIDE_" stringByAppendingString:slot.uppercaseString];
+    NSDictionary *fallbacks = @{@"left": @"Left · 1 finger", @"right": @"Right · 1 finger",
+        @"left2": @"Left · 2 fingers", @"right2": @"Right · 2 fingers"};
+    NSString *title = [bundle localizedStringForKey:key value:fallbacks[slot] table:nil] ?: fallbacks[slot];
+    NSString *format = [bundle localizedStringForKey:@"EDGE_DISTANCE_GUIDE_FORMAT" value:@"%@ · Slide %.0f pt to trigger" table:nil]
+        ?: @"%@ · Slide %.0f pt to trigger";
+    return [NSString stringWithFormat:format, title, distance];
+}
+
+static CGPoint MTEdgeGuideHostPoint(UIView *view, double x, double y, CGSize fixedSize) {
+    MTEdgeRegion physical = MTEdgeRegionToFixed((MTEdgeRegion){x, y, 0, 0}, fixedSize.width, fixedSize.height, MTEdgeDebugOrientation);
+    return [view convertPoint:CGPointMake(physical.x, physical.y) fromCoordinateSpace:UIScreen.mainScreen.fixedCoordinateSpace];
+}
+
+static BOOL MTRenderEdgeDistanceGuides(UIView *view, CGSize fixedSize, double width, double height) {
+    // Clear old captions/rulers on range, assignment, or orientation changes.
+    for (CALayer *layer in [MTEdgeDistanceLayer.sublayers copy]) [layer removeFromSuperlayer];
+    CGPoint origin = MTEdgeGuideHostPoint(view, 0, 0, fixedSize);
+    CGPoint xAxis = MTEdgeGuideHostPoint(view, 1, 0, fixedSize);
+    CGPoint yAxis = MTEdgeGuideHostPoint(view, 0, 1, fixedSize);
+    MTEdgeDistanceLayer.bounds = CGRectMake(0, 0, width, height);
+    MTEdgeDistanceLayer.anchorPoint = CGPointZero;
+    MTEdgeDistanceLayer.position = origin;
+    // Rotate both paths and text from displayed orientation into the actual
+    // SpringBoard host window; labels stay upright in either landscape side.
+    MTEdgeDistanceLayer.affineTransform = CGAffineTransformMake(xAxis.x - origin.x, xAxis.y - origin.y,
+        yAxis.x - origin.x, yAxis.y - origin.y, 0, 0);
+    NSMutableArray<NSString *> *slots = [NSMutableArray array];
+    for (NSString *slot in MTEdgeGestureSlots()) if ([MTEdgeDebugSlots containsObject:slot]) [slots addObject:slot];
+    NSUInteger index = 0;
+    for (NSString *slot in slots) {
+        NSDictionary *range = MTEdgeGestureRange(MTEdgeDebugPreferences, slot);
+        MTEdgeDistanceGuide guide = MTEdgeDistanceGuideLayout(range, slot, width, height, index++, slots.count);
+        if (guide.label.width <= 0) continue;
+        double distance = fabs(guide.endX - guide.startX);
+        CAShapeLayer *band = [CAShapeLayer layer];
+        band.frame = MTEdgeDistanceLayer.bounds;
+        band.fillColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.12].CGColor;
+        band.path = [UIBezierPath bezierPathWithRect:CGRectMake(fmin(guide.startX, guide.endX), guide.y - 4, distance, 8)].CGPath;
+        CAShapeLayer *ruler = [CAShapeLayer layer];
+        ruler.frame = MTEdgeDistanceLayer.bounds;
+        ruler.fillColor = NULL;
+        ruler.strokeColor = [UIColor colorWithRed:0.95 green:0.08 blue:0.08 alpha:0.85].CGColor;
+        ruler.lineWidth = 2;
+        ruler.lineCap = kCALineCapRound;
+        ruler.lineJoin = kCALineJoinRound;
+        UIBezierPath *path = [UIBezierPath bezierPath];
+        [path moveToPoint:CGPointMake(guide.startX, guide.y - 6)];
+        [path addLineToPoint:CGPointMake(guide.startX, guide.y + 6)];
+        [path moveToPoint:CGPointMake(guide.endX, guide.y - 6)];
+        [path addLineToPoint:CGPointMake(guide.endX, guide.y + 6)];
+        [path moveToPoint:CGPointMake(guide.startX, guide.y)];
+        [path addLineToPoint:CGPointMake(guide.endX, guide.y)];
+        double direction = guide.endX > guide.startX ? 1 : -1;
+        [path moveToPoint:CGPointMake(guide.endX - direction * 7, guide.y - 5)];
+        [path addLineToPoint:CGPointMake(guide.endX, guide.y)];
+        [path addLineToPoint:CGPointMake(guide.endX - direction * 7, guide.y + 5)];
+        ruler.path = path.CGPath;
+        CATextLayer *caption = [CATextLayer layer];
+        caption.frame = CGRectMake(guide.label.x, guide.label.y, guide.label.width, guide.label.height);
+        caption.string = MTEdgeDistanceCaption(slot, distance);
+        caption.fontSize = 12;
+        caption.contentsScale = UIScreen.mainScreen.scale;
+        caption.alignmentMode = kCAAlignmentCenter;
+        caption.foregroundColor = [UIColor colorWithRed:0.70 green:0 blue:0 alpha:1].CGColor;
+        caption.backgroundColor = [UIColor colorWithWhite:1 alpha:0.72].CGColor;
+        caption.cornerRadius = 5;
+        if (!MTEdgeDisableLayerHitTesting(band) || !MTEdgeDisableLayerHitTesting(ruler) || !MTEdgeDisableLayerHitTesting(caption)) return NO;
+        [MTEdgeDistanceLayer addSublayer:band];
+        [MTEdgeDistanceLayer addSublayer:ruler];
+        [MTEdgeDistanceLayer addSublayer:caption];
+    }
+    return YES;
+}
 
 @interface MTEdgeDebugController : UIViewController
 @end
@@ -68,7 +147,12 @@ static void MTRenderEdgeDebugRegions(void) {
     MTEdgeDebugLayer.frame = view.bounds;
     // One non-zero fill avoids doubled opacity where one/two-finger strips overlap.
     MTEdgeDebugLayer.path = path.CGPath;
+    BOOL guidesReady = MTRenderEdgeDistanceGuides(view, fixedSize, width, height);
     [CATransaction commit];
+    if (!guidesReady) {
+        MTEdgeDebugWindowInstance.hidden = YES;
+        NSLog(@"[MetisKeyboard][EdgeGesture] distance guide hidden: layer passthrough unsupported");
+    }
 }
 
 void MTUpdateEdgeDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *slots, NSInteger orientation, BOOL available) {
@@ -78,6 +162,7 @@ void MTUpdateEdgeDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *sl
         MTEdgeDebugWindowInstance.rootViewController = nil;
         MTEdgeDebugWindowInstance = nil;
         MTEdgeDebugLayer = nil;
+        MTEdgeDistanceLayer = nil;
         MTEdgeDebugPreferences = nil;
         MTEdgeDebugSlots = nil;
         return;
@@ -113,18 +198,21 @@ void MTUpdateEdgeDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *sl
         view.userInteractionEnabled = NO;
         view.accessibilityElementsHidden = YES;
         CAShapeLayer *layer = [CAShapeLayer layer];
+        CALayer *distanceLayer = [CALayer layer];
         layer.fillColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.20].CGColor;
         layer.fillRule = kCAFillRuleNonZero;
         if (!MTEdgeDisableLayerHitTesting(window.layer) || !MTEdgeDisableLayerHitTesting(view.layer) ||
-            !MTEdgeDisableLayerHitTesting(layer)) {
+            !MTEdgeDisableLayerHitTesting(layer) || !MTEdgeDisableLayerHitTesting(distanceLayer)) {
             window.hidden = YES;
             window.rootViewController = nil;
             NSLog(@"[MetisKeyboard][EdgeGesture] debug overlay unavailable: layer passthrough unsupported");
             return;
         }
         [view.layer addSublayer:layer];
+        [view.layer addSublayer:distanceLayer];
         MTEdgeDebugWindowInstance = window;
         MTEdgeDebugLayer = layer;
+        MTEdgeDistanceLayer = distanceLayer;
     }
     MTEdgeDebugPreferences = [preferences copy];
     MTEdgeDebugSlots = [slots copy];

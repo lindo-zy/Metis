@@ -9,6 +9,7 @@
 
 typedef struct { double x, y, width, height; } MTEdgeRegion;
 typedef struct { double x, y; } MTEdgePoint;
+typedef struct { double startX, endX, y; MTEdgeRegion label; } MTEdgeDistanceGuide;
 static inline double MTEdgeRangeNumber(id value, double fallback, double low, double high) {
     double number = [value isKindOfClass:NSNumber.class] ? [value doubleValue] : fallback;
     if (!isfinite(number)) number = fallback;
@@ -71,6 +72,19 @@ static inline MTEdgeRegion MTEdgeRegionToFixed(MTEdgeRegion region, double width
     if (orientation == 3) return (MTEdgeRegion){width - region.y - region.height, region.x, region.height, region.width};
     if (orientation == 4) return (MTEdgeRegion){region.y, height - region.x - region.width, region.height, region.width};
     return region;
+}
+// A centred, 1:1 pt ruler, independent of the edge's touch-start region.
+// Each assigned gesture gets a stable row, with an inward-pointing arrow.
+static inline MTEdgeDistanceGuide MTEdgeDistanceGuideLayout(NSDictionary *range, NSString *slot,
+    double width, double height, NSUInteger index, NSUInteger count) {
+    double distance = [MTEdgeNormalizedRange(range)[@"distance"] doubleValue];
+    if (!MTEdgeGestureSlotValid(slot) || !isfinite(width) || !isfinite(height) || count == 0 || count > 4 ||
+        index >= count || width < distance + 24 || height < count * 52 + 16) return (MTEdgeDistanceGuide){0};
+    double left = (width - distance) / 2;
+    double top = (height - ((count - 1) * 52 + 40)) / 2 + index * 52;
+    BOOL fromLeft = [slot hasPrefix:@"left"];
+    return (MTEdgeDistanceGuide){fromLeft ? left : left + distance, fromLeft ? left + distance : left,
+        top + 34, {12, top, width - 24, 20}};
 }
 static inline BOOL MTEdgeGestureEnabled(NSDictionary *preferences, BOOL landscape, NSString *masterKey) {
     if (![preferences isKindOfClass:NSDictionary.class]) return NO;
