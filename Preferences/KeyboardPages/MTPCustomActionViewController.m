@@ -6,6 +6,8 @@
 #import "MTPanelRegistry.h"
 #import "MTStatusBarGesturePolicy.h"
 #import "MTDockGesturePolicy.h"
+#import "MTEdgeGesturePolicy.h"
+#import "MTGlobalPanelPolicy.h"
 #import "MTPSubActionPickerController.h"
 #import "MTPLinkActionEditorController.h"
 #import "MTHelper.h"
@@ -45,7 +47,8 @@ static NSBundle *mtpLocalBundle;
         NSString *selector = entry[@"selector"];
         if (!MTIsLinkActionSelector(selector)) continue;
         // Preserve the full definition store; context filters only the picker.
-        if (!self.customActionsOnly && !MTPanelCustomActionSelectable(entry, self.actionContextKind ?: MTPanelKeyboardKind)) continue;
+        if (!self.customActionsOnly && !(self.requiresGlobalExecution ? MTGlobalCustomActionSupported(entry) :
+            MTPanelCustomActionSelectable(entry, self.actionContextKind ?: MTPanelKeyboardKind))) continue;
         [self.linkActions addObject:[entry mutableCopy]];
     }
 
@@ -137,6 +140,7 @@ static NSBundle *mtpLocalBundle;
     MTPanelRemoveReferences(preferences, selector);
     MTStatusBarRemoveActionReferences(preferences, selector);
     MTDockGestureRemoveActionReferences(preferences, selector);
+    MTEdgeGestureRemoveActionReferences(preferences, selector);
     NSMutableSet<NSString *> *keys = [NSMutableSet set];
     for (NSString *configuration in @[@"bottom", @"top"]) {
         for (NSInteger gesture = MTShortcutGestureLongPress; gesture <= MTShortcutGestureTap; gesture++) {
@@ -531,7 +535,10 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     NSString *oldSelector = self.selectedSelector;
 
     NSDictionary *live = [MTPrefsManager.sharedInstance readPrefs];
-    if (!MTPanelItemAllowed(live, selector, self.actionContextKind ?: MTPanelKeyboardKind)) { [self reloadPreferences]; [tableView reloadData]; return; }
+    BOOL allowed = self.requiresGlobalExecution
+        ? (MTPanelAllowed(live, selector, MTPanelGestureKind) || MTGlobalCustomActionSupported(MTPanelActionDefinition(live, selector)))
+        : MTPanelItemAllowed(live, selector, self.actionContextKind ?: MTPanelKeyboardKind);
+    if (!allowed) { [self reloadPreferences]; [tableView reloadData]; return; }
     if (self.selectionManagedExternally) {
         self.selectedSelector = selector;
         NSMutableArray *paths = [NSMutableArray arrayWithObject:indexPath];

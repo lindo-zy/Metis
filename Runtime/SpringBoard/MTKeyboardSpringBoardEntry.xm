@@ -11,6 +11,7 @@
 #import "MTAIPanel.h"
 #import "MTQuickPanelHost.h"
 #import "MTStatusBarGestures.h"
+#import "MTEdgeGestures.h"
 #import "MTGlobalPanel.h"
 #import "MTFloatingApp.h"
 #import "MTServer.h"
@@ -155,6 +156,7 @@ static void MTSBDelayedAIPrefsHeal(void) {
         // StatusBarGestures 内部自线程路由，pre-main 即主线程，观察者与
         // 扫描对此刻的空 UI 均为安全空操作。
         MTStartStatusBarGestures();
+        MTStartEdgeGestures();
 
         dispatch_async(dispatch_get_main_queue(), ^{
             @autoreleasepool {

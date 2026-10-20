@@ -14,6 +14,7 @@ static NSString *const MTLegacyPanelsKey = @"panels";
 static NSString *const MTLegacyToolbarBindingsKey = @"toolbarpanelbindings";
 static NSString *const MTLegacyDockBindingsKey = @"dockgesturebindings";
 static NSString *const MTLegacyStatusBarBindingsKey = @"statusbargesturebindings";
+static NSString *const MTLegacyEdgeBindingsKey = @"screenedgegesturebindings";
 static NSString *const MTLegacyLinkSelectorPrefix = @"__typex_link_action_";
 static NSString *const MTLegacyPanelSelectorPrefix = @"__typex_panel_";
 static NSString *const MTLegacyPanelKindKeyboard = @"keyboard";
@@ -74,7 +75,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 + (NSArray<NSString *> *)bridgedResourceKeys {
     return @[MTLegacyLinkActionsKey, MTLegacyPanelsKey, MTLegacyGroupsKey,
              MTLegacyCollapsedGroupsKey, MTLegacyToolbarBindingsKey,
-             MTLegacyDockBindingsKey, MTLegacyStatusBarBindingsKey];
+             MTLegacyDockBindingsKey, MTLegacyStatusBarBindingsKey, MTLegacyEdgeBindingsKey];
 }
 
 #pragma mark - Import (legacy → store)
@@ -198,7 +199,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
     for (NSDictionary *binding in MTBridgeArray(baseDocument[@"bindings"])) {
         NSString *identifier = MTBridgeString(binding[@"id"]);
         if (![identifier hasPrefix:@"keyboard.toolbar."] && ![identifier hasPrefix:@"gesture.dock."] &&
-            ![identifier hasPrefix:@"gesture.statusbar."]) [bindings addObject:binding];
+            ![identifier hasPrefix:@"gesture.statusbar."] && ![identifier hasPrefix:@"gesture.screenedge."]) [bindings addObject:binding];
     }
     void (^bind)(NSString *, NSString *, NSString *, id) = ^(NSString *bindingID, NSString *source, NSString *placement, id rawTarget) {
         NSString *selector = nil;
@@ -238,6 +239,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
         if (![slot isKindOfClass:NSString.class] || !slot.length || slot.length > 64) continue;
         bind([NSString stringWithFormat:@"gesture.statusbar.%@", slot], MTSharedResourceSourceGesture,
              @"sourceAnchor", statusBar[slot]);
+    }
+    NSDictionary *edges = MTBridgeDictionary(legacyPreferences[MTLegacyEdgeBindingsKey]) ?: @{};
+    for (NSString *slot in @[@"left", @"right", @"left2", @"right2"]) {
+        if (!MTBridgeDictionary(edges[slot])) continue;
+        bind([NSString stringWithFormat:@"gesture.screenedge.%@", slot], MTSharedResourceSourceGesture,
+             @"sourceAnchor", edges[slot]);
     }
 
     // 5. 合并：只替换来源为 keyboard 的资源；其他来源（后续接入的剪切板等）保留。
@@ -389,6 +396,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
 
     NSMutableDictionary *toolbar = [NSMutableDictionary dictionary];
     NSMutableDictionary *dock = [NSMutableDictionary dictionary];
+    NSMutableDictionary *edges = [NSMutableDictionary dictionary];
     NSMutableDictionary *statusBar = [NSMutableDictionary dictionary];
     for (id raw in MTBridgeArray(snapshot[@"bindings"])) {
         NSDictionary *binding = MTBridgeDictionary(raw);
@@ -403,6 +411,12 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
             NSMutableDictionary *legacy = [@{ @"selector": selectorForTarget(target) } mutableCopy];
             for (NSString *key in MTBridgeDictionary(binding[@"options"]).allKeys) legacy[key] = binding[@"options"][key];
             statusBar[[bindingID substringFromIndex:@"gesture.statusbar.".length]] = [legacy copy];
+        } else if ([bindingID hasPrefix:@"gesture.screenedge."]) {
+            NSString *slot = [bindingID substringFromIndex:@"gesture.screenedge.".length];
+            if (![@[@"left", @"right", @"left2", @"right2"] containsObject:slot]) continue;
+            NSMutableDictionary *legacy = [MTBridgeDictionary(binding[@"options"]) mutableCopy] ?: [NSMutableDictionary dictionary];
+            legacy[@"selector"] = selectorForTarget(target);
+            edges[slot] = [legacy copy];
         }
     }
 
@@ -413,6 +427,7 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
     legacyPrefs[MTLegacyToolbarBindingsKey] = [toolbar copy];
     legacyPrefs[MTLegacyDockBindingsKey] = [dock copy];
     legacyPrefs[MTLegacyStatusBarBindingsKey] = [statusBar copy];
+    legacyPrefs[MTLegacyEdgeBindingsKey] = [edges copy];
 }
 
 #pragma mark - Apply (legacy write → store commit)
@@ -452,6 +467,10 @@ static NSDictionary *MTBridgeTargetFromSelector(NSString *selector,
         addGesture(@"gesture.dock.up", MTLegacyDockBindingsKey, @"up", @"全局 · Dock 上滑");
         addGesture(@"gesture.dock.left", MTLegacyDockBindingsKey, @"left", @"全局 · Dock 左滑");
         addGesture(@"gesture.dock.right", MTLegacyDockBindingsKey, @"right", @"全局 · Dock 右滑");
+        addGesture(@"gesture.screenedge.left", MTLegacyEdgeBindingsKey, @"left", @"全局 · 从左侧滑入");
+        addGesture(@"gesture.screenedge.right", MTLegacyEdgeBindingsKey, @"right", @"全局 · 从右侧滑入");
+        addGesture(@"gesture.screenedge.left2", MTLegacyEdgeBindingsKey, @"left2", @"全局 · 双指从左侧滑入");
+        addGesture(@"gesture.screenedge.right2", MTLegacyEdgeBindingsKey, @"right2", @"全局 · 双指从右侧滑入");
         slots = [registry copy];
     });
     return slots;

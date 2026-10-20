@@ -525,6 +525,13 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 // Independent status-bar gesture entries.
 "STATUS_BAR_SETTINGS" = "Status Bar Gestures";
+"EDGE_GESTURES" = "Screen Edge Gestures";
+"EDGE_LEFT" = "Slide In from Left";
+"EDGE_RIGHT" = "Slide In from Right";
+"EDGE_LEFT2" = "Two Fingers from Left";
+"EDGE_RIGHT2" = "Two Fingers from Right";
+"EDGE_GESTURES_FOOTER" = "Slide inward from the very edge in apps or on the Home Screen while unlocked. Disabled while locked and off by default. Enable and assign each gesture. A one-finger slide from the left may replace an app's back gesture; two fingers preserve one-finger back navigation.";
+"EDGE_ACTION_FOOTER" = "Choose a shared Metis action or gesture panel. Create and manage actions in Global Settings → Custom Actions; this page only stores a reference. Only actions that work without a text field appear. Clearing or deleting an action releases its gesture.";
 "STATUS_BAR_LANDSCAPE" = "Enable in Landscape";
 "STATUS_BAR_LEFT" = "Left Area";
 "STATUS_BAR_MIDDLE" = "Middle Area";

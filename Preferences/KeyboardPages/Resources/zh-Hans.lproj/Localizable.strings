@@ -524,6 +524,13 @@
 
 // Independent status-bar gesture entries.
 "STATUS_BAR_SETTINGS" = "状态栏手势";
+"EDGE_GESTURES" = "屏幕边缘手势";
+"EDGE_LEFT" = "从左侧滑入";
+"EDGE_RIGHT" = "从右侧滑入";
+"EDGE_LEFT2" = "双指从左侧滑入";
+"EDGE_RIGHT2" = "双指从右侧滑入";
+"EDGE_GESTURES_FOOTER" = "从屏幕最边缘向内滑入，可在解锁后的 App 和主屏幕使用，锁屏时停用。默认关闭；每种手势需启用并选择动作。单指从左侧滑入可能接管 App 的返回手势，双指版本保留单指返回。";
+"EDGE_ACTION_FOOTER" = "引用 Metis 的全局动作或手势面板。动作在「全局设置 → 自定义动作」中创建和管理；这里只选择引用。仅显示无需输入框即可执行的动作。清除或删除动作后不再接管对应手势。";
 "STATUS_BAR_LANDSCAPE" = "横屏也启用";
 "STATUS_BAR_LEFT" = "左边区域";
 "STATUS_BAR_MIDDLE" = "中间区域";

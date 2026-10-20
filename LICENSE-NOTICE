@@ -5,6 +5,9 @@ Metis 许可声明（LICENSE-NOTICE）
 [LICENSE](LICENSE)。使用、修改或再分发本项目代码的作品必须以同等许可开源。**
 
 第三方组件：
+- Triggr 1.x（Jond-ie/triggr）：GPL-3.0。屏幕边缘系统手势注册与识别参考
+  其 Tweak/Tweak.x 的 Screen edges 实现；Metis 仅接入手势，动作使用自身
+  共享动作库。上游：https://github.com/Jond-ie/triggr
 - AltList（com.opa334.altlist，© Lars Fröder）：MIT。以 vendored 单副本编入
   MetisCore（含本项目的最小适配修改，见 Core/AltList/README-vendor.md 与
   Core/AltList/LICENSE.md）。

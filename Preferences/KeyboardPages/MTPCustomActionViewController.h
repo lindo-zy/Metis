@@ -8,6 +8,8 @@
 @property (nonatomic, strong) NSArray *fullOrder;
 // Defaults to keyboard; gesture context filters input-only action types.
 @property (nonatomic, copy) NSString *actionContextKind;
+// Global gesture entrypoints can only execute actions that need no editor.
+@property (nonatomic, assign) BOOL requiresGlobalExecution;
 @property (nonatomic, strong) NSIndexPath *selectedIndexPath;
 // Sub-action rows reuse this exact picker UI. In external mode selection is
 // returned through completion instead of being stored as a gesture override.
