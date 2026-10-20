@@ -743,3 +743,4 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CONTEXT_MASTER_HINT" = "Pause context switching while keeping fixed buttons and floating apps";
 "CONTEXT_STATE_AUTOMATIC" = "Current: Automatic Actions";
 "CONTEXT_STATE_CONFIGURED" = "Current: Configured List (empty means no actions)";
+"CONTEXT_GROUP_UNDO" = "Undo";

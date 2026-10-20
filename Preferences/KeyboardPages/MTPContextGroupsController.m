@@ -44,6 +44,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
     for (id value in [stored isKindOfClass:NSArray.class] ? stored : @[]) {
         if ([value isKindOfClass:NSString.class] && [value length] && ![self.selectors containsObject:value] && self.selectors.count < 3) [self.selectors addObject:value];
     }
+    self.navigationItem.rightBarButtonItem.enabled = self.selectors.count < 3;
     [self.table reloadData];
 }
 - (void)saveAutomatic:(BOOL)automatic {
@@ -53,6 +54,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
     NSMutableDictionary *groups = [stored isKindOfClass:NSDictionary.class] ? [stored mutableCopy] : [NSMutableDictionary dictionary];
     if (automatic) [groups removeObjectForKey:self.groupKey]; else groups[self.groupKey] = [self.selectors copy];
     [manager setValue:groups forKey:kContextActionsKey];
+    self.navigationItem.rightBarButtonItem.enabled = self.selectors.count < 3;
     [self.table reloadData];
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }

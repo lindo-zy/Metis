@@ -742,3 +742,4 @@
 "CONTEXT_MASTER_HINT" = "关闭后暂停上下文切换，保留固定按钮与悬浮应用";
 "CONTEXT_STATE_AUTOMATIC" = "当前：自动动作";
 "CONTEXT_STATE_CONFIGURED" = "当前：自定义列表（清空后不显示动作）";
+"CONTEXT_GROUP_UNDO" = "撤销";

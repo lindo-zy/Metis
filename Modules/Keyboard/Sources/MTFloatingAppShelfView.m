@@ -46,7 +46,7 @@
         [self addSubview:self.itemsScroll];
         self.moreButton = [UIButton buttonWithType:UIButtonTypeSystem];
         [self.moreButton setImage:[UIImage systemImageNamed:@"ellipsis"] forState:UIControlStateNormal];
-        self.moreButton.accessibilityLabel = LOCALIZED(@"CONTEXT_MORE");
+        self.moreButton.accessibilityLabel = [(tweakBundle ?: [NSBundle bundleWithPath:bundlePath]) localizedStringForKey:@"CONTEXT_MORE" value:@"More" table:nil];
         [self.moreButton addTarget:self action:@selector(showMore:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:self.moreButton];
         self.token = NOTIFY_TOKEN_INVALID;
@@ -271,7 +271,7 @@
     return self.itemsScroll.contentSize.width <= CGRectGetWidth(self.itemsScroll.bounds) + 0.5;
 }
 - (void)showMore:(UIButton *)button {
-    if (self.preview || self.hidden || !self.window || !MTBottomToolbarEnabled([self preferences])) return;
+    if (self.preview || self.hidden || !self.window || ![self.actionTarget keyboardPanelGestureSourceVisible] || !MTBottomToolbarEnabled([self preferences])) return;
     NSMutableOrderedSet *selectors = [NSMutableOrderedSet orderedSet];
     for (NSString *identifier in self.actionTarget.shortcuts[kselectors]) {
         [selectors addObjectsFromArray:preferencesGestureActionSelectors(identifier, MTShortcutGestureTap, @"bottom")];
@@ -283,7 +283,7 @@
 
 - (void)activate:(UIButton *)button {
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
-    if (self.preview || !self.unlocked || !MTBottomToolbarEnabled(preferences) || !self.window || self.hidden || self.pendingIdentifier ||
+    if (self.preview || !self.unlocked || !MTBottomToolbarEnabled(preferences) || !self.window || self.hidden || ![self.actionTarget keyboardPanelGestureSourceVisible] || self.pendingIdentifier ||
         ![preferences[kFloatingShelfEnabledKey] isKindOfClass:NSNumber.class] ||
         ![preferences[kFloatingShelfEnabledKey] boolValue] || ![self.buttons containsObject:button]) return;
     [[MTContextSignalCenter sharedCenter] noteActionPerformed];
@@ -329,7 +329,7 @@
 }
 
 - (void)activateContext:(UIButton *)button {
-    if (self.preview || !self.window || self.hidden || !MTBottomToolbarEnabled([self preferences])) return;
+    if (self.preview || !self.window || self.hidden || ![self.actionTarget keyboardPanelGestureSourceVisible] || !MTBottomToolbarEnabled([self preferences])) return;
     NSUInteger index = [self.contextButtons indexOfObject:button];
     if (index == NSNotFound || index >= self.decision.actions.count) return;
     MTContextAction *shown = self.decision.actions[index];

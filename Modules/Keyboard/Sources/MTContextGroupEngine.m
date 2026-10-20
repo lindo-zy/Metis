@@ -5,7 +5,8 @@ extern NSBundle *tweakBundle;
 
 // 标题走键盘本地化包；缺键时回落到内置文案，避免底栏出现空按钮。
 static NSString *MTContextLocalized(NSString *key, NSString *fallback) {
-    NSString *value = tweakBundle ? [tweakBundle localizedStringForKey:key value:@"" table:nil] : nil;
+    NSBundle *bundle = tweakBundle ?: [NSBundle bundleWithIdentifier:@"com.lindo.metis.prefs.keyboard"];
+    NSString *value = [bundle localizedStringForKey:key value:@"" table:nil];
     return value.length ? value : fallback;
 }
 
@@ -234,6 +235,15 @@ static NSString *MTContextSearchURLString(NSString *text) {
         if (!actions.count) return nil;
         return [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input-url"
             actions:actions ttl:0];
+    }
+    if ([@[@4, @5, @6, @8] containsObject:@(snapshot.keyboardType)]) {
+        return [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input-number"
+            actions:@[[MTContextAction actionWithIdentifier:@"selector:pasteAction:"
+                title:MTContextLocalized(@"CONTEXT_GROUP_PASTE", @"粘贴") symbol:@"doc.on.clipboard"
+                payloadKind:MTContextPayloadSelector payload:@"pasteAction:"],
+                [MTContextAction actionWithIdentifier:@"selector:undoAction:"
+                title:MTContextLocalized(@"CONTEXT_GROUP_UNDO", @"撤销") symbol:@"arrow.uturn.backward"
+                payloadKind:MTContextPayloadSelector payload:@"undoAction:"]] ttl:0];
     }
     return nil;
 }
