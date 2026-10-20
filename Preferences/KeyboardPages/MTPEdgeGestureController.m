@@ -41,6 +41,23 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
 
 @interface MTPEdgeGestureEntryController : PSListController
 @end
+@interface MTPEdgeActionPickerController : MTPCustomActionViewController
+@end
+
+@implementation MTPEdgeActionPickerController
+- (void)viewDidLoad {
+    NSString *slot = [self.specifier propertyForKey:@"edgeSlot"];
+    self.actionContextKind = MTPanelGestureKind;
+    self.requiresGlobalExecution = YES;
+    self.selectionManagedExternally = YES;
+    self.selectedSelector = MTEdgeGestureBinding([MTPrefsManager.sharedInstance readPrefs], slot)[@"selector"];
+    // Configure before the shared picker loads its rows. The PSLinkCell route
+    // supplies specifier/root/parent context through Preferences itself.
+    self.completion = ^(NSString *selector) { MTEdgeSaveBinding(slot, @"selector", selector); };
+    [super viewDidLoad];
+    self.title = MTEdgeLocalized(@"CHOOSE_ACTION");
+}
+@end
 
 @implementation MTPEdgeGestureController
 - (void)viewDidLoad { [super viewDidLoad]; self.title = MTEdgeLocalized(@"EDGE_GESTURES"); }
@@ -95,8 +112,9 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
         set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
     enabled.identifier = @"edge-enabled";
     PSSpecifier *choose = [PSSpecifier preferenceSpecifierNamed:MTEdgeLocalized(@"CHOOSE_ACTION") target:self
-        set:nil get:@selector(readActionName:) detail:nil cell:PSLinkCell edit:nil];
+        set:nil get:@selector(readActionName:) detail:MTPEdgeActionPickerController.class cell:PSLinkCell edit:nil];
     choose.identifier = @"edge-choose-action";
+    [choose setProperty:[self.specifier propertyForKey:@"edgeSlot"] forKey:@"edgeSlot"];
     PSSpecifier *clear = [PSSpecifier preferenceSpecifierNamed:MTEdgeLocalized(@"STATUS_BAR_CLEAR") target:self
         set:nil get:nil detail:nil cell:PSButtonCell edit:nil];
     clear.identifier = @"edge-clear-action";
@@ -111,6 +129,13 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
 - (id)readActionName:(PSSpecifier *)specifier {
     return MTEdgeActionName([MTPrefsManager.sharedInstance readPrefs], [self.specifier propertyForKey:@"edgeSlot"]);
 }
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
+    PSSpecifier *item = [self specifierAtIndexPath:path];
+    if ([item.identifier isEqual:@"edge-choose-action"])
+        return MTPGestureActionCell(tableView, @"MTEdgeActionRecord", item.name, [self readActionName:item], nil,
+            UITableViewCellAccessoryDisclosureIndicator, item);
+    return [super tableView:tableView cellForRowAtIndexPath:path];
+}
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
     PSSpecifier *item = [self specifierAtIndexPath:path];
     NSString *slot = [self.specifier propertyForKey:@"edgeSlot"];
@@ -118,21 +143,6 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
         [tableView deselectRowAtIndexPath:path animated:YES];
         MTEdgeSaveBinding(slot, @"selector", nil);
         [self reloadSpecifiers];
-        return;
-    }
-    if ([item.identifier isEqual:@"edge-choose-action"]) {
-        [tableView deselectRowAtIndexPath:path animated:YES];
-        MTPCustomActionViewController *picker = [MTPCustomActionViewController new];
-        picker.actionContextKind = MTPanelGestureKind;
-        picker.requiresGlobalExecution = YES;
-        picker.selectionManagedExternally = YES;
-        picker.selectedSelector = MTEdgeGestureBinding([MTPrefsManager.sharedInstance readPrefs], slot)[@"selector"];
-        picker.title = MTEdgeLocalized(@"CHOOSE_ACTION");
-        // Shared actions are authored in Global Settings; this page writes a reference only.
-        picker.completion = ^(NSString *selector) { MTEdgeSaveBinding(slot, @"selector", selector); };
-        [picker setRootController:self.rootController];
-        [picker setParentController:self];
-        [self pushController:picker];
         return;
     }
     [super tableView:tableView didSelectRowAtIndexPath:path];
