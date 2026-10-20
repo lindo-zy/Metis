@@ -73,17 +73,18 @@ static inline MTEdgeRegion MTEdgeRegionToFixed(MTEdgeRegion region, double width
     if (orientation == 4) return (MTEdgeRegion){region.y, height - region.x - region.width, region.height, region.width};
     return region;
 }
-// A centred, 1:1 pt ruler, independent of the edge's touch-start region.
-// Each assigned gesture gets a stable row, with an inward-pointing arrow.
+// A 1:1 pt ruler anchored at the screen edge, not centred: the swipe starts
+// at the edge and travels this distance inward, so a centred bar would
+// misreport where the finger must begin. Each assigned gesture gets a stable
+// row, with an inward-pointing arrow.
 static inline MTEdgeDistanceGuide MTEdgeDistanceGuideLayout(NSDictionary *range, NSString *slot,
     double width, double height, NSUInteger index, NSUInteger count) {
     double distance = [MTEdgeNormalizedRange(range)[@"distance"] doubleValue];
     if (!MTEdgeGestureSlotValid(slot) || !isfinite(width) || !isfinite(height) || count == 0 || count > 4 ||
         index >= count || width < distance + 24 || height < count * 52 + 16) return (MTEdgeDistanceGuide){0};
-    double left = (width - distance) / 2;
     double top = (height - ((count - 1) * 52 + 40)) / 2 + index * 52;
     BOOL fromLeft = [slot hasPrefix:@"left"];
-    return (MTEdgeDistanceGuide){fromLeft ? left : left + distance, fromLeft ? left + distance : left,
+    return (MTEdgeDistanceGuide){fromLeft ? 0 : width, fromLeft ? distance : width - distance,
         top + 34, {12, top, width - 24, 20}};
 }
 static inline BOOL MTEdgeGestureEnabled(NSDictionary *preferences, BOOL landscape, NSString *masterKey) {
