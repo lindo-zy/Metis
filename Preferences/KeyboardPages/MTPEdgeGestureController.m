@@ -99,7 +99,7 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
     PSSpecifier *clear = [PSSpecifier preferenceSpecifierNamed:MTEdgeLocalized(@"STATUS_BAR_CLEAR") target:self
         set:nil get:nil detail:nil cell:PSButtonCell edit:nil];
     clear.identifier = @"edge-clear-action";
-    _specifiers = @[group, enabled, choose, clear]; return _specifiers;
+    _specifiers = [@[group, enabled, choose, clear] mutableCopy]; return _specifiers;
 }
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     return @(MTEdgeGestureFlag(MTEdgeGestureBinding([MTPrefsManager.sharedInstance readPrefs], [self.specifier propertyForKey:@"edgeSlot"])[@"enabled"]));
