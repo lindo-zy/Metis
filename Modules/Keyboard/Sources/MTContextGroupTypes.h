@@ -17,6 +17,7 @@ typedef NS_ENUM(NSInteger, MTContextGroup) {
     MTContextGroupPaste,
     // G4 输入类型：验证码 / 网址 / 电话等可由 textContentType、keyboardType 判定的输入框。
     MTContextGroupInput,
+    MTContextGroupIdle,
 };
 
 typedef NS_ENUM(NSInteger, MTContextPayloadKind) {
@@ -56,6 +57,8 @@ typedef NS_ENUM(NSInteger, MTContextPayloadKind) {
 @end
 
 FOUNDATION_EXPORT NSString *MTContextGroupName(MTContextGroup group);
+FOUNDATION_EXPORT NSString *MTContextGroupKey(MTContextGroup group);
+FOUNDATION_EXPORT NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferences);
 
 // 信号快照。所有时间都是「距今多少秒」，由采集端算好，引擎不读时钟以外的状态。
 @interface MTContextSnapshot : NSObject
@@ -81,6 +84,9 @@ FOUNDATION_EXPORT NSString *MTContextGroupName(MTContextGroup group);
 @property(nonatomic, assign) BOOL clipboardEnabled;
 @property(nonatomic, assign) BOOL pasteEnabled;
 @property(nonatomic, assign) BOOL inputEnabled;
+@property(nonatomic, assign) BOOL idleEnabled;
+@property(nonatomic, copy) NSArray<NSNumber *> *priority;
+@property(nonatomic, copy) NSDictionary<NSString *, NSArray<NSString *> *> *configuredActions;
 @property(nonatomic, assign) NSTimeInterval clipboardFreshness;
 @property(nonatomic, assign) NSTimeInterval pasteFreshness;
 @property(nonatomic, assign) NSUInteger pasteMinLength;

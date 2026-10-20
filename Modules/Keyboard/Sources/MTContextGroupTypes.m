@@ -1,5 +1,5 @@
 #import "MTContextGroupTypes.h"
-#import "common.h"
+#import "MTContextGroupPreferences.h"
 
 @implementation MTContextAction
 + (instancetype)actionWithIdentifier:(NSString *)identifier
@@ -41,7 +41,9 @@
     if (other.group != self.group || ![other.reason isEqual:self.reason]) return NO;
     if (other.actions.count != self.actions.count) return NO;
     for (NSUInteger index = 0; index < self.actions.count; index++) {
-        if (![other.actions[index].identifier isEqual:self.actions[index].identifier]) return NO;
+        MTContextAction *a = self.actions[index], *b = other.actions[index];
+        if (![b.identifier isEqual:a.identifier] || ![b.payload isEqual:a.payload] ||
+            ![b.title isEqual:a.title] || ![b.symbol isEqual:a.symbol] || b.payloadKind != a.payloadKind) return NO;
     }
     return YES;
 }
@@ -58,9 +60,31 @@ NSString *MTContextGroupName(MTContextGroup group) {
         case MTContextGroupClipboard: return @"G2-clipboard";
         case MTContextGroupPaste: return @"G3-paste";
         case MTContextGroupInput: return @"G4-input";
+        case MTContextGroupIdle: return @"G5-idle";
         case MTContextGroupNone: return @"none";
     }
     return @"unknown";
+}
+
+NSString *MTContextGroupKey(MTContextGroup group) {
+    switch (group) {
+        case MTContextGroupSelection: return @"selection";
+        case MTContextGroupClipboard: return @"clipboard";
+        case MTContextGroupPaste: return @"paste";
+        case MTContextGroupInput: return @"input";
+        case MTContextGroupIdle: return @"idle";
+        default: return @"default";
+    }
+}
+NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferences) {
+    NSArray *defaults = @[@(MTContextGroupSelection), @(MTContextGroupPaste), @(MTContextGroupClipboard), @(MTContextGroupInput), @(MTContextGroupIdle)];
+    NSMutableArray *result = [NSMutableArray array];
+    id stored = preferences[kContextPriorityKey];
+    for (id value in [stored isKindOfClass:NSArray.class] ? stored : @[]) {
+        if ([value isKindOfClass:NSNumber.class] && [defaults containsObject:value] && ![result containsObject:value]) [result addObject:value];
+    }
+    for (NSNumber *value in defaults) if (![result containsObject:value]) [result addObject:value];
+    return result;
 }
 
 @implementation MTContextSnapshot
@@ -97,10 +121,13 @@ static double MTContextDoubleValue(NSDictionary *preferences, NSString *key, dou
     settings.clipboardEnabled = MTContextBoolValue(source, kContextClipboardGroupKey, YES);
     settings.pasteEnabled = MTContextBoolValue(source, kContextPasteGroupKey, YES);
     settings.inputEnabled = MTContextBoolValue(source, kContextInputGroupKey, YES);
+    settings.idleEnabled = MTContextBoolValue(source, kContextIdleGroupKey, NO);
+    settings.priority = MTContextPriority(source);
+    settings.configuredActions = [source[kContextActionsKey] isKindOfClass:NSDictionary.class] ? source[kContextActionsKey] : @{};
     // 新鲜期越界一律回默认值：配置被写成 0 或负数时，组会永远不亮或永远不灭。
     settings.clipboardFreshness = MTContextDoubleValue(source, kContextClipboardFreshnessKey, 8, 2, 60);
     settings.pasteFreshness = MTContextDoubleValue(source, kContextPasteFreshnessKey, 3, 1, 15);
-    settings.pasteMinLength = (NSUInteger)MTContextDoubleValue(source, kContextPasteMinLengthKey, 20, 4, 500);
+    settings.pasteMinLength = (NSUInteger)MTContextDoubleValue(source, kContextPasteMinLengthKey, 1, 1, 500);
     return settings;
 }
 @end

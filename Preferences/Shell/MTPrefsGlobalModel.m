@@ -66,7 +66,13 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     floatingApp.subBundle = @"MetisKeyboardPrefs";
     floatingApp.className = @"MTPFloatingAppController";
 
-    return @[dock, statusBar, edge, arc, floatingApp];
+    MTSettingsRow *keyboard = [MTSettingsRow linkRowWithIdentifier:@"global-keyboard-gesture" title:@"键盘手势"];
+    keyboard.iconName = @"keyboard";
+    keyboard.colorName = @"orange";
+    keyboard.routeKind = MTSettingsRouteSubbundle;
+    keyboard.subBundle = @"MetisKeyboardPrefs";
+    keyboard.className = @"MTPKeyboardGestureController";
+    return @[dock, statusBar, edge, arc, keyboard, floatingApp];
 }
 
 // 原「其他」页「自动化」区：AI 问答链接 + 两个功能开关（各自独立成行，

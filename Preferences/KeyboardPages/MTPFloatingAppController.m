@@ -38,11 +38,6 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [position setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
     [position setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_CENTER"),
         MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")] forKey:@"titles"];
-    PSSpecifier *shelfGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"FLOATING_SHELF_GROUP")];
-    [shelfGroup setProperty:MTFloatingLocalized(@"FLOATING_SHELF_FOOTER") forKey:@"footerText"];
-    PSSpecifier *shelf = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_SHELF_SWITCH") target:self
-        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
-    [shelf setProperty:kFloatingShelfEnabledKey forKey:@"key"]; [shelf setProperty:@NO forKey:@"default"];
     PSSpecifier *quickGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"QUICK_TITLE")];
     [quickGroup setProperty:MTFloatingLocalized(@"QUICK_SETTINGS_FOOTER") forKey:@"footerText"];
     PSSpecifier *launcherSide = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_SIDE") target:self
@@ -68,7 +63,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
-    _specifiers = [@[shelfGroup, shelf, group, scale, positionGroup, position,
+    _specifiers = [@[group, scale, positionGroup, position,
         quickGroup, launcherSide, launcherScale, launcherReset, manage] mutableCopy];
     return _specifiers;
 }

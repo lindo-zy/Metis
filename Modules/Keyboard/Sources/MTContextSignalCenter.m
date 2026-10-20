@@ -6,7 +6,7 @@
 NSNotificationName const MTContextGroupDidChangeNotification = @"MTContextGroupDidChangeNotification";
 
 // 选区变化去抖：拖选过程中光标每移动一次都会改选区，不压住会让底栏抖成一片。
-static const NSTimeInterval MTContextDebounceInterval = 0.2;
+
 // 进入判定的选区/剪贴板文本上限：只用于分类与种子文本，超出部分对判定无意义。
 static const NSUInteger MTContextSelectionTextLimit = 2000;
 // 剪贴板内容在内存里的保留上限，超时即丢，避免复制过的密码长期驻留。
@@ -25,6 +25,7 @@ static const NSTimeInterval MTContextClipboardTextRetention = 120;
 @property(nonatomic, assign) NSTimeInterval pasteAt;
 @property(nonatomic, assign) NSUInteger evaluationGeneration;
 @property(nonatomic, assign) BOOL observersInstalled;
+@property(nonatomic, assign) NSTimeInterval lockedUntil;
 @end
 
 static NSTimeInterval MTContextNow(void) {
@@ -95,12 +96,17 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     if (self.observersInstalled) return;
     self.observersInstalled = YES;
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+    [center addObserver:self selector:@selector(inputTextChanged:) name:UITextFieldTextDidChangeNotification object:nil];
+    [center addObserver:self selector:@selector(inputTextChanged:) name:UITextViewTextDidChangeNotification object:nil];
     // 只监听「变了」，不读剪贴板内容：键盘进程读跨 App 剪贴板会弹系统粘贴提示。
     [center addObserver:self selector:@selector(mtPasteboardChanged:) name:UIPasteboardChangedNotification object:nil];
     [center addObserver:self selector:@selector(mtApplicationDidBecomeActive:)
                    name:UIApplicationDidBecomeActiveNotification object:nil];
 }
 
+- (void)inputTextChanged:(NSNotification *)notification {
+    if (notification.object == self.activeResponder && self.active) [self scheduleEvaluation:[self debounceInterval]];
+}
 #pragma mark - 开关
 
 - (BOOL)active {
@@ -108,7 +114,8 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     if (!manager.preferencesAvailable) return NO;
     NSDictionary *preferences = manager.prefs;
     if (![preferences isKindOfClass:NSDictionary.class]) return NO;
-    id shelf = preferences[kFloatingShelfEnabledKey];
+    if (![preferences[kEnabledkey] boolValue]) return NO;
+    id shelf = preferences[kBottomToolbarEnabledKey];
     // 动作组占用的是悬浮底栏的预留区：底栏没开，采集与判定全部停摆。
     if (![shelf isKindOfClass:NSNumber.class] || ![shelf boolValue]) return NO;
     id groups = preferences[kContextGroupsEnabledKey];
@@ -116,6 +123,26 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     return YES;
 }
 
+- (NSTimeInterval)debounceInterval {
+    return MTContextNumber(MTPrefsManager.sharedInstance.prefs, kContextDebounceKey, 200, 0, 1000) / 1000.0;
+}
+- (MTContextDecision *)decisionForExecution {
+    if (!self.active) return nil;
+    return [MTContextGroupEngine decisionForSnapshot:[self snapshotNow] settings:[self settings]];
+}
+- (void)preferencesDidChange {
+    self.lockedUntil = 0;
+    [self evaluateNow];
+}
+- (void)noteActionPerformed {
+    // Adopt the action's resulting state (especially After Paste) before starting the lock.
+    self.lockedUntil = 0;
+    [self evaluateNow];
+    NSTimeInterval duration = MTContextNumber(MTPrefsManager.sharedInstance.prefs, kContextLockKey, 5, 0, 15);
+    if (self.currentDecision.ttl > 0) duration = MIN(duration, self.currentDecision.ttl);
+    self.lockedUntil = MTContextNow() + duration;
+    [self evaluateNow];
+}
 - (MTContextGroupSettings *)settings {
     return [MTContextGroupSettings settingsFromPreferences:MTPrefsManager.sharedInstance.prefs ?: @{}];
 }
@@ -135,12 +162,13 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         if (!self.active || ![responder isKindOfClass:UIResponder.class]) return;
         if (self.activeResponder == responder) return;
         self.activeResponder = responder;
+        self.lockedUntil = 0;
         self.selectionLength = 0;
         self.selectionAt = 0;
         // 换输入框视为新会话：上一次的粘贴后状态不再代表当前框。
         self.pastedLength = 0;
         self.pasteAt = 0;
-        [self scheduleEvaluation:MTContextDebounceInterval];
+        [self scheduleEvaluation:[self debounceInterval]];
     }];
 }
 
@@ -148,6 +176,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     [self onMain:^{
         if (self.activeResponder != responder) return;
         self.activeResponder = nil;
+        self.lockedUntil = 0;
         self.selectionLength = 0;
         self.selectionAt = 0;
         self.pastedLength = 0;
@@ -163,10 +192,9 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         NSTimeInterval now = MTContextNow();
         // 有选区时每次调用都刷新时间戳：重新选中同样长度的另一段文字也必须算「比复制更新」。
         if (length > 0) self.selectionAt = now;
-        // 纯光标移动（无选区且长度没变）不改判定，直接返回，避免打字时每帧重算。
-        if (length == self.selectionLength && length == 0) return;
+        // Text changes can activate/deactivate the idle group even with a collapsed caret.
         self.selectionLength = length;
-        [self scheduleEvaluation:MTContextDebounceInterval];
+        [self scheduleEvaluation:[self debounceInterval]];
     }];
 }
 
@@ -180,6 +208,9 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
             ? [text substringToIndex:MTContextSelectionTextLimit] : text;
         self.clipboardAvailable = YES;
         self.clipboardAt = MTContextNow();
+        // Copy consumes the current selection signal; dragging a new range activates it again.
+        self.selectionLength = 0;
+        self.selectionAt = 0;
         [self scheduleEvaluation:0.05];
     }];
 }
@@ -207,7 +238,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         self.clipboardText = nil;
         self.clipboardAvailable = YES;
         self.clipboardAt = MTContextNow();
-        [self scheduleEvaluation:MTContextDebounceInterval];
+        [self scheduleEvaluation:[self debounceInterval]];
     }];
 }
 
@@ -247,6 +278,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         } else if ([responder isKindOfClass:UITextView.class]) {
             UITextView *view = (UITextView *)responder;
             snapshot.inputAvailable = YES;
+            snapshot.secureInput = view.secureTextEntry;
             snapshot.contentType = view.textContentType;
             snapshot.keyboardType = view.keyboardType;
             snapshot.inputLength = view.text.length;
@@ -294,9 +326,15 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     }
     MTContextSnapshot *snapshot = [self snapshotNow];
     MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot settings:[self settings]];
+    NSTimeInterval remainingLock = self.lockedUntil - MTContextNow();
+    if (remainingLock > 0 && snapshot.inputAvailable && !snapshot.secureInput) {
+        // Freeze presentation after a tap; actions always execute freshly evaluated payloads.
+        [self scheduleEvaluation:remainingLock];
+        return;
+    }
     [self applyDecision:decision generation:generation];
 
-    if (decision.ttl > 0.05) {
+    if (decision.ttl > 0) {
         NSUInteger ttlGeneration = generation;
         __weak typeof(self) weakSelf = self;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(decision.ttl * NSEC_PER_SEC)),

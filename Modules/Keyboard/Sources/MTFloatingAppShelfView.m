@@ -14,9 +14,14 @@
 
 // 有动作组时固定区收到 3 格：3 个应用 + 最多 3 个上下文动作，是 390pt 机型上
 // 每格仍剩约 44pt 宽的设计目标布局；实际宽度始终按可用宽度等分，不写死像素。
-static const NSUInteger MTContextShelfFixedSlots = 3;
+
 
 @interface MTFloatingAppShelfView ()
+@property(nonatomic, assign) BOOL preview;
+@property(nonatomic, copy) NSDictionary *previewPreferences;
+@property(nonatomic, copy) NSDictionary *renderedPreferences;
+@property(nonatomic, strong) UIScrollView *itemsScroll;
+@property(nonatomic, strong) UIButton *moreButton;
 @property(nonatomic, strong) UILabel *message;
 @property(nonatomic, strong) UIView *divider;
 @property(nonatomic, strong) NSArray<UIButton *> *buttons;
@@ -31,8 +36,19 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 
 @implementation MTFloatingAppShelfView
 
-- (instancetype)initWithFrame:(CGRect)frame {
+- (instancetype)initForPreview { return [self initWithFrame:CGRectZero preview:YES]; }
+- (instancetype)initWithFrame:(CGRect)frame { return [self initWithFrame:frame preview:NO]; }
+- (instancetype)initWithFrame:(CGRect)frame preview:(BOOL)preview {
     if ((self = [super initWithFrame:frame])) {
+        self.preview = preview;
+        self.itemsScroll = [UIScrollView new];
+        self.itemsScroll.showsHorizontalScrollIndicator = NO;
+        [self addSubview:self.itemsScroll];
+        self.moreButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        [self.moreButton setImage:[UIImage systemImageNamed:@"ellipsis"] forState:UIControlStateNormal];
+        self.moreButton.accessibilityLabel = LOCALIZED(@"CONTEXT_MORE");
+        [self.moreButton addTarget:self action:@selector(showMore:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:self.moreButton];
         self.token = NOTIFY_TOKEN_INVALID;
         self.clipsToBounds = YES;
         self.message = [UILabel new];
@@ -51,6 +67,7 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
         self.divider.backgroundColor = [UIColor.separatorColor colorWithAlphaComponent:0.35];
         [self addSubview:self.divider];
 
+        if (preview) { self.userInteractionEnabled = NO; return self; }
         __weak typeof(self) weakSelf = self;
         int token = NOTIFY_TOKEN_INVALID;
         if (notify_register_dispatch(MTFloatingShelfChangedName, &token, dispatch_get_main_queue(), ^(__unused int changed) {
@@ -75,6 +92,16 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 
 - (void)didMoveToWindow { [super didMoveToWindow]; if (self.window) [self refresh]; }
 
+- (void)configurePreviewWithPreferences:(NSDictionary *)preferences decision:(MTContextDecision *)decision {
+    if (!self.preview) return;
+    self.previewPreferences = preferences;
+    self.decision = decision;
+    self.snapshot = @{};
+    [self rebuildAppButtons];
+    [self rebuildContextButtons];
+    [self setNeedsLayout];
+}
+- (NSDictionary *)preferences { return self.preview ? self.previewPreferences : MTPrefsManager.sharedInstance.prefs; }
 #pragma mark - 数据
 
 - (NSArray<NSDictionary *> *)recordsFromSnapshot:(NSDictionary *)snapshot {
@@ -89,7 +116,7 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 // 用户配置不变的前提下不会自己跳位。
 - (NSArray<NSDictionary *> *)fallbackRecordsAfter:(NSArray<NSDictionary *> *)records limit:(NSUInteger)limit {
     if (records.count >= limit) return @[];
-    id configured = MTPrefsManager.sharedInstance.prefs[kKbdHandleAppsKey];
+    id configured = [self preferences][kKbdHandleAppsKey];
     if (![configured isKindOfClass:NSArray.class]) return @[];
     NSMutableArray *result = [NSMutableArray array];
     for (id identifier in configured) {
@@ -123,7 +150,10 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
         dispatch_async(dispatch_get_main_queue(), ^{ [self refreshReloadingSnapshot:reloadSnapshot]; });
         return;
     }
-    BOOL appsDirty = NO;
+    if (self.preview) return;
+    NSDictionary *currentPreferences = [self preferences];
+    BOOL appsDirty = ![self.renderedPreferences isEqual:currentPreferences];
+    self.renderedPreferences = currentPreferences;
     if (reloadSnapshot) {
         NSDictionary *snapshot = MTReadFloatingShelf();
         if (snapshot != self.snapshot && ![snapshot isEqual:self.snapshot]) {
@@ -132,17 +162,17 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
         }
     }
     MTContextDecision *decision = [MTContextSignalCenter sharedCenter].currentDecision;
-    if (!decision.actions.count) decision = nil;
-    BOOL hadContext = self.contextButtons.count > 0;
+    if (decision.group == MTContextGroupDefault || decision.group == MTContextGroupNone) decision = nil;
+
     BOOL decisionSame = decision == self.decision ||
         (decision && self.decision && [decision isEquivalentToDecision:self.decision]);
     if (decisionSame && !appsDirty) return;
 
+    BOOL contextToggled = (self.decision != nil) != (decision != nil);
     self.decision = decision;
-    // 上下文区有无会改变固定区容量（3 格 / 6 格），此时应用区必须重建。
-    BOOL contextToggled = hadContext != (decision != nil);
     if (appsDirty || contextToggled) [self rebuildAppButtons];
-    if (!decisionSame) [self rebuildContextButtons];
+    if (!decisionSame) self.itemsScroll.contentOffset = CGPointZero;
+    [self rebuildContextButtons];
     [self bringSubviewToFront:self.message];
     [self bringSubviewToFront:self.divider];
     [self setNeedsLayout];
@@ -165,7 +195,9 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 - (void)rebuildAppButtons {
     for (UIButton *button in self.buttons) [button removeFromSuperview];
     NSArray<NSDictionary *> *records = [self recordsFromSnapshot:self.snapshot];
-    NSUInteger capacity = self.decision ? MTContextShelfFixedSlots : MTFloatingShelfCapacity;
+    NSDictionary *preferences = [self preferences];
+    if ((!self.preview && !self.unlocked) || (self.decision && self.decision.group != MTContextGroupDefault) || ![preferences[kFloatingShelfEnabledKey] boolValue]) { self.buttons = @[]; return; }
+    NSUInteger capacity = MTFloatingShelfCapacity;
     NSMutableArray<NSDictionary *> *shown = [records mutableCopy];
     [shown addObjectsFromArray:[self fallbackRecordsAfter:records limit:capacity]];
 
@@ -189,7 +221,7 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
         button.tag = fallback ? 1 : 0;
         // 快照仅用于展示：前台/悬浮状态可能已过期，不能据此永久禁用恢复入口。
         button.enabled = ![self.pendingIdentifier isEqual:identifier];
-        [self addSubview:button];
+        [self.itemsScroll addSubview:button];
         [buttons addObject:button];
     }
     self.buttons = buttons;
@@ -200,11 +232,13 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
     NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
     NSArray<MTContextAction *> *actions = self.decision.actions;
     for (MTContextAction *action in actions) {
-        UIImage *icon = [UIImage systemImageNamed:action.symbol] ?: [UIImage systemImageNamed:@"ellipsis"];
-        UIButton *button = [self buttonWithIcon:icon accessibilityText:action.title action:@selector(activateContext:)];
+        BOOL configured = [action.identifier hasPrefix:@"configured:"];
+        UIImage *icon = configured ? [self.actionTarget subActionPanelImageForSelector:action.payload] : [UIImage systemImageNamed:action.symbol];
+        NSString *title = configured ? [self.actionTarget subActionPanelTitleForSelector:action.payload] : action.title;
+        UIButton *button = [self buttonWithIcon:icon accessibilityText:title ?: action.title action:@selector(activateContext:)];
         button.accessibilityIdentifier = action.identifier;
         button.tintColor = UIColor.labelColor;
-        [self addSubview:button];
+        [self.itemsScroll addSubview:button];
         [buttons addObject:button];
     }
     self.contextButtons = buttons;
@@ -216,42 +250,43 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat width = CGRectGetWidth(self.bounds), height = CGRectGetHeight(self.bounds);
+    NSInteger slots = MTContextSlots([self preferences]);
+    CGFloat cellWidth = width / (slots + 1);
+    CGFloat contentWidth = cellWidth * slots;
+    self.itemsScroll.frame = CGRectMake(0, 0, contentWidth, height);
+    NSArray<UIButton *> *buttons = self.contextButtons.count ? self.contextButtons : self.buttons;
     CGFloat cellHeight = MAX(0, MIN(33, height - MTBottomToolbarCellTopInset));
-    BOOL hasContext = self.contextButtons.count > 0;
-    // 只有「固定区有应用」时才分区；没有应用可显示时让上下文动作独占整条，
-    // 否则左半条空白、右半条挤在一起。
-    BOOL split = hasContext && self.buttons.count > 0;
-    CGFloat appWidth = split ? floor(width * 0.5) : width;
-    CGFloat slotWidth = appWidth / (split ? MTContextShelfFixedSlots : MTFloatingShelfCapacity);
-    for (NSUInteger index = 0; index < self.buttons.count; index++) {
-        self.buttons[index].frame = CGRectMake(index * slotWidth + 3, MTBottomToolbarCellTopInset,
-            MAX(0, slotWidth - 6), cellHeight);
+    for (NSUInteger index = 0; index < buttons.count; index++) {
+        buttons[index].frame = CGRectMake(index * cellWidth + 2, MTBottomToolbarCellTopInset, MAX(0, cellWidth - 4), cellHeight);
     }
-    self.divider.hidden = !split;
-    if (hasContext) {
-        CGFloat contextLeft = split ? appWidth : 0;
-        CGFloat contextWidth = width - contextLeft;
-        NSUInteger count = self.contextButtons.count;
-        CGFloat contextSlot = contextWidth / MAX((CGFloat)count, 1.0);
-        for (NSUInteger index = 0; index < count; index++) {
-            self.contextButtons[index].frame = CGRectMake(contextLeft + index * contextSlot + 3,
-                MTBottomToolbarCellTopInset, MAX(0, contextSlot - 6), cellHeight);
-        }
-        if (split) {
-            self.divider.frame = CGRectMake(contextLeft - 0.5, MTBottomToolbarCellTopInset + 3, 1,
-                MAX(0, cellHeight - 6));
-        }
-    }
+    self.itemsScroll.contentSize = CGSizeMake(MAX(contentWidth, buttons.count * cellWidth), height);
+    self.moreButton.frame = CGRectMake(contentWidth, MTBottomToolbarCellTopInset, cellWidth, cellHeight);
+    self.divider.hidden = NO;
+    self.divider.frame = CGRectMake(0, MTBottomToolbarCellTopInset + 3, 0.5, MAX(0, cellHeight - 6));
     self.message.frame = CGRectMake(0, MTBottomToolbarCellTopInset, width, MAX(0, height - MTBottomToolbarCellTopInset));
+}
+
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    // An overflowing contextual list owns horizontal dragging. The fixed area still handles long swipes.
+    return self.itemsScroll.contentSize.width <= CGRectGetWidth(self.itemsScroll.bounds) + 0.5;
+}
+- (void)showMore:(UIButton *)button {
+    if (self.preview || self.hidden || !self.window || !MTBottomToolbarEnabled([self preferences])) return;
+    NSMutableOrderedSet *selectors = [NSMutableOrderedSet orderedSet];
+    for (NSString *identifier in self.actionTarget.shortcuts[kselectors]) {
+        [selectors addObjectsFromArray:preferencesGestureActionSelectors(identifier, MTShortcutGestureTap, @"bottom")];
+    }
+    if (selectors.count) [self.actionTarget presentSubActionChooserForButton:button selectors:selectors.array];
 }
 
 #pragma mark - 执行
 
 - (void)activate:(UIButton *)button {
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
-    if (!self.window || self.hidden || self.pendingIdentifier ||
+    if (self.preview || !self.unlocked || !MTBottomToolbarEnabled(preferences) || !self.window || self.hidden || self.pendingIdentifier ||
         ![preferences[kFloatingShelfEnabledKey] isKindOfClass:NSNumber.class] ||
         ![preferences[kFloatingShelfEnabledKey] boolValue] || ![self.buttons containsObject:button]) return;
+    [[MTContextSignalCenter sharedCenter] noteActionPerformed];
     NSString *identifier = [button.accessibilityIdentifier copy];
     if (!identifier.length) return;
 
@@ -294,9 +329,15 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
 }
 
 - (void)activateContext:(UIButton *)button {
+    if (self.preview || !self.window || self.hidden || !MTBottomToolbarEnabled([self preferences])) return;
     NSUInteger index = [self.contextButtons indexOfObject:button];
     if (index == NSNotFound || index >= self.decision.actions.count) return;
-    MTContextAction *action = self.decision.actions[index];
+    MTContextAction *shown = self.decision.actions[index];
+    MTContextDecision *fresh = [[MTContextSignalCenter sharedCenter] decisionForExecution];
+    if (fresh.group != self.decision.group) return;
+    MTContextAction *action;
+    for (MTContextAction *candidate in fresh.actions) if ([candidate.identifier isEqual:shown.identifier]) { action = candidate; break; }
+    if (!action) return;
     NSLog(@"[MetisKeyboard][ContextGroup] perform id=%@ kind=%ld", action.identifier, (long)action.payloadKind);
     switch (action.payloadKind) {
         case MTContextPayloadSelector: {
@@ -305,10 +346,7 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
             NSString *selector = action.payload;
             if ([toolbar canExecuteKeyboardPanelSelector:selector]) {
                 [toolbar dispatchKeyboardPanelSelector:selector sender:button];
-            } else if ([toolbar respondsToSelector:NSSelectorFromString(selector)]) {
-                // 未进选择器表但类上确有该方法（例如被隐藏的历史动作）时直接派发。
-                ((void (*)(id, SEL, id))objc_msgSend)(toolbar, NSSelectorFromString(selector), button);
-            }
+            } else { return; }
             break;
         }
         case MTContextPayloadURL: {
@@ -325,6 +363,7 @@ static const NSUInteger MTContextShelfFixedSlots = 3;
             if (action.payload.length) [MTAIPanel openFromKeyboardWithSeedText:action.payload];
             break;
     }
+    [[MTContextSignalCenter sharedCenter] noteActionPerformed];
 }
 
 @end

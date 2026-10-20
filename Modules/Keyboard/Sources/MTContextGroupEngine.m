@@ -240,38 +240,77 @@ static NSString *MTContextSearchURLString(NSString *text) {
 
 #pragma mark - 入口
 
+// Resolve configured selectors only through the shared keyboard action executor.
++ (MTContextDecision *)configuredDecision:(MTContextDecision *)decision settings:(MTContextGroupSettings *)settings {
+    id stored = settings.configuredActions[decision.reason] ?: settings.configuredActions[MTContextGroupKey(decision.group)];
+    if (![stored isKindOfClass:NSArray.class]) return decision;
+    NSMutableArray *actions = [NSMutableArray array];
+    NSMutableSet *seen = [NSMutableSet set];
+    for (id selector in stored) {
+        if (![selector isKindOfClass:NSString.class] || ![selector length] || [seen containsObject:selector]) continue;
+        [seen addObject:selector];
+        [actions addObject:[MTContextAction actionWithIdentifier:[@"configured:" stringByAppendingString:selector]
+            title:selector symbol:@"bolt" payloadKind:MTContextPayloadSelector payload:selector]];
+        if (actions.count == 3) break;
+    }
+    return [MTContextDecision decisionWithGroup:decision.group reason:decision.reason actions:actions ttl:decision.ttl];
+}
+
 + (MTContextDecision *)decisionForSnapshot:(MTContextSnapshot *)snapshot settings:(MTContextGroupSettings *)settings {
-    if (!snapshot || !settings || !settings.enabled) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"disabled" actions:@[] ttl:0];
+    if (!snapshot || !settings || !settings.enabled || !snapshot.inputAvailable || snapshot.secureInput) {
+        return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"inactive" actions:@[] ttl:0];
     }
-    // G3 是短时覆盖层，必须先判：刚粘完时选区已被折叠，若等 G1 判就永远亮不起来。
-    if (settings.pasteEnabled && snapshot.pastedLength >= settings.pasteMinLength &&
-        snapshot.pasteAge >= 0 && snapshot.pasteAge <= settings.pasteFreshness) {
-        return [self pasteDecision:snapshot settings:settings];
+    MTContextDecision *winner;
+    for (NSNumber *value in settings.priority) {
+        MTContextDecision *candidate;
+        switch (value.integerValue) {
+            case MTContextGroupSelection:
+                if (settings.selectionEnabled && snapshot.selectionLength > 0) candidate = [self selectionDecision:snapshot];
+                break;
+            case MTContextGroupPaste:
+                if (settings.pasteEnabled && snapshot.pastedLength >= settings.pasteMinLength &&
+                    snapshot.pasteAge >= 0 && snapshot.pasteAge < settings.pasteFreshness)
+                    candidate = [self pasteDecision:snapshot settings:settings];
+                break;
+            case MTContextGroupClipboard:
+                if (settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 &&
+                    snapshot.clipboardAge < settings.clipboardFreshness)
+                    candidate = [self clipboardDecision:snapshot settings:settings];
+                break;
+            case MTContextGroupInput:
+                if (settings.inputEnabled) {
+                    candidate = [self inputDecision:snapshot settings:settings];
+                    // Configured input actions work without a clipboard signal as well.
+                    BOOL numeric = [@[@4, @5, @6, @8] containsObject:@(snapshot.keyboardType)];
+                    BOOL typed = numeric || snapshot.keyboardType == 3 || snapshot.keyboardType == 7 ||
+                        [@[@"onetimecode", @"url", @"emailaddress"] containsObject:snapshot.contentType.lowercaseString ?: @""];
+                    if (!candidate && typed && settings.configuredActions[@"input"])
+                        candidate = [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input" actions:@[] ttl:0];
+                }
+                break;
+            case MTContextGroupIdle:
+                if (settings.idleEnabled && snapshot.inputLength == 0)
+                    candidate = [MTContextDecision decisionWithGroup:MTContextGroupIdle reason:@"idle"
+                        actions:@[[MTContextAction actionWithIdentifier:@"selector:clipboardAction:"
+                        title:MTContextLocalized(@"CONTEXT_IDLE_ACTION", @"剪贴板") symbol:@"doc.on.clipboard"
+                        payloadKind:MTContextPayloadSelector payload:@"clipboardAction:"]] ttl:0];
+                break;
+            default: break;
+        }
+        if (candidate && !winner) winner = [self configuredDecision:candidate settings:settings];
+        // Re-evaluate at the earliest expiring signal, even while another group is winning.
     }
-
-    BOOL clipboardFresh = snapshot.clipboardAvailable &&
-        snapshot.clipboardAge >= 0 && snapshot.clipboardAge <= settings.clipboardFreshness;
-    BOOL hasSelection = snapshot.selectionLength > 0;
-    // 「刚复制」与「刚选中」谁更新就显示谁：
-    // - 选中文字后按复制：选区时间更早、剪贴板时间更晚 → 显示粘贴（这正是用户下一步要做的）；
-    // - 复制完又去拖选另一段：选区更晚 → 显示选区动作，不被旧剪贴板霸占。
-    BOOL clipboardPreferred = clipboardFresh && snapshot.clipboardAge < snapshot.selectionAge;
-
-    if (settings.clipboardEnabled && clipboardPreferred) {
-        return [self clipboardDecision:snapshot settings:settings];
+    winner = winner ?: [self defaultDecision];
+    NSTimeInterval ttl = winner.ttl;
+    if (settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 && snapshot.clipboardAge < settings.clipboardFreshness) {
+        NSTimeInterval next = settings.clipboardFreshness - snapshot.clipboardAge;
+        ttl = ttl > 0 ? MIN(ttl, next) : next;
     }
-    if (settings.selectionEnabled && hasSelection) {
-        return [self selectionDecision:snapshot];
+    if (settings.pasteEnabled && snapshot.pasteAge >= 0 && snapshot.pasteAge < settings.pasteFreshness) {
+        NSTimeInterval next = settings.pasteFreshness - snapshot.pasteAge;
+        ttl = ttl > 0 ? MIN(ttl, next) : next;
     }
-    if (settings.clipboardEnabled && clipboardFresh) {
-        return [self clipboardDecision:snapshot settings:settings];
-    }
-    if (settings.inputEnabled) {
-        MTContextDecision *decision = [self inputDecision:snapshot settings:settings];
-        if (decision) return decision;
-    }
-    return [self defaultDecision];
+    return [MTContextDecision decisionWithGroup:winner.group reason:winner.reason actions:winner.actions ttl:ttl];
 }
 
 @end

@@ -3,6 +3,7 @@
 #import "MTShortcutsGenerator.h"
 #import "MTHelper.h"
 #import "MTCollectionView.h"
+#import "MTFloatingAppShelfView.h"
 #import "common.h"
 #import <objc/runtime.h>
 #include <math.h>
@@ -14,6 +15,7 @@ static NSBundle *mtpLocalBundle;
 @property (nonatomic, strong) UILabel *toolbarPreviewCaption;
 @property (nonatomic, strong) UILabel *toolbarPreviewStatus;
 @property (nonatomic, strong) MTCollectionView *toolbarPreview;
+@property (nonatomic, strong) MTFloatingAppShelfView *contextPreview;
 @property (nonatomic, copy) NSDictionary *toolbarPreviewPreferences;
 @property (nonatomic, strong) UIView *toolbarPreviewDock;
 @property (nonatomic, strong) UIImageView *toolbarPreviewGlobe;
@@ -118,15 +120,13 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
 // top column count), and section 2 controls the sub-action panel. Section 3
 // carries the top row spacing or the bottom toolbar height.
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    // 第 4 段（动作组）只在底栏页出现：动作组占用的是悬浮底栏的预留区。
-    return self.topConfiguration ? 4 : 5;
+    return 4;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (section == 1) return LOCALIZED(@"BUTTON_SETTINGS");
     if (section == 2) return LOCALIZED(@"PANEL_SETTINGS");
     if (section == 3) return self.topConfiguration ? LOCALIZED(@"MULTILINE_SETTINGS") : LOCALIZED(@"OFFSETS");
-    if (section == 4 && !self.topConfiguration) return LOCALIZED(@"CONTEXT_GROUPS_SWITCH");
     return nil;
 }
 
@@ -135,7 +135,6 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         case 1: return self.appearanceRows.count;
         case 2: return self.panelRows.count;
         case 3: return self.topConfiguration ? self.multiRowRows.count : self.offsetRows.count;
-        case 4: return self.topConfiguration ? 0 : self.contextRows.count;
         default: return [self.currentOrder[0] count];
     }
 }
@@ -145,14 +144,12 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         return self.topConfiguration ? LOCALIZED(@"FOOTER_TOP_TOOLBAR_BUTTONS")
                                      : LOCALIZED(@"FOOTER_TOOLBAR_BUTTONS");
     if (section == 1) {
-        if (!self.topConfiguration) return [NSString stringWithFormat:@"%@\n%@", LOCALIZED(@"FOOTER_BUTTON_SETTINGS"), LOCALIZED(@"FLOATING_SHELF_FOOTER")];
+        if (!self.topConfiguration) return LOCALIZED(@"CONTEXT_FIXED_FOOTER");
         return LOCALIZED(@"FOOTER_BUTTON_SETTINGS_TOP");
     }
     if (section == 2) return LOCALIZED(@"FOOTER_PANEL_SETTINGS");
     if (section == 3 && self.topConfiguration) return LOCALIZED(@"FOOTER_MULTILINE");
-    if (section == 4 && !self.topConfiguration)
-        return [NSString stringWithFormat:@"%@\n%@",
-                LOCALIZED(@"CONTEXT_GROUPS_FOOTER"), LOCALIZED(@"CONTEXT_GROUP_ORDER_FOOTER")];
+
     return nil;
 }
 
@@ -377,6 +374,12 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         self.toolbarPreview = [(MTCollectionView *)[renderer alloc] initWithConfiguration:configuration preview:YES];
         self.toolbarPreview.backgroundColor = self.topConfiguration ? UIColor.secondarySystemGroupedBackgroundColor : UIColor.clearColor;
         [previewHost addSubview:self.toolbarPreview];
+        if (!self.topConfiguration) {
+            self.toolbarPreview.visibleItemLimit = 3;
+            self.contextPreview = [[MTFloatingAppShelfView alloc] initForPreview];
+            self.contextPreview.actionTarget = self.toolbarPreview;
+            [previewHost addSubview:self.contextPreview];
+        }
     } else {
         NSLog(@"[MetisKeyboard][ToolbarPreview] unavailable renderer in Settings configuration=%@", configuration);
     }
@@ -398,7 +401,8 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         CGFloat height = [value respondsToSelector:@selector(floatValue)] ? [value floatValue] : heightOffsetDefault;
         self.toolbarPreviewDockHeight = isfinite(height) ? MIN(80.0, MAX(50.0, height)) : heightOffsetDefault;
     }
-    BOOL shelfMode = !self.topConfiguration && [preferences[kFloatingShelfEnabledKey] isKindOfClass:NSNumber.class] && [preferences[kFloatingShelfEnabledKey] boolValue];
+    [self.contextPreview configurePreviewWithPreferences:preferences decision:nil];
+    BOOL shelfMode = NO;
     BOOL hasButtons = !shelfMode && [self.toolbarPreview.shortcuts[kselectors] count] > 0;
     self.toolbarPreviewStatus.text = LOCALIZED(shelfMode ? @"FLOATING_SHELF_PREVIEW" :
         (self.toolbarPreview ? @"TOOLBAR_PREVIEW_EMPTY" : @"TOOLBAR_PREVIEW_UNAVAILABLE"));
@@ -424,7 +428,9 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         CGFloat stripWidth = MAX(0, contentWidth - leftInset - rightInset);
         panelHeight += MTBottomToolbarBottomInset;
         self.toolbarPreviewDock.frame = CGRectMake(leading, 36, contentWidth, panelHeight);
-        toolbarFrame = CGRectMake(leftInset, 0, stripWidth, toolbarHeight);
+        CGFloat fixedWidth = stripWidth * MTBottomFixedFraction(self.toolbarPreviewPreferences);
+        toolbarFrame = CGRectMake(leftInset, 0, fixedWidth, toolbarHeight);
+        self.contextPreview.frame = CGRectMake(leftInset + fixedWidth, 0, stripWidth - fixedWidth, toolbarHeight);
         statusFrame = CGRectMake(leading + leftInset + 8, 36, MAX(0, stripWidth - 16), toolbarHeight);
         CGFloat buttonHeight = self.toolbarPreview ? self.toolbarPreview.buttonHeight : cellsHeightDefault;
         CGFloat symbolY = MTBottomToolbarCellTopInset + (buttonHeight - 28.0) / 2.0;
@@ -620,7 +626,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
                             defaultValue:spacingBetweenCellsDefault],
     ] mutableCopy];
     if (!self.topConfiguration) [appearanceRows insertObject:
-        [MTPToolbarSettingsRow switchRowWithKey:kFloatingShelfEnabledKey label:LOCALIZED(@"FLOATING_SHELF_SWITCH") defaultValue:NO] atIndex:0];
+        [MTPToolbarSettingsRow switchRowWithKey:kBottomToolbarEnabledKey label:LOCALIZED(@"BOTTOM_TOOLBAR_ENABLED") defaultValue:NO] atIndex:0];
     if (self.topConfiguration) {
         [appearanceRows addObject:
             [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kBottomSpacingKey]
@@ -657,14 +663,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         [MTPToolbarSettingsRow sliderRowWithKey:kHeightOffsetkey label:LOCALIZED(@"TOOLBAR_HEIGHT") minValue:50 maxValue:80 step:1 defaultValue:heightOffsetDefault],
     ];
 
-    // 上下文动作组：只改变底栏预留区，所以只在底栏页提供开关。
-    self.contextRows = @[
-        [MTPToolbarSettingsRow switchRowWithKey:kContextGroupsEnabledKey label:LOCALIZED(@"CONTEXT_GROUPS_SWITCH") defaultValue:YES],
-        [MTPToolbarSettingsRow switchRowWithKey:kContextSelectionGroupKey label:LOCALIZED(@"CONTEXT_GROUP_SELECTION_SWITCH") defaultValue:YES],
-        [MTPToolbarSettingsRow switchRowWithKey:kContextClipboardGroupKey label:LOCALIZED(@"CONTEXT_GROUP_CLIPBOARD_SWITCH") defaultValue:YES],
-        [MTPToolbarSettingsRow switchRowWithKey:kContextPasteGroupKey label:LOCALIZED(@"CONTEXT_GROUP_PASTE_SWITCH") defaultValue:YES],
-        [MTPToolbarSettingsRow switchRowWithKey:kContextInputGroupKey label:LOCALIZED(@"CONTEXT_GROUP_INPUT_SWITCH") defaultValue:YES],
-    ];
+
 }
 
 - (MTPToolbarSettingsRow *)settingsRowForIndexPath:(NSIndexPath *)indexPath {
@@ -672,7 +671,6 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         case 1: return self.appearanceRows[indexPath.row];
         case 2: return self.panelRows[indexPath.row];
         case 3: return self.topConfiguration ? self.multiRowRows[indexPath.row] : self.offsetRows[indexPath.row];
-        case 4: return self.topConfiguration ? nil : self.contextRows[indexPath.row];
         default: return nil;
     }
 }

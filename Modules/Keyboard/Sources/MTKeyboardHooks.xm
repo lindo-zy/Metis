@@ -196,7 +196,7 @@ static NSUInteger MTContextSelectionLength(id<UITextInput> input) {
 }
 
 static BOOL MTBottomShelfMode(void) {
-    id value = prefs[kFloatingShelfEnabledKey];
+    id value = prefs[kBottomToolbarEnabledKey];
     return [value isKindOfClass:NSNumber.class] && [value boolValue];
 }
 static BOOL MTStockDockRequiresHiding(UIKeyboardDockView *dock) {
@@ -219,14 +219,14 @@ static BOOL MTStockDockRequiresHiding(UIKeyboardDockView *dock) {
 }
 static void MTApplyBottomToolbarVisibility(UIKeyboardDockView *dock) {
     if (!dock) return;
-    BOOL shelfMode = MTBottomShelfMode();
+
     BOOL stockHidden = MTStockDockRequiresHiding(dock);
     BOOL available = MTPrefsManager.sharedInstance.preferencesAvailable && preferencesBool(kEnabledkey, YES) &&
-        toggledOn && !isLandscape && !isDictating && !stockHidden;
-    dock.keyboardToolbar.hidden = !available || shelfMode || !MTToolbarHasShortcuts(dock.keyboardToolbar);
+        toggledOn && MTBottomToolbarEnabled(prefs) && !isLandscape && !isDictating && !stockHidden;
+    dock.keyboardToolbar.hidden = !available;
     // Keep the empty shelf as a swipe surface for the configured keyboard panels.
-    dock.appShelf.hidden = !available || !shelfMode || !dock.appShelf.unlocked;
-    dock.keyboardToolbar.keyboardPanelGestureView = shelfMode ? dock.appShelf : nil;
+    dock.appShelf.hidden = !available;
+    dock.keyboardToolbar.keyboardPanelGestureView = dock.appShelf;
 }
 
 // An app can be injected before SpringBoard has finished seeding the shared
@@ -615,6 +615,7 @@ static void reloadPrefs(void);
         //self.keyboardToolbar = [[MTCollectionView alloc] init];
         
         self.keyboardToolbar.translatesAutoresizingMaskIntoConstraints = NO;
+        self.keyboardToolbar.visibleItemLimit = 3;
         //self.keyboardToolbar.transform = CGAffineTransformMakeScale(-1, 1);
         
         [dockView addSubview:self.keyboardToolbar];
@@ -628,7 +629,7 @@ static void reloadPrefs(void);
         leadingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:leadingConstraint];
 
-        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeTrailing multiplier:1.0 constant:trailing];
+        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeWidth multiplier:MTBottomFixedFraction(prefs) constant:(trailing - leading) * MTBottomFixedFraction(prefs)];
         trailingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:trailingConstraint];
 
@@ -649,10 +650,11 @@ static void reloadPrefs(void);
             initWithTarget:self.keyboardToolbar action:@selector(toolbarHorizontalEnded:)];
         shelfSwipe.cancelsTouchesInView = YES;
         shelfSwipe.delaysTouchesBegan = NO;
+        shelfSwipe.delegate = self.appShelf;
         [self.appShelf addGestureRecognizer:shelfSwipe];
         [NSLayoutConstraint activateConstraints:@[
-            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.keyboardToolbar.leadingAnchor],
-            [self.appShelf.trailingAnchor constraintEqualToAnchor:self.keyboardToolbar.trailingAnchor],
+            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.keyboardToolbar.trailingAnchor],
+            [self.appShelf.trailingAnchor constraintEqualToAnchor:dockView.trailingAnchor constant:-MTBottomToolbarTrailingInset],
             [self.appShelf.topAnchor constraintEqualToAnchor:self.keyboardToolbar.topAnchor],
             [self.appShelf.bottomAnchor constraintEqualToAnchor:self.keyboardToolbar.bottomAnchor]
         ]];
@@ -1042,6 +1044,17 @@ static void reloadPrefs(void) {
     // its data source and visibility explicitly; iOS 17 no longer recreates the
     // dock view for every preferences update.
     if (dockView.keyboardToolbar) {
+        for (NSLayoutConstraint *constraint in [dockView.constraints copy]) {
+            if (constraint.firstItem == dockView.keyboardToolbar && constraint.firstAttribute == NSLayoutAttributeWidth &&
+                [constraint.identifier isEqual:@"MetisKeyboard"]) {
+                [dockView removeConstraint:constraint];
+                CGFloat fraction = MTBottomFixedFraction(prefs);
+                NSLayoutConstraint *replacement = [NSLayoutConstraint constraintWithItem:dockView.keyboardToolbar attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeWidth multiplier:fraction constant:-(MTBottomToolbarLeadingInset + MTBottomToolbarTrailingInset) * fraction];
+                replacement.identifier = @"MetisKeyboard";
+                [dockView addConstraint:replacement];
+            }
+        }
+        [[MTContextSignalCenter sharedCenter] preferencesDidChange];
         [dockView.keyboardToolbar reloadShortcutConfiguration];
         [dockView.appShelf refresh];
         MTApplyBottomToolbarVisibility(dockView);

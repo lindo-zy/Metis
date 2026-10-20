@@ -38,21 +38,11 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>MTPKeyboardPanelController</string>
+			<string>MTPContextGroupsController</string>
 			<key>id</key>
-			<string>keyboardPanelSettings</string>
+			<string>keyboardActionGroups</string>
 			<key>label</key>
-			<string>KEYBOARD_PANEL_SETTINGS</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTPGestureSettingsController</string>
-			<key>id</key>
-			<string>gestureSettings</string>
-			<key>label</key>
-			<string>GESTURE_SETTINGS</string>
+			<string>CONTEXT_GROUPS_TITLE</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>

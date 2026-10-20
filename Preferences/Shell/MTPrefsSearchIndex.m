@@ -60,6 +60,11 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
         }
     }
 
+    MTSettingsRow *groups = [MTSettingsRow linkRowWithIdentifier:@"keyboard-action-groups" title:@"动作组"];
+    groups.routeKind = MTSettingsRouteSubbundle;
+    groups.subBundle = @"MetisKeyboardPrefs";
+    groups.className = @"MTPContextGroupsController";
+    add(@"动作组", @"键盘", groups);
     return entries;
 }
 

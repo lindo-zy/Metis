@@ -16,6 +16,9 @@ typedef NS_ENUM(NSInteger, direction) {
 - (instancetype)initWithConfiguration:(NSString *)configuration preview:(BOOL)preview;
 - (void)configurePreviewWithPreferences:(NSDictionary *)preferences;
 @property (nonatomic, copy) NSString *configuration;
+// Composite bottom bar reserves three cells for fixed actions.
+@property (nonatomic, assign) NSUInteger visibleItemLimit;
+- (void)presentSubActionChooserForButton:(UIButton *)button selectors:(NSArray<NSString *> *)selectors;
 // The floating shelf shares this toolbar's bindings, executor and panel lifecycle.
 // It occupies the same Dock constraints while the action collection is hidden.
 @property (nonatomic, weak) UIView *keyboardPanelGestureView;

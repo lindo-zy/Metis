@@ -1721,9 +1721,9 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 }
 -(NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
     (void)collectionView;
-    return section == 0 ? MIN(((NSArray *)self.shortcuts[kselectors]).count,
+    return section == 0 ? MIN(self.visibleItemLimit ?: NSUIntegerMax, MIN(((NSArray *)self.shortcuts[kselectors]).count,
         MTToolbarCapacityForPreferences(self.mtPreviewMode ? self.mtPreviewPreferences
-            : [MTPrefsManager sharedInstance].prefs, self.configuration)) : 0;
+            : [MTPrefsManager sharedInstance].prefs, self.configuration))) : 0;
 }
 
 // All six gestures share the same behavior: one action runs directly;
@@ -2278,16 +2278,18 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 }
 
 -(NSString *)subActionPanelTitleForSelector:(NSString *)selectorName {
-    NSDictionary *linkAction = MTPanelDefinition(prefs, selectorName) ?: preferencesLinkActionForSelector(selectorName);
+    NSDictionary *snapshot = self.mtPreviewMode ? self.mtPreviewPreferences : prefs;
+    NSDictionary *linkAction = MTPanelDefinition(snapshot, selectorName) ?: MTPanelActionDefinition(snapshot, selectorName);
     NSString *title = [linkAction[@"name"] isKindOfClass:[NSString class]] ? linkAction[@"name"] : @"";
     if (title.length == 0) {
-        title = [MTHelper localizedStringForActionNamed:selectorName shortName:NO bundle:tweakBundle];
+        title = [MTHelper localizedStringForActionNamed:selectorName shortName:NO bundle:tweakBundle ?: [NSBundle bundleWithPath:bundlePath]];
     }
     return title.length ? title : selectorName;
 }
 
 -(UIImage *)subActionPanelImageForSelector:(NSString *)selectorName {
-    NSDictionary *linkAction = MTPanelDisplayDefinition(prefs, selectorName) ?: preferencesLinkActionForSelector(selectorName);
+    NSDictionary *snapshot = self.mtPreviewMode ? self.mtPreviewPreferences : prefs;
+    NSDictionary *linkAction = MTPanelDisplayDefinition(snapshot, selectorName) ?: MTPanelActionDefinition(snapshot, selectorName);
     if (linkAction) {
         NSString *iconName = [linkAction[@"icon"] isKindOfClass:[NSString class]] ? linkAction[@"icon"] : @"";
         return [MTHelper imageForIconConfig:iconName defaultSymbolName:@"link"]
@@ -2597,7 +2599,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
 }
 
 - (BOOL)keyboardPanelGestureSourceVisible {
-    UIView *surface = self.keyboardPanelGestureView ?: self;
+    UIView *surface = self;
     if (!self.window || self.window.hidden || self.window.alpha < 0.01 ||
         surface.window != self.window || !self.shortcutConfigurationAvailable) return NO;
     for (UIView *view = surface; view; view = view.superview)
@@ -2605,8 +2607,9 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     return YES;
 }
 - (void)toolbarHorizontalEnded:(MTToolbarHorizontalGesture *)gesture {
-    UIView *surface = self.keyboardPanelGestureView ?: self;
-    if (![NSThread isMainThread] || gesture.state != UIGestureRecognizerStateEnded || gesture.view != surface ||
+    UIView *surface = gesture.view;
+    if (![NSThread isMainThread] || gesture.state != UIGestureRecognizerStateEnded ||
+        (surface != self && surface != self.keyboardPanelGestureView) ||
         ![self keyboardPanelGestureSourceVisible] || gesture.sourceWindow != self.window ||
         isLandscape || isDictating || !toggledOn) return;
     if (gesture.sourceIdentifier.length && (!gesture.sourceButton || gesture.sourceButton.window != self.window ||
@@ -2797,7 +2800,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
 
 
 - (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout sizeForItemAtIndexPath:(NSIndexPath *)indexPath {
-    NSInteger count = [self multiRowActive] ? self.buttonsPerRow : MAX(1, [self numberOfItemsInSection:0]);
+    NSInteger count = [self multiRowActive] ? self.buttonsPerRow : (self.visibleItemLimit ?: MAX(1, [self numberOfItemsInSection:0]));
     UIEdgeInsets insets = [self collectionView:collectionView layout:collectionViewLayout insetForSectionAtIndex:0];
     CGFloat gap = [self buttonChromeActive] ? self.buttonSpacing : 0;
     CGFloat width = MAX(0, (CGRectGetWidth(collectionView.bounds) - insets.left - insets.right - gap * (count - 1)) / count);

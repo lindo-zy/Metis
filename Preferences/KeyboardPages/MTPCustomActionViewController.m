@@ -138,6 +138,16 @@ static NSBundle *mtpLocalBundle;
 
 // A deleted definition must not remain selected by another button or gesture.
 - (void)removeReferencesToSelector:(NSString *)selector fromPreferences:(NSMutableDictionary *)preferences {
+    id groupStored = preferences[kContextActionsKey];
+    if ([groupStored isKindOfClass:NSDictionary.class]) {
+        NSMutableDictionary *groups = [groupStored mutableCopy];
+        for (NSString *key in [groups allKeys]) {
+            if (![groups[key] isKindOfClass:NSArray.class]) continue;
+            NSMutableArray *items = [groups[key] mutableCopy];
+            [items removeObject:selector]; groups[key] = items;
+        }
+        preferences[kContextActionsKey] = groups;
+    }
     MTPanelRemoveReferences(preferences, selector);
     MTStatusBarRemoveActionReferences(preferences, selector);
     MTDockGestureRemoveActionReferences(preferences, selector);

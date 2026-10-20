@@ -25,6 +25,9 @@ FOUNDATION_EXPORT NSNotificationName const MTContextGroupDidChangeNotification;
 
 #pragma mark - 执行侧
 - (void)evaluateNow;
+- (void)noteActionPerformed;
+- (void)preferencesDidChange;
+- (MTContextDecision *)decisionForExecution;
 - (NSString *)diagnosticSummary;
 
 @end

@@ -54,3 +54,5 @@
 "STATUS_BAR_CLEAR" = "清除动作";
 "STATUS_BAR_PANELS" = "打开面板";
 "STATUS_BAR_PICKER_FOOTER" = "选择或添加系统动作、打开应用、App 快捷项或链接。文字、JavaScript 和需要当前输入内容的动作不适用于状态栏。";
+
+"CONTEXT_GROUPS_TITLE" = "动作组";
