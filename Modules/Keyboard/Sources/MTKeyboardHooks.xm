@@ -11,6 +11,7 @@
 #import "MTSystemOpenBroker.h"
 #import "MTFloatingApp.h"
 #import "MTFloatingAppInput.h"
+#import "MTContextSignalCenter.h"
 #import "MTToolbarHorizontalGesture.h"
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -180,6 +181,18 @@ static void MTSetInputAccessoryView(UIResponder *responder, UIView *view) {
 static BOOL MTToolbarHasShortcuts(MTCollectionView *toolbar) {
     return toolbar.shortcutConfigurationAvailable &&
            [toolbar.shortcuts[kbuttonsImages12] count] > 0;
+}
+
+// 选区长度只走 UITextInput 的公开接口：UITextView 有 selectedRange，
+// UITextField 没有；offsetFromPosition: 两者都实现且不复制文本。
+static NSUInteger MTContextSelectionLength(id<UITextInput> input) {
+    if (!input) return 0;
+    @try {
+        UITextRange *range = [input selectedTextRange];
+        if (!range || [range isEmpty]) return 0;
+        NSInteger offset = [input offsetFromPosition:range.start toPosition:range.end];
+        return offset > 0 ? (NSUInteger)offset : 0;
+    } @catch (__unused NSException *exception) { return 0; }
 }
 
 static BOOL MTBottomShelfMode(void) {
@@ -477,10 +490,40 @@ static void reloadPrefs(void);
     BOOL result = %orig;
     if (result) {
         MTInstallTopAccessoryForResponder(self, NO);
+        [[MTContextSignalCenter sharedCenter] noteResponderActivated:self];
     } else if (topToolbarCurrentResponder == self) {
         topToolbarCurrentResponder = nil;
     }
     return result;
+}
+
+- (BOOL)resignFirstResponder {
+    BOOL result = %orig;
+    if (result) [[MTContextSignalCenter sharedCenter] noteResponderResigned:self];
+    return result;
+}
+
+// 选区变化是 G1 的唯一信号。这里只把长度交给信号中心：拖选时本方法会被高频调用，
+// 取选区文本要等 200ms 去抖之后的判定再做，否则主线程会跟着光标一顿一顿。
+- (void)setSelectedTextRange:(UITextRange *)range {
+    %orig;
+    if (!self.isFirstResponder) return;
+    [[MTContextSignalCenter sharedCenter] noteSelectionLengthChanged:MTContextSelectionLength((id<UITextInput>)self) responder:self];
+}
+
+// 复制/粘贴既可能来自工具栏，也可能来自系统菜单：两条路径最终都会落到响应者的
+// copy:/paste:，hook 在这里才能同时覆盖。
+- (void)copy:(id)sender {
+    %orig;
+    [[MTContextSignalCenter sharedCenter] noteCopyFromResponder:self];
+}
+
+- (void)paste:(id)sender {
+    NSUInteger lengthBefore = MTContextTextLengthForResponder(self);
+    %orig;
+    NSUInteger lengthAfter = MTContextTextLengthForResponder(self);
+    [[MTContextSignalCenter sharedCenter] notePasteToResponder:self
+        insertedLength:lengthAfter > lengthBefore ? lengthAfter - lengthBefore : 0];
 }
 
 - (void)setInputAccessoryView:(UIView *)inputAccessoryView {
@@ -511,10 +554,36 @@ static void reloadPrefs(void);
     BOOL result = %orig;
     if (result) {
         MTInstallTopAccessoryForResponder(self, NO);
+        [[MTContextSignalCenter sharedCenter] noteResponderActivated:self];
     } else if (topToolbarCurrentResponder == self) {
         topToolbarCurrentResponder = nil;
     }
     return result;
+}
+
+- (BOOL)resignFirstResponder {
+    BOOL result = %orig;
+    if (result) [[MTContextSignalCenter sharedCenter] noteResponderResigned:self];
+    return result;
+}
+
+- (void)setSelectedTextRange:(UITextRange *)range {
+    %orig;
+    if (!self.isFirstResponder) return;
+    [[MTContextSignalCenter sharedCenter] noteSelectionLengthChanged:MTContextSelectionLength((id<UITextInput>)self) responder:self];
+}
+
+- (void)copy:(id)sender {
+    %orig;
+    [[MTContextSignalCenter sharedCenter] noteCopyFromResponder:self];
+}
+
+- (void)paste:(id)sender {
+    NSUInteger lengthBefore = MTContextTextLengthForResponder(self);
+    %orig;
+    NSUInteger lengthAfter = MTContextTextLengthForResponder(self);
+    [[MTContextSignalCenter sharedCenter] notePasteToResponder:self
+        insertedLength:lengthAfter > lengthBefore ? lengthAfter - lengthBefore : 0];
 }
 
 - (void)setInputAccessoryView:(UIView *)inputAccessoryView {
@@ -573,6 +642,8 @@ static void reloadPrefs(void);
         [dockView addConstraint:bottomConstraint];
         self.appShelf = [[MTFloatingAppShelfView alloc] initWithFrame:CGRectZero];
         self.appShelf.translatesAutoresizingMaskIntoConstraints = NO;
+        // 上下文动作（复制/粘贴/撤销等）复用本 Dock 工具栏的动作实现，不另建一套。
+        self.appShelf.actionTarget = self.keyboardToolbar;
         [dockView addSubview:self.appShelf];
         MTToolbarHorizontalGesture *shelfSwipe = [[MTToolbarHorizontalGesture alloc]
             initWithTarget:self.keyboardToolbar action:@selector(toolbarHorizontalEnded:)];

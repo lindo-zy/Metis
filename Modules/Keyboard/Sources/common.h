@@ -106,6 +106,18 @@
 #define kFloatingShelfEnabledKey @"floatingappshelfBOOL"
 // 速启面板常用应用：bundleID 数组（「常用应用排序与搜索别名」页写入，含排序）。
 #define kKbdHandleAppsKey @"kbdhandleapps"
+
+// 上下文动作组：底栏预留区按输入上下文换内容。
+// 总开关缺省为开，但只在悬浮底栏开启时生效（动作组占用的是悬浮底栏的预留区）。
+#define kContextGroupsEnabledKey @"contextgroupsBOOL"
+#define kContextSelectionGroupKey @"contextgroupselectionBOOL"
+#define kContextClipboardGroupKey @"contextgroupclipboardBOOL"
+#define kContextPasteGroupKey @"contextgrouppasteBOOL"
+#define kContextInputGroupKey @"contextgroupinputBOOL"
+// 剪贴板新鲜期 / 粘贴后新鲜期（秒），以及「算一次粘贴」的最少插入字数。
+#define kContextClipboardFreshnessKey @"contextclipboardfreshness"
+#define kContextPasteFreshnessKey @"contextpastefreshness"
+#define kContextPasteMinLengthKey @"contextpasteminlength"
 // 速启面板停靠侧（0=靠左 1=靠右，默认靠右紧贴右缘）。
 #define kKbdLauncherSideKey @"kbdlauncherside"
 // 速启面板大小（百分比存储的缩放系数，100 = 基准尺寸；80~100，步进 5，缺省 100）。

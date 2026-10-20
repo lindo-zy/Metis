@@ -20,4 +20,6 @@
 @property (nonatomic, copy) NSArray<MTPToolbarSettingsRow *> *offsetRows;
 // 顶部页专属：按钮行距（每行个数在按钮设置分组）。
 @property (nonatomic, copy) NSArray<MTPToolbarSettingsRow *> *multiRowRows;
+// 底部页专属：上下文动作组（占用悬浮底栏的预留区）。
+@property (nonatomic, copy) NSArray<MTPToolbarSettingsRow *> *contextRows;
 @end

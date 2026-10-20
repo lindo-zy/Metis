@@ -118,13 +118,15 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
 // top column count), and section 2 controls the sub-action panel. Section 3
 // carries the top row spacing or the bottom toolbar height.
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 4;
+    // 第 4 段（动作组）只在底栏页出现：动作组占用的是悬浮底栏的预留区。
+    return self.topConfiguration ? 4 : 5;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (section == 1) return LOCALIZED(@"BUTTON_SETTINGS");
     if (section == 2) return LOCALIZED(@"PANEL_SETTINGS");
     if (section == 3) return self.topConfiguration ? LOCALIZED(@"MULTILINE_SETTINGS") : LOCALIZED(@"OFFSETS");
+    if (section == 4 && !self.topConfiguration) return LOCALIZED(@"CONTEXT_GROUPS_SWITCH");
     return nil;
 }
 
@@ -133,6 +135,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         case 1: return self.appearanceRows.count;
         case 2: return self.panelRows.count;
         case 3: return self.topConfiguration ? self.multiRowRows.count : self.offsetRows.count;
+        case 4: return self.topConfiguration ? 0 : self.contextRows.count;
         default: return [self.currentOrder[0] count];
     }
 }
@@ -147,6 +150,9 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     }
     if (section == 2) return LOCALIZED(@"FOOTER_PANEL_SETTINGS");
     if (section == 3 && self.topConfiguration) return LOCALIZED(@"FOOTER_MULTILINE");
+    if (section == 4 && !self.topConfiguration)
+        return [NSString stringWithFormat:@"%@\n%@",
+                LOCALIZED(@"CONTEXT_GROUPS_FOOTER"), LOCALIZED(@"CONTEXT_GROUP_ORDER_FOOTER")];
     return nil;
 }
 
@@ -650,6 +656,15 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     self.offsetRows = @[
         [MTPToolbarSettingsRow sliderRowWithKey:kHeightOffsetkey label:LOCALIZED(@"TOOLBAR_HEIGHT") minValue:50 maxValue:80 step:1 defaultValue:heightOffsetDefault],
     ];
+
+    // 上下文动作组：只改变底栏预留区，所以只在底栏页提供开关。
+    self.contextRows = @[
+        [MTPToolbarSettingsRow switchRowWithKey:kContextGroupsEnabledKey label:LOCALIZED(@"CONTEXT_GROUPS_SWITCH") defaultValue:YES],
+        [MTPToolbarSettingsRow switchRowWithKey:kContextSelectionGroupKey label:LOCALIZED(@"CONTEXT_GROUP_SELECTION_SWITCH") defaultValue:YES],
+        [MTPToolbarSettingsRow switchRowWithKey:kContextClipboardGroupKey label:LOCALIZED(@"CONTEXT_GROUP_CLIPBOARD_SWITCH") defaultValue:YES],
+        [MTPToolbarSettingsRow switchRowWithKey:kContextPasteGroupKey label:LOCALIZED(@"CONTEXT_GROUP_PASTE_SWITCH") defaultValue:YES],
+        [MTPToolbarSettingsRow switchRowWithKey:kContextInputGroupKey label:LOCALIZED(@"CONTEXT_GROUP_INPUT_SWITCH") defaultValue:YES],
+    ];
 }
 
 - (MTPToolbarSettingsRow *)settingsRowForIndexPath:(NSIndexPath *)indexPath {
@@ -657,6 +672,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         case 1: return self.appearanceRows[indexPath.row];
         case 2: return self.panelRows[indexPath.row];
         case 3: return self.topConfiguration ? self.multiRowRows[indexPath.row] : self.offsetRows[indexPath.row];
+        case 4: return self.topConfiguration ? nil : self.contextRows[indexPath.row];
         default: return nil;
     }
 }

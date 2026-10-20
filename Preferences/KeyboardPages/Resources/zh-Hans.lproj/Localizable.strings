@@ -672,3 +672,25 @@
 "AI_BALANCE_LOADING" = "正在查询余额…";
 "AI_BALANCE_REFRESH" = "点击刷新余额";
 "AI_BALANCE_FAILED" = "余额查询失败 · 点击重试";
+
+// 上下文动作组（底栏预留区）
+"CONTEXT_GROUP_OPEN_LINK" = "打开链接";
+"CONTEXT_GROUP_OPEN_CLIPBOARD_LINK" = "打开剪贴板链接";
+"CONTEXT_GROUP_SEARCH" = "搜索";
+"CONTEXT_GROUP_ASK_AI" = "问 AI";
+"CONTEXT_GROUP_COPY" = "复制";
+"CONTEXT_GROUP_CALL" = "拨打";
+"CONTEXT_GROUP_PASTE" = "粘贴";
+"CONTEXT_GROUP_PASTE_CODE" = "粘贴验证码";
+"CONTEXT_GROUP_UNDO_PASTE" = "撤销粘贴";
+"CONTEXT_GROUPS_SWITCH" = "动作组";
+"CONTEXT_GROUPS_FOOTER" = "按当前输入上下文临时改变底栏预留区：选中文字、刚复制、刚粘贴、验证码或网址输入框。固定按钮的位置与顺序不会改变。";
+"CONTEXT_GROUP_SELECTION_SWITCH" = "选区";
+"CONTEXT_GROUP_SELECTION_FOOTER" = "选中文字后显示打开链接、搜索、复制、问 AI。";
+"CONTEXT_GROUP_CLIPBOARD_SWITCH" = "剪贴板";
+"CONTEXT_GROUP_CLIPBOARD_FOOTER" = "复制后 8 秒内显示粘贴与文本处理动作。";
+"CONTEXT_GROUP_PASTE_SWITCH" = "粘贴后";
+"CONTEXT_GROUP_PASTE_FOOTER" = "一次插入超过 20 字后 3 秒内显示撤销粘贴。";
+"CONTEXT_GROUP_INPUT_SWITCH" = "输入类型";
+"CONTEXT_GROUP_INPUT_FOOTER" = "验证码框显示粘贴验证码，网址框显示打开剪贴板链接。";
+"CONTEXT_GROUP_ORDER_FOOTER" = "刚复制显示粘贴、刚选中显示选区动作：两者都新鲜时，以后发生的那一次为准。";

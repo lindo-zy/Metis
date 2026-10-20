@@ -40,6 +40,9 @@ MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
 	$(KEYBOARD)/MTFloatingAppShelfChannel.m \
 	$(KEYBOARD)/MTFloatingAppShelfState.m \
 	$(KEYBOARD)/MTFloatingAppShelfView.m \
+	$(KEYBOARD)/MTContextGroupTypes.m \
+	$(KEYBOARD)/MTContextGroupEngine.m \
+	$(KEYBOARD)/MTContextSignalCenter.m \
 	$(KEYBOARD)/MTGlobalActionExecutor.m \
 	$(KEYBOARD)/MTGlobalPanel.m \
 	$(KEYBOARD)/MTHelper.m \

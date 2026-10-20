@@ -673,3 +673,25 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "AI_BALANCE_LOADING" = "Checking balance…";
 "AI_BALANCE_REFRESH" = "Tap to refresh balance";
 "AI_BALANCE_FAILED" = "Balance unavailable · Tap to retry";
+
+// Context action groups (bottom bar reserved area)
+"CONTEXT_GROUP_OPEN_LINK" = "Open Link";
+"CONTEXT_GROUP_OPEN_CLIPBOARD_LINK" = "Open Clipboard Link";
+"CONTEXT_GROUP_SEARCH" = "Search";
+"CONTEXT_GROUP_ASK_AI" = "Ask AI";
+"CONTEXT_GROUP_COPY" = "Copy";
+"CONTEXT_GROUP_CALL" = "Call";
+"CONTEXT_GROUP_PASTE" = "Paste";
+"CONTEXT_GROUP_PASTE_CODE" = "Paste Code";
+"CONTEXT_GROUP_UNDO_PASTE" = "Undo Paste";
+"CONTEXT_GROUPS_SWITCH" = "Action Groups";
+"CONTEXT_GROUPS_FOOTER" = "Temporarily changes the bottom bar's reserved area based on the current input context: text selection, recent copy, recent paste, verification-code or URL fields. Fixed buttons never move.";
+"CONTEXT_GROUP_SELECTION_SWITCH" = "Selection";
+"CONTEXT_GROUP_SELECTION_FOOTER" = "Shows open link, search, copy and ask AI while text is selected.";
+"CONTEXT_GROUP_CLIPBOARD_SWITCH" = "Clipboard";
+"CONTEXT_GROUP_CLIPBOARD_FOOTER" = "Shows paste and text actions for 8 seconds after a copy.";
+"CONTEXT_GROUP_PASTE_SWITCH" = "After Paste";
+"CONTEXT_GROUP_PASTE_FOOTER" = "Shows undo paste for 3 seconds after inserting more than 20 characters at once.";
+"CONTEXT_GROUP_INPUT_SWITCH" = "Input Type";
+"CONTEXT_GROUP_INPUT_FOOTER" = "Verification-code fields offer paste code; URL fields offer opening the clipboard link.";
+"CONTEXT_GROUP_ORDER_FOOTER" = "A fresh copy shows paste; a fresh selection shows selection actions. When both are fresh, the more recent one wins.";
