@@ -229,11 +229,16 @@
     NSArray *records = [self recordsFromSnapshot:self.snapshot];
     NSMutableArray *fallbacks = [records mutableCopy];
     [fallbacks addObjectsFromArray:[self fallbackRecordsAfter:records limit:MTFloatingShelfCapacity]];
-    for (NSArray *entries in @[layout[@"left"], [layout[@"single"] boolValue] ? @[] : layout[@"right"]]) {
+    // 两段共用同一套按钮模型，但「显示文本 / 显示边框」按段独立读取，
+    // 因此左段可以只显示图标、右段显示文本。
+    NSArray *segmentEntries = @[layout[@"left"], [layout[@"single"] boolValue] ? @[] : layout[@"right"]];
+    for (NSUInteger segment = 0; segment < segmentEntries.count; segment++) {
+        BOOL showsLabel = MTBottomBarSegmentLabelEnabled(preferences, segment);
+        BOOL showsBorder = MTBottomBarSegmentBorderEnabled(preferences, segment);
         NSMutableArray *buttons = [NSMutableArray array];
-        for (NSDictionary *entry in entries) {
+        for (NSDictionary *entry in segmentEntries[segment]) {
             NSString *kind = entry[@"kind"], *value = entry[@"value"];
-            NSString *stableKey = [NSString stringWithFormat:@"%lu:%lu:%@:%@", (unsigned long)segments.count, (unsigned long)buttons.count, kind, value];
+            NSString *stableKey = [NSString stringWithFormat:@"%lu:%lu:%@:%@", (unsigned long)segment, (unsigned long)buttons.count, kind, value];
             UIButton *existing = self.stableButtons[stableKey];
             if (existing && ([kind isEqual:@"action"] || [kind isEqual:@"app"])) {
                 [buttons addObject:existing]; [newViews addObject:existing]; stable[stableKey] = existing;
@@ -293,7 +298,7 @@
                 button.enabled = NO; button.alpha = 0.28;
             }
             button.layer.cornerRadius = self.actionTarget.buttonRadius;
-            button.layer.borderWidth = self.actionTarget.borderEnabled ? self.actionTarget.borderWidth : 0;
+            button.layer.borderWidth = showsBorder ? self.actionTarget.borderWidth : 0;
             button.layer.borderColor = UIColor.labelColor.CGColor;
             UIColor *tint = [preferences[kShortcutsTintEnabled] boolValue] ? MTColorFromHex(preferences[@"shortcutstint"], @"#ff0000") : UIColor.labelColor;
             button.tintColor = tint;
@@ -302,7 +307,7 @@
             button.titleLabel.adjustsFontSizeToFitWidth = YES;
             button.titleLabel.minimumScaleFactor = 0.65;
             [button setTitleColor:tint forState:UIControlStateNormal];
-            if (self.actionTarget.useShortLabel) {
+            if (showsLabel) {
                 NSString *shortTitle = fixed ? ([MTHelper customNameForShortcutItem:[self shortcutDefinition:value]] ?: [MTHelper localizedStringForActionNamed:value shortName:YES bundle:[NSBundle bundleWithPath:bundlePath]]) : title;
                 [button setImage:nil forState:UIControlStateNormal];
                 [button setTitle:shortTitle forState:UIControlStateNormal];

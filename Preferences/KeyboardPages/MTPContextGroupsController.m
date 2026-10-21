@@ -159,7 +159,11 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)testInputSection { return 6; }
 - (void)buildSettingsRows {
     [super buildSettingsRows];
-    self.appearanceRows = [self.appearanceRows subarrayWithRange:NSMakeRange(1, self.appearanceRows.count - 1)];
+    // 外观分区复用顶部工具栏的按钮设置。底栏的「显示文本」「显示边框」已改为
+    // 左右两段分别控制（见「布局与显示」分区），这里去掉对应的全局行，避免
+    // 同一项出现两个互相覆盖的开关。
+    NSUInteger drop = MIN((NSUInteger)2, self.appearanceRows.count);
+    self.appearanceRows = [self.appearanceRows subarrayWithRange:NSMakeRange(drop, self.appearanceRows.count - drop)];
 }
 - (void)refresh {
     self.preferences = [MTPrefsManager.sharedInstance readPrefs];
@@ -255,7 +259,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 9; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section < 2) return [self.layout[section ? @"right" : @"left"] count] + 1;
-    if (section == 2) return 4;
+    if (section == 2) return 7;
     if (section == 3) return 7;
     if (section == 4) return self.priority.count;
     if (section == 5) return 4;
@@ -326,10 +330,20 @@ static NSString *MTCGTitle(MTContextGroup group) {
                 [swap.bottomAnchor constraintEqualToAnchor:margins.bottomAnchor constant:-2]
             ]];
         } else {
-            cell.textLabel.text = MTCGL(@[@"BAR_SWAP", @"BAR_SINGLE", @"BAR_EQUAL", @"BAR_LABEL"][path.row]);
             UISwitch *toggle = [UISwitch new]; toggle.tag = path.row;
-            toggle.on = path.row == 3 ? [self.preferences[kShortLabelEnabledKey] boolValue] : [self.layout[path.row == 1 ? @"single" : @"equal"] boolValue];
-            [toggle addTarget:self action:@selector(toggleLayout:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
+            if (path.row <= 2) {
+                cell.textLabel.text = MTCGL(path.row == 1 ? @"BAR_SINGLE" : @"BAR_EQUAL");
+                toggle.on = [self.layout[path.row == 1 ? @"single" : @"equal"] boolValue];
+                [toggle addTarget:self action:@selector(toggleLayout:) forControlEvents:UIControlEventValueChanged];
+            } else {
+                // 左右两段各一行：文本开关关掉即该段只显示图标，边框同理。
+                NSInteger item = path.row - 3;
+                cell.textLabel.text = MTCGL(@[@"BAR_LABEL_LEFT", @"BAR_LABEL_RIGHT", @"BAR_BORDER_LEFT", @"BAR_BORDER_RIGHT"][item]);
+                cell.detailTextLabel.text = MTCGL(item < 2 ? @"BAR_LABEL_HINT" : @"BAR_BORDER_HINT");
+                toggle.on = [self segmentDisplayEnabledAtIndex:item];
+                [toggle addTarget:self action:@selector(toggleSegmentDisplay:) forControlEvents:UIControlEventValueChanged];
+            }
+            cell.accessoryView = toggle;
         }
     } else if (path.section == 3) {
         cell.textLabel.text = MTCGL(MTCGTitles()[path.row]);
@@ -368,8 +382,19 @@ static NSString *MTCGTitle(MTContextGroup group) {
     id left = self.layout[@"left"]; self.layout[@"left"] = self.layout[@"right"]; self.layout[@"right"] = left; [self saveLayout];
 }
 - (void)toggleLayout:(UISwitch *)sender {
-    if (sender.tag == 3) { [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:kShortLabelEnabledKey]; [self refresh]; return; }
     self.layout[sender.tag == 1 ? @"single" : @"equal"] = @(sender.on); [self saveLayout];
+}
+// 0/1 = 左/右段文本，2/3 = 左/右段边框；每一项独立落盘，互不影响另一段。
+- (BOOL)segmentDisplayEnabledAtIndex:(NSInteger)index {
+    return index < 2 ? MTBottomBarSegmentLabelEnabled(self.preferences, (NSUInteger)index)
+                     : MTBottomBarSegmentBorderEnabled(self.preferences, (NSUInteger)(index - 2));
+}
+- (void)toggleSegmentDisplay:(UISwitch *)sender {
+    NSInteger index = sender.tag - 3;
+    NSArray<NSString *> *keys = @[kBottomBarLeftLabelKey, kBottomBarRightLabelKey, kBottomBarLeftBorderKey, kBottomBarRightBorderKey];
+    if (index < 0 || index >= (NSInteger)keys.count) return;
+    [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:keys[index]];
+    [self refresh];
 }
 - (void)toggleGroup:(UISwitch *)sender { [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:MTCGKeys()[sender.tag]]; [self refresh]; }
 - (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)path {

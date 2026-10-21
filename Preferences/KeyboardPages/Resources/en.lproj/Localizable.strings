@@ -761,7 +761,12 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "BAR_SWAP" = "Swap segments";
 "BAR_SINGLE" = "Single segment";
 "BAR_EQUAL" = "Equal-width cells";
-"BAR_LABEL" = "Show Text";
+"BAR_LABEL_LEFT" = "Left Segment: Text";
+"BAR_LABEL_RIGHT" = "Right Segment: Text";
+"BAR_BORDER_LEFT" = "Left Segment: Border";
+"BAR_BORDER_RIGHT" = "Right Segment: Border";
+"BAR_LABEL_HINT" = "Off shows icons only in this segment";
+"BAR_BORDER_HINT" = "Thickness follows the appearance setting";
 "BAR_KIND_ACTION" = "Fixed action";
 "BAR_KIND_CONTEXT" = "Context group";
 "BAR_KIND_APP" = "Quick-launch app";
@@ -780,7 +785,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "BAR_REMOVE" = "Remove item";
 "BAR_EDIT_HINT" = "Drag handles to reorder or move across segments. Tap an item to configure, move or remove it. Up to 8 cells per segment. Apps open in floating windows; existing floating sessions are restored first.";
 "BAR_RIGHT_SAVED" = "The right segment is saved while single-segment mode is active. Turn it off to restore the right segment.";
-"BAR_LAYOUT_HINT" = "Mix actions, context groups and apps in either segment. Equal-width mode gives every cell the same width. Otherwise, segment widths follow content types, with equal cells inside each segment. Empty segments yield their space.";
+"BAR_LAYOUT_HINT" = "Mix actions, context groups and apps in either segment. Equal-width mode gives every cell the same width. Otherwise, segment widths follow content types, with equal cells inside each segment. Empty segments yield their space. Text and borders are set per segment; a segment with text off shows icons only.";
 "BAR_CONTEXT_HINT" = "Each context cell shows the chosen action of the matching highest-priority group. Inactive or missing actions keep a placeholder. App fallback uses recent floating records and favorite apps when enabled. Tap a group below to configure its actions.";
 "BAR_METRICS" = "Left %lu cells · Right %lu cells\nAvailable %.0f pt · Left cell %.1f pt · Right cell %.1f pt";
 "BAR_SAVED_ACTIONS" = "Saved buttons (including disabled)";
