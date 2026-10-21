@@ -52,23 +52,44 @@ static NSString *g_mtsbAIPendingSeedText;
 static BOOL g_mtsbAIPendingClipboardImage;
 static double g_mtsbAIPendingCreatedAt;
 static BOOL g_mtsbAIDesktopVisible;
+// AI 动作追加的会话参数（format 3）。旧键盘端不会写这些键，保持为空即沿用
+// 原有「只带入不发送」的行为。
+static NSString *g_mtsbAIPendingPersonaID;
+static NSString *g_mtsbAIPendingModel;
+static BOOL g_mtsbAIPendingAutoSend;
+static BOOL g_mtsbAIPendingExplicitOpen;
 
 static void MTSBDelayedAIPrefsHeal(void);
+
+static void MTSBDClearAIPending(void) {
+    g_mtsbAIPendingSeedText = nil;
+    g_mtsbAIPendingClipboardImage = NO;
+    g_mtsbAIPendingPersonaID = nil;
+    g_mtsbAIPendingModel = nil;
+    g_mtsbAIPendingAutoSend = NO;
+    g_mtsbAIPendingExplicitOpen = NO;
+}
 
 static void MTSBDPresentAIPanelFromPending(void) {
     NSString *seed = g_mtsbAIPendingSeedText;
     BOOL clipboardImage = g_mtsbAIPendingClipboardImage;
-    g_mtsbAIPendingSeedText = nil;
-    g_mtsbAIPendingClipboardImage = NO;
-    [MTAIPanel presentInSpringBoardWithSeedText:seed clipboardImage:clipboardImage];
+    NSString *personaID = g_mtsbAIPendingPersonaID;
+    NSString *model = g_mtsbAIPendingModel;
+    BOOL autoSend = g_mtsbAIPendingAutoSend;
+    MTSBDClearAIPending();
+    [MTAIPanel presentInSpringBoardWithSeedText:seed
+                                 clipboardImage:clipboardImage
+                                      personaID:personaID
+                                          model:model
+                                       autoSend:autoSend];
 }
 
 static void MTSBDPresentAIPanelWhenDesktop(void) {
-    if (!g_mtsbAIPendingSeedText && !g_mtsbAIPendingClipboardImage) return;
+    // AI 动作的空输入也要打开面板，用 explicit open 区分于普通按钮的空会话。
+    if (!g_mtsbAIPendingSeedText && !g_mtsbAIPendingClipboardImage && !g_mtsbAIPendingExplicitOpen) return;
     if (!g_mtsbAIDesktopVisible) return;
     if ([NSDate date].timeIntervalSince1970 - g_mtsbAIPendingCreatedAt > 300.0) {
-        g_mtsbAIPendingSeedText = nil;
-        g_mtsbAIPendingClipboardImage = NO;
+        MTSBDClearAIPending();
         return;
     }
     MTSBDPresentAIPanelFromPending();
@@ -93,6 +114,17 @@ static void MTSBOpenAIPanelWithRequest(NSDictionary *request) {
     if (g_mtsbAIPendingSeedText.length == 0) g_mtsbAIPendingSeedText = nil;
     g_mtsbAIPendingClipboardImage = [mode isEqualToString:@"image"];
     g_mtsbAIPendingCreatedAt = created;
+    // format 3 可选字段：缺失即旧键盘端的请求，按原有语义处理。
+    g_mtsbAIPendingPersonaID = [request[kAIChatRequestPersonaField] isKindOfClass:[NSString class]]
+        ? request[kAIChatRequestPersonaField] : nil;
+    if (g_mtsbAIPendingPersonaID.length == 0) g_mtsbAIPendingPersonaID = nil;
+    g_mtsbAIPendingModel = [request[kAIChatRequestModelField] isKindOfClass:[NSString class]]
+        ? request[kAIChatRequestModelField] : nil;
+    if (g_mtsbAIPendingModel.length == 0) g_mtsbAIPendingModel = nil;
+    g_mtsbAIPendingAutoSend = [request[kAIChatRequestAutoSendField] isKindOfClass:[NSNumber class]] &&
+        [request[kAIChatRequestAutoSendField] boolValue];
+    g_mtsbAIPendingExplicitOpen = [request[kAIChatRequestOpenField] isKindOfClass:[NSNumber class]] &&
+        [request[kAIChatRequestOpenField] boolValue];
 
     if ([request[@"origin"] isKindOfClass:[NSString class]] &&
         [request[@"origin"] isEqualToString:@"sb"]) {

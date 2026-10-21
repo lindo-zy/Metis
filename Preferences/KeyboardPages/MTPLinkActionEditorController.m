@@ -12,6 +12,7 @@
 #import "MTFloatingAppSession.h"
 #import "MTPJavaScriptTestController.h"
 #import "MTHelper.h"
+#import "MTAIEngine.h"
 #import "common.h"
 
 static NSBundle *mtpLocalBundle;
@@ -129,6 +130,52 @@ static NSInteger const MTLegacyRowLink = 2;
 }
 @end
 
+// AI 动作的人设 / 模型共用这一个单选列表：只负责展示与回传，不编辑人设库
+// 或模型列表本身（编辑仍走 设置 → AI问答）。
+@interface MTPActionOptionPickerController : UITableViewController
+@property (nonatomic, copy) NSString *optionTitle;
+@property (nonatomic, copy) NSArray<NSDictionary *> *options; // {identifier, title, detail}
+@property (nonatomic, copy) NSString *selectedIdentifier;
+@property (nonatomic, copy) void (^completion)(NSString *identifier);
+@end
+
+@implementation MTPActionOptionPickerController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = self.optionTitle;
+}
+
+- (NSInteger)tableView:(__unused UITableView *)tableView numberOfRowsInSection:(__unused NSInteger)section {
+    return (NSInteger)self.options.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    // 选项数量是个位数到几十行，直接新建 cell 换取 subtitle 版式（注册复用
+    // 类只能拿到 default 样式，没有 detailTextLabel）。
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+    NSDictionary *option = self.options[(NSUInteger)indexPath.row];
+    cell.textLabel.text = option[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16];
+    NSString *detail = option[@"detail"];
+    cell.detailTextLabel.text = [detail isKindOfClass:NSString.class] ? detail : nil;
+    cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+    cell.accessoryType = [option[@"identifier"] isEqual:self.selectedIdentifier]
+        ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (indexPath.row >= (NSInteger)self.options.count) return;
+    NSString *identifier = self.options[(NSUInteger)indexPath.row][@"identifier"];
+    if (![identifier isKindOfClass:NSString.class]) return;
+    if (self.completion) self.completion(identifier);
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+@end
+
 @interface MTPLinkActionEditorController ()
 @property (nonatomic, strong) UITableView *tableView;
 // 文本记录区头部右上角的 编辑/完成 按钮（原导航栏编辑入口移入此处）。
@@ -142,6 +189,10 @@ static NSInteger const MTLegacyRowLink = 2;
 @property (nonatomic, strong) UISwitch *inAppSwitch;
 @property (nonatomic, strong) UISwitch *floatingSwitch;
 @property (nonatomic, strong) UISwitch *cutReplaceSwitch;
+// AI 动作的会话参数。新建时即落到「列表第一项」，之后按条目保存；执行时
+// 若人设已被删除 / 模型已不在当前引擎，运行侧再回退第一项。
+@property (nonatomic, copy) NSString *aiPersonaID;
+@property (nonatomic, copy) NSString *aiModel;
 @property (nonatomic, copy) NSString *selectedAppName;
 // The one payload box cell for URL scheme / JavaScript; kept as a
 // property so its text survives cell reuse while scrolling.
@@ -170,6 +221,7 @@ static NSInteger const MTLegacyRowLink = 2;
 
 + (NSString *)displayNameForType:(NSString *)type {
     [self loadTweakBundle];
+    if ([type isEqualToString:kCustomActionTypeAI]) return LOCALIZED(@"ACTION_TYPE_AI");
     if ([type isEqualToString:kCustomActionTypeJavaScript]) return LOCALIZED(@"ACTION_TYPE_JAVASCRIPT");
     if ([type isEqualToString:kCustomActionTypeURLScheme]) return LOCALIZED(@"ACTION_TYPE_URL_SCHEME");
     if ([type isEqualToString:kCustomActionTypeText]) return LOCALIZED(@"ACTION_TYPE_TEXT");
@@ -202,6 +254,7 @@ static NSInteger const MTLegacyRowLink = 2;
         kCustomActionTypeOpenApp,
         kCustomActionTypeShortcut,
         kCustomActionTypeSystem,
+        kCustomActionTypeAI,
         kCustomActionTypeJavaScript,
     ];
     for (NSString *type in types) {
@@ -236,6 +289,8 @@ static NSInteger const MTLegacyRowLink = 2;
 - (BOOL)isShortcutEntry {
     return [_displayedType isEqualToString:kCustomActionTypeShortcut];
 }
+
+- (BOOL)isAIEntry { return [_displayedType isEqualToString:kCustomActionTypeAI]; }
 
 - (NSInteger)rowCount {
     if (self.isLegacyEntry) return MTLegacyRowLink + 1 + (self.hasCutReplaceSwitch ? 1 : 0);
@@ -273,6 +328,7 @@ static NSInteger const MTLegacyRowLink = 2;
     if (self.isOpenAppEntry) return LOCALIZED(@"TYPE_FOOTER_OPEN_APP");
     if (self.isShortcutEntry) return LOCALIZED(@"TYPE_FOOTER_SHORTCUT");
     if (self.isSystemEntry) return LOCALIZED(@"TYPE_FOOTER_SYSTEM");
+    if (self.isAIEntry) return LOCALIZED(@"TYPE_FOOTER_AI");
     return nil;
 }
 
@@ -334,6 +390,8 @@ static NSInteger const MTLegacyRowLink = 2;
 // The payload value lives in the box for box types, in the small field
 // elsewhere; both trim the same way on save.
 - (NSString *)payloadCurrentValue {
+    // AI 动作没有链接载荷：参数是人设与模型，单独存在 entry 上。
+    if (self.isAIEntry) return @"";
     if (self.isTextEntry || self.isSystemEntry) return @"";
     if (self.isJavaScriptEntry) return self.payloadBoxCell.textView.text ?: self.entry[@"script"] ?: @"";
     if (self.usesLargePayloadBox) return [self trimmedValue:self.payloadBoxCell.textView.text];
@@ -348,6 +406,8 @@ static NSInteger const MTLegacyRowLink = 2;
 #pragma mark - Table view
 
 - (NSInteger)payloadSectionCount {
+    // AI 动作：section 0 是共用的类型/名称/图标，section 1 是人设与模型。
+    if (self.isAIEntry) return 2;
     if (self.isTextEntry) return 2;
     if (self.isJavaScriptEntry) return 3;
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme]) return 3;
@@ -358,6 +418,7 @@ static NSInteger const MTLegacyRowLink = 2;
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == self.payloadSectionCount) return 1;
+    if (self.isAIEntry) return section == 0 ? MTActionRowPayload : 2;
     if (self.isTextEntry) return section == 0 ? MTActionRowPayload : self.textRecords.count + 1;
     if (self.isJavaScriptEntry && section == 2) return 3;
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme] && section == 2) return 1;
@@ -369,6 +430,7 @@ static NSInteger const MTLegacyRowLink = 2;
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (section == self.payloadSectionCount) return LOCALIZED(@"ACTION_GROUP");
+    if (self.isAIEntry) return section == 1 ? LOCALIZED(@"AI_ACTION_SECTION") : nil;
     if (self.isTextEntry) return section == 1 ? LOCALIZED(@"TEXT_RECORDS") : nil;
     if (self.isJavaScriptEntry && section == 1) return LOCALIZED(@"JS_SOURCE");
     if (self.isJavaScriptEntry && section == 2) return LOCALIZED(@"JS_BEHAVIOR");
@@ -419,6 +481,7 @@ static NSInteger const MTLegacyRowLink = 2;
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == self.payloadSectionCount) return nil;
+    if (self.isAIEntry) return section == 1 ? [self typeFooter] : nil;
     // The type hint describes the payload, so it follows the payload: on the
     // box section for box types, on the single section otherwise.
     if (self.isTextEntry || [self usesLargePayloadBox]) return section == 1 ? [self typeFooter] : nil;
@@ -480,6 +543,24 @@ static NSInteger const MTLegacyRowLink = 2;
         NSString *group = MTActionGroupNormalizedName(self.entry[kCustomActionGroupKey]);
         cell.detailTextLabel.text = group.length ? group : LOCALIZED(@"UNGROUPED");
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        return cell;
+    }
+    if (self.isAIEntry && indexPath.section == 1) {
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"MTPLinkActionValueCell" forIndexPath:indexPath];
+        cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+        cell.imageView.image = nil;
+        cell.accessoryView = nil;
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        cell.textLabel.font = [UIFont systemFontOfSize:16];
+        if (indexPath.row == 0) {
+            cell.textLabel.text = LOCALIZED(@"AI_PERSONA_ROW");
+            NSDictionary *persona = [MTAIEngine personaForID:self.aiPersonaID];
+            NSString *name = [persona[@"name"] isKindOfClass:NSString.class] ? persona[@"name"] : nil;
+            cell.detailTextLabel.text = name.length ? name : LOCALIZED(@"AI_ACTION_PERSONA_EMPTY");
+        } else {
+            cell.textLabel.text = LOCALIZED(@"AI_MODELS_LABEL");
+            cell.detailTextLabel.text = self.aiModel.length ? self.aiModel : LOCALIZED(@"AI_ACTION_MODEL_EMPTY");
+        }
         return cell;
     }
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme] && indexPath.section == 2) {
@@ -616,6 +697,12 @@ static NSInteger const MTLegacyRowLink = 2;
         return;
     }
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (self.isAIEntry && indexPath.section == 1) {
+        [self.view endEditing:YES];
+        if (indexPath.row == 0) [self presentAIPersonaPicker];
+        else [self presentAIModelPicker];
+        return;
+    }
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme] && indexPath.section == 2) return;
     if (self.isTextEntry && indexPath.section == 1) {
         if (self.tableView.editing) return; // 编辑态只有删除圆圈与拖动把手，不进内容编辑
@@ -723,6 +810,77 @@ static NSInteger const MTLegacyRowLink = 2;
         [picker setParentController:[self parentController]];
         [self pushController:picker];
     }
+}
+
+#pragma mark - AI 参数选择
+
+// 人设库顺序即默认顺序：列表第一项就是「默认人设」，与面板缺省解析一致。
+- (void)presentAIPersonaPicker {
+    NSMutableArray<NSDictionary *> *options = [NSMutableArray array];
+    [[MTAIEngine personas] enumerateObjectsUsingBlock:^(NSDictionary *persona, NSUInteger index, __unused BOOL *stop) {
+        if (![persona isKindOfClass:NSDictionary.class]) return;
+        NSString *identifier = [persona[@"id"] isKindOfClass:NSString.class] ? persona[@"id"] : nil;
+        if (!identifier.length) return;
+        NSString *name = [persona[@"name"] isKindOfClass:NSString.class] ? persona[@"name"] : identifier;
+        [options addObject:@{@"identifier": identifier,
+                             @"title": name,
+                             @"detail": index == 0 ? LOCALIZED(@"AI_PERSONA_DEFAULT_MARK") : @""}];
+    }];
+    if (!options.count) {
+        [self showAIParameterAlert:LOCALIZED(@"AI_ACTION_NO_PERSONA_ALERT")];
+        return;
+    }
+    __weak typeof(self) weakSelf = self;
+    MTPActionOptionPickerController *picker = [MTPActionOptionPickerController new];
+    picker.optionTitle = LOCALIZED(@"AI_PERSONA_ROW");
+    picker.options = options;
+    picker.selectedIdentifier = self.aiPersonaID;
+    picker.completion = ^(NSString *identifier) {
+        typeof(self) owner = weakSelf;
+        if (!owner) return;
+        owner.aiPersonaID = identifier;
+        [owner.tableView reloadData];
+    };
+    [self.navigationController pushViewController:picker animated:YES];
+}
+
+// 模型列表跟随当前引擎；当前引擎没有模型时明确提示去设置页配置，
+// 而不是让动作静默变成「打开面板但发不出去」。
+- (void)presentAIModelPicker {
+    MTAIEngineInfo *engine = [MTAIEngine currentEngine];
+    NSMutableArray<NSDictionary *> *options = [NSMutableArray array];
+    [[MTAIEngine modelsForEngine:engine] enumerateObjectsUsingBlock:^(NSString *model, NSUInteger index, __unused BOOL *stop) {
+        if (![model isKindOfClass:NSString.class] || model.length == 0) return;
+        [options addObject:@{@"identifier": model,
+                             @"title": model,
+                             @"detail": index == 0 ? LOCALIZED(@"AI_PERSONA_DEFAULT_MARK") : @""}];
+    }];
+    if (!options.count) {
+        [self showAIParameterAlert:LOCALIZED(@"AI_ACTION_NO_MODEL_ALERT")];
+        return;
+    }
+    __weak typeof(self) weakSelf = self;
+    MTPActionOptionPickerController *picker = [MTPActionOptionPickerController new];
+    picker.optionTitle = LOCALIZED(@"AI_MODELS_LABEL");
+    picker.options = options;
+    picker.selectedIdentifier = self.aiModel;
+    picker.completion = ^(NSString *identifier) {
+        typeof(self) owner = weakSelf;
+        if (!owner) return;
+        owner.aiModel = identifier;
+        [owner.tableView reloadData];
+    };
+    [self.navigationController pushViewController:picker animated:YES];
+}
+
+- (void)showAIParameterAlert:(NSString *)message {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:LOCALIZED(@"ACTION_TYPE_AI")
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_OK")
+                                              style:UIAlertActionStyleDefault
+                                            handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)inAppSwitchChanged:(UISwitch *)sender {
@@ -885,6 +1043,20 @@ static NSInteger const MTLegacyRowLink = 2;
     updated[@"link"] = link;
     if (self.isSystemEntry) [updated removeObjectForKey:@"link"];
     else [updated removeObjectForKey:kCustomActionSystemIdentifierKey];
+    if (self.isAIEntry) {
+        // 引擎一并记录：动作绑定的模型属于某个引擎，切换引擎后执行侧据此
+        // 判断是否需要回退到新引擎的第一个模型。
+        updated[kCustomActionAIPersonaKey] = self.aiPersonaID ?: @"";
+        updated[kCustomActionAIModelKey] = self.aiModel ?: @"";
+        updated[kCustomActionAIEngineKey] = [MTAIEngine currentEngine].identifier ?: @"";
+        [updated removeObjectForKey:@"link"];
+        [updated removeObjectForKey:@"script"];
+    } else {
+        // 其它类型不得残留 AI 参数，否则改类型后仍会把旧人设带进请求。
+        [updated removeObjectForKey:kCustomActionAIPersonaKey];
+        [updated removeObjectForKey:kCustomActionAIModelKey];
+        [updated removeObjectForKey:kCustomActionAIEngineKey];
+    }
     if (self.isTextEntry) {
         updated[kCustomActionTextRecordsKey] = [self.textRecords copy];
         [updated removeObjectForKey:@"link"];
@@ -1002,6 +1174,7 @@ static NSInteger const MTLegacyRowLink = 2;
                        [storedType isEqualToString:kCustomActionTypeOpenApp] ||
                        [storedType isEqualToString:kCustomActionTypeShortcut] ||
                        [storedType isEqualToString:kCustomActionTypeSystem] ||
+                       [storedType isEqualToString:kCustomActionTypeAI] ||
                        [storedType isEqualToString:kCustomActionTypeJavaScript])) ? storedType : @"";
 
     if (self.isTextEntry) {
@@ -1023,6 +1196,20 @@ static NSInteger const MTLegacyRowLink = 2;
         NSUInteger output = [@[@"replace", @"insert", @"copy"] indexOfObject:self.entry[@"jsOutput"] ?: @"replace"];
         self.jsInputControl.selectedSegmentIndex = input == NSNotFound ? 0 : (NSInteger)input;
         self.jsOutputControl.selectedSegmentIndex = output == NSNotFound ? 0 : (NSInteger)output;
+    }
+
+    if (self.isAIEntry) {
+        // 人设：存的 id 已被删除时回退第一项（defaultPersona）；模型：存的
+        // 名称不在当前引擎列表时回退第一项。两者都先落到「列表第一项」，
+        // 保存时再显式写回条目，避免空值让执行侧再猜一次。
+        id storedPersona = self.entry[kCustomActionAIPersonaKey];
+        NSDictionary *persona = [MTAIEngine personaForID:[storedPersona isKindOfClass:NSString.class] ? storedPersona : nil];
+        if (!persona) persona = [MTAIEngine defaultPersona];
+        self.aiPersonaID = [persona[@"id"] isKindOfClass:NSString.class] ? persona[@"id"] : @"";
+        NSArray<NSString *> *models = [MTAIEngine modelsForEngine:[MTAIEngine currentEngine]];
+        id storedModel = self.entry[kCustomActionAIModelKey];
+        NSString *model = [storedModel isKindOfClass:NSString.class] ? storedModel : nil;
+        self.aiModel = (model.length && [models containsObject:model]) ? model : (models.firstObject ?: @"");
     }
 
     NSString *defaultName = ([self trimmedValue:self.entry[@"name"]].length && [self.entry[@"name"] isKindOfClass:[NSString class]])

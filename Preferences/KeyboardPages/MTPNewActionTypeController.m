@@ -19,10 +19,13 @@
 - (MTSettingsPageModel *)mtBuildModel {
     NSArray *configs = @[
         @[@"urlscheme",  @"链接协议与参数",   @"link", @"blue"],
-        @[@"text",       @"保存常用文本",     @"doc.text.fill", @"purple"],
+        @[@"text",       @"保存片段，一键插入", @"doc.text.fill", @"purple"],
         @[@"openapp",    @"选择目标应用",     @"square.and.arrow.up", @"green"],
         @[@"shortcut",   @"选择应用快捷操作", @"square.grid.2x2.fill", @"orange"],
         @[@"system",     @"选择系统操作",     @"gearshape.fill", @"gray"],
+        // AI 动作放在系统动作之后、JS脚本之前：前六项都是「打开/跳转」类，
+        // 后两项是「内容处理」类，脚本始终垫底。
+        @[@"ai",         @"选人设与模型，直接提问", @"sparkles", @"indigo"],
         @[@"javascript", @"编写与调试 JS",    @"chevron.left.forwardslash.chevron.right", @"yellow"],
     ];
     NSMutableArray<MTSettingsRow *> *rows = [NSMutableArray array];

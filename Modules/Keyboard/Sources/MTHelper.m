@@ -309,6 +309,7 @@ static const CGFloat MTAppIconSide = 24.0;
 
 // 全局动作与引用列表共用图标解析：保留原始 SF Symbol / App 图标配置。
 +(NSString *)defaultIconForActionType:(NSString *)type {
+    if ([type isEqualToString:kCustomActionTypeAI]) return @"sparkles";
     if ([type isEqualToString:kCustomActionTypeJavaScript]) return @"curlybraces";
     if ([type isEqualToString:kCustomActionTypeText]) return @"doc.text";
     if ([type isEqualToString:kCustomActionTypeURL]) return @"globe";

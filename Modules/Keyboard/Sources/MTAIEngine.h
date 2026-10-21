@@ -74,6 +74,15 @@
                        onDelta:(void (^)(NSString *piece))onDelta
                       onDone:(void (^)(NSString *fullText, NSError *error))onDone;
 
+// 会话级模型覆盖：model 非空时本次请求用它，不读写 aiSelectedModel_ 全局键，
+// 因此 AI 动作绑定的模型不会改掉面板里用户当前的模型选择。model 为空等价于
+// 上面的默认入口（selectedModelForEngine，缺省回退列表第一项）。
++ (MTAIChatRequest *)sendChatWithMessages:(NSArray<NSDictionary *> *)messages
+                      engine:(MTAIEngineInfo *)engine
+                       model:(NSString *)model
+                     onDelta:(void (^)(NSString *piece))onDelta
+                      onDone:(void (^)(NSString *fullText, NSError *error))onDone;
+
 // 拉取引擎可用模型列表，按接口地址自适应厂商（请求路径 + token 鉴权头）：
 // OpenAI 兼容（Bearer）/ Gemini 原生（x-goog-api-key，剔除不支持
 // generateContent 的模型）/ Anthropic（x-api-key + anthropic-version）/

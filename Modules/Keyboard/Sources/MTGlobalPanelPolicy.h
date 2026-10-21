@@ -39,6 +39,9 @@ static inline BOOL MTGlobalCustomActionSupported(id entry) {
     if (![entry isKindOfClass:NSDictionary.class] || MTGlobalPanelActionNeedsInput(entry)) return NO;
     NSString *type = MTGlobalPanelString(entry[@"type"]);
     if ([type isEqual:@"system"]) return MTSystemActionDefinition(entry[@"systemaction"]) != nil;
+    // AI 动作：桌面全局面板没有输入框，点击只打开 AI 面板（不带问题、不自动
+    // 发送），所以不要求 link 载荷。
+    if ([type isEqual:@"ai"]) return YES;
     // 无输入框 JS：jsInput=clipboard + jsOutput=copy 走无会话宿主执行。
     if ([type isEqual:@"javascript"]) {
         id inputMode = entry[@"jsInput"] ?: @"auto";

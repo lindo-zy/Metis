@@ -12,7 +12,19 @@
 // 无输入会话的系统动作入口；键盘内仍使用原有带入当前输入内容的路径。
 + (BOOL)presentForSystemAction;
 + (void)openFromKeyboardWithSeedText:(NSString *)seedText;
+// AI 动作入口：personaID / model 为空表示取各自列表第一项（与面板缺省解析
+// 一致）；autoSend 为 YES 且 seed 非空时，面板装载完成后立即发送这一问。
+// 模型只在本次会话生效，不改写 aiSelectedModel_ 全局选择。
++ (void)openFromKeyboardWithSeedText:(NSString *)seedText
+                           personaID:(NSString *)personaID
+                               model:(NSString *)model
+                            autoSend:(BOOL)autoSend;
 + (void)presentInSpringBoardWithSeedText:(NSString *)seedText clipboardImage:(BOOL)clipboardImage;
++ (void)presentInSpringBoardWithSeedText:(NSString *)seedText
+                          clipboardImage:(BOOL)clipboardImage
+                               personaID:(NSString *)personaID
+                                   model:(NSString *)model
+                                autoSend:(BOOL)autoSend;
 // 面板输入框正持有键盘（第一响应者）时为 YES。用于 iOS16+ 粘贴授权弹窗的
 // 自动放行判断：从面板里点"粘贴"不该被系统弹窗打断。
 + (BOOL)isPanelInputActive;

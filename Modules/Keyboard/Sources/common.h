@@ -76,6 +76,12 @@
 #define kCustomActionTypeJavaScript @"javascript"
 #define kCustomActionTypeSystem @"system"
 #define kCustomActionSystemIdentifierKey @"systemaction"
+// AI 动作：不携带 link，点击后直接把宿主输入框全文作为问题提交给 AI 面板。
+// 会话参数存在条目上，空值表示「取设置页列表第一项」（与面板缺省解析一致）。
+#define kCustomActionTypeAI @"ai"
+#define kCustomActionAIPersonaKey @"aipersona"
+#define kCustomActionAIModelKey @"aimodel"
+#define kCustomActionAIEngineKey @"aiengine"
 // Quick actions persist the owning bundle in "link" and the stable item type.
 #define kCustomActionShortcutTypeKey @"shortcuttype"
 #define kCustomActionShortcutTitleKey @"shortcuttitle"
@@ -200,13 +206,22 @@
 #define kShortcutRefreshRequestIdentifier @"com.lindo.metis.keyboard/shortcutrefresh"
 #define kShortcutSnapshotChangedIdentifier @"com.lindo.metis.keyboard/shortcutschanged"
 
-// MetisKeyboard 自带 AI 面板通道：工具栏进程只写请求（{format:2, requestID, created,
-// mode: text|image|empty, origin: sb|app, text?}），SpringBoard 端收到 Darwin
-// 通知后整包读取并在 SB 进程内创建 MTAIPanel 悬浮窗。面板不能在键盘进程承载：
-// 窗口会被限制在键盘宿主区域内（第三方键盘扩展里完全无法悬浮）。与快捷方式
-// 目录共用隔离域，避免再开共享面。
+// MetisKeyboard 自带 AI 面板通道：工具栏进程只写请求（{format:3, requestID, created,
+// mode: text|image|empty, origin: sb|app, text?, persona?, model?, autosend?}），
+// SpringBoard 端收到 Darwin 通知后整包读取并在 SB 进程内创建 MTAIPanel 悬浮窗。
+// 面板不能在键盘进程承载：窗口会被限制在键盘宿主区域内（第三方键盘扩展里完全
+// 无法悬浮）。与快捷方式目录共用隔离域，避免再开共享面。
+// format 3 只追加可选会话参数：旧 SB 端忽略未知键即降级为「只带入不发送」，
+// 所以 AI 动作在混合版本下不会静默丢弃问题，只是退回原有带入语义。
 #define MTAIChatRequestKey @"ai-chat-request"
 #define kAIChatRequestIdentifier @"com.lindo.metis.keyboard/aichat"
+#define kAIChatRequestFormat 3
+#define kAIChatRequestPersonaField @"persona"
+#define kAIChatRequestModelField @"model"
+#define kAIChatRequestAutoSendField @"autosend"
+// AI 动作即使输入框为空也要把面板打开（普通 AI 按钮的空会话在 app 来源会
+// 被桌面门控丢弃，动作入口需要显式表态）。
+#define kAIChatRequestOpenField @"open"
 
 // Complete SpringBoard-authored snapshot of each app's current static and
 // dynamic UIApplicationShortcutItems. The value is replaced as one generation,

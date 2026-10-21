@@ -7,6 +7,7 @@
 #import "MTPActionOrganizationController.h"
 #import "MTPOpenAppPickerController.h"
 #import "MTHelper.h"
+#import "MTAIEngine.h"
 #import "common.h"
 #import <objc/runtime.h>
 
@@ -201,6 +202,20 @@ static void MTRegisterManagedCellsIfNeeded(UITableView *table) {
         id records = entry[kCustomActionTextRecordsKey];
         NSUInteger count = [records isKindOfClass:NSArray.class] ? [records count] : 0;
         cell.detailTextLabel.text = [NSString stringWithFormat:LOCALIZED(@"TEXT_RECORD_COUNT"), (unsigned long)count];
+    }
+    // AI 动作的副标题直接展示绑定的会话参数，省得进设置页确认用哪个人设/模型。
+    if ([type isEqualToString:kCustomActionTypeAI]) {
+        NSString *personaID = [entry[kCustomActionAIPersonaKey] isKindOfClass:NSString.class]
+            ? entry[kCustomActionAIPersonaKey] : nil;
+        NSDictionary *persona = [MTAIEngine personaForID:personaID];
+        NSString *personaName = [persona[@"name"] isKindOfClass:NSString.class] ? persona[@"name"] : nil;
+        NSString *model = [entry[kCustomActionAIModelKey] isKindOfClass:NSString.class]
+            ? entry[kCustomActionAIModelKey] : nil;
+        NSMutableArray<NSString *> *parts = [NSMutableArray array];
+        if (personaName.length) [parts addObject:personaName];
+        if (model.length) [parts addObject:model];
+        cell.detailTextLabel.text = parts.count ? [parts componentsJoinedByString:@" · "]
+                                                : [MTPLinkActionEditorController displayNameForType:type];
     }
     cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
     cell.imageView.image = [MTHelper imageForCustomActionEntry:entry];

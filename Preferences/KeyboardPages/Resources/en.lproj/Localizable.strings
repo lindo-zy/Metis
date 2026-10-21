@@ -161,7 +161,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "ACTION_TYPE" = "Type";
 "CHOOSE_ACTION_TYPE" = "Choose Action Type";
 "ACTION_TYPE_URL_SCHEME" = "URL Scheme";
-"ACTION_TYPE_TEXT" = "Text";
+"ACTION_TYPE_TEXT" = "Common text";
 "ACTION_TYPE_URL" = "URL";
 "ACTION_TYPE_OPEN_APP" = "Open App";
 "URL_SCHEME_SETTINGS" = "URL Scheme";
@@ -414,6 +414,13 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 // Custom system actions
 "ACTION_TYPE_SYSTEM" = "System action";
+"ACTION_TYPE_AI" = "AI action";
+"AI_ACTION_SECTION" = "Conversation";
+"AI_ACTION_PERSONA_EMPTY" = "Not set";
+"AI_ACTION_MODEL_EMPTY" = "Not set";
+"AI_ACTION_NO_PERSONA_ALERT" = "Add a persona in Settings → AI → Persona first";
+"AI_ACTION_NO_MODEL_ALERT" = "Configure a model for the current engine in Settings → AI first";
+"TYPE_FOOTER_AI" = "Tapping the action asks AI with the field's content; an empty field only opens the panel. Persona and model default to the first item in each list.";
 "SELECT_SYSTEM_ACTION" = "Select system action";
 "SELECT_SYSTEM_ACTION_REQUIRED" = "Select a system action first.";
 "TYPE_FOOTER_SYSTEM" = "Execute through SpringBoard. Toggles change the current state; brightness and volume change by one step. Unavailable APIs or permissions report failure.";
@@ -459,7 +466,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_VOLUME_UP" = "Increase volume";
 "SYSTEM_VOLUME_DOWN" = "Decrease volume";
 
-"ACTION_TYPE_JAVASCRIPT" = "JavaScript";
+"ACTION_TYPE_JAVASCRIPT" = "JS script";
 
 "SYSTEM_ACTION_FAILED" = "The system rejected this action. Check diagnostics.";
 

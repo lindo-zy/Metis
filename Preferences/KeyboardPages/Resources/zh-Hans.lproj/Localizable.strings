@@ -162,7 +162,7 @@
 "ACTION_TYPE" = "类型";
 "CHOOSE_ACTION_TYPE" = "选择动作类型";
 "ACTION_TYPE_URL_SCHEME" = "链接协议";
-"ACTION_TYPE_TEXT" = "文本";
+"ACTION_TYPE_TEXT" = "常用文本";
 "ACTION_TYPE_URL" = "网页链接";
 "ACTION_TYPE_OPEN_APP" = "打开应用";
 "URL_SCHEME_SETTINGS" = "链接协议设置";
@@ -413,6 +413,13 @@
 
 // Custom system actions
 "ACTION_TYPE_SYSTEM" = "系统动作";
+"ACTION_TYPE_AI" = "AI 动作";
+"AI_ACTION_SECTION" = "对话参数";
+"AI_ACTION_PERSONA_EMPTY" = "未设置";
+"AI_ACTION_MODEL_EMPTY" = "未设置";
+"AI_ACTION_NO_PERSONA_ALERT" = "请先在 设置 → AI问答 → 人设 中添加人设";
+"AI_ACTION_NO_MODEL_ALERT" = "请先在 设置 → AI问答 中为当前引擎配置模型";
+"TYPE_FOOTER_AI" = "点击动作即用输入框内容向 AI 提问；输入框为空时只打开面板。人设与模型默认取列表第一项。";
 "SELECT_SYSTEM_ACTION" = "选择系统动作";
 "SELECT_SYSTEM_ACTION_REQUIRED" = "请先选择一个系统动作。";
 "TYPE_FOOTER_SYSTEM" = "在 SpringBoard 中执行系统动作。开关动作切换当前状态；亮度、音量每次增减一档。系统接口或权限不可用时会提示失败。";
@@ -458,7 +465,7 @@
 "SYSTEM_VOLUME_UP" = "增加音量";
 "SYSTEM_VOLUME_DOWN" = "降低音量";
 
-"ACTION_TYPE_JAVASCRIPT" = "脚本";
+"ACTION_TYPE_JAVASCRIPT" = "JS脚本";
 
 "SYSTEM_ACTION_FAILED" = "系统拒绝执行该动作，请查看诊断日志";
 

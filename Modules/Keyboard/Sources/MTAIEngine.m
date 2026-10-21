@@ -530,17 +530,26 @@
                       engine:(MTAIEngineInfo *)engine
                        onDelta:(void (^)(NSString *piece))onDelta
                       onDone:(void (^)(NSString *fullText, NSError *error))onDone {
+    return [self sendChatWithMessages:messages engine:engine model:nil onDelta:onDelta onDone:onDone];
+}
+
++ (MTAIChatRequest *)sendChatWithMessages:(NSArray<NSDictionary *> *)messages
+                      engine:(MTAIEngineInfo *)engine
+                       model:(NSString *)model
+                     onDelta:(void (^)(NSString *piece))onDelta
+                      onDone:(void (^)(NSString *fullText, NSError *error))onDone {
     NSString *endpoint = [self endpointForEngine:engine];
     NSString *apiKey = [self apiKeyForEngine:engine];
-    NSString *model = [self selectedModelForEngine:engine];
-    if (endpoint.length == 0 || model.length == 0) {
+    // 会话级覆盖优先；空值回落到全局选中（其内部已回退列表第一项）。
+    NSString *modelName = model.length > 0 ? model : [self selectedModelForEngine:engine];
+    if (endpoint.length == 0 || modelName.length == 0) {
         onDone(@"", [NSError errorWithDomain:@"MTAIChat" code:-10
                                     userInfo:@{NSLocalizedDescriptionKey: @"engine endpoint or model missing"}]);
         return nil;
     }
 
     BOOL stream = [self streamEnabled];
-    NSDictionary *payload = @{@"model": model,
+    NSDictionary *payload = @{@"model": modelName,
                               @"messages": messages ?: @[],
                               @"stream": @(stream)};
 

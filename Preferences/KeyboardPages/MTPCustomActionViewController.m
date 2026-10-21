@@ -210,7 +210,7 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     dispatch_once(&onceToken, ^{
         creatableTypes = [NSSet setWithObjects:kCustomActionTypeURLScheme, kCustomActionTypeText,
             kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem,
-            kCustomActionTypeJavaScript, nil];
+            kCustomActionTypeAI, kCustomActionTypeJavaScript, nil];
     });
     return [creatableTypes containsObject:type];
 }
@@ -238,6 +238,11 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     if ([type isEqualToString:kCustomActionTypeText]) {
         entry[@"icon"] = @"doc.text";
         entry[kCustomActionTextRecordsKey] = @[@""];
+        [entry removeObjectForKey:@"link"];
+    }
+    if ([type isEqualToString:kCustomActionTypeAI]) {
+        entry[@"name"] = LOCALIZED(@"ACTION_TYPE_AI");
+        entry[@"icon"] = @"sparkles";
         [entry removeObjectForKey:@"link"];
     }
     if (opensApplication || [type isEqualToString:kCustomActionTypeURLScheme]) entry[kCustomActionFloatingKey] = @YES;

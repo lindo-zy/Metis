@@ -23,7 +23,16 @@ static CGRect g_mtKeyboardFrame;
 @interface MTAIPanel ()
 + (MTAIChatPanelController *)ensurePanelController;
 + (void)openFromKeyboardWithSeedText:(NSString *)seedText;
++ (void)openFromKeyboardWithSeedText:(NSString *)seedText
+                           personaID:(NSString *)personaID
+                               model:(NSString *)model
+                            autoSend:(BOOL)autoSend;
 + (void)presentInSpringBoardWithSeedText:(NSString *)seedText clipboardImage:(BOOL)clipboardImage;
++ (void)presentInSpringBoardWithSeedText:(NSString *)seedText
+                          clipboardImage:(BOOL)clipboardImage
+                               personaID:(NSString *)personaID
+                                   model:(NSString *)model
+                                autoSend:(BOOL)autoSend;
 + (void)closeAndDestroyPanel;
 @end
 
@@ -365,6 +374,11 @@ static CGRect MTAIProbeKeyboardFrame(void) {
 @property (nonatomic, weak) UIWindow *hostKeyWindow; // 进程内承载时的宿主 key 窗口（SB 承载恒 nil）
 @property (nonatomic, weak) UIResponder *hostInputResponder; // 打开面板前宿主输入框，关闭时无缝归还焦点
 @property (nonatomic, copy) NSString *activePersonaID;  // 会话内用户手动选择的人设
+// AI 动作绑定的会话模型：非空时本次会话优先用它，但从不写回 aiSelectedModel_。
+// 用户在面板里手动换模型即清空它，回到全局选择。
+@property (nonatomic, copy) NSString *sessionModel;
+// 动作要求「点击即提问」：等输入框就绪后自动发一次。
+@property (nonatomic, assign) BOOL pendingAutoSend;
 @property (nonatomic, assign) BOOL pinnedAfterKeyboardHide; // 键盘收起且有输出：卡片钉在原位不随键盘下坠
 // 抢焦点过渡期标志：面板输入框拿到焦点前，旧键盘会话必须先 resign，系统随
 // 之发出一次"键盘收起"通知——这是自导的过渡，不是用户收起；过渡期内既不
@@ -384,6 +398,10 @@ static CGRect MTAIProbeKeyboardFrame(void) {
 @property (nonatomic, assign) BOOL presentingAttachmentPicker;
 
 - (void)applySeedText;
+// AI 动作的会话参数：personaID/model 为空表示回退各自列表第一项，autoSend
+// 置位后由 flushPendingAutoSend 在面板就绪时发一次。
+- (void)applySessionPersonaID:(NSString *)personaID model:(NSString *)model autoSend:(BOOL)autoSend;
+- (void)flushPendingAutoSend;
 - (void)refreshModelButton;
 - (void)refreshBalance;
 - (void)refreshChip;
@@ -750,9 +768,36 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     self.inputField.text = seed;
 }
 
+- (void)applySessionPersonaID:(NSString *)personaID model:(NSString *)model autoSend:(BOOL)autoSend {
+    // 每次打开都重设：同一个控制器可能被第二个动作复用，必须先清掉上一次的
+    // 绑定，普通 AI 按钮才不会继承上一个动作的人设与模型。
+    self.activePersonaID = ([personaID isKindOfClass:NSString.class] &&
+                            [MTAIEngine personaForID:personaID]) ? personaID : nil;
+    self.sessionModel = ([model isKindOfClass:NSString.class] && model.length > 0) ? model : nil;
+    self.pendingAutoSend = autoSend;
+}
+
+- (void)flushPendingAutoSend {
+    if (!self.pendingAutoSend) return;
+    // 先确认面板已就绪再清标志：过早调用（view 还没加载）只是本次跳过，
+    // 标志留给下一个入口调用，避免动作的「点击即提问」被静默吞掉。
+    if (!self.isViewLoaded || !self.inputField) return;
+    self.pendingAutoSend = NO;
+    NSString *question = [self.inputField.text stringByTrimmingCharactersInSet:
+        [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    // 输入框为空就只打开面板：动作没有可问的内容，空请求既浪费额度也无意义。
+    if (question.length == 0 && self.attachedImage == nil && self.pendingFileText.length == 0) return;
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        typeof(self) owner = weakSelf;
+        if (owner && !owner.streaming) [owner sendTapped];
+    });
+}
+
 - (void)refreshModelButton {
     MTAIEngineInfo *engine = [self currentEngine];
-    NSString *model = [MTAIEngine selectedModelForEngine:engine];
+    NSString *model = self.sessionModel.length > 0 ? self.sessionModel
+                                                  : [MTAIEngine selectedModelForEngine:engine];
     [self.modelButton setTitle:[NSString stringWithFormat:@"%@  ▾", model ?: @""] forState:UIControlStateNormal];
     [self refreshBalance];
     [self.view setNeedsLayout];
@@ -1061,11 +1106,20 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     if (question.length == 0 && self.attachedImage == nil && self.pendingFileText.length == 0) return;
 
     MTAIEngineInfo *engine = [self currentEngine];
+    // 会话模型只在仍属于当前引擎时有效：用户中途换过引擎就回退全局选择，
+    // 否则会把一个该引擎不存在的模型名发出去。
+    if (self.sessionModel.length > 0 &&
+        ![[MTAIEngine modelsForEngine:engine] containsObject:self.sessionModel]) {
+        self.sessionModel = nil;
+        [self refreshModelButton];
+    }
     if ([MTAIEngine apiKeyForEngine:engine].length == 0) {
         [self appendHintMessage:MTAILocalized(@"AI_CARD_NO_KEY_ALERT")];
         return;
     }
-    if ([MTAIEngine selectedModelForEngine:engine].length == 0) {
+    NSString *effectiveModel = self.sessionModel.length > 0 ? self.sessionModel
+                                                            : [MTAIEngine selectedModelForEngine:engine];
+    if (effectiveModel.length == 0) {
         [self appendHintMessage:MTAILocalized(@"AI_CARD_NO_MODEL_ALERT")];
         return;
     }
@@ -1135,6 +1189,7 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     __weak typeof(self) weakSelf = self;
     self.currentRequest = [MTAIEngine sendChatWithMessages:payload
                                                     engine:[self currentEngine]
+                                                     model:self.sessionModel
                                                   onDelta:^(NSString *piece) {
         dispatch_async(dispatch_get_main_queue(), ^{
             __strong typeof(weakSelf) strongSelf = weakSelf;
@@ -1265,7 +1320,9 @@ static CGRect MTAIProbeKeyboardFrame(void) {
         [self showToast:MTAILocalized(@"AI_CARD_NO_MODEL_ALERT")];
         return;
     }
-    NSString *selected = [MTAIEngine selectedModelForEngine:engine];
+    // 勾选标记要跟随当前实际生效的模型：AI 动作绑定的会话模型也参与标记。
+    NSString *selected = self.sessionModel.length > 0 ? self.sessionModel
+                                                      : [MTAIEngine selectedModelForEngine:engine];
 
     CGFloat rowHeight = 36.0;
     CGFloat menuWidth = MIN(280.0, CGRectGetWidth(self.view.bounds) - 40.0);
@@ -1306,6 +1363,9 @@ static CGRect MTAIProbeKeyboardFrame(void) {
     MTAIEngineInfo *engine = [self currentEngine];
     NSArray<NSString *> *models = [MTAIEngine modelsForEngine:engine];
     if (sender.tag < models.count) {
+        // 用户显式选择即接管：AI 动作绑定的会话模型到此为止，后续轮次跟随
+        // 全局选择（下次关闭面板重开时也不会残留）。
+        self.sessionModel = nil;
         [MTAIEngine setSelectedModelForEngine:engine model:models[sender.tag]];
         [self refreshModelButton];
     }
@@ -1798,6 +1858,13 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
 // 输入框时接管（textViewShouldBeginEditing 置过渡标志），键盘只在那一刻
 // 换绑输入会话。
 + (void)openFromKeyboardWithSeedText:(NSString *)seedText {
+    [self openFromKeyboardWithSeedText:seedText personaID:nil model:nil autoSend:NO];
+}
+
++ (void)openFromKeyboardWithSeedText:(NSString *)seedText
+                           personaID:(NSString *)personaID
+                               model:(NSString *)model
+                            autoSend:(BOOL)autoSend {
     MTAIChatPanelController *controller = [self ensurePanelController];
     if (!controller) return;
 
@@ -1812,6 +1879,7 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
             controller.hostInputResponder = hostResponder;
         }
     }
+    [controller applySessionPersonaID:personaID model:model autoSend:autoSend];
     controller.seedText = seedText;
     [controller applySeedText];
     [controller inputFieldTextChanged]; // 种子程序性写入不触发 textViewDidChange，状态手动刷新
@@ -1821,17 +1889,29 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     g_aiPanelWindow.hidden = NO;
     [controller repositionAnimated:NO];
     MTAISchedulePanelReposition(controller);
+    // 动作要求「点击即提问」：等到窗口已显示、卡片已定位后再发，避免首帧
+    // 布局未完成的空尺寸把用户气泡挤到卡片外。
+    [controller flushPendingAutoSend];
 }
 
 // SB 承载入口：第三方键盘扩展经通道触发。plain-init 窗口必须走
 // makeKeyAndVisible 才可靠挂屏（ShellX 同款）。
 + (void)presentInSpringBoardWithSeedText:(NSString *)seedText clipboardImage:(BOOL)clipboardImage {
+    [self presentInSpringBoardWithSeedText:seedText clipboardImage:clipboardImage personaID:nil model:nil autoSend:NO];
+}
+
++ (void)presentInSpringBoardWithSeedText:(NSString *)seedText
+                          clipboardImage:(BOOL)clipboardImage
+                               personaID:(NSString *)personaID
+                                   model:(NSString *)model
+                                autoSend:(BOOL)autoSend {
     MTAIChatPanelController *controller = [self ensurePanelController];
     if (!controller) return;
 
     // 宿主输入全文非空即带入面板输入框（不限全新会话）；剪贴板图片仅在用户
     // 还没选附件时注入（不覆盖已选附件）。
     controller.hostKeyWindow = nil;
+    [controller applySessionPersonaID:personaID model:model autoSend:autoSend];
     controller.seedText = seedText;
     [controller applySeedText];
     [controller inputFieldTextChanged]; // 种子程序性写入不触发 textViewDidChange，状态手动刷新
@@ -1848,7 +1928,9 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     [g_aiPanelWindow makeKeyAndVisible];
     [controller repositionAnimated:NO];
     MTAISchedulePanelReposition(controller);
-    MTAIScheduleInputFocus(controller);
+    // 自动提问时不抢焦点：面板正在出答案，再弹一次键盘只是无谓的遮挡。
+    if (autoSend) [controller flushPendingAutoSend];
+    else MTAIScheduleInputFocus(controller);
 }
 
 + (BOOL)presentForSystemAction {

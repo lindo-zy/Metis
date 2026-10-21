@@ -1274,6 +1274,53 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     notify_post(kAIChatRequestIdentifier.UTF8String);
 }
 
+// AI 动作：把宿主输入框全文当作问题，带上动作绑定的人设与模型直接提问。
+// 与 aiChatAction: 的两点差别：
+// 1) 不回落剪贴板——动作只对当前输入负责，拿无关的剪贴板文本顶替问题更糟；
+// 2) 空输入也要打开面板（请求带 open 标记），只是不发送。
+-(void)aiActionWithEntry:(NSDictionary*)entry sender:(UIButton*)sender{
+    [self triggerImpactAndAnimationWithButton:sender];
+
+    NSString *personaID = [entry[kCustomActionAIPersonaKey] isKindOfClass:NSString.class]
+        ? entry[kCustomActionAIPersonaKey] : nil;
+    NSString *model = [entry[kCustomActionAIModelKey] isKindOfClass:NSString.class]
+        ? entry[kCustomActionAIModelKey] : nil;
+
+    BOOL inProcess = [objc_getClass("UIKeyboardImpl") activeInstance] != nil;
+
+    [self beginUpdateDelegate];
+    NSString *seed = [self currentInputTextForCustomAction];
+    if (seed.length > 20000) seed = [seed substringToIndex:20000];
+
+    if (inProcess) {
+        // seed 非空即「点击提问」；空输入只开面板等用户自己输入。
+        [MTAIPanel openFromKeyboardWithSeedText:seed
+                                      personaID:personaID
+                                          model:model
+                                       autoSend:seed.length > 0];
+        // 与 AI 按钮一致的移动语义：问题交给面板后清空宿主输入框。
+        if (seed.length > 0) [self clearHostInputText];
+        return;
+    }
+
+    // 扩展进程：先收尾输入会话，再经 cfprefsd+Darwin 通道交 SB 弹出。
+    kbImpl = [objc_getClass("UIKeyboardImpl") activeInstance];
+    [kbImpl dismissKeyboard];
+
+    NSMutableDictionary *request = [@{@"format": @(kAIChatRequestFormat),
+                                      @"requestID": [NSUUID UUID].UUIDString,
+                                      @"created": @([NSDate date].timeIntervalSince1970),
+                                      @"mode": seed.length > 0 ? @"text" : @"empty",
+                                      @"origin": isSpringBoard ? @"sb" : @"app",
+                                      @"text": seed ?: @"",
+                                      kAIChatRequestOpenField: @YES} mutableCopy];
+    if (personaID.length > 0) request[kAIChatRequestPersonaField] = personaID;
+    if (model.length > 0) request[kAIChatRequestModelField] = model;
+    if (seed.length > 0) request[kAIChatRequestAutoSendField] = @YES;
+    MTSetQuickActionSharedValue(request, MTAIChatRequestKey);
+    notify_post(kAIChatRequestIdentifier.UTF8String);
+}
+
 -(void)moveCursorLeftAction:(UIButton*)sender{
     [self beginImpactAnimationAndUpdateDelegateWithSender:sender];
     
@@ -2062,6 +2109,12 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     if ([type isEqualToString:kCustomActionTypeSystem] &&
         [entry[kCustomActionSystemIdentifierKey] isEqual:@"ai-chat"]) {
         [self aiChatAction:sender];
+        return YES;
+    }
+
+    // AI 动作：输入框全文即问题，人设/模型由动作条目绑定（不跟随面板当前选择）。
+    if ([type isEqualToString:kCustomActionTypeAI]) {
+        [self aiActionWithEntry:entry sender:sender];
         return YES;
     }
 

@@ -4,6 +4,7 @@
 #import "MTShortcutsGenerator.h"
 #import "MTFloatingAppSession.h"
 #import "MTJavaScriptHost.h"
+#import "MTAIPanel.h"
 #import "common.h"
 #import <notify.h>
 
@@ -31,6 +32,17 @@ void MTExecuteGlobalCustomAction(NSDictionary *entry, MTSystemOpenReply reply) {
         return;
     }
     NSString *type = MTGlobalPanelString(entry[@"type"]);
+    // AI 动作：全局面板没有宿主输入框，只打开面板（空会话、不自动发送）；
+    // 人设与模型仍按动作条目生效，用户在面板里接着输入即可。
+    if ([type isEqual:kCustomActionTypeAI]) {
+        [MTAIPanel presentInSpringBoardWithSeedText:@""
+                                     clipboardImage:NO
+                                          personaID:MTGlobalPanelString(entry[kCustomActionAIPersonaKey])
+                                              model:MTGlobalPanelString(entry[kCustomActionAIModelKey])
+                                           autoSend:NO];
+        if (reply) reply(MTSystemOpenSucceeded);
+        return;
+    }
     // 无输入框 JavaScript：输入取系统剪切板、输出 copy；引擎异步运行，
     // 「succeeded」只表示已提交给执行引擎（03 §7 提交边界语义）。
     if ([type isEqual:kCustomActionTypeJavaScript]) {

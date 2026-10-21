@@ -172,7 +172,7 @@ void MTPPresentActionGroupChooser(UIViewController *controller, NSArray<NSString
 
 void MTPPresentActionTypeFilter(UIViewController *controller, NSString *current, void (^completion)(NSString *)) {
     UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTOrgText(@"ACTION_TYPE_FILTER") message:nil preferredStyle:UIAlertControllerStyleAlert];
-    for (NSString *type in @[@"", @"openapp", @"urlscheme", @"shortcut", @"text", @"system", @"javascript", @"url"]) {
+    for (NSString *type in @[@"", @"openapp", @"urlscheme", @"shortcut", @"text", @"system", @"ai", @"javascript", @"url"]) {
         NSString *title = type.length ? ([MTPLinkActionEditorController displayNameForType:type] ?: type) : MTOrgText(@"ACTION_ALL_TYPES");
         if ([type isEqual:current ?: @""]) title = [@"✓ " stringByAppendingString:title];
         [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
