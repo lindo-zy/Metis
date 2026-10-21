@@ -6,6 +6,11 @@
 
 static const CGFloat MTSelectionMinimumSize = 44.0;   // 点；过小选区会产出无意义的细条裁剪
 static const CGFloat MTHandleHitRadius = 36.0;
+// 工具栏与屏幕边缘的常规留白（左右、非区域模式的底部）。
+static const CGFloat MTSelectionEdgeMargin = 12.0;
+// 区域模式底部留白：实时取景下面板默认贴屏幕底部，12pt 在无 Home 指示条/横屏时
+// 视觉上咬住底缘；抬到 24pt 让它明确落在底部区域内，同时不过度侵占选区。
+static const CGFloat MTSelectionAreaBottomMargin = 24.0;
 // 选区内部起点的把手命中半径：边中把手位于边界中点，若沿用 36pt，
 // 任一边 ≤72pt 的小选区内部全部被判成缩放，拖动（Move）永远无法触发。
 static const CGFloat MTInteriorHandleBand = 22.0;
@@ -281,19 +286,21 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     if (self.toolbar.hidden) return;  // 拖动过程不抢占触摸，也不反复移动隐藏的面板。
 
     UIEdgeInsets safe = self.safeAreaInsets;
-    CGFloat left = areaMode ? safe.left + 12.0 : 12.0;
-    CGFloat right = areaMode ? safe.right + 12.0 : 12.0;
+    CGFloat left = areaMode ? safe.left + MTSelectionEdgeMargin : MTSelectionEdgeMargin;
+    CGFloat right = areaMode ? safe.right + MTSelectionEdgeMargin : MTSelectionEdgeMargin;
+    // 底部留白只在区域模式加厚：冻结/即时等模式的站位维持历史数值。
+    CGFloat bottomMargin = areaMode ? MTSelectionAreaBottomMargin : MTSelectionEdgeMargin;
     CGFloat availableWidth = MAX(0.0, self.bounds.size.width - left - right);
     CGFloat toolbarWidth = [self.toolbar preferredWidthForAvailableWidth:availableWidth];
     CGFloat toolbarHeight = [self.toolbar preferredHeightForAvailableWidth:toolbarWidth];
     CGRect preferred = CGRectMake(left + (availableWidth - toolbarWidth) / 2.0,
-                                  self.bounds.size.height - safe.bottom - 12.0 - toolbarHeight,
+                                  self.bounds.size.height - safe.bottom - bottomMargin - toolbarHeight,
                                   toolbarWidth, toolbarHeight);
     CGRect frame = preferred;
     if (areaMode) {
-        CGFloat top = MAX(safe.top + 12.0, CGRectGetMaxY(self.modeLabel.frame) + 12.0);
+        CGFloat top = MAX(safe.top + MTSelectionEdgeMargin, CGRectGetMaxY(self.modeLabel.frame) + MTSelectionEdgeMargin);
         CGRect available = CGRectMake(left, top, availableWidth,
-                                      MAX(0.0, self.bounds.size.height - safe.bottom - 12.0 - top));
+                                      MAX(0.0, self.bounds.size.height - safe.bottom - bottomMargin - top));
         frame = MTPlaceSelectionToolbar(preferred, self.selectionRect, available, 16.0);
         if (!CGRectEqualToRect(frame, self.toolbar.frame)) {
             MTCaptureLogInfo(@"selection toolbar placed: relocated=%d overlap=%d",

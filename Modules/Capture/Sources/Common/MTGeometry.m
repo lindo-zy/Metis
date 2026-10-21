@@ -136,12 +136,14 @@ CGRect MTPlaceSelectionToolbar(CGRect preferredFrame, CGRect selectionRect, CGRe
     above = MTConstrainFloatingRect(above, availableBounds);
     if (CGRectGetMaxY(above) <= CGRectGetMinY(selectionRect) - gap) return above;
 
-    // 接近全屏时可能没有完整空位：保持按钮可达，选重叠较小的一侧。
+    // 接近全屏时可能没有完整空位：保持按钮可达，选重叠较小的一侧。上下都无法
+    // 避让（含「全屏」选区这类完全覆盖）时留在底部——平局不再判给顶部，否则面板
+    // 会跳到屏幕顶端，远离拇指热区且与默认站位不一致。
     CGRect topOverlap = CGRectIntersection(above, selectionRect);
     CGRect bottomOverlap = CGRectIntersection(below, selectionRect);
     CGFloat topArea = CGRectIsNull(topOverlap) ? 0.0 : topOverlap.size.width * topOverlap.size.height;
     CGFloat bottomArea = CGRectIsNull(bottomOverlap) ? 0.0 : bottomOverlap.size.width * bottomOverlap.size.height;
-    return topArea <= bottomArea ? above : below;
+    return bottomArea <= topArea ? below : above;
 }
 
 NSString *MTStringFromCaptureMode(MTCaptureMode mode) {
