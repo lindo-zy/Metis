@@ -33,6 +33,7 @@
 @property(nonatomic) int token;
 @property(nonatomic, strong) NSArray<NSArray<UIButton *> *> *segments;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, UIImage *> *appIcons;
+@property(nonatomic, copy) NSDictionary<NSString *, UIButton *> *stableButtons;
 @end
 
 @implementation MTFloatingAppShelfView
@@ -94,6 +95,7 @@
     self.previewPreferences = preferences;
     self.decision = decision;
     self.snapshot = @{};
+    self.stableButtons = @{};
     [self rebuildEntries];
     [self setNeedsLayout];
 }
@@ -136,7 +138,7 @@
 // 两条刷新路径必须分开：
 // - reloadSnapshot:YES 只在「悬浮记录/键盘生命周期」变化时走，要读完 8KB 快照
 //   （最坏上千次 notify_get_state），不能跟着选区变化每 200ms 跑一次；
-// - reloadSnapshot:NO 是动作组变化，只换上下文区，应用图标原样复用。
+// - reloadSnapshot:NO 是动作组变化：复用固定动作/速启按钮和应用图标，只替换动态格。
 - (void)refresh {
     [self refreshReloadingSnapshot:YES];
 }
@@ -169,6 +171,7 @@
     if (decisionSame && !appsDirty) return;
 
     self.decision = decision;
+    if (appsDirty) self.stableButtons = @{};
     if (reloadSnapshot && appsDirty) [self.appIcons removeAllObjects];
     [self rebuildEntries];
     [self bringSubviewToFront:self.message];
@@ -208,7 +211,9 @@
 }
 
 - (void)rebuildEntries {
-    for (UIView *view in [self.itemsScroll.subviews copy]) [view removeFromSuperview];
+    NSArray *oldViews = [self.itemsScroll.subviews copy];
+    NSMutableArray *newViews = [NSMutableArray array];
+    NSMutableDictionary *stable = [NSMutableDictionary dictionary];
     NSDictionary *preferences = [self preferences];
     NSDictionary *layout = MTBottomBarLayout(preferences);
     NSMutableArray *segments = [NSMutableArray array], *apps = [NSMutableArray array], *contexts = [NSMutableArray array];
@@ -219,6 +224,13 @@
         NSMutableArray *buttons = [NSMutableArray array];
         for (NSDictionary *entry in entries) {
             NSString *kind = entry[@"kind"], *value = entry[@"value"];
+            NSString *stableKey = [NSString stringWithFormat:@"%lu:%lu:%@:%@", (unsigned long)segments.count, (unsigned long)buttons.count, kind, value];
+            UIButton *existing = self.stableButtons[stableKey];
+            if (existing && ([kind isEqual:@"action"] || [kind isEqual:@"app"])) {
+                [buttons addObject:existing]; [newViews addObject:existing]; stable[stableKey] = existing;
+                if ([kind isEqual:@"app"]) [apps addObject:existing];
+                continue;
+            }
             NSString *title = nil;
             UIImage *icon = nil;
             MTContextAction *contextAction = nil;
@@ -286,10 +298,13 @@
                 [button setImage:nil forState:UIControlStateNormal];
                 [button setTitle:shortTitle forState:UIControlStateNormal];
             }
-            [self.itemsScroll addSubview:button]; [buttons addObject:button];
+            [self.itemsScroll addSubview:button]; [buttons addObject:button]; [newViews addObject:button];
+            if (fixed || [kind isEqual:@"app"]) stable[stableKey] = button;
         }
         [segments addObject:buttons];
     }
+    for (UIView *view in oldViews) if (![newViews containsObject:view]) [view removeFromSuperview];
+    self.stableButtons = stable;
     self.segments = segments; self.buttons = apps; self.contextButtons = contexts;
     [self setNeedsLayout];
 }

@@ -772,7 +772,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "BAR_MOVE" = "Move to other segment";
 "BAR_REMOVE" = "Remove item";
 "BAR_GESTURES" = "Bottom bar long swipes";
-"BAR_EDIT_HINT" = "Drag handles to reorder or move across segments. Tap an item to configure, move or remove it. Up to 8 cells per segment.";
+"BAR_EDIT_HINT" = "Drag handles to reorder or move across segments. Tap an item to configure, move or remove it. Up to 8 cells per segment. Apps open in floating windows; existing floating sessions are restored first.";
 "BAR_RIGHT_SAVED" = "The right segment is saved while single-segment mode is active. Turn it off to restore the right segment.";
 "BAR_LAYOUT_HINT" = "Mix actions, context groups and apps in either segment. Equal-width mode gives every cell the same width. Otherwise, segment widths follow content types, with equal cells inside each segment. Empty segments yield their space.";
 "BAR_CONTEXT_HINT" = "Each context cell shows the chosen action of the matching highest-priority group. Inactive or missing actions keep a placeholder. App fallback uses recent floating records and favorite apps when enabled. Tap a group below to configure its actions.";
