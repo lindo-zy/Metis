@@ -611,7 +611,7 @@ static void reloadPrefs(void);
         //self.keyboardToolbar = [[MTCollectionView alloc] init];
         
         self.keyboardToolbar.translatesAutoresizingMaskIntoConstraints = NO;
-        self.keyboardToolbar.visibleItemLimit = 3;
+        self.keyboardToolbar.bottomActionHostOnly = YES;
         //self.keyboardToolbar.transform = CGAffineTransformMakeScale(-1, 1);
         
         [dockView addSubview:self.keyboardToolbar];
@@ -625,7 +625,7 @@ static void reloadPrefs(void);
         leadingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:leadingConstraint];
 
-        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeWidth multiplier:MTBottomFixedFraction(prefs) constant:(trailing - leading) * MTBottomFixedFraction(prefs)];
+        NSLayoutConstraint *trailingConstraint = [NSLayoutConstraint constraintWithItem:self.keyboardToolbar attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeWidth multiplier:1.0 constant:(trailing - leading)];
         trailingConstraint.identifier = @"MetisKeyboard";
         [dockView addConstraint:trailingConstraint];
 
@@ -649,7 +649,7 @@ static void reloadPrefs(void);
         shelfSwipe.delegate = self.appShelf;
         [self.appShelf addGestureRecognizer:shelfSwipe];
         [NSLayoutConstraint activateConstraints:@[
-            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.keyboardToolbar.trailingAnchor],
+            [self.appShelf.leadingAnchor constraintEqualToAnchor:self.keyboardToolbar.leadingAnchor],
             [self.appShelf.trailingAnchor constraintEqualToAnchor:dockView.trailingAnchor constant:-MTBottomToolbarTrailingInset],
             [self.appShelf.topAnchor constraintEqualToAnchor:self.keyboardToolbar.topAnchor],
             [self.appShelf.bottomAnchor constraintEqualToAnchor:self.keyboardToolbar.bottomAnchor]
@@ -1030,7 +1030,7 @@ static void reloadPrefs(void) {
     singleTapDictationEnabled = ((preferencesInt(kDedicatedGestureButtonkey,0) == 2 || preferencesInt(kDedicatedGestureButtonkey,0) == 3) && (preferencesInt(kGestureTypekey,0) == 0)) ? YES : NO;
 
 
-    heightOffset = preferencesFloat(kHeightOffsetkey, heightOffsetDefault);
+    heightOffset = (CGFloat)MTContextNumber(prefs, kHeightOffsetkey, heightOffsetDefault, 50, 80);
 
     // Button chrome (height/radius/spacing/border/width scale) is scoped per
     // toolbar and recomputed inside MTCollectionView's reloadShortcutConfiguration.
@@ -1041,15 +1041,8 @@ static void reloadPrefs(void) {
     // its data source and visibility explicitly; iOS 17 no longer recreates the
     // dock view for every preferences update.
     if (dockView.keyboardToolbar) {
-        for (NSLayoutConstraint *constraint in [dockView.constraints copy]) {
-            if (constraint.firstItem == dockView.keyboardToolbar && constraint.firstAttribute == NSLayoutAttributeWidth &&
-                [constraint.identifier isEqual:@"MetisKeyboard"]) {
-                [dockView removeConstraint:constraint];
-                CGFloat fraction = MTBottomFixedFraction(prefs);
-                NSLayoutConstraint *replacement = [NSLayoutConstraint constraintWithItem:dockView.keyboardToolbar attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:dockView attribute:NSLayoutAttributeWidth multiplier:fraction constant:-(MTBottomToolbarLeadingInset + MTBottomToolbarTrailingInset) * fraction];
-                replacement.identifier = @"MetisKeyboard";
-                [dockView addConstraint:replacement];
-            }
+        for (NSLayoutConstraint *constraint in dockView.keyboardToolbar.constraints) {
+            if (constraint.firstAttribute == NSLayoutAttributeHeight && [constraint.identifier isEqual:@"MetisKeyboard"]) constraint.constant = heightOffset;
         }
         [[MTContextSignalCenter sharedCenter] preferencesDidChange];
         [dockView.keyboardToolbar reloadShortcutConfiguration];

@@ -28,21 +28,11 @@
 			<key>configuration</key>
 			<string>bottom</string>
 			<key>detail</key>
-			<string>MTPManageShortcutsController</string>
+			<string>MTPContextGroupsController</string>
 			<key>id</key>
 			<string>bottomToolbarSettings</string>
 			<key>label</key>
-			<string>底部设置</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>MTPContextGroupsController</string>
-			<key>id</key>
-			<string>keyboardActionGroups</string>
-			<key>label</key>
-			<string>CONTEXT_GROUPS_TITLE</string>
+			<string>BAR_TITLE</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>

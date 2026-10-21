@@ -1,3 +1,4 @@
+#import "MTBottomBarLayout.h"
 #import "MTPCustomActionViewController.h"
 #import "MTPActionGroups.h"
 #import "MTPActionOrganizationController.h"
@@ -138,6 +139,16 @@ static NSBundle *mtpLocalBundle;
 
 // A deleted definition must not remain selected by another button or gesture.
 - (void)removeReferencesToSelector:(NSString *)selector fromPreferences:(NSMutableDictionary *)preferences {
+    if (preferences[kBottomBarLayoutKey]) {
+        NSMutableDictionary *layout = [MTBottomBarLayout(preferences) mutableCopy];
+        for (NSString *segment in @[@"left", @"right"]) {
+            NSMutableArray *entries = [NSMutableArray array];
+            for (NSDictionary *entry in layout[segment])
+                if (!([entry[@"kind"] isEqual:@"action"] && [entry[@"value"] isEqual:selector])) [entries addObject:entry];
+            layout[segment] = entries;
+        }
+        preferences[kBottomBarLayoutKey] = layout;
+    }
     id groupStored = preferences[kContextActionsKey];
     if ([groupStored isKindOfClass:NSDictionary.class]) {
         NSMutableDictionary *groups = [groupStored mutableCopy];

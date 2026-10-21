@@ -56,3 +56,5 @@
 "STATUS_BAR_PICKER_FOOTER" = "Choose or add a system action, app, App Quick Action, or link. Text, JavaScript, and actions requiring the current input are unavailable here.";
 
 "CONTEXT_GROUPS_TITLE" = "Action Groups";
+
+"BAR_TITLE" = "Bottom Bar Arrangement";

@@ -375,7 +375,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         self.toolbarPreview.backgroundColor = self.topConfiguration ? UIColor.secondarySystemGroupedBackgroundColor : UIColor.clearColor;
         [previewHost addSubview:self.toolbarPreview];
         if (!self.topConfiguration) {
-            self.toolbarPreview.visibleItemLimit = 3;
+            self.toolbarPreview.bottomActionHostOnly = YES;
             self.contextPreview = [[MTFloatingAppShelfView alloc] initForPreview];
             self.contextPreview.actionTarget = self.toolbarPreview;
             [previewHost addSubview:self.contextPreview];
@@ -428,9 +428,9 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         CGFloat stripWidth = MAX(0, contentWidth - leftInset - rightInset);
         panelHeight += MTBottomToolbarBottomInset;
         self.toolbarPreviewDock.frame = CGRectMake(leading, 36, contentWidth, panelHeight);
-        CGFloat fixedWidth = stripWidth * MTBottomFixedFraction(self.toolbarPreviewPreferences);
+        CGFloat fixedWidth = stripWidth;
         toolbarFrame = CGRectMake(leftInset, 0, fixedWidth, toolbarHeight);
-        self.contextPreview.frame = CGRectMake(leftInset + fixedWidth, 0, stripWidth - fixedWidth, toolbarHeight);
+        self.contextPreview.frame = CGRectMake(leftInset, 0, stripWidth, toolbarHeight);
         statusFrame = CGRectMake(leading + leftInset + 8, 36, MAX(0, stripWidth - 16), toolbarHeight);
         CGFloat buttonHeight = self.toolbarPreview ? self.toolbarPreview.buttonHeight : cellsHeightDefault;
         CGFloat symbolY = MTBottomToolbarCellTopInset + (buttonHeight - 28.0) / 2.0;
@@ -533,6 +533,8 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     } completion:nil];
 }
 
+- (NSInteger)testInputSection { return 1; }
+
 - (void)applyKeyboardInfo:(NSDictionary *)info scrollTestFieldToTop:(BOOL)scroll {
     CGRect endFrame = [info[UIKeyboardFrameEndUserInfoKey] CGRectValue];
     if (CGRectIsNull(endFrame) || CGRectGetHeight(endFrame) <= 0) return;
@@ -549,7 +551,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         self.tableView.scrollIndicatorInsets = inset;
 
         if (scroll) {
-            UIView *block = [self.tableView headerViewForSection:1];
+            UIView *block = [self.tableView headerViewForSection:[self testInputSection]];
             if (block) {
                 CGFloat maxOffset = self.tableView.contentSize.height
                     + self.tableView.adjustedContentInset.bottom
