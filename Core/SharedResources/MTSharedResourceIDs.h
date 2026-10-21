@@ -26,9 +26,9 @@ FOUNDATION_EXPORT NSString *const MTSharedTargetKindPanel;
 FOUNDATION_EXPORT NSString *const MTSharedTargetKindBuiltin;
 FOUNDATION_EXPORT NSString *const MTSharedTargetKindNone;
 
-/// 动作六类型 + 存量兼容类型（旧 url / 无 type 记录保留原语义，不新增菜单）。
+/// 动作七类型 + 存量兼容类型（旧 url / 无 type 记录保留原语义，不新增菜单）。
 static inline NSArray<NSString *> *MTSharedResourceAllowedActionTypes(void) {
-    return @[@"urlscheme", @"text", @"openapp", @"shortcut", @"system", @"javascript", @"url"];
+    return @[@"urlscheme", @"text", @"openapp", @"shortcut", @"system", @"ai", @"javascript", @"url"];
 }
 
 /// 迁移兼容标记：剪切板旧实现的 $$$ 与 @@@ 都按编码输入替换（05 §4）。

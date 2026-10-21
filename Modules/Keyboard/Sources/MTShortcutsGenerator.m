@@ -22,7 +22,7 @@
     static NSSet *legacyHiddenSelectors;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        legacyHiddenSelectors = [NSSet setWithArray:@[@"runCommandAction:", @"spongebobAction:", @"pixpinScreenshotAction:", @"shellxScreenshotAction:", @"aiChatAction:"]];
+        legacyHiddenSelectors = [NSSet setWithArray:@[@"runCommandAction:", @"spongebobAction:", @"pixpinScreenshotAction:", @"shellxScreenshotAction:", @"aiChatAction:", @"pulloverWakeAction:"]];
     });
     return ![legacyHiddenSelectors containsObject:selector];
 }

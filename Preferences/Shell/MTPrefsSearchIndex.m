@@ -3,7 +3,7 @@
 #import "MTPrefsGlobalModel.h"
 #import "MTSharedResourceStore.h"
 
-// 动作类型字面量与显示名（store schema v1 校验过的六类型 + legacy url）。
+// 动作类型字面量与显示名（store schema v1 校验过的七类型 + legacy url）。
 // Shell 不链接键盘子包头文件，此处按 MTSharedResourceValidator 白名单固定。
 static NSDictionary *MTSearchActionTypeLabels(void) {
     return @{
@@ -13,6 +13,7 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
         @"openapp":    @"打开应用",
         @"shortcut":   @"应用快捷方式",
         @"system":     @"系统动作",
+        @"ai":         @"AI 动作",
         @"javascript": @"JavaScript 脚本",
     };
 }
