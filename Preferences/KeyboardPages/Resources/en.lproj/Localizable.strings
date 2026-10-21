@@ -722,8 +722,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CONTEXT_FLOATING_HINT" = "Appears when no contextual group is active. Tap to manage fallback apps.";
 "CONTEXT_LAYOUT_FOOTER" = "Groups occupy the reserved area while fixed buttons stay in place. Tap a group to configure actions. The bottom toolbar is always on; there is no master switch.";
 "CONTEXT_PRIORITY_FOOTER" = "Only the highest-priority matching group is active. Floating apps fill the area when no contextual group matches.";
-"CONTEXT_BEHAVIOR_FOOTER" = "Debounce: 0–1000 ms; clipboard: 2–60 s; after paste: 1–15 s; action lock: 0–15 s; reserved cells: 1–3. Swipe for additional actions. Expired actions cannot execute during a lock.";
-"CONTEXT_FIXED_FOOTER" = "The bottom toolbar is always on. The first three enabled buttons stay fixed; More shows the full list. Manage the reserved area in Keyboard → Action Groups.";
+"CONTEXT_BEHAVIOR_FOOTER" = "Debounce: 0–1000 ms; clipboard: 2–60 s; after paste: 1–15 s; action lock: 0–15 s; choose each context cell’s action position when arranging items. Expired actions cannot execute during a lock.";
+"CONTEXT_FIXED_FOOTER" = "Mix actions, context groups and apps in Bottom Bar Arrangement. Buttons and groups share one page.";
 "CONTEXT_ACTIONS_FOOTER" = "Tap + to add up to three global actions, panels or keyboard actions. Drag to reorder; use Delete to remove. Only references are stored here.";
 "CONTEXT_AUTOMATIC_FOOTER" = "Automatic mode adapts actions to content. A configured list replaces automatic actions. An explicitly empty list stays empty.";
 "CONTEXT_USE_AUTOMATIC" = "Restore Automatic Actions";
