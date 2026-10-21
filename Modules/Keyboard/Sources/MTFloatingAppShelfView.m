@@ -38,6 +38,15 @@
 
 @implementation MTFloatingAppShelfView
 
+- (void)setActionTarget:(MTCollectionView *)actionTarget {
+    if (_actionTarget == actionTarget) return;
+    _actionTarget = actionTarget;
+    // The dock assigns its executor after init has built the first snapshot.
+    // Recreate button targets/styles now instead of waiting for a context change.
+    self.stableButtons = @{};
+    if (self.itemsScroll) [self rebuildEntries];
+}
+
 - (instancetype)initForPreview { return [self initWithFrame:CGRectZero preview:YES]; }
 - (instancetype)initWithFrame:(CGRect)frame { return [self initWithFrame:frame preview:NO]; }
 - (instancetype)initWithFrame:(CGRect)frame preview:(BOOL)preview {
