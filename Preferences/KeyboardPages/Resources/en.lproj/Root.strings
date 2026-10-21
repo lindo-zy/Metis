@@ -23,7 +23,7 @@
 "SPACE_BAR_SCROLLING" = "SpaceBar Swipe Scrolling";
 "FOOTER_SPACE_BAR_SCROLLING" = "Set the granularity of scrolling when swiping space bar left/right.";
 
-"PASTE_CHIP" = "Clipboard Image Quick Paste";
+"PASTE_CHIP" = "Floating Paste";
 "PASTE_CHIP_FOOTER" = "Only in enabled apps: when a NEW image or text lands on the clipboard, a chip floats at the screen's right edge, level with the text caret above the keyboard, for 3 seconds (image thumbnail or text preview); tap it to paste. While enabled, the system paste-permission prompt is answered automatically. All apps are off by default.";
 "PASTE_CHIP_APPS" = "Enabled Apps";
 "SMS_CODE_SECTION" = "SMS Verification Codes";

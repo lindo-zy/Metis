@@ -249,20 +249,22 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (MTPToolbarSettingsRow *)settingsRowForIndexPath:(NSIndexPath *)path {
     return [super settingsRowForIndexPath:[NSIndexPath indexPathForRow:path.row inSection:path.section - 5]];
 }
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 10; }
+// Sections 0/1 hold the segments, 2 layout, 3 context groups, 4 priority,
+// 5 behavior timing and 6-8 the shared appearance/panel/offset controls.
+// Bottom bar long swipes are configured in the global gesture page only.
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 9; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section < 2) return [self.layout[section ? @"right" : @"left"] count] + 1;
     if (section == 2) return 4;
     if (section == 3) return 7;
     if (section == 4) return self.priority.count;
     if (section == 5) return 4;
-    if (section == 9) return 3;
     return [super tableView:tableView numberOfRowsInSection:section - 5];
 }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (section < 2) return [NSString stringWithFormat:@"%@ · %lu / 8", MTCGL(section ? @"BAR_RIGHT" : @"BAR_LEFT"), (unsigned long)[self.layout[section ? @"right" : @"left"] count]];
-    if (section >= 6 && section <= 8) return [super tableView:tableView titleForHeaderInSection:section - 5];
-    return MTCGL(@{@2:@"BAR_LAYOUT", @3:@"CONTEXT_ENABLED_GROUPS", @4:@"CONTEXT_PRIORITY", @5:@"CONTEXT_BEHAVIOR", @9:@"BAR_GESTURES"}[@(section)]);
+    if (section >= 6) return [super tableView:tableView titleForHeaderInSection:section - 5];
+    return MTCGL(@{@2:@"BAR_LAYOUT", @3:@"CONTEXT_ENABLED_GROUPS", @4:@"CONTEXT_PRIORITY", @5:@"CONTEXT_BEHAVIOR"}[@(section)]);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section < 2) return MTCGL(section == 1 && [self.layout[@"single"] boolValue] ? @"BAR_RIGHT_SAVED" : @"BAR_EDIT_HINT");
@@ -271,8 +273,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
     if (section == 4) return MTCGL(@"CONTEXT_PRIORITY_FOOTER");
     if (section == 5) return MTCGL(@"CONTEXT_BEHAVIOR_FOOTER");
     if (section == 6) return nil;
-    if (section < 9) return [super tableView:tableView titleForFooterInSection:section - 5];
-    return MTCGL(@"PANEL_TOOLBAR_FOOTER");
+    return [super tableView:tableView titleForFooterInSection:section - 5];
 }
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
     return section == 6 ? [super tableView:tableView viewForHeaderInSection:1] : nil;
@@ -311,8 +312,21 @@ static NSString *MTCGTitle(MTContextGroup group) {
             cell.showsReorderControl = YES;
         }
     } else if (path.section == 2) {
-        cell.textLabel.text = MTCGL(@[@"BAR_SWAP", @"BAR_SINGLE", @"BAR_EQUAL", @"BAR_LABEL"][path.row]);
-        if (path.row) {
+        if (path.row == 0) {
+            // An explicit tap target instead of a plain row: swapping is an
+            // action, so it gets a real button rather than a switch.
+            UIButton *swap = [self swapSegmentsButton];
+            [cell.contentView addSubview:swap];
+            swap.translatesAutoresizingMaskIntoConstraints = NO;
+            UILayoutGuide *margins = cell.contentView.layoutMarginsGuide;
+            [NSLayoutConstraint activateConstraints:@[
+                [swap.leadingAnchor constraintEqualToAnchor:margins.leadingAnchor],
+                [swap.trailingAnchor constraintEqualToAnchor:margins.trailingAnchor],
+                [swap.topAnchor constraintEqualToAnchor:margins.topAnchor constant:2],
+                [swap.bottomAnchor constraintEqualToAnchor:margins.bottomAnchor constant:-2]
+            ]];
+        } else {
+            cell.textLabel.text = MTCGL(@[@"BAR_SWAP", @"BAR_SINGLE", @"BAR_EQUAL", @"BAR_LABEL"][path.row]);
             UISwitch *toggle = [UISwitch new]; toggle.tag = path.row;
             toggle.on = path.row == 3 ? [self.preferences[kShortLabelEnabledKey] boolValue] : [self.layout[path.row == 1 ? @"single" : @"equal"] boolValue];
             [toggle addTarget:self action:@selector(toggleLayout:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
@@ -333,21 +347,31 @@ static NSString *MTCGTitle(MTContextGroup group) {
         cell.textLabel.text = MTCGL(@[@"CONTEXT_DEBOUNCE", @"CONTEXT_CLIPBOARD_TTL", @"CONTEXT_PASTE_TTL", @"CONTEXT_LOCK"][path.row]);
         cell.detailTextLabel.text = [NSString stringWithFormat:@"%.0f %@", value, MTCGL(path.row ? @"CONTEXT_SECONDS" : @"CONTEXT_MS")];
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    } else if (path.section == 9) {
-        cell.textLabel.text = MTCGL(@[@"ENABLED",@"STATUS_BAR_LEFTSWIPE",@"STATUS_BAR_RIGHTSWIPE"][path.row]);
-        if (path.row == 0) {
-            UISwitch *toggle = [UISwitch new]; toggle.on = MTKeyboardPanelBool(self.preferences, kMTPanelBottomEnabled, YES);
-            [toggle addTarget:self action:@selector(toggleGestures:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
-        } else cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     }
     return cell;
+}
+// A prominent capsule button so the swap action is unmistakable.
+- (UIButton *)swapSegmentsButton {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIButtonConfiguration *configuration = [UIButtonConfiguration tintedButtonConfiguration];
+    configuration.title = MTCGL(@"BAR_SWAP");
+    configuration.image = [UIImage systemImageNamed:@"arrow.left.arrow.right"];
+    configuration.imagePlacement = NSDirectionalRectEdgeLeading;
+    configuration.imagePadding = 6;
+    configuration.baseForegroundColor = UIColor.systemBlueColor;
+    configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+    button.configuration = configuration;
+    [button addTarget:self action:@selector(swapSegments) forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+- (void)swapSegments {
+    id left = self.layout[@"left"]; self.layout[@"left"] = self.layout[@"right"]; self.layout[@"right"] = left; [self saveLayout];
 }
 - (void)toggleLayout:(UISwitch *)sender {
     if (sender.tag == 3) { [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:kShortLabelEnabledKey]; [self refresh]; return; }
     self.layout[sender.tag == 1 ? @"single" : @"equal"] = @(sender.on); [self saveLayout];
 }
 - (void)toggleGroup:(UISwitch *)sender { [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:MTCGKeys()[sender.tag]]; [self refresh]; }
-- (void)toggleGestures:(UISwitch *)sender { [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:kMTPanelBottomEnabled]; [self refresh]; }
 - (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)path {
     return path.section == 4 || (path.section < 2 && path.row < [self.layout[path.section ? @"right" : @"left"] count]);
 }
@@ -388,17 +412,11 @@ static NSString *MTCGTitle(MTContextGroup group) {
         if (path.row == entries.count) { if (entries.count < 8) [self addEntryAtPath:path]; return; }
         [self editEntryAtPath:path];
     } else if (path.section == 2 && path.row == 0) {
-        id left = self.layout[@"left"]; self.layout[@"left"] = self.layout[@"right"]; self.layout[@"right"] = left; [self saveLayout];
+        [self swapSegments];
     } else if (path.section == 3) {
         if (path.row == 5) { [self openFloatingApps]; return; }
         if (path.row < 5) [self openContextGroup:@[@"selection",@"clipboard",@"paste",@"input",@"idle"][path.row]];
     } else if (path.section == 5) [self chooseBehavior:path.row];
-    else if (path.section == 9 && path.row) {
-        Class type = NSClassFromString(@"MTPToolbarBindingController"); if (![type isSubclassOfClass:PSViewController.class]) return;
-        PSSpecifier *item = [PSSpecifier preferenceSpecifierNamed:MTCGL(path.row == 1 ? @"STATUS_BAR_LEFTSWIPE" : @"STATUS_BAR_RIGHTSWIPE") target:self set:nil get:nil detail:type cell:PSLinkCell edit:nil];
-        [item setProperty:@"bottom" forKey:@"toolbarConfiguration"]; [item setProperty:path.row == 1 ? @"left" : @"right" forKey:@"toolbarDirection"];
-        PSViewController *controller = [type new]; [controller setSpecifier:item]; [self pushPage:controller];
-    }
 }
 - (void)openContextGroup:(NSString *)key {
     if ([key isEqual:@"auto"]) return;

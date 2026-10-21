@@ -753,7 +753,7 @@
 "BAR_SWAP" = "交换左右段";
 "BAR_SINGLE" = "单段占满";
 "BAR_EQUAL" = "等宽格";
-"BAR_LABEL" = "显示短标签";
+"BAR_LABEL" = "显示文本";
 "BAR_KIND_ACTION" = "固定动作";
 "BAR_KIND_CONTEXT" = "上下文动作组";
 "BAR_KIND_APP" = "速启应用";
@@ -770,7 +770,6 @@
 "BAR_DOWN" = "下移";
 "BAR_MOVE" = "移到另一段";
 "BAR_REMOVE" = "移除条目";
-"BAR_GESTURES" = "底栏长滑动作";
 "BAR_EDIT_HINT" = "拖动手柄排序或跨段移动；点击条目可配置、上下移动或移除。每段最多 8 格。应用按悬浮方式打开，已有悬浮会话优先恢复。";
 "BAR_RIGHT_SAVED" = "单段模式下右段暂不显示，编排已保留；关闭单段模式即可恢复。";
 "BAR_LAYOUT_HINT" = "任一段都可混排动作、上下文和应用。等宽时所有格宽相同；关闭后按内容类型分配两段宽度，段内仍等分。空段自动让出宽度。";
