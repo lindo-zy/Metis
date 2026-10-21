@@ -1,5 +1,6 @@
 #import "MTContextSignalCenter.h"
 #import "MTContextGroupEngine.h"
+#import "MTContextClassifier.h"
 #import "MTPrefsManager.h"
 #import "common.h"
 
@@ -26,6 +27,17 @@ static const NSTimeInterval MTContextClipboardTextRetention = 120;
 @property(nonatomic, assign) NSUInteger evaluationGeneration;
 @property(nonatomic, assign) BOOL observersInstalled;
 @property(nonatomic, assign) NSTimeInterval lockedUntil;
+@property(nonatomic, assign) NSUInteger lastInputLength;
+@property(nonatomic, assign) NSUInteger deletedLength;
+@property(nonatomic, assign) NSTimeInterval deletedAt;
+@property(nonatomic, copy) NSString *pasteBefore;
+@property(nonatomic, assign) NSUInteger pasteGeneration;
+@property(nonatomic, copy) NSString *pastedText;
+@property(nonatomic, strong) NSMutableDictionary *classifications;
+@property(nonatomic, strong) NSMutableDictionary *classificationKeys;
+@property(nonatomic, assign) NSUInteger configGeneration;
+@property(nonatomic, strong) MTContextGroupConfig *config;
+
 @end
 
 static NSTimeInterval MTContextNow(void) {
@@ -43,7 +55,7 @@ static NSString *MTContextTextForResponder(UIResponder *responder) {
         UITextField *field = (UITextField *)responder;
         return field.secureTextEntry ? nil : field.text;
     }
-    if ([responder isKindOfClass:UITextView.class]) return ((UITextView *)responder).text;
+    if ([responder isKindOfClass:UITextView.class]) return ((UITextView *)responder).secureTextEntry ? nil : ((UITextView *)responder).text;
     return nil;
 }
 
@@ -55,9 +67,14 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         UITextRange *range = [input selectedTextRange];
         if (!range || [range isEmpty]) return nil;
         // 先量长度再取文本：textInRange: 会为整段选区立刻建串，全选 100KB 文本时
-        // 每 200ms 一次能把主线程拖出可见卡顿。超长选区对分类没有意义，直接放弃。
+        // 每 200ms 一次能把主线程拖出可见卡顿。只读取前 2000 字。
         NSInteger length = [input offsetFromPosition:range.start toPosition:range.end];
-        if (length <= 0 || (NSUInteger)length > MTContextSelectionTextLimit) return nil;
+        if (length <= 0) return nil;
+        if ((NSUInteger)length > MTContextSelectionTextLimit) {
+            UITextPosition *end = [input positionFromPosition:range.start offset:MTContextSelectionTextLimit];
+            if (!end) return nil;
+            range = [input textRangeFromPosition:range.start toPosition:end];
+        }
         NSString *text = [input textInRange:range];
         if (![text isKindOfClass:NSString.class] || !text.length) return nil;
         return text.length > MTContextSelectionTextLimit ? [text substringToIndex:MTContextSelectionTextLimit] : text;
@@ -78,6 +95,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
 
 - (instancetype)init {
     if ((self = [super init])) {
+        _classifications = [NSMutableDictionary dictionary]; _classificationKeys = [NSMutableDictionary dictionary];
         _currentDecision = [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"init" actions:@[] ttl:0];
         if (NSThread.isMainThread) {
             [self mtInstallObservers];
@@ -105,7 +123,13 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
 }
 
 - (void)inputTextChanged:(NSNotification *)notification {
-    if (notification.object == self.activeResponder && self.active) [self scheduleEvaluation:[self debounceInterval]];
+    if (notification.object != self.activeResponder || !self.active) return;
+    NSUInteger length = MTContextTextLengthForResponder(self.activeResponder);
+    if (length < self.lastInputLength) { self.deletedLength = self.lastInputLength - length; self.deletedAt = MTContextNow(); }
+    else if (length > self.lastInputLength) { self.deletedLength = 0; self.deletedAt = 0; }
+    self.lastInputLength = length;
+    self.lockedUntil = 0;
+    [self scheduleEvaluation:MAX([self debounceInterval], self.deletedAt > 0 ? 0.31 : 0)];
 }
 #pragma mark - 开关
 
@@ -126,10 +150,13 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
 }
 - (MTContextDecision *)decisionForExecution {
     if (!self.active) return nil;
-    return [MTContextGroupEngine decisionForSnapshot:[self snapshotNow] settings:[self settings]];
+    return [MTContextGroupEngine decisionForSnapshot:[self snapshotNow] config:[self currentConfig]];
 }
 - (void)preferencesDidChange {
     self.lockedUntil = 0;
+    self.config = nil; self.configGeneration++;
+    [self.classifications removeAllObjects]; [self.classificationKeys removeAllObjects];
+    [[MTContextClassifier sharedClassifier] invalidate];
     [self evaluateNow];
 }
 - (void)noteActionPerformed {
@@ -141,8 +168,9 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     self.lockedUntil = MTContextNow() + duration;
     [self evaluateNow];
 }
-- (MTContextGroupSettings *)settings {
-    return [MTContextGroupSettings settingsFromPreferences:MTPrefsManager.sharedInstance.prefs ?: @{}];
+- (MTContextGroupConfig *)currentConfig {
+    if (!self.config) self.config = [MTContextGroupConfig configFromPreferences:MTPrefsManager.sharedInstance.prefs ?: @{}];
+    return self.config;
 }
 
 #pragma mark - 线程
@@ -160,6 +188,9 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         if (!self.active || ![responder isKindOfClass:UIResponder.class]) return;
         if (self.activeResponder == responder) return;
         self.activeResponder = responder;
+        self.lastInputLength = MTContextTextLengthForResponder(responder);
+        self.deletedAt = 0; self.deletedLength = 0; self.pastedText = nil; self.pasteBefore = nil; self.pasteGeneration++;
+        [self.classifications removeAllObjects]; [self.classificationKeys removeAllObjects];
         self.lockedUntil = 0;
         self.selectionLength = 0;
         self.selectionAt = 0;
@@ -174,6 +205,8 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     [self onMain:^{
         if (self.activeResponder != responder) return;
         self.activeResponder = nil;
+        self.deletedAt = 0; self.deletedLength = 0; self.pastedText = nil; self.pasteBefore = nil; self.pasteGeneration++;
+        [self.classifications removeAllObjects]; [self.classificationKeys removeAllObjects];
         self.lockedUntil = 0;
         self.selectionLength = 0;
         self.selectionAt = 0;
@@ -200,6 +233,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     [self onMain:^{
         if (!self.active) return;
         if ([responder isKindOfClass:UIResponder.class]) self.activeResponder = responder;
+        if (([self.activeResponder isKindOfClass:UITextField.class] && ((UITextField *)self.activeResponder).secureTextEntry) || ([self.activeResponder isKindOfClass:UITextView.class] && ((UITextView *)self.activeResponder).secureTextEntry)) return;
         NSString *text = MTContextSelectedText(self.activeResponder) ?: MTContextTextForResponder(self.activeResponder);
         if (!text.length) return;
         self.clipboardText = text.length > MTContextSelectionTextLimit
@@ -213,19 +247,40 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     }];
 }
 
+- (void)noteWillPasteToResponder:(UIResponder *)responder {
+    if (!self.active) return;
+    NSString *text = MTContextTextForResponder(responder);
+    self.pasteBefore = text.length <= 50000 ? [text copy] : nil;
+    self.deletedAt = 0; self.deletedLength = 0;
+}
+
 - (void)notePasteToResponder:(UIResponder *)responder insertedLength:(NSUInteger)insertedLength {
     [self onMain:^{
         if (!self.active) return;
         if ([responder isKindOfClass:UIResponder.class]) self.activeResponder = responder;
-        NSUInteger length = insertedLength;
-        // 系统菜单里的异步粘贴取不到增量时，用已知剪贴板长度兜底；都取不到就不触发。
-        if (!length) length = self.clipboardText.length;
-        if (!length) return;
-        self.pastedLength = length;
-        self.pasteAt = MTContextNow();
-        self.selectionLength = 0;
-        [self scheduleEvaluation:0.05];
+        NSString *before = self.pasteBefore; self.pasteBefore = nil;
+        NSUInteger generation = ++self.pasteGeneration;
+        [self capturePasteForResponder:responder before:before reportedLength:insertedLength attempt:0 generation:generation];
     }];
+}
+- (void)capturePasteForResponder:(UIResponder *)responder before:(NSString *)before reportedLength:(NSUInteger)reportedLength attempt:(NSUInteger)attempt generation:(NSUInteger)generation {
+    if (!self.active || self.activeResponder != responder || self.pasteGeneration != generation) return;
+    NSString *after = MTContextTextForResponder(responder);
+    NSString *inserted = before && after.length <= 50000 ? MTContextInsertedText(before, after) : nil;
+    NSUInteger length = MAX(reportedLength, inserted.length);
+    if (!length && before && attempt < 3) {
+        // UIKit's menu can apply paste asynchronously. Keep the same before-image
+        // and reject completions from another paste or another input session.
+        __weak typeof(self) weakSelf = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * (attempt + 1) * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [weakSelf capturePasteForResponder:responder before:before reportedLength:0 attempt:attempt+1 generation:generation];
+        }); return;
+    }
+    if (!length) return;
+    self.pastedText = inserted.length ? [inserted substringToIndex:MIN(inserted.length, (NSUInteger)2000)] : nil;
+    self.deletedAt = 0; self.deletedLength = 0; self.lastInputLength = MTContextTextLengthForResponder(responder);
+    self.pastedLength = length; self.pasteAt = MTContextNow(); self.selectionLength = 0;
+    [self scheduleEvaluation:0.05];
 }
 
 - (void)noteExternalClipboardChange {
@@ -306,7 +361,45 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     } else {
         snapshot.pasteAge = -1;
     }
+    if (snapshot.inputAvailable && !snapshot.secureInput) {
+        NSString *inputText = MTContextTextForResponder(responder);
+        snapshot.inputText = inputText.length ? [inputText substringToIndex:MIN(inputText.length, (NSUInteger)2000)] : nil;
+        snapshot.pastedText = self.pastedText;
+        snapshot.deletedLength = self.deletedLength;
+        snapshot.deleteAge = self.deletedAt > 0 ? MAX(0, now - self.deletedAt) : -1;
+        snapshot.canUndo = self.deletedAt > 0 && responder.undoManager.canUndo;
+        // Only metadata is read here. No pasteboard string/image API is used.
+        snapshot.hasImage = (snapshot.clipboardAvailable || self.pasteAt > 0) && [UIPasteboard generalPasteboard].hasImages;
+        snapshot.pasteboardKind = snapshot.hasImage ? @"image" : @"text";
+        [self attachClassifications:snapshot];
+    }
     return snapshot;
+}
+- (void)attachClassifications:(MTContextSnapshot *)snapshot {
+    NSMutableDictionary *results = [NSMutableDictionary dictionary];
+    MTContextGroupConfig *config = [self currentConfig];
+    for (NSNumber *number in MTContextPriority(config.preferences)) {
+        if (!MTContextGroupIsActive(snapshot, config, number.integerValue)) continue;
+        NSString *group = MTContextGroupKey(number.integerValue);
+        NSString *text = [group isEqual:@"selection"] ? snapshot.selectionText : ([group isEqual:@"copy"] ? snapshot.clipboardText : ([group isEqual:@"paste"] ? snapshot.pastedText : snapshot.inputText));
+        BOOL image = snapshot.hasImage && ([@[@"copy", @"paste"] containsObject:group]);
+        NSString *key = [NSString stringWithFormat:@"%lu|%@|%@|%d", (unsigned long)self.configGeneration, group, text ?: @"", image];
+        NSDictionary *cached = [self.classificationKeys[group] isEqual:key] ? self.classifications[group] : nil;
+        results[group] = cached ?: @{@"builtin":MTContextBuiltinMatches(text, image), @"js":@[], @"pending":@YES};
+        BOOL scripts = NO; for (MTContextType *type in [config typesForGroup:group]) if (type.enabled && [type.kind isEqual:@"js"]) scripts = YES;
+        if (!scripts || !text.length || image) { results[group] = @{@"builtin":MTContextBuiltinMatches(text, image), @"js":@[], @"pending":@NO}; continue; }
+        if ([self.classificationKeys[group] isEqual:key]) continue;
+        self.classificationKeys[group] = key; [self.classifications removeObjectForKey:group];
+        __weak typeof(self) weakSelf = self;
+        [[MTContextClassifier sharedClassifier] classifyText:text surface:group flags:@{@"image":@(image)} group:group config:config completion:^(NSDictionary *result) {
+            MTContextSignalCenter *owner = weakSelf;
+            if (![owner.classificationKeys[group] isEqual:key]) return;
+            owner.classifications[group] = result;
+            owner.lockedUntil = 0;
+            [owner evaluateNow];
+        }];
+    }
+    snapshot.classification = results;
 }
 
 - (void)evaluateNow {
@@ -323,7 +416,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
         return;
     }
     MTContextSnapshot *snapshot = [self snapshotNow];
-    MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot settings:[self settings]];
+    MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot config:[self currentConfig]];
     NSTimeInterval remainingLock = self.lockedUntil - MTContextNow();
     if (remainingLock > 0 && snapshot.inputAvailable && !snapshot.secureInput) {
         // Freeze presentation after a tap; actions always execute freshly evaluated payloads.

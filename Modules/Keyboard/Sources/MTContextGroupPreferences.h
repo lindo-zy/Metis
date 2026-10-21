@@ -18,6 +18,9 @@
 #define kContextDebounceKey @"contextdebounce"
 #define kContextLockKey @"contextactionlock"
 #define kContextSlotsKey @"contextslots"
+#define kContextGroupTypesKey @"contextgrouptypes"
+#define kContextConfigVersionKey @"contextconfigversion"
+#define kContextDeleteGroupKey @"contextgroupdeleteBOOL"
 
 static inline double MTContextNumber(NSDictionary *prefs, NSString *key, double fallback, double low, double high) {
     id value = prefs[key];
@@ -26,7 +29,7 @@ static inline double MTContextNumber(NSDictionary *prefs, NSString *key, double 
     return number >= low && number <= high ? number : fallback;
 }
 static inline NSInteger MTContextSlots(NSDictionary *prefs) {
-    return (NSInteger)MTContextNumber(prefs, kContextSlotsKey, 3, 1, 3);
+    return (NSInteger)MTContextNumber(prefs, kContextSlotsKey, 3, 1, 8);
 }
 /// 悬浮底栏总开关已在设置页移除，底栏恒开：保留函数以免改动所有调用点，
 /// 任何偏好组合都不能再关掉底栏（动作组占用的是底栏预留区，关掉等于整条链路停摆）。

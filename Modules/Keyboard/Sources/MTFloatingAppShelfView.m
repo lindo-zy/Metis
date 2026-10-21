@@ -259,13 +259,15 @@
                 app = @{@"bundleID":value, @"fallback":@YES, @"title":[entry[@"title"] length] ? entry[@"title"] : value};
                 for (NSDictionary *record in records) if ([record[@"bundleID"] isEqual:value]) { app = record; break; }
             } else {
-                NSUInteger index = [entry[@"index"] unsignedIntegerValue];
-                contextAction = MTBottomBarContextAction(entry, self.decision);
+                NSString *winningGroup = self.decision ? MTContextGroupKey(self.decision.group) : @"idle";
+                NSInteger ordinal = MTBottomBarContextOrdinal(layout, segment, buttons.count, winningGroup);
+                NSUInteger index = ordinal >= 0 ? (NSUInteger)ordinal : NSUIntegerMax;
+                contextAction = index < self.decision.actions.count ? self.decision.actions[index] : nil;
                 if (contextAction) {
                     BOOL configured = [contextAction.identifier hasPrefix:@"configured:"];
                     title = configured ? [self.actionTarget subActionPanelTitleForSelector:contextAction.payload] : contextAction.title;
                     icon = configured ? [self.actionTarget subActionPanelImageForSelector:contextAction.payload] : [UIImage systemImageNamed:contextAction.symbol];
-                } else if ([entry[@"fallback"] boolValue] && !self.decision && [preferences[kFloatingShelfEnabledKey] boolValue] && index < fallbacks.count) {
+                } else if ([entry[@"fallback"] boolValue] && (!self.decision || self.decision.group == MTContextGroupIdle) && [preferences[kFloatingShelfEnabledKey] boolValue] && index < fallbacks.count) {
                     app = fallbacks[index];
                 } else {
                     NSString *key = [@"BAR_CONTEXT_" stringByAppendingString:value.uppercaseString];
@@ -292,6 +294,7 @@
                 button.enabled = self.preview || (self.unlocked && !self.pendingIdentifier);
                 [apps addObject:button];
             } else if (contextAction) {
+                button.enabled = contextAction.payloadKind != MTContextPayloadUnavailable;
                 objc_setAssociatedObject(button, @selector(activateContext:), contextAction, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
                 [contexts addObject:button];
             } else {
@@ -407,6 +410,7 @@
     if (!action) return;
     NSLog(@"[MetisKeyboard][ContextGroup] perform id=%@ kind=%ld", action.identifier, (long)action.payloadKind);
     switch (action.payloadKind) {
+        case MTContextPayloadUnavailable: return;
         case MTContextPayloadSelector: {
             MTCollectionView *toolbar = self.actionTarget;
             if (!toolbar || !action.payload.length) return;

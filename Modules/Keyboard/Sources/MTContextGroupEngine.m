@@ -1,5 +1,6 @@
 #import "MTContextGroupEngine.h"
 #import "MTContextGroupTypes.h"
+#import "MTContextClassifier.h"
 
 extern NSBundle *tweakBundle;
 
@@ -39,12 +40,17 @@ NSURL *MTContextURLForText(NSString *text) {
     NSURL *url = [NSURL URLWithString:trimmed];
     NSString *scheme = url.scheme.lowercaseString;
     if (url.host.length && ([scheme isEqual:@"http"] || [scheme isEqual:@"https"])) return url;
-    NSArray<NSString *> *parts = [trimmed componentsSeparatedByString:@"."];
-    if (parts.count < 2 || parts.count > 8) return nil;
-    for (NSString *part in parts) if (!part.length) return nil;
-    if (!MTContextIsHostSafe(parts.lastObject)) return nil;
-    if (!MTContextIsHostSafe(parts.firstObject)) return nil;
-    return [NSURL URLWithString:[@"https://" stringByAppendingString:trimmed]];
+    NSURLComponents *components = [NSURLComponents componentsWithString:[@"https://" stringByAppendingString:trimmed]];
+    NSString *host = components.host;
+    if (!host.length || components.user.length || components.password.length) return nil;
+    if ([host rangeOfString:@"^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$" options:NSRegularExpressionSearch].location != NSNotFound) {
+        for (NSString *part in [host componentsSeparatedByString:@"."]) if (part.integerValue > 255) return nil;
+        return components.URL;
+    }
+    NSArray *parts = [host componentsSeparatedByString:@"."];
+    if (parts.count < 2 || parts.count > 8 || !MTContextIsHostSafe(parts.lastObject)) return nil;
+    for (NSString *part in parts) if (!part.length || [part hasPrefix:@"-"] || [part hasSuffix:@"-"] || [part rangeOfString:@"^[A-Za-z0-9-]+$" options:NSRegularExpressionSearch].location == NSNotFound) return nil;
+    return components.URL;
 }
 
 BOOL MTContextTextLooksLikePhone(NSString *text) {
@@ -78,249 +84,86 @@ static NSString *MTContextSearchURLString(NSString *text) {
     return [base stringByAppendingString:escaped];
 }
 
+BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, MTContextGroup group) {
+    MTContextGroupSettings *settings = [MTContextGroupSettings settingsFromPreferences:config.preferences];
+    if (!s.inputAvailable || s.secureInput || !settings.enabled || ![config slotsForGroup:MTContextGroupKey(group)]) return NO;
+    switch (group) {
+        case MTContextGroupDelete: return ![config.preferences[kContextDeleteGroupKey] isEqual:@NO] && s.deletedLength > 0 && s.deleteAge >= 0.3 && s.deleteAge < 3 && s.canUndo;
+        case MTContextGroupSelection: return settings.selectionEnabled && s.selectionLength > 0;
+        case MTContextGroupCopy: return settings.clipboardEnabled && s.clipboardAvailable && s.clipboardAge >= 0 && s.clipboardAge < settings.clipboardFreshness;
+        case MTContextGroupPaste: return settings.pasteEnabled && s.pastedLength >= settings.pasteMinLength && s.pasteAge >= 0 && s.pasteAge < settings.pasteFreshness;
+        case MTContextGroupTyping: return settings.inputEnabled && s.inputLength > 0;
+        case MTContextGroupIdle: return settings.idleEnabled && s.inputLength == 0;
+        default: return NO;
+    }
+}
+
 @implementation MTContextGroupEngine
-
-+ (MTContextDecision *)defaultDecision {
-    return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"no-signal" actions:@[] ttl:0];
-}
-
-#pragma mark - G1 选区
-
-+ (MTContextDecision *)selectionDecision:(MTContextSnapshot *)snapshot {
-    NSString *text = snapshot.selectionText;
-    // 选区长度已知但文本取不到（自定义 inputView / 安全输入）：不猜内容，只给通用动作。
-    if (!text.length) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupSelection reason:@"selection"
-            actions:@[[MTContextAction actionWithIdentifier:@"selector:copyAction:"
-                title:MTContextLocalized(@"CONTEXT_GROUP_COPY", @"复制")
-                symbol:@"doc.on.doc" payloadKind:MTContextPayloadSelector payload:@"copyAction:"]]
-            ttl:0];
-    }
-    NSURL *url = MTContextURLForText(text);
-    if (url) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupSelection reason:@"selection-url"
-            actions:@[[MTContextAction actionWithIdentifier:@"url:open"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_LINK", @"打开链接")
-                         symbol:@"link" payloadKind:MTContextPayloadURL payload:url.absoluteString],
-                      [MTContextAction actionWithIdentifier:@"url:search"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索")
-                         symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL
-                          payload:MTContextSearchURLString(text)],
-                      [MTContextAction actionWithIdentifier:@"ai:selection"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-                         symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text]]
-            ttl:0];
-    }
-    if (MTContextTextLooksLikePhone(text)) {
-        NSString *digits = [[text componentsSeparatedByCharactersInSet:
-            [[NSCharacterSet decimalDigitCharacterSet] invertedSet]] componentsJoinedByString:@""];
-        if (digits.length >= 5) {
-            return [MTContextDecision decisionWithGroup:MTContextGroupSelection reason:@"selection-phone"
-                actions:@[[MTContextAction actionWithIdentifier:@"url:tel"
-                              title:MTContextLocalized(@"CONTEXT_GROUP_CALL", @"拨打")
-                             symbol:@"phone.fill" payloadKind:MTContextPayloadURL
-                              payload:[@"tel://" stringByAppendingString:digits]],
-                          [MTContextAction actionWithIdentifier:@"selector:copyAction:"
-                              title:MTContextLocalized(@"CONTEXT_GROUP_COPY", @"复制")
-                             symbol:@"doc.on.doc" payloadKind:MTContextPayloadSelector payload:@"copyAction:"],
-                          [MTContextAction actionWithIdentifier:@"ai:selection"
-                              title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-                             symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text]]
-                ttl:0];
-        }
-    }
-    return [MTContextDecision decisionWithGroup:MTContextGroupSelection reason:@"selection-text"
-        actions:@[[MTContextAction actionWithIdentifier:@"url:search"
-                      title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索")
-                     symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL
-                      payload:MTContextSearchURLString(text)],
-                  [MTContextAction actionWithIdentifier:@"selector:copyAction:"
-                      title:MTContextLocalized(@"CONTEXT_GROUP_COPY", @"复制")
-                     symbol:@"doc.on.doc" payloadKind:MTContextPayloadSelector payload:@"copyAction:"],
-                  [MTContextAction actionWithIdentifier:@"ai:selection"
-                      title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-                     symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text]]
-        ttl:0];
-}
-
-#pragma mark - G2 剪贴板
-
-+ (MTContextDecision *)clipboardDecision:(MTContextSnapshot *)snapshot settings:(MTContextGroupSettings *)settings {
-    NSTimeInterval ttl = settings.clipboardFreshness - snapshot.clipboardAge;
-    NSString *text = snapshot.clipboardText;
-    MTContextAction *paste = [MTContextAction actionWithIdentifier:@"selector:pasteAction:"
-        title:MTContextLocalized(@"CONTEXT_GROUP_PASTE", @"粘贴")
-        symbol:@"doc.on.clipboard" payloadKind:MTContextPayloadSelector payload:@"pasteAction:"];
-    if (!text.length) {
-        // 剪贴板在别的进程被写入：内容未知，只给粘贴，绝不为此去读剪贴板（会触发系统粘贴横幅）。
-        return [MTContextDecision decisionWithGroup:MTContextGroupClipboard reason:@"clipboard-external"
-            actions:@[paste] ttl:ttl];
-    }
-    NSURL *url = MTContextURLForText(text);
-    if (url) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupClipboard reason:@"clipboard-url"
-            actions:@[[MTContextAction actionWithIdentifier:@"url:open"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_LINK", @"打开链接")
-                         symbol:@"link" payloadKind:MTContextPayloadURL payload:url.absoluteString],
-                      paste,
-                      [MTContextAction actionWithIdentifier:@"ai:clipboard"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-                         symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text]]
-            ttl:ttl];
-    }
-    return [MTContextDecision decisionWithGroup:MTContextGroupClipboard reason:@"clipboard-text"
-        actions:@[paste,
-                  [MTContextAction actionWithIdentifier:@"ai:clipboard"
-                      title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-                     symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text],
-                  [MTContextAction actionWithIdentifier:@"url:search"
-                      title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索")
-                     symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL
-                      payload:MTContextSearchURLString(text)]]
-        ttl:ttl];
-}
-
-#pragma mark - G3 粘贴后
-
-+ (MTContextDecision *)pasteDecision:(MTContextSnapshot *)snapshot settings:(MTContextGroupSettings *)settings {
-    // 刚粘完的下一个动作是「发现不对」：撤销优先，其次是把内容拿去处理。
-    NSMutableArray *actions = [NSMutableArray array];
-    [actions addObject:[MTContextAction actionWithIdentifier:@"selector:undoAction:"
-        title:MTContextLocalized(@"CONTEXT_GROUP_UNDO_PASTE", @"撤销粘贴")
-        symbol:@"arrow.uturn.backward" payloadKind:MTContextPayloadSelector payload:@"undoAction:"]];
-    NSString *text = snapshot.clipboardText ?: snapshot.selectionText;
-    if (text.length) {
-        [actions addObject:[MTContextAction actionWithIdentifier:@"ai:paste"
-            title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
-            symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text]];
-    }
-    return [MTContextDecision decisionWithGroup:MTContextGroupPaste reason:@"paste-inserted"
-        actions:actions ttl:settings.pasteFreshness - snapshot.pasteAge];
-}
-
-#pragma mark - G4 输入类型
-
-+ (MTContextDecision *)inputDecision:(MTContextSnapshot *)snapshot settings:(MTContextGroupSettings *)settings {
-    NSString *type = snapshot.contentType.lowercaseString;
-    BOOL oneTimeCode = [type isEqual:@"onetimecode"];
-    BOOL urlField = [type isEqual:@"url"] || [type isEqual:@"emailaddress"] ||
-        snapshot.keyboardType == 3 /* UIKeyboardTypeURL */ || snapshot.keyboardType == 7 /* WebSearch */;
-    // 安全输入框一律不主动出动作：任何基于内容的判断都可能泄露密码长度/内容。
-    if (snapshot.secureInput) return nil;
-
-    if (oneTimeCode) {
-        // 验证码通常已在剪贴板（短信自动化写入，180 秒有效）。这里只给粘贴，不读内容；
-        // 剪贴板没有新鲜信号时不出这组，免得把链接/正文粘进验证码框。
-        if (!snapshot.clipboardAvailable) return nil;
-        return [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input-otp"
-            actions:@[[MTContextAction actionWithIdentifier:@"selector:pasteAction:"
-                          title:MTContextLocalized(@"CONTEXT_GROUP_PASTE_CODE", @"粘贴验证码")
-                         symbol:@"number.square" payloadKind:MTContextPayloadSelector payload:@"pasteAction:"]]
-            ttl:0];
-    }
-    if (urlField) {
-        NSURL *clipboardURL = MTContextURLForText(snapshot.clipboardText);
-        NSMutableArray *actions = [NSMutableArray array];
-        if (clipboardURL && snapshot.clipboardAvailable &&
-            snapshot.clipboardAge <= settings.clipboardFreshness) {
-            [actions addObject:[MTContextAction actionWithIdentifier:@"url:open"
-                title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_CLIPBOARD_LINK", @"打开剪贴板链接")
-                symbol:@"link" payloadKind:MTContextPayloadURL payload:clipboardURL.absoluteString]];
-        }
-        if (snapshot.clipboardAvailable) {
-            [actions addObject:[MTContextAction actionWithIdentifier:@"selector:pasteAction:"
-                title:MTContextLocalized(@"CONTEXT_GROUP_PASTE", @"粘贴")
-                symbol:@"doc.on.clipboard" payloadKind:MTContextPayloadSelector payload:@"pasteAction:"]];
-        }
-        if (!actions.count) return nil;
-        return [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input-url"
-            actions:actions ttl:0];
-    }
-    if ([@[@4, @5, @6, @8] containsObject:@(snapshot.keyboardType)]) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input-number"
-            actions:@[[MTContextAction actionWithIdentifier:@"selector:pasteAction:"
-                title:MTContextLocalized(@"CONTEXT_GROUP_PASTE", @"粘贴") symbol:@"doc.on.clipboard"
-                payloadKind:MTContextPayloadSelector payload:@"pasteAction:"],
-                [MTContextAction actionWithIdentifier:@"selector:undoAction:"
-                title:MTContextLocalized(@"CONTEXT_GROUP_UNDO", @"撤销") symbol:@"arrow.uturn.backward"
-                payloadKind:MTContextPayloadSelector payload:@"undoAction:"]] ttl:0];
-    }
-    return nil;
-}
-
-#pragma mark - 入口
-
-// Resolve configured selectors only through the shared keyboard action executor.
-+ (MTContextDecision *)configuredDecision:(MTContextDecision *)decision settings:(MTContextGroupSettings *)settings {
-    id stored = settings.configuredActions[decision.reason] ?: settings.configuredActions[MTContextGroupKey(decision.group)];
-    if (![stored isKindOfClass:NSArray.class]) return decision;
-    NSMutableArray *actions = [NSMutableArray array];
-    NSMutableSet *seen = [NSMutableSet set];
-    for (id selector in stored) {
-        if (![selector isKindOfClass:NSString.class] || ![selector length] || [seen containsObject:selector]) continue;
-        [seen addObject:selector];
-        [actions addObject:[MTContextAction actionWithIdentifier:[@"configured:" stringByAppendingString:selector]
-            title:selector symbol:@"bolt" payloadKind:MTContextPayloadSelector payload:selector]];
-        if (actions.count == 3) break;
-    }
-    return [MTContextDecision decisionWithGroup:decision.group reason:decision.reason actions:actions ttl:decision.ttl];
-}
-
 + (MTContextDecision *)decisionForSnapshot:(MTContextSnapshot *)snapshot settings:(MTContextGroupSettings *)settings {
-    if (!snapshot || !settings || !settings.enabled || !snapshot.inputAvailable || snapshot.secureInput) {
-        return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"inactive" actions:@[] ttl:0];
-    }
-    MTContextDecision *winner;
-    for (NSNumber *value in settings.priority) {
-        MTContextDecision *candidate;
-        switch (value.integerValue) {
-            case MTContextGroupSelection:
-                if (settings.selectionEnabled && snapshot.selectionLength > 0) candidate = [self selectionDecision:snapshot];
-                break;
-            case MTContextGroupPaste:
-                if (settings.pasteEnabled && snapshot.pastedLength >= settings.pasteMinLength &&
-                    snapshot.pasteAge >= 0 && snapshot.pasteAge < settings.pasteFreshness)
-                    candidate = [self pasteDecision:snapshot settings:settings];
-                break;
-            case MTContextGroupClipboard:
-                if (settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 &&
-                    snapshot.clipboardAge < settings.clipboardFreshness)
-                    candidate = [self clipboardDecision:snapshot settings:settings];
-                break;
-            case MTContextGroupInput:
-                if (settings.inputEnabled) {
-                    candidate = [self inputDecision:snapshot settings:settings];
-                    // Configured input actions work without a clipboard signal as well.
-                    BOOL numeric = [@[@4, @5, @6, @8] containsObject:@(snapshot.keyboardType)];
-                    BOOL typed = numeric || snapshot.keyboardType == 3 || snapshot.keyboardType == 7 ||
-                        [@[@"onetimecode", @"url", @"emailaddress"] containsObject:snapshot.contentType.lowercaseString ?: @""];
-                    if (!candidate && typed && settings.configuredActions[@"input"])
-                        candidate = [MTContextDecision decisionWithGroup:MTContextGroupInput reason:@"input" actions:@[] ttl:0];
-                }
-                break;
-            case MTContextGroupIdle:
-                if (settings.idleEnabled && snapshot.inputLength == 0)
-                    candidate = [MTContextDecision decisionWithGroup:MTContextGroupIdle reason:@"idle"
-                        actions:@[[MTContextAction actionWithIdentifier:@"selector:clipboardAction:"
-                        title:MTContextLocalized(@"CONTEXT_IDLE_ACTION", @"剪贴板") symbol:@"doc.on.clipboard"
-                        payloadKind:MTContextPayloadSelector payload:@"clipboardAction:"]] ttl:0];
-                break;
-            default: break;
-        }
-        if (candidate && !winner) winner = [self configuredDecision:candidate settings:settings];
-        // Re-evaluate at the earliest expiring signal, even while another group is winning.
-    }
-    winner = winner ?: [self defaultDecision];
-    NSTimeInterval ttl = winner.ttl;
-    if (settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 && snapshot.clipboardAge < settings.clipboardFreshness) {
-        NSTimeInterval next = settings.clipboardFreshness - snapshot.clipboardAge;
-        ttl = ttl > 0 ? MIN(ttl, next) : next;
-    }
-    if (settings.pasteEnabled && snapshot.pasteAge >= 0 && snapshot.pasteAge < settings.pasteFreshness) {
-        NSTimeInterval next = settings.pasteFreshness - snapshot.pasteAge;
-        ttl = ttl > 0 ? MIN(ttl, next) : next;
-    }
-    return [MTContextDecision decisionWithGroup:winner.group reason:winner.reason actions:winner.actions ttl:ttl];
+    // Compatibility for callers compiled against v1; production passes the full config.
+    NSMutableDictionary *prefs = [NSMutableDictionary dictionary];
+    prefs[kContextGroupsEnabledKey] = @(settings.enabled);
+    prefs[kContextSelectionGroupKey] = @(settings.selectionEnabled);
+    prefs[kContextClipboardGroupKey] = @(settings.clipboardEnabled);
+    prefs[kContextPasteGroupKey] = @(settings.pasteEnabled);
+    prefs[kContextInputGroupKey] = @(settings.inputEnabled);
+    prefs[kContextIdleGroupKey] = @(settings.idleEnabled);
+    prefs[kContextActionsKey] = settings.configuredActions ?: @{};
+    prefs[kContextClipboardFreshnessKey] = @(settings.clipboardFreshness);
+    prefs[kContextPasteFreshnessKey] = @(settings.pasteFreshness);
+    prefs[kContextPasteMinLengthKey] = @(settings.pasteMinLength);
+    return [self decisionForSnapshot:snapshot config:[MTContextGroupConfig configFromPreferences:prefs]];
 }
-
++ (MTContextDecision *)decisionForSnapshot:(MTContextSnapshot *)snapshot config:(MTContextGroupConfig *)config {
+    MTContextGroupSettings *settings = [MTContextGroupSettings settingsFromPreferences:config.preferences];
+    if (!snapshot || !settings.enabled || !snapshot.inputAvailable || snapshot.secureInput)
+        return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"inactive" actions:@[] ttl:0];
+    NSTimeInterval ttl = 0;
+    BOOL copy = settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 && snapshot.clipboardAge < settings.clipboardFreshness;
+    BOOL paste = settings.pasteEnabled && snapshot.pastedLength >= settings.pasteMinLength && snapshot.pasteAge >= 0 && snapshot.pasteAge < settings.pasteFreshness;
+    BOOL deletion = ![config.preferences[kContextDeleteGroupKey] isEqual:@NO] && snapshot.deletedLength > 0 && snapshot.deleteAge >= 0.3 && snapshot.deleteAge < 3 && snapshot.canUndo;
+    if (copy) ttl = settings.clipboardFreshness - snapshot.clipboardAge;
+    if (paste) ttl = ttl > 0 ? MIN(ttl, settings.pasteFreshness - snapshot.pasteAge) : settings.pasteFreshness - snapshot.pasteAge;
+    if (deletion) ttl = ttl > 0 ? MIN(ttl, 3 - snapshot.deleteAge) : 3 - snapshot.deleteAge;
+    for (NSNumber *number in MTContextPriority(config.preferences)) {
+        MTContextGroup group = number.integerValue; BOOL active = MTContextGroupIsActive(snapshot, config, group);
+        NSString *key = MTContextGroupKey(group); NSUInteger slots = [config slotsForGroup:key];
+        if (!active || !slots) continue;
+        if (group == MTContextGroupIdle) return [MTContextDecision decisionWithGroup:group reason:@"idle-apps" actions:@[] ttl:ttl];
+        NSString *text = group == MTContextGroupSelection ? snapshot.selectionText : (group == MTContextGroupCopy ? snapshot.clipboardText : (group == MTContextGroupPaste ? snapshot.pastedText : snapshot.inputText));
+        NSDictionary *classification = snapshot.classification[key];
+        NSArray *builtin = classification[@"builtin"] ?: MTContextBuiltinMatches(text, snapshot.hasImage && (group == MTContextGroupCopy || group == MTContextGroupPaste));
+        NSArray *js = classification[@"js"] ?: @[];
+        MTContextType *chosen = nil, *fallback = nil;
+        for (MTContextType *type in [config typesForGroup:key]) {
+            if (!type.enabled || !type.actions.count) continue;
+            if ([type.kind isEqual:@"builtin"] && ([type.identifier isEqual:@"fallback"] || ([type.identifier isEqual:@"text"] && !text.length))) { if (!fallback) fallback = type; continue; }
+            BOOL match = [type.kind isEqual:@"js"] ? [js containsObject:type.identifier] : [builtin containsObject:type.identifier];
+            if (match) { chosen = type; break; }
+        }
+        chosen = chosen ?: fallback;
+        if (!chosen) continue;
+        NSMutableArray *actions = [NSMutableArray array];
+        BOOL usable = NO;
+        for (NSUInteger index = 0; index < MIN(slots, chosen.actions.count); index++) {
+            NSString *selector = chosen.actions[index];
+            MTContextAction *action;
+            if ([selector isEqual:@"url:open"]) {
+                NSURL *url = MTContextURLForText(text); if (url) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_LINK", @"打开链接") symbol:@"link" payloadKind:MTContextPayloadURL payload:url.absoluteString];
+            } else if ([selector isEqual:@"url:search"]) {
+                if (text.length) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索") symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL payload:MTContextSearchURLString(text)];
+            } else if ([selector isEqual:@"ai:seed"]) {
+                if (text.length) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI") symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text];
+            } else action = [MTContextAction actionWithIdentifier:[@"configured:" stringByAppendingString:selector] title:selector symbol:@"bolt" payloadKind:MTContextPayloadSelector payload:selector];
+            // No filling from N+1: slicing happens before payload resolution.
+            if (action) usable = YES;
+            else action = [MTContextAction actionWithIdentifier:[NSString stringWithFormat:@"unavailable:%lu", (unsigned long)index] title:@"" symbol:@"" payloadKind:MTContextPayloadUnavailable payload:@""];
+            [actions addObject:action];
+        }
+        if (!usable) continue;
+        NSString *reason = [NSString stringWithFormat:@"%@-%@%@", key, chosen.identifier, [classification[@"pending"] boolValue] ? @"-pending" : @""];
+        return [MTContextDecision decisionWithGroup:group reason:reason actions:actions ttl:ttl];
+    }
+    return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"no-signal" actions:@[] ttl:ttl];
+}
 @end

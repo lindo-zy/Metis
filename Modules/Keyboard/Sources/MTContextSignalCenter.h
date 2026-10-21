@@ -20,6 +20,7 @@ FOUNDATION_EXPORT NSNotificationName const MTContextGroupDidChangeNotification;
 - (void)noteResponderResigned:(UIResponder *)responder;
 - (void)noteSelectionLengthChanged:(NSUInteger)length responder:(UIResponder *)responder;
 - (void)noteCopyFromResponder:(UIResponder *)responder;
+- (void)noteWillPasteToResponder:(UIResponder *)responder;
 - (void)notePasteToResponder:(UIResponder *)responder insertedLength:(NSUInteger)insertedLength;
 - (void)noteExternalClipboardChange;
 

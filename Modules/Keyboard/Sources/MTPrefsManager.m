@@ -1,3 +1,4 @@
+#import "MTContextTypes.h"
 #import "common.h"
 #import "MTPrefsManager.h"
 #import "MTModuleGate.h"
@@ -246,6 +247,13 @@ static void MTWritePrefsPlist(NSDictionary *dictionary) {
     [MTSharedResourceMigration ensureInstalledWithLegacyPreferences:dictionary];
     [MTSharedResourceLegacyBridge applyStoreSnapshot:[MTSharedResourceStore readSnapshot]
                                 toLegacyPreferences:dictionary];
+    NSDictionary *migrated = [MTContextGroupConfig migratePreferences:dictionary];
+    if (migrated[kContextGroupTypesKey] && ![dictionary[kContextConfigVersionKey] isEqual:@2]) {
+        // Write both migration keys in the same CFPreferences transaction; preserve v1 for downgrade.
+        CFPreferencesSetMultiple((__bridge CFDictionaryRef)@{kContextGroupTypesKey:migrated[kContextGroupTypesKey], kContextConfigVersionKey:@2}, NULL, appID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        CFPreferencesAppSynchronize(appID);
+        dictionary = [migrated mutableCopy];
+    }
     return dictionary;
 }
 
