@@ -1,5 +1,7 @@
 #import "MTEditorOrder.h"
 #import "MTConstants.h"
+// 逻辑路径 → 越狱实路径的唯一解析入口（roothide 换 jbroot）：MetisCore 共享。
+#import "../../../../Core/MTPathResolver.h"
 
 // 目录是按钮 id 的唯一命名来源：编辑器、设置页与解析层都从这里取，禁止散落硬编码。
 // 默认顺序即历史版本的固定顺序；dock、collapse 仅在全屏标记模式显示。
@@ -82,6 +84,13 @@
                         @"shellxai2", @"shellxtranslate", @"shellxscan"];
     });
     return identifiers;
+}
+
++ (BOOL)shellXInstalled {
+    // 认注入目录里的插件文件，不认偏好域：卸载后偏好可能残留，会造成"未装却显示按钮"。
+    // 文件名取自 SHELLX 官方包（ScreenshotShell.dylib），与键盘侧安装探测同一口径。
+    NSString *path = MTResolvePath(@"/Library/MobileSubstrate/DynamicLibraries/ScreenshotShell.dylib");
+    return path.length > 0 && [[NSFileManager defaultManager] fileExistsAtPath:path];
 }
 
 + (NSDictionary<NSString *, NSNumber *> *)shellxSelectionActionMap {

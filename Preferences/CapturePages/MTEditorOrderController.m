@@ -101,6 +101,16 @@
 
 #pragma mark - 数据源
 
+// SHELLX 未安装时，其外调按钮在实际截图界面上永远不会出现：列表与预览同口径剔除，
+// 避免用户配置一堆无效条目。只过滤展示用副本，selectionOrder 保持完整，保存时不丢配置。
+- (NSArray<NSString *> *)mtSelectionDisplayOrder {
+    NSArray<NSString *> *order = self.selectionOrder ?: @[];
+    if ([MTEditorOrder shellXInstalled]) return order;
+    NSMutableArray<NSString *> *filtered = [order mutableCopy];
+    [filtered removeObjectsInArray:[MTEditorOrder shellxSelectionIdentifiers]];
+    return [filtered copy];
+}
+
 // 按实际编辑器宽度排版，再整体缩入设置页，避免页边距改变真实面板的列数。
 - (CGFloat)mtPanelReferenceWidth {
     UIWindow *window = self.view.window;
@@ -307,7 +317,8 @@
         actions = [MTEditorOrder orderWithFixedActionButtonsPinned:actions];
     }
     NSArray<NSString *> *tools = [MTEditorOrder visibleOrderForOrder:self.toolOrder hidden:self.toolHidden.allObjects];
-    NSArray<NSString *> *selection = [MTEditorOrder visibleSelectionOrderForOrder:self.selectionOrder
+    // 预览与实际截图界面同口径：SHELLX 未安装时其按钮不会出现，这里也不画。
+    NSArray<NSString *> *selection = [MTEditorOrder visibleSelectionOrderForOrder:[self mtSelectionDisplayOrder]
                                                                           hidden:self.selectionHidden.allObjects
                                                                          instant:NO];
     CGFloat y = 12.0;
@@ -374,7 +385,7 @@
     section = [self mtKindForSection:section];
     if (section == 0) return self.actionOrder.count;
     if (section == 1) return self.toolOrder.count;
-    if (section == 2) return self.selectionOrder.count;
+    if (section == 2) return [self mtSelectionDisplayOrder].count;
     if (section == 4) return [self mtSelectionStyles].count;
     if (section == 5) return 2;
     return 1;   // 外观：图标大小
@@ -514,7 +525,7 @@
     NSInteger kind = [self mtKindForSection:indexPath.section];
     if (kind == 0) return self.actionOrder[indexPath.row];
     if (kind == 1) return self.toolOrder[indexPath.row];
-    if (kind == 2) return self.selectionOrder[indexPath.row];
+    if (kind == 2) return [self mtSelectionDisplayOrder][indexPath.row];
     return @"";
 }
 
@@ -670,6 +681,15 @@
            toIndexPath:(NSIndexPath *)destinationIndexPath {
     NSInteger kind = [self mtKindForSection:sourceIndexPath.section];
     if (kind >= 3 || sourceIndexPath.section != destinationIndexPath.section) return;
+    if (kind == 2) {
+        // 列表按 SHELLX 在场与否过滤过，下标与 selectionOrder 不一定对齐，统一按锚点换算。
+        [self mtMoveSelectionRowInDisplayOrder:[self mtSelectionDisplayOrder]
+                                        source:sourceIndexPath.row
+                                   destination:destinationIndexPath.row];
+        [self mtPersistAll];
+        [self mtRefreshPreview];
+        return;
+    }
     NSMutableArray<NSString *> *order = nil;
     if (kind == 0) order = self.actionOrder;
     else if (kind == 1) order = self.toolOrder;
@@ -680,6 +700,30 @@
     [order insertObject:identifier atIndex:destinationIndexPath.row];
     [self mtPersistAll];
     [self mtRefreshPreview];
+}
+
+// 显示顺序与实际保存顺序的换算：落点取"目标行现有条目之前"，落到列表末尾时插到最后
+// 一个可见条目之后。被过滤掉的 SHELLX 条目保留在原位，重新装上插件后次序不变。
+- (void)mtMoveSelectionRowInDisplayOrder:(NSArray<NSString *> *)display
+                                  source:(NSInteger)sourceRow
+                             destination:(NSInteger)destinationRow {
+    if (sourceRow < 0 || sourceRow >= (NSInteger)display.count) return;
+    NSMutableArray<NSString *> *remaining = [display mutableCopy];
+    NSString *identifier = remaining[sourceRow];
+    [remaining removeObjectAtIndex:sourceRow];
+
+    NSMutableArray<NSString *> *order = self.selectionOrder;
+    [order removeObject:identifier];
+    NSUInteger insertIndex = order.count;
+    if (destinationRow >= 0 && destinationRow < (NSInteger)remaining.count) {
+        NSUInteger anchor = [order indexOfObject:remaining[destinationRow]];
+        if (anchor != NSNotFound) insertIndex = anchor;
+    } else {
+        NSString *last = remaining.lastObject;
+        NSUInteger tail = last ? [order indexOfObject:last] : NSNotFound;
+        if (tail != NSNotFound) insertIndex = tail + 1;
+    }
+    [order insertObject:identifier atIndex:MIN(insertIndex, order.count)];
 }
 
 - (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath {
