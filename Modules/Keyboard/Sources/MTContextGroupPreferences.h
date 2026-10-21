@@ -28,8 +28,11 @@ static inline double MTContextNumber(NSDictionary *prefs, NSString *key, double 
 static inline NSInteger MTContextSlots(NSDictionary *prefs) {
     return (NSInteger)MTContextNumber(prefs, kContextSlotsKey, 3, 1, 3);
 }
+/// 悬浮底栏总开关已在设置页移除，底栏恒开：保留函数以免改动所有调用点，
+/// 任何偏好组合都不能再关掉底栏（动作组占用的是底栏预留区，关掉等于整条链路停摆）。
 static inline BOOL MTBottomToolbarEnabled(NSDictionary *prefs) {
-    return [prefs[kBottomToolbarEnabledKey] isKindOfClass:NSNumber.class] && [prefs[kBottomToolbarEnabledKey] boolValue];
+    (void)prefs;
+    return YES;
 }
 // The fixed buttons keep three reserved cells, even when the contextual group changes.
 // 分母不再含「更多」格：固定 3 格 + 上下文 slots 格，左右两区等宽、单格同宽。

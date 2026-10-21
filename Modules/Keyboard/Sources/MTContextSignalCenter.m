@@ -115,9 +115,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     NSDictionary *preferences = manager.prefs;
     if (![preferences isKindOfClass:NSDictionary.class]) return NO;
     if (![preferences[kEnabledkey] boolValue]) return NO;
-    id shelf = preferences[kBottomToolbarEnabledKey];
-    // 动作组占用的是悬浮底栏的预留区：底栏没开，采集与判定全部停摆。
-    if (![shelf isKindOfClass:NSNumber.class] || ![shelf boolValue]) return NO;
+    // 悬浮底栏恒开（总开关已移除），不再按 kBottomToolbarEnabledKey 停摆。
     id groups = preferences[kContextGroupsEnabledKey];
     if ([groups isKindOfClass:NSNumber.class] && ![groups boolValue]) return NO;
     return YES;

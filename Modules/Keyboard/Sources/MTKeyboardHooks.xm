@@ -195,10 +195,6 @@ static NSUInteger MTContextSelectionLength(id<UITextInput> input) {
     } @catch (__unused NSException *exception) { return 0; }
 }
 
-static BOOL MTBottomShelfMode(void) {
-    id value = prefs[kBottomToolbarEnabledKey];
-    return [value isKindOfClass:NSNumber.class] && [value boolValue];
-}
 static BOOL MTStockDockRequiresHiding(UIKeyboardDockView *dock) {
     // initWithFrame may run before the private dock-item tree is assembled.
     // A source declaration is not proof that this getter exists on each iOS.
@@ -786,7 +782,8 @@ static void reloadPrefs(void);
     if (preferencesBool(kEnabledHaptickey,YES)){
         [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
     }
-    toggledOn = MTBottomShelfMode() ? self.appShelf.hidden : self.keyboardToolbar.hidden;
+    // 底栏恒开（总开关已移除）：键盘底栏与悬浮架由 MTApplyBottomToolbarVisibility 同步显隐，取任一即可。
+    toggledOn = self.appShelf.hidden;
     [[MTPrefsManager sharedInstance] setValue:[NSNumber numberWithBool:toggledOn] forKey:kToggledOnkey];
     
     MTApplyBottomToolbarVisibility(self);

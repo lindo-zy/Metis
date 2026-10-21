@@ -625,8 +625,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
                                   label:LOCALIZED(@"SPACING") minValue:0 maxValue:20 step:0.5
                             defaultValue:spacingBetweenCellsDefault],
     ] mutableCopy];
-    if (!self.topConfiguration) [appearanceRows insertObject:
-        [MTPToolbarSettingsRow switchRowWithKey:kBottomToolbarEnabledKey label:LOCALIZED(@"BOTTOM_TOOLBAR_ENABLED") defaultValue:NO] atIndex:0];
+    // 底栏总开关已移除：键盘底栏恒开，不再提供「启用键盘底栏」开关。
     if (self.topConfiguration) {
         [appearanceRows addObject:
             [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kBottomSpacingKey]
