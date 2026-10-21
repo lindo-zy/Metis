@@ -68,6 +68,15 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
     add(@"底栏编排", @"键盘", groups);
     add(@"底部设置", @"键盘", groups);
     add(@"动作组", @"键盘", groups);
+    for (NSString *name in @[@"删除后", @"选区", @"复制", @"粘贴", @"输入框有文字", @"输入框无文字", @"文本", @"网址", @"图片", @"数字", @"地址", @"JS 规则"]) add(name, @"键盘 · 底栏编排", groups);
+    CFPropertyListRef rawTypes = CFPreferencesCopyAppValue(CFSTR("contextgrouptypes"), CFSTR("com.lindo.metis.keyboard"));
+    NSDictionary *types = CFBridgingRelease(rawTypes);
+    if ([types isKindOfClass:NSDictionary.class]) for (id raw in types.allValues) {
+        for (id type in [raw isKindOfClass:NSArray.class] ? raw : @[]) {
+            if (![type isKindOfClass:NSDictionary.class] || ![type[@"kind"] isEqual:@"js"] || ![type[@"name"] isKindOfClass:NSString.class] || ![type[@"name"] length]) continue;
+            add(type[@"name"], @"键盘 · 底栏编排 · JS 规则", groups);
+        }
+    }
     return entries;
 }
 

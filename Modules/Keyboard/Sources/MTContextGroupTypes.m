@@ -57,10 +57,11 @@ NSString *MTContextGroupName(MTContextGroup group) {
     switch (group) {
         case MTContextGroupDefault: return @"G0-default";
         case MTContextGroupSelection: return @"G1-selection";
-        case MTContextGroupClipboard: return @"G2-clipboard";
+        case MTContextGroupClipboard: return @"copy";
         case MTContextGroupPaste: return @"G3-paste";
-        case MTContextGroupInput: return @"G4-input";
-        case MTContextGroupIdle: return @"G5-idle";
+        case MTContextGroupInput: return @"typing";
+        case MTContextGroupIdle: return @"idle";
+        case MTContextGroupDelete: return @"delete";
         case MTContextGroupNone: return @"none";
     }
     return @"unknown";
@@ -69,25 +70,22 @@ NSString *MTContextGroupName(MTContextGroup group) {
 NSString *MTContextGroupKey(MTContextGroup group) {
     switch (group) {
         case MTContextGroupSelection: return @"selection";
-        case MTContextGroupClipboard: return @"clipboard";
+        case MTContextGroupClipboard: return @"copy";
         case MTContextGroupPaste: return @"paste";
-        case MTContextGroupInput: return @"input";
+        case MTContextGroupInput: return @"typing";
+        case MTContextGroupDelete: return @"delete";
         case MTContextGroupIdle: return @"idle";
         default: return @"default";
     }
 }
 NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferences) {
-    NSArray *defaults = @[@(MTContextGroupSelection), @(MTContextGroupPaste), @(MTContextGroupClipboard), @(MTContextGroupInput), @(MTContextGroupIdle)];
-    NSMutableArray *result = [NSMutableArray array];
-    id stored = preferences[kContextPriorityKey];
-    for (id value in [stored isKindOfClass:NSArray.class] ? stored : @[]) {
-        if ([value isKindOfClass:NSNumber.class] && [defaults containsObject:value] && ![result containsObject:value]) [result addObject:value];
-    }
-    for (NSNumber *value in defaults) if (![result containsObject:value]) [result addObject:value];
-    return result;
+    // v2 has a stable six-group priority; legacy integer order must not change semantics.
+    return @[@(MTContextGroupDelete), @(MTContextGroupSelection), @(MTContextGroupPaste),
+             @(MTContextGroupCopy), @(MTContextGroupTyping), @(MTContextGroupIdle)];
 }
 
 @implementation MTContextSnapshot
+- (instancetype)init { if ((self = [super init])) { _deleteAge = -1; _pasteAge = -1; _clipboardAge = -1; } return self; }
 - (NSString *)description {
     return [NSString stringWithFormat:@"<MTContextSnapshot sel=%lu/%lu clip=%d/%.1fs paste=%lu/%.1fs input=%lu secure=%d type=%@ kb=%ld>",
             (unsigned long)self.selectionLength, (unsigned long)self.selectionText.length,

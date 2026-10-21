@@ -2,9 +2,8 @@
 
 // 上下文动作组：底栏的「预留区」按当前输入上下文换内容。
 //
-// 三层结构固定，不可合并：
-//   信号（选区/剪贴板/粘贴/输入类型）→ 动作组（同一时刻只激活一组）→ 动作（按钮）
-// 「粘贴」是动作，不是信号源；把它当信号会和剪贴板组互相覆盖。
+// 四层结构：布局 → 组 → 有序类型 → 有序动作。
+// 同一时刻只激活一组，旧枚举值保留为 ABI 兼容别名。
 typedef NS_ENUM(NSInteger, MTContextGroup) {
     MTContextGroupNone = 0,
     // 无信号时的兜底：不显示上下文动作，预留区留给悬浮应用记录/常用应用。
@@ -15,9 +14,12 @@ typedef NS_ENUM(NSInteger, MTContextGroup) {
     MTContextGroupClipboard,
     // G3 粘贴后：一次插入达到阈值字数后的 3 秒（可配）短时覆盖层。
     MTContextGroupPaste,
-    // G4 输入类型：验证码 / 网址 / 电话等可由 textContentType、keyboardType 判定的输入框。
+    // v2 输入框有文字；旧名 Input 保留兼容。
     MTContextGroupInput,
     MTContextGroupIdle,
+    MTContextGroupDelete,
+    MTContextGroupCopy = MTContextGroupClipboard,
+    MTContextGroupTyping = MTContextGroupInput,
 };
 
 typedef NS_ENUM(NSInteger, MTContextPayloadKind) {
@@ -27,6 +29,8 @@ typedef NS_ENUM(NSInteger, MTContextPayloadKind) {
     MTContextPayloadURL,
     // 打开 AI 面板并带入种子文本。
     MTContextPayloadAISeed,
+    // Preserve an unavailable action slot without filling from later actions.
+    MTContextPayloadUnavailable,
 };
 
 @interface MTContextAction : NSObject
@@ -62,6 +66,15 @@ FOUNDATION_EXPORT NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferenc
 
 // 信号快照。所有时间都是「距今多少秒」，由采集端算好，引擎不读时钟以外的状态。
 @interface MTContextSnapshot : NSObject
+@property(nonatomic, assign) NSTimeInterval deleteAge;
+@property(nonatomic, assign) NSUInteger deletedLength;
+@property(nonatomic, assign) BOOL canUndo;
+@property(nonatomic, assign) BOOL hasImage;
+@property(nonatomic, copy) NSString *pasteboardKind;
+@property(nonatomic, copy) NSString *pastedText;
+@property(nonatomic, copy) NSString *inputText;
+// group -> {builtin: [ids], js: [ids], pending: bool}; immutable classifier results.
+@property(nonatomic, copy) NSDictionary *classification;
 @property(nonatomic, copy) NSString *selectionText;
 @property(nonatomic, assign) NSUInteger selectionLength;
 @property(nonatomic, assign) NSTimeInterval selectionAge;

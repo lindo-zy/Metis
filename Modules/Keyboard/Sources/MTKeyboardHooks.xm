@@ -515,6 +515,7 @@ static void reloadPrefs(void);
 }
 
 - (void)paste:(id)sender {
+    [[MTContextSignalCenter sharedCenter] noteWillPasteToResponder:self];
     NSUInteger lengthBefore = MTContextTextLengthForResponder(self);
     %orig;
     NSUInteger lengthAfter = MTContextTextLengthForResponder(self);
@@ -575,6 +576,7 @@ static void reloadPrefs(void);
 }
 
 - (void)paste:(id)sender {
+    [[MTContextSignalCenter sharedCenter] noteWillPasteToResponder:self];
     NSUInteger lengthBefore = MTContextTextLengthForResponder(self);
     %orig;
     NSUInteger lengthAfter = MTContextTextLengthForResponder(self);

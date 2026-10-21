@@ -37,10 +37,12 @@ static inline NSDictionary *MTBottomBarEntry(id raw) {
     NSString *kind = raw[@"kind"], *value = raw[@"value"];
     if (![kind isKindOfClass:NSString.class] || ![value isKindOfClass:NSString.class] || !value.length || value.length > 512) return nil;
     if (![@[@"action", @"context", @"app"] containsObject:kind]) return nil;
-    if ([kind isEqual:@"context"] && ![@[@"auto", @"selection", @"clipboard", @"paste", @"input", @"idle"] containsObject:value]) return nil;
+    if ([kind isEqual:@"context"] && ![@[@"auto", @"selection", @"clipboard", @"copy", @"paste", @"input", @"typing", @"delete", @"idle"] containsObject:value]) return nil;
     if ([kind isEqual:@"app"] && [value rangeOfString:@"^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)+$" options:NSRegularExpressionSearch].location == NSNotFound) return nil;
+    if ([value isEqual:@"clipboard"]) value = @"copy";
+    if ([value isEqual:@"input"]) value = @"typing";
     NSInteger index = [raw[@"index"] isKindOfClass:NSNumber.class] ? [raw[@"index"] integerValue] : 0;
-    return @{@"kind":kind, @"value":value, @"index":@(MAX(0, MIN(2, index))),
+    return @{@"kind":kind, @"value":value, @"index":@(MAX(0, MIN(7, index))),
         @"title":[raw[@"title"] isKindOfClass:NSString.class] ? [raw[@"title"] substringToIndex:MIN((NSUInteger)128, [raw[@"title"] length])] : @"",
         @"fallback":@([raw[@"fallback"] isKindOfClass:NSNumber.class] && [raw[@"fallback"] boolValue])};
 }
@@ -74,6 +76,19 @@ static inline NSDictionary *MTBottomBarLayout(NSDictionary *prefs) {
         for (NSInteger i = 0; i < MTContextSlots(prefs); i++)
             [right addObject:MTBottomBarEntry(@{@"kind":@"context", @"value":@"auto", @"index":@(i), @"fallback":@YES})];
     }
+    NSMutableDictionary *indices = [NSMutableDictionary dictionary];
+    BOOL storedSingle = valid && [stored[@"single"] boolValue];
+    for (NSMutableArray *segment in @[left, right]) {
+        if (segment == right && storedSingle) continue;
+        for (NSUInteger i = 0; i < segment.count; i++) {
+            NSDictionary *entry = segment[i];
+            if (![entry[@"kind"] isEqual:@"context"]) continue;
+            NSString *key = entry[@"value"];
+            NSUInteger index = [indices[key] unsignedIntegerValue];
+            NSMutableDictionary *updated = [entry mutableCopy]; updated[@"index"] = @(index);
+            segment[i] = updated; indices[key] = @(index + 1);
+        }
+    }
     BOOL single = valid && [stored[@"single"] isKindOfClass:NSNumber.class] && [stored[@"single"] boolValue];
     BOOL equal = !valid || ![stored[@"equal"] isKindOfClass:NSNumber.class] || [stored[@"equal"] boolValue];
     return @{@"version":@1, @"left":left, @"right":right, @"single":@(single), @"equal":@(equal)};
@@ -99,4 +114,20 @@ static inline MTContextAction *MTBottomBarContextAction(NSDictionary *entry, MTC
     if (![group isEqual:@"auto"] && ![group isEqual:MTContextGroupKey(decision.group)]) return nil;
     NSUInteger index = [entry[@"index"] unsignedIntegerValue];
     return index < decision.actions.count ? decision.actions[index] : nil;
+}
+
+// Index in the winning group's visible cells, including auto cells and bound cells.
+static inline NSInteger MTBottomBarContextOrdinal(NSDictionary *layout, NSUInteger segmentIndex, NSUInteger row, NSString *group) {
+    NSInteger ordinal = 0;
+    NSArray *segments = @[layout[@"left"] ?: @[], [layout[@"single"] boolValue] ? @[] : (layout[@"right"] ?: @[])];
+    for (NSUInteger s = 0; s < segments.count; s++) {
+        NSArray *entries = segments[s];
+        for (NSUInteger i = 0; i < entries.count; i++) {
+            NSDictionary *entry = entries[i];
+            BOOL eligible = [entry[@"kind"] isEqual:@"context"] && ([entry[@"value"] isEqual:@"auto"] || [entry[@"value"] isEqual:group]);
+            if (s == segmentIndex && i == row) return eligible ? ordinal : -1;
+            if (eligible) ordinal++;
+        }
+    }
+    return -1;
 }

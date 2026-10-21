@@ -1,4 +1,5 @@
 #import "MTPContextGroupsController.h"
+#import "MTPContextTypesController.h"
 #import "MTBottomBarLayout.h"
 #import "MTPGesturePickerController.h"
 #import "MTPOpenAppPickerController.h"
@@ -16,104 +17,14 @@ static NSString *MTCGL(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
 static NSArray *MTCGKeys(void) {
-    return @[kContextSelectionGroupKey, kContextClipboardGroupKey, kContextPasteGroupKey, kContextInputGroupKey, kContextIdleGroupKey, kFloatingShelfEnabledKey, kContextGroupsEnabledKey];
+    return @[kContextDeleteGroupKey, kContextSelectionGroupKey, kContextClipboardGroupKey, kContextPasteGroupKey, kContextInputGroupKey, kContextIdleGroupKey, kFloatingShelfEnabledKey, kContextGroupsEnabledKey];
 }
 static NSArray *MTCGTitles(void) {
-    return @[@"CONTEXT_SELECTION", @"CONTEXT_CLIPBOARD", @"CONTEXT_PASTE", @"CONTEXT_INPUT", @"CONTEXT_IDLE", @"CONTEXT_FLOATING", @"CONTEXT_GROUPS_SWITCH"];
+    return @[@"BAR_CONTEXT_DELETE", @"CONTEXT_SELECTION", @"BAR_CONTEXT_COPY", @"CONTEXT_PASTE", @"BAR_CONTEXT_TYPING", @"CONTEXT_IDLE", @"CONTEXT_FLOATING", @"CONTEXT_GROUPS_SWITCH"];
 }
 static NSString *MTCGTitle(MTContextGroup group) {
-    return MTCGL(MTCGTitles()[group == MTContextGroupIdle ? 4 : group - MTContextGroupSelection]);
+    return MTCGL([@"BAR_CONTEXT_" stringByAppendingString:MTContextGroupKey(group).uppercaseString]);
 }
-
-@interface MTPContextActionsController : PSViewController <UITableViewDelegate, UITableViewDataSource>
-@property(nonatomic, copy) NSString *groupKey;
-@property(nonatomic, strong) UITableView *table;
-@property(nonatomic, strong) NSMutableArray<NSString *> *selectors;
-@end
-
-@implementation MTPContextActionsController
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.table = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
-    self.table.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.table.delegate = self; self.table.dataSource = self; self.table.editing = YES; self.table.allowsSelectionDuringEditing = YES;
-    [self.view addSubview:self.table];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addAction)];
-}
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    id groups = [MTPrefsManager.sharedInstance readPrefs][kContextActionsKey];
-    id stored = [groups isKindOfClass:NSDictionary.class] ? groups[self.groupKey] : nil;
-    self.selectors = [NSMutableArray array];
-    for (id value in [stored isKindOfClass:NSArray.class] ? stored : @[]) {
-        if ([value isKindOfClass:NSString.class] && [value length] && ![self.selectors containsObject:value] && self.selectors.count < 3) [self.selectors addObject:value];
-    }
-    self.navigationItem.rightBarButtonItem.enabled = self.selectors.count < 3;
-    [self.table reloadData];
-}
-- (void)saveAutomatic:(BOOL)automatic {
-    MTPrefsManager *manager = MTPrefsManager.sharedInstance;
-    NSDictionary *prefs = [manager readPrefs];
-    id stored = prefs[kContextActionsKey];
-    NSMutableDictionary *groups = [stored isKindOfClass:NSDictionary.class] ? [stored mutableCopy] : [NSMutableDictionary dictionary];
-    if (automatic) [groups removeObjectForKey:self.groupKey]; else groups[self.groupKey] = [self.selectors copy];
-    [manager setValue:groups forKey:kContextActionsKey];
-    self.navigationItem.rightBarButtonItem.enabled = self.selectors.count < 3;
-    [self.table reloadData];
-}
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return section == 0 ? self.selectors.count : 2; }
-- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) {
-        NSDictionary *stored = [MTPrefsManager.sharedInstance readPrefs][kContextActionsKey];
-        BOOL configured = [stored isKindOfClass:NSDictionary.class] && [stored[self.groupKey] isKindOfClass:NSArray.class];
-        return [NSString stringWithFormat:@"%@\n%@", MTCGL(configured ? @"CONTEXT_STATE_CONFIGURED" : @"CONTEXT_STATE_AUTOMATIC"), MTCGL(@"CONTEXT_ACTIONS_FOOTER")];
-    }
-    return MTCGL(@"CONTEXT_AUTOMATIC_FOOTER");
-}
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
-    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    if (path.section == 0) {
-        NSDictionary *prefs = [MTPrefsManager.sharedInstance readPrefs];
-        NSDictionary *definition = MTPPanelDisplayDefinition(prefs, self.selectors[path.row]);
-        cell.textLabel.text = definition[@"name"] ?: MTCGL(@"CONTEXT_MISSING_ACTION");
-        cell.showsReorderControl = YES;
-    } else {
-        cell.textLabel.text = MTCGL(path.row == 0 ? @"CONTEXT_USE_AUTOMATIC" : @"CONTEXT_CLEAR_ACTIONS");
-        cell.textLabel.textColor = path.row == 0 ? UIColor.systemBlueColor : UIColor.systemRedColor;
-    }
-    return cell;
-}
-- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)path { return path.section == 0; }
-- (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)path { return path.section == 0 ? UITableViewCellEditingStyleDelete : UITableViewCellEditingStyleNone; }
-- (BOOL)tableView:(UITableView *)tableView shouldIndentWhileEditingRowAtIndexPath:(NSIndexPath *)path { return path.section == 0; }
-- (NSIndexPath *)tableView:(UITableView *)tableView targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)source toProposedIndexPath:(NSIndexPath *)destination { return destination.section == 0 ? destination : source; }
-- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)source toIndexPath:(NSIndexPath *)destination {
-    NSString *selector = self.selectors[source.row]; [self.selectors removeObjectAtIndex:source.row]; [self.selectors insertObject:selector atIndex:destination.row]; [self saveAutomatic:NO];
-}
-- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)path {
-    if (style == UITableViewCellEditingStyleDelete && path.section == 0) { [self.selectors removeObjectAtIndex:path.row]; [self saveAutomatic:NO]; }
-}
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
-    [tableView deselectRowAtIndexPath:path animated:YES];
-    if (path.section != 1) return;
-    [self.selectors removeAllObjects]; [self saveAutomatic:path.row == 0];
-}
-- (void)addAction {
-    if (self.selectors.count >= 3) return;
-    MTPSubActionPickerController *picker = [MTPSubActionPickerController new];
-    picker.actionContextKind = MTPanelKeyboardKind; picker.fullOrder = MTPPanelBuiltInActions();
-    picker.title = MTCGL(@"CHOOSE_ACTION");
-    __weak typeof(self) weakSelf = self;
-    picker.completion = ^(NSString *selector) {
-        MTPContextActionsController *owner = weakSelf;
-        NSDictionary *prefs = [MTPrefsManager.sharedInstance readPrefs];
-        if (!owner || owner.selectors.count >= 3 || [owner.selectors containsObject:selector] || !MTPanelItemAllowed(prefs, selector, MTPanelKeyboardKind)) return;
-        [owner.selectors addObject:selector]; [owner saveAutomatic:NO];
-    };
-    [picker setRootController:self.rootController]; [picker setParentController:self]; [self pushController:picker];
-}
-@end
 
 // Reuse the toolbar's appearance controls and input avoidance on the unified
 // page; only their section mapping changes. No second bottom settings screen.
@@ -190,7 +101,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
     self.previewTitle = [UILabel new]; self.previewTitle.text = MTCGL(@"BAR_PREVIEW");
     self.previewTitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote]; self.previewTitle.textColor = UIColor.secondaryLabelColor;
     [self.previewHeader addSubview:self.previewTitle];
-    self.scenario = [[UISegmentedControl alloc] initWithItems:@[MTCGL(@"CONTEXT_DEFAULT"), MTCGL(@"CONTEXT_SELECTION"), MTCGL(@"CONTEXT_CLIPBOARD"), MTCGL(@"CONTEXT_PASTE"), MTCGL(@"CONTEXT_INPUT"), MTCGL(@"CONTEXT_IDLE")]];
+    self.scenario = [[UISegmentedControl alloc] initWithItems:@[MTCGL(@"CONTEXT_DEFAULT"), MTCGL(@"BAR_CONTEXT_DELETE"), MTCGL(@"CONTEXT_SELECTION"), MTCGL(@"BAR_CONTEXT_COPY"), MTCGL(@"CONTEXT_PASTE"), MTCGL(@"BAR_CONTEXT_TYPING"), MTCGL(@"CONTEXT_IDLE")]];
     [self.scenario setTitleTextAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:11]} forState:UIControlStateNormal];
     self.scenario.selectedSegmentIndex = 0; [self.scenario addTarget:self action:@selector(refreshToolbarPreview) forControlEvents:UIControlEventValueChanged];
     [self.previewHeader addSubview:self.scenario];
@@ -215,15 +126,20 @@ static NSString *MTCGTitle(MTContextGroup group) {
     self.toolbarPreviewPreferences = preferences;
     [self.actionHost configurePreviewWithPreferences:preferences];
     MTContextSnapshot *snapshot = [MTContextSnapshot new]; snapshot.inputAvailable = YES; snapshot.inputLength = 12; snapshot.pasteAge = -1;
+    snapshot.inputText = @"Metis";
     switch (self.scenario.selectedSegmentIndex) {
-        case 1: snapshot.selectionText = @"Metis"; snapshot.selectionLength = 5; break;
-        case 2: snapshot.clipboardAvailable = YES; snapshot.clipboardText = @"Metis"; break;
-        case 3: snapshot.pastedLength = 30; snapshot.pasteAge = 0; break;
-        case 4: snapshot.contentType = @"oneTimeCode"; snapshot.clipboardAvailable = YES; snapshot.clipboardAge = 100; break;
-        case 5: snapshot.inputLength = 0; break;
-        default: break;
+        case 1: snapshot.deletedLength = 1; snapshot.deleteAge = 0.4; snapshot.canUndo = YES; break;
+        case 2: snapshot.selectionText = @"Metis"; snapshot.selectionLength = 5; break;
+        case 3: snapshot.clipboardAvailable = YES; snapshot.clipboardAge = 0; snapshot.clipboardText = @"Metis"; break;
+        case 4: snapshot.pastedLength = 30; snapshot.pastedText = @"Metis"; snapshot.pasteAge = 0; break;
+        case 5: break;
+        case 6: snapshot.inputLength = 0; break;
+        default: snapshot.inputAvailable = NO; break;
     }
-    MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot settings:[MTContextGroupSettings settingsFromPreferences:preferences]];
+    NSMutableDictionary *classification = [NSMutableDictionary dictionary];
+    for (NSString *key in MTContextGroupKeys()) classification[key] = @{@"builtin":@[@"text", @"fallback"], @"js":@[]};
+    snapshot.classification = classification;
+    MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot config:[MTContextGroupConfig configFromPreferences:preferences]];
     if (decision.group == MTContextGroupDefault || decision.group == MTContextGroupNone) decision = nil;
     [self.barPreview configurePreviewWithPreferences:preferences decision:decision];
     [self layoutToolbarPreviewHeader];
@@ -260,21 +176,25 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section < 2) return [self.layout[section ? @"right" : @"left"] count] + 1;
     if (section == 2) return 7;
-    if (section == 3) return 7;
-    if (section == 4) return self.priority.count;
+    if (section == 3) return 8;
+    if (section == 4) return 0;
     if (section == 5) return 4;
     return [super tableView:tableView numberOfRowsInSection:section - 5];
 }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (section < 2) return [NSString stringWithFormat:@"%@ · %lu / 8", MTCGL(section ? @"BAR_RIGHT" : @"BAR_LEFT"), (unsigned long)[self.layout[section ? @"right" : @"left"] count]];
     if (section >= 6) return [super tableView:tableView titleForHeaderInSection:section - 5];
+    if (section == 4) return nil;
     return MTCGL(@{@2:@"BAR_LAYOUT", @3:@"CONTEXT_ENABLED_GROUPS", @4:@"CONTEXT_PRIORITY", @5:@"CONTEXT_BEHAVIOR"}[@(section)]);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section < 2) return MTCGL(section == 1 && [self.layout[@"single"] boolValue] ? @"BAR_RIGHT_SAVED" : @"BAR_EDIT_HINT");
+    if (section < 2) {
+        NSUInteger slots = [[MTContextGroupConfig configFromPreferences:self.preferences] slotsForGroup:@"selection"];
+        return section == 0 ? [NSString stringWithFormat:MTCGL(@"CTX_CAPACITY"), (unsigned long)slots] : MTCGL(@"BAR_EDIT_HINT");
+    }
     if (section == 2) return MTCGL(@"BAR_LAYOUT_HINT");
     if (section == 3) return MTCGL(@"BAR_CONTEXT_HINT");
-    if (section == 4) return MTCGL(@"CONTEXT_PRIORITY_FOOTER");
+    if (section == 4) return nil;
     if (section == 5) return MTCGL(@"CONTEXT_BEHAVIOR_FOOTER");
     if (section == 6) return nil;
     return [super tableView:tableView titleForFooterInSection:section - 5];
@@ -347,10 +267,10 @@ static NSString *MTCGTitle(MTContextGroup group) {
         }
     } else if (path.section == 3) {
         cell.textLabel.text = MTCGL(MTCGTitles()[path.row]);
-        cell.detailTextLabel.text = MTCGL(@[@"CONTEXT_SELECTION_HINT", @"CONTEXT_CLIPBOARD_HINT", @"CONTEXT_PASTE_HINT", @"CONTEXT_INPUT_HINT", @"CONTEXT_IDLE_HINT", @"CONTEXT_FLOATING_HINT", @"CONTEXT_MASTER_HINT"][path.row]);
+        cell.detailTextLabel.text = MTCGL(@[@"CTX_DELETE_HINT", @"CONTEXT_SELECTION_HINT", @"CONTEXT_CLIPBOARD_HINT", @"CONTEXT_PASTE_HINT", @"CTX_TYPING_HINT", @"CONTEXT_IDLE_HINT", @"CONTEXT_FLOATING_HINT", @"CONTEXT_MASTER_HINT"][path.row]);
         UISwitch *toggle = [UISwitch new]; toggle.tag = path.row;
         id value = self.preferences[MTCGKeys()[path.row]];
-        toggle.on = [value isKindOfClass:NSNumber.class] ? [value boolValue] : (path.row < 4 || path.row == 6);
+        toggle.on = [value isKindOfClass:NSNumber.class] ? [value boolValue] : (path.row < 5 || path.row == 7);
         [toggle addTarget:self action:@selector(toggleGroup:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
     } else if (path.section == 4) {
         cell.textLabel.text = MTCGTitle(self.priority[path.row].integerValue); cell.showsReorderControl = YES;
@@ -435,18 +355,25 @@ static NSString *MTCGTitle(MTContextGroup group) {
     if (path.section < 2) {
         NSArray *entries = self.layout[path.section ? @"right" : @"left"];
         if (path.row == entries.count) { if (entries.count < 8) [self addEntryAtPath:path]; return; }
-        [self editEntryAtPath:path];
+        if ([entries[path.row][@"kind"] isEqual:@"context"]) [self openContextGroup:entries[path.row][@"value"]];
+        else [self editEntryAtPath:path];
     } else if (path.section == 2 && path.row == 0) {
         [self swapSegments];
     } else if (path.section == 3) {
-        if (path.row == 5) { [self openFloatingApps]; return; }
-        if (path.row < 5) [self openContextGroup:@[@"selection",@"clipboard",@"paste",@"input",@"idle"][path.row]];
+        if (path.row == 6 || path.row == 5) { [self openFloatingApps]; return; }
+        if (path.row < 5) [self openContextGroup:@[@"delete",@"selection",@"copy",@"paste",@"typing"][path.row]];
     } else if (path.section == 5) [self chooseBehavior:path.row];
 }
 - (void)openContextGroup:(NSString *)key {
-    if ([key isEqual:@"auto"]) return;
-    MTPContextActionsController *editor = [MTPContextActionsController new]; editor.groupKey = key;
-    editor.title = MTCGL([@"BAR_CONTEXT_" stringByAppendingString:key.uppercaseString]); [self pushPage:editor];
+    if ([key isEqual:@"auto"]) {
+        UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTCGL(@"BAR_EDIT_GROUP") message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+        for (NSString *group in MTContextGroupKeys()) [menu addAction:[UIAlertAction actionWithTitle:MTCGL([@"BAR_CONTEXT_" stringByAppendingString:group.uppercaseString]) style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [self openContextGroup:group]; }]];
+        [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];
+        menu.popoverPresentationController.sourceView = self.view; menu.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(self.view.bounds),100,1,1); [self presentViewController:menu animated:YES completion:nil]; return;
+    }
+    if ([key isEqual:@"idle"]) { [self openFloatingApps]; return; }
+    MTPContextTypesController *editor = [MTPContextTypesController new]; editor.groupKey = MTContextCanonicalGroup(key);
+    editor.title = MTCGL([@"BAR_CONTEXT_" stringByAppendingString:editor.groupKey.uppercaseString]); [self pushPage:editor];
 }
 - (void)appendEntry:(NSDictionary *)entry segment:(NSInteger)segment {
     NSMutableArray *entries = [self.layout[segment ? @"right" : @"left"] mutableCopy];
@@ -484,14 +411,9 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (void)chooseContextAtPath:(NSIndexPath *)path {
     UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTCGL(@"BAR_KIND_CONTEXT") message:MTCGL(@"BAR_CONTEXT_HINT") preferredStyle:UIAlertControllerStyleActionSheet];
     __weak typeof(self) weakSelf = self;
-    for (NSString *group in @[@"auto",@"selection",@"clipboard",@"paste",@"input",@"idle"]) {
+    for (NSString *group in @[@"auto",@"delete",@"selection",@"copy",@"paste",@"typing",@"idle"]) {
         [menu addAction:[UIAlertAction actionWithTitle:MTCGL([@"BAR_CONTEXT_" stringByAppendingString:group.uppercaseString]) style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-            UIAlertController *slots = [UIAlertController alertControllerWithTitle:MTCGL(@"BAR_CONTEXT_INDEX") message:nil preferredStyle:UIAlertControllerStyleAlert];
-            for (NSInteger index = 0; index < 3; index++) [slots addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"%ld", (long)index + 1] style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *selected) {
-                [weakSelf appendEntry:@{@"kind":@"context",@"value":group,@"index":@(index),@"fallback":@YES} segment:path.section];
-            }]];
-            [slots addAction:[UIAlertAction actionWithTitle:MTCGL(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];
-            [weakSelf presentViewController:slots animated:YES completion:nil];
+            [weakSelf appendEntry:@{@"kind":@"context", @"value":group, @"index":@0, @"fallback":@YES} segment:path.section];
         }]];
     }
     [self presentMenu:menu atPath:path];
@@ -519,7 +441,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
         [weakSelf ensureShortcutDefinition:entry[@"value"]];
         MTPGesturePickerController *editor = [MTPGesturePickerController new]; editor.identifier = entry[@"value"]; editor.configuration = @"bottom"; editor.fullOrder = weakSelf.fullOrder; editor.title = [weakSelf entryTitle:entry]; [weakSelf pushPage:editor];
     }]];
-    if ([entry[@"kind"] isEqual:@"context"] && ![entry[@"value"] isEqual:@"auto"]) [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"BAR_EDIT_GROUP") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [weakSelf openContextGroup:entry[@"value"]]; }]];
+    if ([entry[@"kind"] isEqual:@"context"]) [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"BAR_EDIT_GROUP") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [weakSelf openContextGroup:entry[@"value"]]; }]];
     NSArray *entries = self.layout[segment];
     for (NSInteger delta = -1; delta <= 1; delta += 2) {
         NSInteger target = path.row + delta; if (target < 0 || target >= entries.count) continue;
