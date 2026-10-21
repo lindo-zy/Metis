@@ -1199,17 +1199,6 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     MTPostCaptureSystemAction(@"pixpin-area", MT_ROOT_PATH_NS(MTCaptureDylibPath));
 }
 
-// 全屏截图按钮：与区域截图共用同一条跨进程链路（Darwin 通知 com.lindo.metis.capture/full）。
-// SpringBoard 侧 MetisCapture 收到后直接抓全屏，不弹选区也不进编辑器，按设置页
-// 「默认结果动作」输出（默认保存，且「保存同时复制」默认开 → 落相册并写剪贴板）。
-// 未安装 MetisCapture 时通知无人接收，动作在此处静默返回。
--(void)captureFullScreenshotAction:(UIButton*)sender{
-    if (!NSThread.isMainThread || !self.window || self.hidden ||
-        ![MTShortcutsGenerator isCaptureScreenshotAvailable]) return;
-    [self triggerImpactAndAnimationWithButton:sender];
-    MTPostCaptureSystemAction(@"pixpin-full", MT_ROOT_PATH_NS(MTCaptureDylibPath));
-}
-
 // 剪贴板按钮：Mt/MetisClipboard 只在自己注入的进程里挂 Darwin 观察者，键盘进程内
 // 没有可调用的类，dev.traurige.mt.core.show 就是它官方的唤起入口（同 ShellX
 // 截图按钮的跨进程套路）。未安装时通知无人接收，无害。
@@ -2645,7 +2634,6 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     if (MTIsLinkActionSelector(selector)) return preferencesLinkActionForSelector(selector) != nil;
     if (![MTShortcutsGenerator isVisibleShortcutSelector:selector] || ![self respondsToSelector:NSSelectorFromString(selector)]) return NO;
     if ([selector isEqualToString:@"shellxScreenshotAction:"]) return [MTShortcutsGenerator isShellXScreenshotAvailable];
-    if ([selector isEqualToString:@"captureFullScreenshotAction:"]) return [MTShortcutsGenerator isCaptureScreenshotAvailable];
     if ([selector isEqualToString:@"clipboardAction:"]) return [MTShortcutsGenerator isMtInstalled];
     if ([selector isEqualToString:@"pulloverWakeAction:"]) return [MTShortcutsGenerator isPullOverXInstalled];
     return YES;

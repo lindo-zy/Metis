@@ -251,8 +251,6 @@
 "SHORT_CLIPBOARD" = "剪切板";
 "LONG_PULLOVER_WAKE" = "小把手";
 "SHORT_PULLOVER_WAKE" = "把手";
-"LONG_CAPTURE_FULL_SCREENSHOT" = "全屏截图";
-"SHORT_CAPTURE_FULL_SCREENSHOT" = "全屏";
 
 /* Custom actions management page (MetisClipboard-style layout) */
 "NO_CUSTOM_ACTIONS" = "暂无自定义动作";

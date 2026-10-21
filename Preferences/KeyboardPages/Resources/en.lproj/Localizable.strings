@@ -252,8 +252,6 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SHORT_CLIPBOARD" = "Clip";
 "LONG_PULLOVER_WAKE" = "PullOver Handle";
 "SHORT_PULLOVER_WAKE" = "Handle";
-"LONG_CAPTURE_FULL_SCREENSHOT" = "Full-Screen Screenshot";
-"SHORT_CAPTURE_FULL_SCREENSHOT" = "Full";
 
 /* Custom actions management page (MetisClipboard-style layout) */
 "NO_CUSTOM_ACTIONS" = "No custom actions yet";

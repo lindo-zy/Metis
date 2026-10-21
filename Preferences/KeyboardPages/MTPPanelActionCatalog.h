@@ -13,8 +13,6 @@ static inline NSArray<NSDictionary *> *MTPPanelBuiltInActions(void) {
         if (![MTShortcutsGenerator isVisibleShortcutSelector:selector]) continue;
         if ([selector isEqual:@"shellxScreenshotAction:"] && ![MTShortcutsGenerator isShellXScreenshotAvailable]) continue;
         if ([selector isEqual:@"clipboardAction:"] && ![MTShortcutsGenerator isMtInstalled]) continue;
-        // 全屏截图依赖 SpringBoard 侧的 MetisCapture：未安装时通知无人接收，不进候选列表。
-        if ([selector isEqual:@"captureFullScreenshotAction:"] && ![MTShortcutsGenerator isCaptureScreenshotAvailable]) continue;
         if ([selector isEqual:@"pulloverWakeAction:"] && ![MTShortcutsGenerator isPullOverXInstalled]) continue;
         NSString *name = [MTHelper localizedStringForActionNamed:selector shortName:NO bundle:[NSBundle bundleWithPath:bundlePath]];
         NSString *icon = i < icons.count ? icons[i] : @"square.grid.2x2";
