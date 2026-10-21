@@ -7,8 +7,9 @@
 @property (nonatomic,readwrite) NSString *identifier;
 @property (nonatomic, strong) NSArray *fullOrder;
 @property (nonatomic, copy) NSString *configuration;
-// YES when pushed from the "+" button: nothing is persisted until the user
-// taps Save; name/icon input and gesture choices are held until then.
+// YES when pushed from the "+" button: the button itself does not exist yet.
+// Name/icon input and gesture choices are staged, then written automatically
+// as soon as one gesture carries a selection (no Save button on this page).
 @property (nonatomic, assign) BOOL pendingNewEntry;
 // Pending (unsaved) name/icon typed on the new-button page.
 @property (nonatomic, copy) NSString *pendingName;

@@ -11,8 +11,8 @@ static NSBundle *mtpLocalBundle;
 
 // Set while pushing the tap action picker so the return trip can sync the
 // chosen action's name/icon into an otherwise-unconfigured entry. The dirty
-// flags track unsaved name/icon edits on saved buttons: they are only applied
-// when the user taps Save.
+// flags track name/icon edits that have not reached the store yet: they are
+// written when editing ends or when the page is left (no Save button).
 @interface MTPGesturePickerController ()
 @property (nonatomic, assign) BOOL pushedTapActionPicker;
 @property (nonatomic, assign) BOOL nameDirty;
@@ -21,6 +21,8 @@ static NSBundle *mtpLocalBundle;
 @property (nonatomic, strong) PSSpecifier *iconLibrarySpec;
 // 显示组里的「图标」输入行：imageView 承载实时预览。
 @property (nonatomic, strong) PSSpecifier *customIconSpec;
+// 显示组里的「名称」输入行：结束编辑即落盘。
+@property (nonatomic, strong) PSSpecifier *customNameSpec;
 @end
 
 @implementation MTPGesturePickerController
@@ -251,21 +253,36 @@ static NSBundle *mtpLocalBundle;
     if (bundleID) [MTHelper appIconImageForBundleID:bundleID];
 }
 
-- (void)saveButtonTapped {
-    // A nav-bar tap does not resign the keyboard by itself; commit any
-    // in-progress edit first so the pending values are current.
-    [self.view endEditing:YES];
-    if (self.pendingNewEntry) {
-        [self saveNewButton];
-        return;
+#pragma mark - Auto-save（本页无保存按钮）
+
+// 「有值就保存」：右上角不再提供保存按钮。新建按钮页在任一手势选中动作后
+// 立即落盘并切换到「已保存」态（不弹回页面，便于继续配置其余手势/名称/图标）；
+// 已保存按钮的名称与图标在结束编辑、选中图标库图标或离开页面时写入。
+
+// True when the pending new button already carries at least one gesture action
+// in any of the per-gesture stores (legacy single-selector or selectors array).
+- (BOOL)pendingButtonHasAnySelection {
+    NSDictionary *prefs = [[MTPrefsManager sharedInstance] readPrefs];
+    for (NSString *key in [self perButtonPreferenceKeys]) {
+        NSArray *entries = prefs[key];
+        if (![entries isKindOfClass:[NSArray class]]) continue;
+        for (NSDictionary *entry in entries) {
+            if (![entry isKindOfClass:[NSDictionary class]]) continue;
+            if (![entry[@"identifier"] isEqual:kNewButtonPendingIdentifier]) continue;
+            if ([entry[@"selectors"] isKindOfClass:[NSArray class]] && [entry[@"selectors"] count] > 0) return YES;
+            for (NSString *field in @[@"selector", @"selector2"]) {
+                NSString *selector = entry[field];
+                if ([selector isKindOfClass:[NSString class]] && selector.length > 0) return YES;
+            }
+        }
     }
-    [self saveNameAndIconEdits];
+    return NO;
 }
 
-// Applies unsaved name/icon edits on a saved button. Blank values clear the
+// Writes unsaved name/icon edits on a saved button. Blank values clear the
 // override so the built-in label/icon applies again.
-- (void)saveNameAndIconEdits {
-    if (!self.nameDirty && !self.iconDirty) return;
+- (void)persistPendingNameAndIcon {
+    if (self.pendingNewEntry || (!self.nameDirty && !self.iconDirty)) return;
     NSString *name = self.pendingName ?: @"";
     NSString *icon = self.pendingIcon ?: @"";
     BOOL nameDirty = self.nameDirty;
@@ -281,11 +298,12 @@ static NSBundle *mtpLocalBundle;
     self.pendingIcon = nil;
     self.nameDirty = NO;
     self.iconDirty = NO;
-    [self updateSaveButtonItem];
-    [self reloadSpecifiers];
 }
 
-- (void)saveNewButton {
+// Materialises the pending new button (identifier, name/icon, re-keyed gesture
+// stores). The caller decides whether this page pops afterwards: the field
+// editor path pops, the auto-save on selection keeps the page open.
+- (void)commitPendingNewButtonPopping:(BOOL)pop reload:(BOOL)reload {
     NSString *tapAction = [self selectedActionForGesture:MTShortcutGestureTap identifier:kNewButtonPendingIdentifier] ?: @"";
     BOOL hasTap = [MTShortcutsGenerator isVisibleShortcutSelector:tapAction] ||
                   [self canonicalEntryForSelector:tapAction] != nil;
@@ -335,8 +353,21 @@ static NSBundle *mtpLocalBundle;
 
     self.identifier = identifier;
     self.pendingNewEntry = NO;
+    // Staged values are already baked into the entry.
+    self.pendingName = nil;
+    self.pendingIcon = nil;
+    self.nameDirty = NO;
+    self.iconDirty = NO;
     self.title = name;
-    [self.navigationController popViewControllerAnimated:YES];
+    if (reload) [self reloadSpecifiers];
+    if (pop) [self.navigationController popViewControllerAnimated:YES];
+}
+
+// Auto-save trigger: a selection with a value means the button now exists.
+- (void)autoCommitPendingNewButtonIfNeeded {
+    if (!self.pendingNewEntry) return;
+    if (![self pendingButtonHasAnySelection]) return;
+    [self commitPendingNewButtonPopping:NO reload:YES];
 }
 
 #pragma mark - Specifier value handlers
@@ -367,11 +398,10 @@ static NSBundle *mtpLocalBundle;
         self.pendingName = name;
         return;
     }
-    // Saved buttons only apply the edit on Save, so a stray change can be
-    // discarded by leaving without saving.
+    // Saved buttons write the edit when the field resigns or the page is
+    // left; there is no Save button to gate it anymore.
     self.pendingName = name;
     self.nameDirty = YES;
-    [self updateSaveButtonItem];
 }
 
 - (id)readIconValue:(PSSpecifier *)specifier {
@@ -411,7 +441,6 @@ static NSBundle *mtpLocalBundle;
     }
     self.pendingIcon = icon;
     self.iconDirty = YES;
-    [self updateSaveButtonItem];
 }
 
 #pragma mark - Specifiers
@@ -439,6 +468,7 @@ static NSBundle *mtpLocalBundle;
         PSSpecifier *customNameSpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"CUSTOM_NAME") target:self set:@selector(setNameValue:specifier:) get:@selector(readNameValue:) detail:nil cell:PSEditTextCell edit:nil];
         [customNameSpec setProperty:@YES forKey:@"noAutoCorrect"];
         [customNameSpec setProperty:LOCALIZED(@"CUSTOM_NAME") forKey:@"label"];
+        self.customNameSpec = customNameSpec;
         [snippetEntrySpecifiers addObject:customNameSpec];
 
         PSSpecifier *customIconSpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"CUSTOM_ICON") target:self set:@selector(setIconValue:specifier:) get:@selector(readIconValue:) detail:nil cell:PSEditTextCell edit:nil];
@@ -448,7 +478,7 @@ static NSBundle *mtpLocalBundle;
         [snippetEntrySpecifiers addObject:customIconSpec];
 
         // 图标库入口行：左侧实时预览当前图标，点击推入 SF 图标库；回写走
-        // setIconValue: 的既有校验与保存按钮脏标记链。
+        // setIconValue: 的既有校验，保存由「结束编辑/选中/离开页面」触发。
         PSSpecifier *iconLibrarySpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"ICON_LIBRARY_ROW") target:self set:nil get:nil detail:nil cell:PSLinkCell edit:nil];
         [iconLibrarySpec setProperty:LOCALIZED(@"ICON_LIBRARY_ROW") forKey:@"label"];
         self.iconLibrarySpec = iconLibrarySpec;
@@ -530,6 +560,13 @@ static NSBundle *mtpLocalBundle;
             [field addTarget:self action:@selector(iconFieldTextChanged:) forControlEvents:UIControlEventEditingChanged];
         }
     }
+    // 名称/图标行：没有保存按钮，结束编辑即落盘（新建态除外，随按钮一起写入）。
+    if (specifier == self.customNameSpec || (self.customIconSpec && specifier == self.customIconSpec)) {
+        UITextField *field = [self editableTextFieldInView:cell];
+        if (field && ![field actionsForTarget:self forControlEvent:UIControlEventEditingDidEnd]) {
+            [field addTarget:self action:@selector(nameOrIconFieldEditingDidEnd:) forControlEvents:UIControlEventEditingDidEnd];
+        }
+    }
     if (!self.customIconSpec || specifier != self.customIconSpec) {
         // PSEditTextCell 复用池共享：非图标行清掉可能残留的预览图。
         if ([cell isKindOfClass:NSClassFromString(@"PSEditTextCell")]) {
@@ -548,6 +585,17 @@ static NSBundle *mtpLocalBundle;
     BOOL placeholder = NO;
     cell.imageView.image = [self previewImageForIconConfig:field.text placeholder:&placeholder];
     cell.imageView.tintColor = placeholder ? UIColor.secondaryLabelColor : nil;
+}
+
+- (void)nameOrIconFieldEditingDidEnd:(UITextField *)field {
+    // Deferred so the write never runs inside the resign-first-responder
+    // transition (tapping another row re-targets the keyboard afterwards).
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        [strongSelf persistPendingNameAndIcon];
+    });
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
@@ -581,9 +629,11 @@ static NSBundle *mtpLocalBundle;
             __strong typeof(weakSelf) strongSelf = weakSelf;
             if (!strongSelf || !symbolName.length) return;
             if (strongSelf.pendingNewEntry) {
-                // 新建未保存按钮没有可落盘的条目：保持暂存，随页面保存一并写入。
+                // 新建未保存按钮没有可落盘的条目：保持暂存，随按钮一起写入。
                 NSLog(@"[MetisKeyboard][SFSymbol] stage icon=%@ (pendingNewEntry)", symbolName);
                 [strongSelf setIconValue:symbolName specifier:strongSelf.iconLibrarySpec];
+                // 图标本身就是「有值」：已有手势选择时立即连带落盘。
+                [strongSelf autoCommitPendingNewButtonIfNeeded];
                 [strongSelf reloadSpecifiers];
                 return;
             }
@@ -596,7 +646,6 @@ static NSBundle *mtpLocalBundle;
             [strongSelf stageAppIconCacheForIconConfig:symbolName];
             strongSelf.pendingIcon = nil;
             strongSelf.iconDirty = NO;
-            [strongSelf updateSaveButtonItem];
             [strongSelf reloadSpecifiers];
         };
         [picker setRootController:[self rootController]];
@@ -637,6 +686,9 @@ static NSBundle *mtpLocalBundle;
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    // 有值就保存：从手势/子动作页返回时若已选中动作，新建按钮立即落盘，
+    // 页面停留在已保存态以便继续配置其余手势。
+    [self autoCommitPendingNewButtonIfNeeded];
     // Coming back from the tap action picker with both name and icon still
     // empty syncs the chosen action's identity into the entry.
     if (!self.pendingNewEntry && self.pushedTapActionPicker) {
@@ -650,15 +702,22 @@ static NSBundle *mtpLocalBundle;
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    // Leaving the new-button page without saving discards the gesture choices
-    // made so far (they were staged under the pending identifier). Popping
-    // after Save has already re-keyed them, so pendingNewEntry is NO by then.
+    // 没有保存按钮：离开页面时把暂存的名称/图标写盘；新建按钮若已选过动作
+    // 也在此兜底落盘（正常情况下 viewWillAppear 已经提交），只有完全没选过
+    // 动作时才丢弃暂存的手势条目。
     if ([self isMovingFromParentViewController]) {
+        // 正在编辑的字段先提交，避免带着未结束的编辑离开页面（无保存按钮，
+        // 退出即落盘）。
+        [self.view endEditing:YES];
         if (self.pendingNewEntry) {
-            [self removeCustomActionEntriesWithIdentifier:kNewButtonPendingIdentifier];
+            if ([self pendingButtonHasAnySelection]) {
+                [self commitPendingNewButtonPopping:NO reload:NO];
+            } else {
+                [self removeCustomActionEntriesWithIdentifier:kNewButtonPendingIdentifier];
+            }
+        } else {
+            [self persistPendingNameAndIcon];
         }
-        // Unsaved name/icon edits are never written; drop them so backing out
-        // is always a clean discard.
         self.pendingName = nil;
         self.pendingIcon = nil;
         self.nameDirty = NO;
@@ -666,23 +725,11 @@ static NSBundle *mtpLocalBundle;
     }
 }
 
-// Save is always offered on the new-button page; on saved buttons it only
-// appears once name/icon edits are pending.
-- (void)updateSaveButtonItem {
-    if (!self.pendingNewEntry && !self.nameDirty && !self.iconDirty) {
-        self.navigationItem.rightBarButtonItem = nil;
-        return;
-    }
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:LOCALIZED(@"SAVE")
-                                                                              style:UIBarButtonItemStylePlain
-                                                                             target:self
-                                                                             action:@selector(saveButtonTapped)];
-}
-
 - (void)viewDidLoad {
     mtpLocalBundle = [NSBundle bundleWithPath:bundlePath];
     [mtpLocalBundle load];
     [super viewDidLoad];
-    [self updateSaveButtonItem];
+    // 本页不提供保存按钮：所有修改即时落盘。
+    self.navigationItem.rightBarButtonItem = nil;
 }
 @end
