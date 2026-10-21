@@ -21,7 +21,6 @@
 @property(nonatomic, copy) NSDictionary *previewPreferences;
 @property(nonatomic, copy) NSDictionary *renderedPreferences;
 @property(nonatomic, strong) UIScrollView *itemsScroll;
-@property(nonatomic, strong) UIButton *moreButton;
 @property(nonatomic, strong) UILabel *message;
 @property(nonatomic, strong) UIView *divider;
 @property(nonatomic, strong) NSArray<UIButton *> *buttons;
@@ -44,11 +43,6 @@
         self.itemsScroll = [UIScrollView new];
         self.itemsScroll.showsHorizontalScrollIndicator = NO;
         [self addSubview:self.itemsScroll];
-        self.moreButton = [UIButton buttonWithType:UIButtonTypeSystem];
-        [self.moreButton setImage:[UIImage systemImageNamed:@"ellipsis"] forState:UIControlStateNormal];
-        self.moreButton.accessibilityLabel = [(tweakBundle ?: [NSBundle bundleWithPath:bundlePath]) localizedStringForKey:@"CONTEXT_MORE" value:@"More" table:nil];
-        [self.moreButton addTarget:self action:@selector(showMore:) forControlEvents:UIControlEventTouchUpInside];
-        [self addSubview:self.moreButton];
         self.token = NOTIFY_TOKEN_INVALID;
         self.clipsToBounds = YES;
         self.message = [UILabel new];
@@ -250,8 +244,9 @@
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat width = CGRectGetWidth(self.bounds), height = CGRectGetHeight(self.bounds);
-    NSInteger slots = MTContextSlots([self preferences]);
-    CGFloat cellWidth = width / (slots + 1);
+    NSInteger slots = MAX(1, MTContextSlots([self preferences]));
+    // 右侧不再预留「更多」格，App/动作格等分整块悬浮区，与左侧固定 3 格等宽。
+    CGFloat cellWidth = width / slots;
     CGFloat contentWidth = cellWidth * slots;
     self.itemsScroll.frame = CGRectMake(0, 0, contentWidth, height);
     NSArray<UIButton *> *buttons = self.contextButtons.count ? self.contextButtons : self.buttons;
@@ -260,7 +255,6 @@
         buttons[index].frame = CGRectMake(index * cellWidth + 2, MTBottomToolbarCellTopInset, MAX(0, cellWidth - 4), cellHeight);
     }
     self.itemsScroll.contentSize = CGSizeMake(MAX(contentWidth, buttons.count * cellWidth), height);
-    self.moreButton.frame = CGRectMake(contentWidth, MTBottomToolbarCellTopInset, cellWidth, cellHeight);
     self.divider.hidden = NO;
     self.divider.frame = CGRectMake(0, MTBottomToolbarCellTopInset + 3, 0.5, MAX(0, cellHeight - 6));
     self.message.frame = CGRectMake(0, MTBottomToolbarCellTopInset, width, MAX(0, height - MTBottomToolbarCellTopInset));
@@ -269,14 +263,6 @@
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
     // An overflowing contextual list owns horizontal dragging. The fixed area still handles long swipes.
     return self.itemsScroll.contentSize.width <= CGRectGetWidth(self.itemsScroll.bounds) + 0.5;
-}
-- (void)showMore:(UIButton *)button {
-    if (self.preview || self.hidden || !self.window || ![self.actionTarget keyboardPanelGestureSourceVisible] || !MTBottomToolbarEnabled([self preferences])) return;
-    NSMutableOrderedSet *selectors = [NSMutableOrderedSet orderedSet];
-    for (NSString *identifier in self.actionTarget.shortcuts[kselectors]) {
-        [selectors addObjectsFromArray:preferencesGestureActionSelectors(identifier, MTShortcutGestureTap, @"bottom")];
-    }
-    if (selectors.count) [self.actionTarget presentSubActionChooserForButton:button selectors:selectors.array];
 }
 
 #pragma mark - 执行

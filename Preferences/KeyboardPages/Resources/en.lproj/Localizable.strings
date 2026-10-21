@@ -711,7 +711,6 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CONTEXT_IDLE" = "Empty Input";
 "CONTEXT_FLOATING" = "Floating Apps";
 "CONTEXT_DEFAULT" = "Default";
-"CONTEXT_MORE" = "More";
 "CONTEXT_ENABLED_GROUPS" = "Enabled Groups";
 "CONTEXT_PRIORITY" = "Priority · Drag to Reorder";
 "CONTEXT_BEHAVIOR" = "Switching Behavior";

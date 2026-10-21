@@ -32,6 +32,7 @@ static inline BOOL MTBottomToolbarEnabled(NSDictionary *prefs) {
     return [prefs[kBottomToolbarEnabledKey] isKindOfClass:NSNumber.class] && [prefs[kBottomToolbarEnabledKey] boolValue];
 }
 // The fixed buttons keep three reserved cells, even when the contextual group changes.
+// 分母不再含「更多」格：固定 3 格 + 上下文 slots 格，左右两区等宽、单格同宽。
 static inline double MTBottomFixedFraction(NSDictionary *prefs) {
-    return 3.0 / (4.0 + MTContextSlots(prefs));
+    return 3.0 / (3.0 + MTContextSlots(prefs));
 }

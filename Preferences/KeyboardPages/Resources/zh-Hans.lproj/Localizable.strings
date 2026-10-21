@@ -710,7 +710,6 @@
 "CONTEXT_IDLE" = "零态推荐";
 "CONTEXT_FLOATING" = "悬浮应用";
 "CONTEXT_DEFAULT" = "默认";
-"CONTEXT_MORE" = "更多";
 "CONTEXT_ENABLED_GROUPS" = "启用的动作组";
 "CONTEXT_PRIORITY" = "优先级 · 拖动排序";
 "CONTEXT_BEHAVIOR" = "切换行为";
