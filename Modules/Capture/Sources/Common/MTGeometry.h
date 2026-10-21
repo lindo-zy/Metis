@@ -72,8 +72,8 @@ CGRect MTConstrainFloatingRect(CGRect frame, CGRect bounds);
 CGRect MTApplySelectionEdgeSnap(CGRect rect, CGSize containerSize, CGFloat distance);
 
 /// 工具栏跟随选框：默认贴在选框下方并按选区水平居中；选框贴近屏幕底部放不下时
-/// 改到选框上方。上下都放不下时比较与选区的重叠面积，选重叠较小的位置；面积相等
-/// （含全屏选区这类完全覆盖）优先底部，保证「全屏」按钮按下后面板仍停在屏幕下方。
+/// 改到选框上方。上下都放不下（接近全屏、或可用区放不下面板）时回退到默认站位
+/// preferredFrame（屏幕底部）——不再比较两侧重叠，保证面板始终停在屏幕下方。
 /// 空选区时保持 preferredFrame（屏幕底部）位置。
 CGRect MTPlaceSelectionToolbar(CGRect preferredFrame, CGRect selectionRect, CGRect availableBounds, CGFloat gap);
 

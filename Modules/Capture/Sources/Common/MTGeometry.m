@@ -136,14 +136,11 @@ CGRect MTPlaceSelectionToolbar(CGRect preferredFrame, CGRect selectionRect, CGRe
     above = MTConstrainFloatingRect(above, availableBounds);
     if (CGRectGetMaxY(above) <= CGRectGetMinY(selectionRect) - gap) return above;
 
-    // 接近全屏时可能没有完整空位：保持按钮可达，选重叠较小的一侧。上下都无法
-    // 避让（含「全屏」选区这类完全覆盖）时留在底部——平局不再判给顶部，否则面板
-    // 会跳到屏幕顶端，远离拇指热区且与默认站位不一致。
-    CGRect topOverlap = CGRectIntersection(above, selectionRect);
-    CGRect bottomOverlap = CGRectIntersection(below, selectionRect);
-    CGFloat topArea = CGRectIsNull(topOverlap) ? 0.0 : topOverlap.size.width * topOverlap.size.height;
-    CGFloat bottomArea = CGRectIsNull(bottomOverlap) ? 0.0 : bottomOverlap.size.width * bottomOverlap.size.height;
-    return bottomArea <= topArea ? below : above;
+    // 上下都放不下（接近全屏、或可用区高度不足以容纳面板）：直接回退到默认站位
+    // （屏幕底部），不再在两侧比较重叠面积。
+    // 原因：钳制会把越界的 below 拉回可用区上边界，两侧的重叠面积因此常常不相等，
+    // 「选重叠较小的一侧」会把面板推到屏幕顶端；可达性应优先于遮挡多少。
+    return bottom;
 }
 
 NSString *MTStringFromCaptureMode(MTCaptureMode mode) {

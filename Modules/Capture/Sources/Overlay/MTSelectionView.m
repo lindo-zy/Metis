@@ -302,9 +302,15 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         CGRect available = CGRectMake(left, top, availableWidth,
                                       MAX(0.0, self.bounds.size.height - safe.bottom - bottomMargin - top));
         frame = MTPlaceSelectionToolbar(preferred, self.selectionRect, available, 16.0);
-        if (!CGRectEqualToRect(frame, self.toolbar.frame)) {
-            MTCaptureLogInfo(@"selection toolbar placed: relocated=%d overlap=%d",
-                      !CGRectEqualToRect(frame, preferred), CGRectIntersectsRect(frame, self.selectionRect));
+        if (!CGRectEqualToRect(frame, preferred)) {
+            // 几何层确实做了避让（全屏/近全屏时本应回退到底部而不发生）：
+            // 把关键数值落日志，便于设备侧确认实际走的是哪条分支。
+            MTCaptureLogInfo(@"selection toolbar relocated: bounds=(%.0f,%.0f) available=(%.0f,%.0f,%.0f,%.0f) selection=(%.0f,%.0f,%.0f,%.0f) frame=(%.0f,%.0f,%.0f,%.0f)",
+                      self.bounds.size.width, self.bounds.size.height,
+                      available.origin.x, available.origin.y, available.size.width, available.size.height,
+                      self.selectionRect.origin.x, self.selectionRect.origin.y,
+                      self.selectionRect.size.width, self.selectionRect.size.height,
+                      frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
         }
     }
     self.toolbar.frame = frame;
