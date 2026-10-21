@@ -9,6 +9,12 @@
 
 #import <HBLog.h>
 
+@interface MTHistoryRepository ()
+
+- (BOOL)upgradeSearchIndexOnQueueWithError:(NSError **)error;
+
+@end
+
 static void *mtHistoryQueueSpecificKey = &mtHistoryQueueSpecificKey;
 static NSInteger const kMTClipboardCoreHistoryStoreBusyTimeoutMilliseconds = 250;
 
@@ -103,8 +109,7 @@ static NSInteger const kMTClipboardCoreHistoryStoreBusyTimeoutMilliseconds = 250
     __block BOOL success = NO;
     __block NSError *blockError = nil;
     [self performSync:^{
-      MTHistoryStore *historyStore = [self historyStoreOnQueue];
-      success = [historyStore upgradeSearchIndexWithError:&blockError];
+      success = [self upgradeSearchIndexOnQueueWithError:&blockError];
       if (success) {
           _didPrepareHistoryStore = YES;
           _prepareHistoryStoreError = nil;
@@ -493,6 +498,17 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
         }
         return NO;
     }
+    // 新装设备的 v4 库是空库，metadata 里没有 search_index_schema_version，
+    // 必须先跑一次索引升级把版本号落地，否则下面的校验会一直失败，
+    // 进而让所有历史读写（含剪切板记录）全部不可用。
+    if (![self upgradeSearchIndexOnQueueWithError:&prepareError]) {
+        _prepareHistoryStoreError = prepareError;
+        _didPrepareHistoryStore = NO;
+        if (error) {
+            *error = prepareError;
+        }
+        return NO;
+    }
     if (![historyStore validateSearchIndexWithError:&prepareError]) {
         _prepareHistoryStoreError = prepareError;
         _didPrepareHistoryStore = NO;
@@ -505,6 +521,11 @@ forItemDictionary:(NSDictionary<NSString *, id> *)dictionary
     _prepareHistoryStoreError = nil;
     _didPrepareHistoryStore = YES;
     return YES;
+}
+
+- (BOOL)upgradeSearchIndexOnQueueWithError:(NSError **)error {
+    MTHistoryStore *historyStore = [self historyStoreOnQueue];
+    return [historyStore upgradeSearchIndexWithError:error];
 }
 
 - (NSUInteger)limitForHistoryKey:(NSString *)historyKey {
