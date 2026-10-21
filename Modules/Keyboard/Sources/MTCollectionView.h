@@ -16,7 +16,10 @@ typedef NS_ENUM(NSInteger, direction) {
 - (instancetype)initWithConfiguration:(NSString *)configuration preview:(BOOL)preview;
 - (void)configurePreviewWithPreferences:(NSDictionary *)preferences;
 @property (nonatomic, copy) NSString *configuration;
-// Composite bottom bar reserves three cells for fixed actions.
+// Bottom layout uses this collection as its existing action/panel host.
+@property (nonatomic, assign) BOOL bottomActionHostOnly;
+- (void)configureBottomActionButton:(UIButton *)button selector:(NSString *)selector;
+// Optional item limit for collection previews.
 @property (nonatomic, assign) NSUInteger visibleItemLimit;
 - (void)presentSubActionChooserForButton:(UIButton *)button selectors:(NSArray<NSString *> *)selectors;
 // The floating shelf shares this toolbar's bindings, executor and panel lifecycle.

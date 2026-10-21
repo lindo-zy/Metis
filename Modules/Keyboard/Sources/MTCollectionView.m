@@ -227,6 +227,13 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 
 @implementation MTCollectionView
 
+- (void)setBottomActionHostOnly:(BOOL)hostOnly {
+    if (_bottomActionHostOnly == hostOnly) return;
+    _bottomActionHostOnly = hostOnly;
+    [self reloadData];
+    [self.collectionViewLayout invalidateLayout];
+}
+
 // Resolves one configured shortcut entry into the parallel toolbar arrays.  The
 // iOS 13 image slot takes the custom SF Symbol when it validates, and custom
 // names are keyed by selector for short-label mode. iOS 12 has no SF Symbols,
@@ -1720,6 +1727,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     return 1;
 }
 -(NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
+    if (self.bottomActionHostOnly) return 0;
     (void)collectionView;
     return section == 0 ? MIN(self.visibleItemLimit ?: NSUIntegerMax, MIN(((NSArray *)self.shortcuts[kselectors]).count,
         MTToolbarCapacityForPreferences(self.mtPreviewMode ? self.mtPreviewPreferences
@@ -2599,7 +2607,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
 }
 
 - (BOOL)keyboardPanelGestureSourceVisible {
-    UIView *surface = self;
+    UIView *surface = self.keyboardPanelGestureView ?: self;
     if (!self.window || self.window.hidden || self.window.alpha < 0.01 ||
         surface.window != self.window || !self.shortcutConfigurationAvailable) return NO;
     for (UIView *view = surface; view; view = view.superview)
@@ -2623,7 +2631,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
                 self.configuration, surface == self ? @"actions" : @"floating-shelf", result < 0 ? @"left" : @"right");
             [self dispatchKeyboardPanelSelector:selector sender:surface == self ? gesture.sourceButton : nil];
         }
-    } else if (surface == self && labs(result) == 1 && gesture.sourceButton.window == self.window) {
+    } else if ((surface == self || surface == self.keyboardPanelGestureView) && labs(result) == 1 && gesture.sourceButton.window == self.window) {
         [self runSubActionsForButton:gesture.sourceButton gesture:result < 0 ? MTShortcutGestureSwipeLeft : MTShortcutGestureSwipeRight];
     }
 }
@@ -2702,6 +2710,23 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     }
     return [[NSMutableAttributedString alloc] initWithString:text
                                                   attributes:@{NSFontAttributeName : fittedFont}];
+}
+
+// Mixed bottom entries share the established tap/long-press/swipe executor.
+- (void)configureBottomActionButton:(UIButton *)button selector:(NSString *)selector {
+    button.accessibilityIdentifier = selector;
+    if (self.mtPreviewMode) return;
+    [button addTarget:self action:@selector(cellButtonTouchUpInside:) forControlEvents:UIControlEventTouchUpInside];
+    if ([preferencesGestureActionSelectors(selector, MTShortcutGestureLongPress, self.configuration) count]) {
+        UILongPressGestureRecognizer *press = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(activateLPActions:)];
+        [button addGestureRecognizer:press];
+    }
+    for (NSInteger gesture = MTShortcutGestureSwipeUp; gesture <= MTShortcutGestureSwipeDown; gesture++) {
+        if (![preferencesGestureActionSelectors(selector, (int)gesture, self.configuration) count]) continue;
+        UISwipeGestureRecognizer *swipe = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(activateSwipeActions:)];
+        swipe.direction = gesture == MTShortcutGestureSwipeUp ? UISwipeGestureRecognizerDirectionUp : UISwipeGestureRecognizerDirectionDown;
+        [button addGestureRecognizer:swipe];
+    }
 }
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {

@@ -9,11 +9,11 @@
 #import "MTSystemOpenBroker.h"
 #import "common.h"
 #import "MTShared.h"
+#import "MTBottomBarLayout.h"
 #import <notify.h>
 #import <objc/message.h>
 
-// 有动作组时固定区收到 3 格：3 个应用 + 最多 3 个上下文动作，是 390pt 机型上
-// 每格仍剩约 44pt 宽的设计目标布局；实际宽度始终按可用宽度等分，不写死像素。
+// Both segments render the same validated mixed-entry model used by Settings.
 
 
 @interface MTFloatingAppShelfView ()
@@ -31,6 +31,8 @@
 @property(nonatomic) NSUInteger requestGeneration;
 @property(nonatomic) NSUInteger messageGeneration;
 @property(nonatomic) int token;
+@property(nonatomic, strong) NSArray<NSArray<UIButton *> *> *segments;
+@property(nonatomic, strong) NSMutableDictionary<NSString *, UIImage *> *appIcons;
 @end
 
 @implementation MTFloatingAppShelfView
@@ -40,6 +42,7 @@
 - (instancetype)initWithFrame:(CGRect)frame preview:(BOOL)preview {
     if ((self = [super initWithFrame:frame])) {
         self.preview = preview;
+        self.appIcons = [NSMutableDictionary dictionary];
         self.itemsScroll = [UIScrollView new];
         self.itemsScroll.showsHorizontalScrollIndicator = NO;
         [self addSubview:self.itemsScroll];
@@ -91,8 +94,7 @@
     self.previewPreferences = preferences;
     self.decision = decision;
     self.snapshot = @{};
-    [self rebuildAppButtons];
-    [self rebuildContextButtons];
+    [self rebuildEntries];
     [self setNeedsLayout];
 }
 - (NSDictionary *)preferences { return self.preview ? self.previewPreferences : MTPrefsManager.sharedInstance.prefs; }
@@ -102,7 +104,11 @@
     NSArray *items = snapshot[@"items"];
     if (![items isKindOfClass:NSArray.class]) return @[];
     NSMutableArray *records = [NSMutableArray array];
-    for (id item in items) if ([item isKindOfClass:NSDictionary.class]) [records addObject:item];
+    for (id item in items) {
+        if (![item isKindOfClass:NSDictionary.class]) continue;
+        id identifier = item[@"bundleID"];
+        if ([identifier isKindOfClass:NSString.class] && [identifier length] && [identifier length] <= 512) [records addObject:item];
+    }
     return records;
 }
 
@@ -162,11 +168,9 @@
         (decision && self.decision && [decision isEquivalentToDecision:self.decision]);
     if (decisionSame && !appsDirty) return;
 
-    BOOL contextToggled = (self.decision != nil) != (decision != nil);
     self.decision = decision;
-    if (appsDirty || contextToggled) [self rebuildAppButtons];
-    if (!decisionSame) self.itemsScroll.contentOffset = CGPointZero;
-    [self rebuildContextButtons];
+    if (reloadSnapshot && appsDirty) [self.appIcons removeAllObjects];
+    [self rebuildEntries];
     [self bringSubviewToFront:self.message];
     [self bringSubviewToFront:self.divider];
     [self setNeedsLayout];
@@ -186,92 +190,140 @@
     return button;
 }
 
-- (void)rebuildAppButtons {
-    for (UIButton *button in self.buttons) [button removeFromSuperview];
-    NSArray<NSDictionary *> *records = [self recordsFromSnapshot:self.snapshot];
-    NSDictionary *preferences = [self preferences];
-    if ((!self.preview && !self.unlocked) || (self.decision && self.decision.group != MTContextGroupDefault) || ![preferences[kFloatingShelfEnabledKey] boolValue]) { self.buttons = @[]; return; }
-    NSUInteger capacity = MTFloatingShelfCapacity;
-    NSMutableArray<NSDictionary *> *shown = [records mutableCopy];
-    [shown addObjectsFromArray:[self fallbackRecordsAfter:records limit:capacity]];
-
-    NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
-    for (NSDictionary *item in shown) {
-        if (buttons.count >= capacity) break;
-        NSString *identifier = item[@"bundleID"];
-        if (![identifier isKindOfClass:NSString.class] || !identifier.length) continue;
-        BOOL fallback = [item[@"fallback"] boolValue];
-        BOOL active = !fallback && [self.snapshot[@"active"] isEqual:identifier];
-        BOOL foreground = !fallback && [self.snapshot[@"foreground"] isEqual:identifier];
-        UIImage *icon = [MTHelper appIconImageForBundleID:identifier];
-        UIButton *button = [self buttonWithIcon:icon
-                               accessibilityText:[item[@"title"] isKindOfClass:NSString.class] ? item[@"title"] : identifier
-                                          action:@selector(activate:)];
-        button.accessibilityIdentifier = identifier;
-        button.accessibilityValue = active ? LOCALIZED(@"FLOATING_SHELF_ACTIVE") :
-            (foreground ? LOCALIZED(@"FLOATING_SHELF_FOREGROUND") : nil);
-        button.backgroundColor = active ? [UIColor.systemBlueColor colorWithAlphaComponent:0.12] : UIColor.clearColor;
-        button.tintColor = UIColor.secondaryLabelColor;
-        button.tag = fallback ? 1 : 0;
-        // 快照仅用于展示：前台/悬浮状态可能已过期，不能据此永久禁用恢复入口。
-        button.enabled = ![self.pendingIdentifier isEqual:identifier];
-        [self.itemsScroll addSubview:button];
-        [buttons addObject:button];
+- (UIImage *)iconForApp:(NSString *)identifier {
+    UIImage *icon = self.appIcons[identifier];
+    if (!icon) {
+        icon = [MTHelper appIconImageForBundleID:identifier];
+        if (icon) self.appIcons[identifier] = icon;
     }
-    self.buttons = buttons;
+    return icon;
 }
 
-- (void)rebuildContextButtons {
-    for (UIButton *button in self.contextButtons) [button removeFromSuperview];
-    NSMutableArray<UIButton *> *buttons = [NSMutableArray array];
-    NSArray<MTContextAction *> *actions = self.decision.actions;
-    for (MTContextAction *action in actions) {
-        BOOL configured = [action.identifier hasPrefix:@"configured:"];
-        UIImage *icon = configured ? [self.actionTarget subActionPanelImageForSelector:action.payload] : [UIImage systemImageNamed:action.symbol];
-        NSString *title = configured ? [self.actionTarget subActionPanelTitleForSelector:action.payload] : action.title;
-        UIButton *button = [self buttonWithIcon:icon accessibilityText:title ?: action.title action:@selector(activateContext:)];
-        button.accessibilityIdentifier = action.identifier;
-        button.tintColor = UIColor.labelColor;
-        [self.itemsScroll addSubview:button];
-        [buttons addObject:button];
+- (NSDictionary *)shortcutDefinition:(NSString *)selector {
+    id sections = [self preferences][kShortcutskey];
+    for (id section in [sections isKindOfClass:NSArray.class] ? sections : @[])
+        for (id item in [section isKindOfClass:NSArray.class] ? section : @[])
+            if ([item isKindOfClass:NSDictionary.class] && [item[@"selector"] isEqual:selector]) return item;
+    return nil;
+}
+
+- (void)rebuildEntries {
+    for (UIView *view in [self.itemsScroll.subviews copy]) [view removeFromSuperview];
+    NSDictionary *preferences = [self preferences];
+    NSDictionary *layout = MTBottomBarLayout(preferences);
+    NSMutableArray *segments = [NSMutableArray array], *apps = [NSMutableArray array], *contexts = [NSMutableArray array];
+    NSArray *records = [self recordsFromSnapshot:self.snapshot];
+    NSMutableArray *fallbacks = [records mutableCopy];
+    [fallbacks addObjectsFromArray:[self fallbackRecordsAfter:records limit:MTFloatingShelfCapacity]];
+    for (NSArray *entries in @[layout[@"left"], [layout[@"single"] boolValue] ? @[] : layout[@"right"]]) {
+        NSMutableArray *buttons = [NSMutableArray array];
+        for (NSDictionary *entry in entries) {
+            NSString *kind = entry[@"kind"], *value = entry[@"value"];
+            NSString *title = nil;
+            UIImage *icon = nil;
+            MTContextAction *contextAction = nil;
+            NSDictionary *app = nil;
+            BOOL fixed = [kind isEqual:@"action"];
+            if (fixed) {
+                NSDictionary *definition = [self shortcutDefinition:value];
+                title = [MTHelper customNameForShortcutItem:definition] ?: [self.actionTarget subActionPanelTitleForSelector:value];
+                NSString *customIcon = [MTHelper customIconForShortcutItem:definition];
+                icon = customIcon.length ? [MTHelper imageForName:customIcon withSystemColor:YES completion:nil] : [self.actionTarget subActionPanelImageForSelector:value];
+            } else if ([kind isEqual:@"app"]) {
+                app = @{@"bundleID":value, @"fallback":@YES, @"title":[entry[@"title"] length] ? entry[@"title"] : value};
+                for (NSDictionary *record in records) if ([record[@"bundleID"] isEqual:value]) { app = record; break; }
+            } else {
+                NSUInteger index = [entry[@"index"] unsignedIntegerValue];
+                contextAction = MTBottomBarContextAction(entry, self.decision);
+                if (contextAction) {
+                    BOOL configured = [contextAction.identifier hasPrefix:@"configured:"];
+                    title = configured ? [self.actionTarget subActionPanelTitleForSelector:contextAction.payload] : contextAction.title;
+                    icon = configured ? [self.actionTarget subActionPanelImageForSelector:contextAction.payload] : [UIImage systemImageNamed:contextAction.symbol];
+                } else if ([entry[@"fallback"] boolValue] && !self.decision && [preferences[kFloatingShelfEnabledKey] boolValue] && index < fallbacks.count) {
+                    app = fallbacks[index];
+                } else {
+                    NSString *key = [@"BAR_CONTEXT_" stringByAppendingString:value.uppercaseString];
+                    title = LOCALIZED(key); icon = [UIImage systemImageNamed:@"square.dashed"];
+                }
+            }
+            if (app) {
+                NSString *identifier = app[@"bundleID"];
+                title = [app[@"title"] isKindOfClass:NSString.class] ? app[@"title"] : identifier;
+                icon = [self iconForApp:identifier];
+            }
+            SEL action = app ? @selector(activate:) : @selector(activateContext:);
+            UIButton *button = [self buttonWithIcon:icon accessibilityText:title ?: value action:action];
+            if (fixed) {
+                [button removeTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+                [self.actionTarget configureBottomActionButton:button selector:value];
+            } else if (app) {
+                button.accessibilityIdentifier = app[@"bundleID"];
+                button.tag = [app[@"fallback"] boolValue] ? 1 : 0;
+                BOOL active = !button.tag && [self.snapshot[@"active"] isEqual:app[@"bundleID"]];
+                BOOL foreground = !button.tag && [self.snapshot[@"foreground"] isEqual:app[@"bundleID"]];
+                button.accessibilityValue = active ? LOCALIZED(@"FLOATING_SHELF_ACTIVE") : (foreground ? LOCALIZED(@"FLOATING_SHELF_FOREGROUND") : nil);
+                if (active) button.backgroundColor = [UIColor.systemBlueColor colorWithAlphaComponent:0.12];
+                button.enabled = self.preview || (self.unlocked && !self.pendingIdentifier);
+                [apps addObject:button];
+            } else if (contextAction) {
+                objc_setAssociatedObject(button, @selector(activateContext:), contextAction, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                [contexts addObject:button];
+            } else {
+                button.enabled = NO; button.alpha = 0.28;
+            }
+            button.layer.cornerRadius = self.actionTarget.buttonRadius;
+            button.layer.borderWidth = self.actionTarget.borderEnabled ? self.actionTarget.borderWidth : 0;
+            button.layer.borderColor = UIColor.labelColor.CGColor;
+            UIColor *tint = [preferences[kShortcutsTintEnabled] boolValue] ? MTColorFromHex(preferences[@"shortcutstint"], @"#ff0000") : UIColor.labelColor;
+            button.tintColor = tint;
+            if ([preferences[kColorEnabledkey] boolValue] && (!preferences[kShortcutsBackgroundTintEnabled] || [preferences[kShortcutsBackgroundTintEnabled] boolValue])) button.backgroundColor = MTColorFromHex(preferences[@"shortcutsbackgroundtint"], @"#5B5B5B");
+            button.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+            button.titleLabel.adjustsFontSizeToFitWidth = YES;
+            button.titleLabel.minimumScaleFactor = 0.65;
+            [button setTitleColor:tint forState:UIControlStateNormal];
+            if (self.actionTarget.useShortLabel) {
+                NSString *shortTitle = fixed ? ([MTHelper customNameForShortcutItem:[self shortcutDefinition:value]] ?: [MTHelper localizedStringForActionNamed:value shortName:YES bundle:[NSBundle bundleWithPath:bundlePath]]) : title;
+                [button setImage:nil forState:UIControlStateNormal];
+                [button setTitle:shortTitle forState:UIControlStateNormal];
+            }
+            [self.itemsScroll addSubview:button]; [buttons addObject:button];
+        }
+        [segments addObject:buttons];
     }
-    self.contextButtons = buttons;
-    self.divider.hidden = buttons.count == 0;
+    self.segments = segments; self.buttons = apps; self.contextButtons = contexts;
+    [self setNeedsLayout];
 }
 
 #pragma mark - 布局
 
 - (void)layoutSubviews {
     [super layoutSubviews];
+    NSDictionary *layout = MTBottomBarLayout([self preferences]);
     CGFloat width = CGRectGetWidth(self.bounds), height = CGRectGetHeight(self.bounds);
-    NSInteger slots = MAX(1, MTContextSlots([self preferences]));
-    // 右侧不再预留「更多」格，App/动作格等分整块悬浮区，与左侧固定 3 格等宽。
-    CGFloat cellWidth = width / slots;
-    CGFloat contentWidth = cellWidth * slots;
-    self.itemsScroll.frame = CGRectMake(0, 0, contentWidth, height);
-    NSArray<UIButton *> *buttons = self.contextButtons.count ? self.contextButtons : self.buttons;
-    CGFloat cellHeight = MAX(0, MIN(33, height - MTBottomToolbarCellTopInset));
-    for (NSUInteger index = 0; index < buttons.count; index++) {
-        buttons[index].frame = CGRectMake(index * cellWidth + 2, MTBottomToolbarCellTopInset, MAX(0, cellWidth - 4), cellHeight);
+    CGFloat left = width * MTBottomBarLeftFraction(layout);
+    self.itemsScroll.frame = self.bounds; self.itemsScroll.contentSize = self.bounds.size;
+    CGFloat cellHeight = MAX(0, MIN(self.actionTarget.buttonHeight, height - MTBottomToolbarCellTopInset));
+    CGFloat gap = MAX(0, MIN(20, self.actionTarget.buttonSpacing));
+    CGFloat scale = MAX(0.3, MIN(1, self.actionTarget.widthScale / 100.0));
+    for (NSUInteger segment = 0; segment < self.segments.count; segment++) {
+        NSArray<UIButton *> *buttons = self.segments[segment];
+        CGFloat segmentWidth = segment ? width - left : left;
+        CGFloat cellWidth = buttons.count ? segmentWidth / buttons.count : 0;
+        CGFloat buttonWidth = MAX(0, cellWidth - MIN(gap, cellWidth)) * scale;
+        for (NSUInteger i = 0; i < buttons.count; i++) buttons[i].frame = CGRectMake((segment ? left : 0) + i * cellWidth + (cellWidth - buttonWidth) / 2, MTBottomToolbarCellTopInset, buttonWidth, cellHeight);
     }
-    self.itemsScroll.contentSize = CGSizeMake(MAX(contentWidth, buttons.count * cellWidth), height);
-    self.divider.hidden = NO;
-    self.divider.frame = CGRectMake(0, MTBottomToolbarCellTopInset + 3, 0.5, MAX(0, cellHeight - 6));
+    self.divider.hidden = [layout[@"single"] boolValue] || ![layout[@"left"] count] || ![layout[@"right"] count];
+    self.divider.frame = CGRectMake(left, MTBottomToolbarCellTopInset + 3, 0.5, MAX(0, cellHeight - 6));
     self.message.frame = CGRectMake(0, MTBottomToolbarCellTopInset, width, MAX(0, height - MTBottomToolbarCellTopInset));
 }
-
-- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-    // An overflowing contextual list owns horizontal dragging. The fixed area still handles long swipes.
-    return self.itemsScroll.contentSize.width <= CGRectGetWidth(self.itemsScroll.bounds) + 0.5;
-}
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer { return YES; }
 
 #pragma mark - 执行
 
 - (void)activate:(UIButton *)button {
     NSDictionary *preferences = MTPrefsManager.sharedInstance.prefs;
     if (self.preview || !self.unlocked || !MTBottomToolbarEnabled(preferences) || !self.window || self.hidden || ![self.actionTarget keyboardPanelGestureSourceVisible] || self.pendingIdentifier ||
-        ![preferences[kFloatingShelfEnabledKey] isKindOfClass:NSNumber.class] ||
-        ![preferences[kFloatingShelfEnabledKey] boolValue] || ![self.buttons containsObject:button]) return;
+        ![self.buttons containsObject:button]) return;
     [[MTContextSignalCenter sharedCenter] noteActionPerformed];
     NSString *identifier = [button.accessibilityIdentifier copy];
     if (!identifier.length) return;
@@ -302,7 +354,7 @@
         if (!view || view.requestGeneration != generation || ![view.pendingIdentifier isEqual:identifier]) return;
         view.pendingIdentifier = nil;
         [spinner removeFromSuperview];
-        for (UIButton *current in view.buttons) current.enabled = YES;
+        for (UIButton *current in view.buttons) current.enabled = view.unlocked;
         [view refresh];
         if (result != MTSystemOpenSucceeded && view.window && !view.hidden) {
             NSUInteger messageGeneration = ++view.messageGeneration;
@@ -316,12 +368,12 @@
 
 - (void)activateContext:(UIButton *)button {
     if (self.preview || !self.window || self.hidden || ![self.actionTarget keyboardPanelGestureSourceVisible] || !MTBottomToolbarEnabled([self preferences])) return;
-    NSUInteger index = [self.contextButtons indexOfObject:button];
-    if (index == NSNotFound || index >= self.decision.actions.count) return;
-    MTContextAction *shown = self.decision.actions[index];
+    if (![self.contextButtons containsObject:button]) return;
+    MTContextAction *shown = objc_getAssociatedObject(button, @selector(activateContext:));
+    if (!shown) return;
     MTContextDecision *fresh = [[MTContextSignalCenter sharedCenter] decisionForExecution];
     if (fresh.group != self.decision.group) return;
-    MTContextAction *action;
+    MTContextAction *action = nil;
     for (MTContextAction *candidate in fresh.actions) if ([candidate.identifier isEqual:shown.identifier]) { action = candidate; break; }
     if (!action) return;
     NSLog(@"[MetisKeyboard][ContextGroup] perform id=%@ kind=%ld", action.identifier, (long)action.payloadKind);
