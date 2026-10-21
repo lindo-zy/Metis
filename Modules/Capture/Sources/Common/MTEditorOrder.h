@@ -48,12 +48,12 @@ typedef NS_ENUM(NSUInteger, MTSelectionToolbarArrangement) {
 /// （「完成」已随 2.0.8 移除：默认配置下与保存动作完全重复。）
 + (NSArray<NSString *> *)defaultSelectionIdentifiers;
 /// SHELLX 扩展按钮 id 子集（区域/即时/冻结/套壳/关闭/记录/最近/长图/整屏/标记/编辑/问答/
-/// 翻译/扫码）：仅在 SHELLX 在场且总开关打开时由调用方保留在工具栏，其余场合从顺序中
-/// 整体剔除。设置页用 shellXInstalled 同口径判定（未装时不列出、不预览）。
+/// 翻译/扫码）：仅在 SHELLX 已安装（dylib 在场）时由调用方保留在工具栏，未装时从顺序中
+/// 整体剔除。设置页与截图界面共用 shellXInstalled 这一口径；不看 SHELLX 自己的总开关。
 + (NSArray<NSString *> *)shellxSelectionIdentifiers;
 /// SHELLX 插件是否安装：按注入目录里的 dylib 文件探测，不认偏好域（卸载后偏好可能残留）。
-/// 设置页进程没有 SHELLX 注入，取不到其 ObjC 类，只能认文件；SpringBoard 运行时另有
-/// MTShellXBridge 的类在场 + 总开关判定，两者用途不同不要互相替代。
+/// 设置页进程没有 SHELLX 注入，取不到其 ObjC 类，只能认文件；截图界面与设置页共用这一
+/// 判定——装了 dylib 就显示 SHELLX 按钮，不看 SHELLX 自己的总开关。
 + (BOOL)shellXInstalled;
 /// SHELLX 扩展按钮 id → 外调动作映射。键集合必须与 shellxSelectionIdentifiers 一致：
 /// 目录加了按钮而映射漏配时，点击会静默掉进本方输出动作分支，宿主测试钉住这一前提。

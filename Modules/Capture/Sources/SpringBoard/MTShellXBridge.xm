@@ -11,27 +11,12 @@
 // SpringBoard 的 UIApplication openURL 打开 prefs:// 路由（快捷指令同链路，SHELLX 在
 // URL 分发层拦截）。名与路由常量集中在 MTConstants，逐字取自 SHELLX 插件文档。
 // 探测不设重试链：调用时机全部是用户主动交互，远晚于 SpringBoard 注入期。
-
-static NSString * const MTShellXPrefsDomain = @"com.iosdump.screenshotshell";
-static NSString * const MTShellXMasterSwitchKey = @"GlobalEnabled";
+// 工具栏按钮显隐不在此判定：由 MTEditorOrder.shellXInstalled 统一（装了就显示）。
 
 @implementation MTShellXBridge
 
 + (BOOL)isInstalled {
     return objc_getClass("SHELLXPluginManager") != nil;
-}
-
-+ (BOOL)masterSwitchEnabled {
-    if (![self isInstalled]) return NO;
-    CFPreferencesAppSynchronize((__bridge CFStringRef)MTShellXPrefsDomain);
-    id value = CFBridgingRelease(CFPreferencesCopyAppValue(
-        (__bridge CFStringRef)MTShellXMasterSwitchKey,
-        (__bridge CFStringRef)MTShellXPrefsDomain));
-    return [value isKindOfClass:[NSNumber class]] && [(NSNumber *)value boolValue];
-}
-
-+ (BOOL)toolbarAvailable {
-    return [self isInstalled] && [self masterSwitchEnabled];
 }
 
 + (NSString *)notificationNameForAction:(MTShellXAction)action {

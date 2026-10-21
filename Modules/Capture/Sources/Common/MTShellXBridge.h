@@ -21,18 +21,15 @@ typedef NS_ENUM(NSInteger, MTShellXAction) {
     MTShellXActionAssistive,   // 套壳截图（URL shellx_full；真机实测：逆向名 AssistiveScreenshot 通知实际是整屏）
 };
 
-/// SHELLX 出向桥：运行时在场探测 + 总开关读取 + 通知/URL 双通道外调。
+/// SHELLX 出向桥：运行时在场探测 + 通知/URL 双通道外调。
 /// 与 MTShellXPlugin 的入向注册互补；未装 SHELLX 时一切调用为安全 no-op。
+/// 工具栏按钮的显隐口径不在这里：由 MTEditorOrder.shellXInstalled（dylib 文件探测）
+/// 决定，保证设置页（SHELLX 不注入）与截图界面看到同一套按钮。
 @interface MTShellXBridge : NSObject
 
 /// SHELLX 在场：SpringBoard 进程内能取到 SHELLXPluginManager 类（其 dylib 的
 /// 全部通知观察者与该类同住，类在场即代表观察者已注册）。
 + (BOOL)isInstalled;
-/// SHELLX 总开关：域 com.iosdump.screenshotshell 的 GlobalEnabled；键缺失视为关
-/// （SHELLX 侧对关态通知直接 return，所以这里必须同口径）。
-+ (BOOL)masterSwitchEnabled;
-/// 工具栏 SHELLX 入口可用 = 在场 && 总开关开；不满足时调用方应隐藏全部 SHELLX 按钮。
-+ (BOOL)toolbarAvailable;
 /// 通知类动作对应的 SHELLX 触发通知名（不检查可用性）；URL 类动作返回 nil。
 /// 供调用方做自发自收抑制等配套处理。
 + (nullable NSString *)notificationNameForAction:(MTShellXAction)action;

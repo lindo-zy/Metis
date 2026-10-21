@@ -132,7 +132,8 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     [self addSubview:_modeLabel];
 
     // 顺序、显隐、外观在打开时取快照；与设置预览共用同一工具栏布局。
-    // SHELLX 扩展键只在 SHELLX 在场且总开关打开时出现（即时模式本就不含这些键）。
+    // SHELLX 扩展键只看插件是否安装（dylib 在场即显示，与设置页、键盘侧同一口径）；
+    // 即时模式本就不含这些键。
     NSArray<NSString *> *order = [MTEditorOrder visibleSelectionOrderForOrder:[MTEditorOrder currentSelectionOrder]
                                                                       hidden:[MTEditorOrder currentSelectionHidden]
                                                                      instant:_isInstantMode];
@@ -143,7 +144,9 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         [filtered removeObject:@"freeze"];
         order = filtered;
     }
-    if (![MTShellXBridge toolbarAvailable]) {
+    // 未装 SHELLX 时其外调按钮点了也无接收方，整体隐藏；装了就不看它自己的总开关，
+    // 避免"已装却整排消失"（总开关关闭时点击静默无效，行为同键盘侧截图键）。
+    if (![MTEditorOrder shellXInstalled]) {
         NSMutableArray<NSString *> *withoutShellX = [order mutableCopy];
         [withoutShellX removeObjectsInArray:[MTEditorOrder shellxSelectionIdentifiers]];
         order = withoutShellX;
