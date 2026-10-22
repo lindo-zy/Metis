@@ -279,6 +279,19 @@ static NSBundle *mtpLocalBundle;
     return NO;
 }
 
+// 「名称 + 图标同时非空」即视为一次完整配置：无需先选手势动作也可物化。
+// 填写过程按最后一次输入落盘，不需要额外的保存按钮。
+- (BOOL)pendingButtonHasCompleteIdentity {
+    return [self.pendingName isKindOfClass:[NSString class]] && self.pendingName.length > 0
+        && [self.pendingIcon isKindOfClass:[NSString class]] && self.pendingIcon.length > 0;
+}
+
+// A pending new button is worth materialising once it carries either a gesture
+// choice or a complete name/icon identity.
+- (BOOL)pendingButtonIsSavable {
+    return [self pendingButtonHasAnySelection] || [self pendingButtonHasCompleteIdentity];
+}
+
 // Writes unsaved name/icon edits on a saved button. Blank values clear the
 // override so the built-in label/icon applies again.
 - (void)persistPendingNameAndIcon {
@@ -363,10 +376,23 @@ static NSBundle *mtpLocalBundle;
     if (pop) [self.navigationController popViewControllerAnimated:YES];
 }
 
-// Auto-save trigger: a selection with a value means the button now exists.
+// Deferred so the table is never rebuilt inside the resign-first-responder
+// callback chain: the PS fork may invoke set: at any point of the edit.
+- (void)scheduleAutoCommitIfNeeded {
+    if (!self.pendingNewEntry || ![self pendingButtonIsSavable]) return;
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        [strongSelf autoCommitPendingNewButtonIfNeeded];
+    });
+}
+
+// Auto-save trigger: a gesture selection or a complete name/icon identity
+// means the button now exists.
 - (void)autoCommitPendingNewButtonIfNeeded {
     if (!self.pendingNewEntry) return;
-    if (![self pendingButtonHasAnySelection]) return;
+    if (![self pendingButtonIsSavable]) return;
     [self commitPendingNewButtonPopping:NO reload:YES];
 }
 
@@ -396,6 +422,8 @@ static NSBundle *mtpLocalBundle;
         : @"";
     if (self.pendingNewEntry) {
         self.pendingName = name;
+        // 「有值就保存」：名称与图标都填好时立即物化按钮。
+        [self scheduleAutoCommitIfNeeded];
         return;
     }
     // Saved buttons write the edit when the field resigns or the page is
@@ -437,6 +465,8 @@ static NSBundle *mtpLocalBundle;
 
     if (self.pendingNewEntry) {
         self.pendingIcon = icon;
+        // 「有值就保存」：图标与名称都填好时立即物化按钮。
+        [self scheduleAutoCommitIfNeeded];
         return;
     }
     self.pendingIcon = icon;
@@ -560,11 +590,15 @@ static NSBundle *mtpLocalBundle;
             [field addTarget:self action:@selector(iconFieldTextChanged:) forControlEvents:UIControlEventEditingChanged];
         }
     }
-    // 名称/图标行：没有保存按钮，结束编辑即落盘（新建态除外，随按钮一起写入）。
-    if (specifier == self.customNameSpec || (self.customIconSpec && specifier == self.customIconSpec)) {
-        UITextField *field = [self editableTextFieldInView:cell];
-        if (field && ![field actionsForTarget:self forControlEvent:UIControlEventEditingDidEnd]) {
-            [field addTarget:self action:@selector(nameOrIconFieldEditingDidEnd:) forControlEvents:UIControlEventEditingDidEnd];
+    // 名称/图标行：没有保存按钮，结束编辑即落盘；新建态则看名称与图标是否
+    // 凑齐，凑齐即物化按钮（此前只由手势选择触发）。名称与图标分开绑定，
+    // 便于结束编辑时按行校准暂存值。
+    UITextField *endEditField = [self editableTextFieldInView:cell];
+    if (endEditField && (specifier == self.customNameSpec || (self.customIconSpec && specifier == self.customIconSpec))) {
+        BOOL isNameRow = (specifier == self.customNameSpec);
+        SEL action = isNameRow ? @selector(nameFieldEditingDidEnd:) : @selector(iconFieldEditingDidEnd:);
+        if (![endEditField actionsForTarget:self forControlEvent:UIControlEventEditingDidEnd]) {
+            [endEditField addTarget:self action:action forControlEvents:UIControlEventEditingDidEnd];
         }
     }
     if (!self.customIconSpec || specifier != self.customIconSpec) {
@@ -587,15 +621,58 @@ static NSBundle *mtpLocalBundle;
     cell.imageView.tintColor = placeholder ? UIColor.secondaryLabelColor : nil;
 }
 
-- (void)nameOrIconFieldEditingDidEnd:(UITextField *)field {
-    // Deferred so the write never runs inside the resign-first-responder
-    // transition (tapping another row re-targets the keyboard afterwards).
+- (NSString *)trimmedFieldText:(UITextField *)field {
+    NSString *text = [field.text isKindOfClass:[NSString class]] ? field.text : @"";
+    return [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+}
+
+// 暂存值校准：PS 框架的 set: 回调时机因 fork 而异，这里以字段当前文本为准
+// 补写暂存值，保证落盘拿到的是用户最后输入的内容。
+- (void)stageFieldValue:(NSString *)value forName:(BOOL)isName {
+    if (self.pendingNewEntry) {
+        if (isName) self.pendingName = value;
+        else self.pendingIcon = value;
+        return;
+    }
+    // 值与当前已解析值一致时不脏标记：避免「点进又退出编辑」触发一次无谓
+    // 的全量写盘（writePrefs 会广播变更，正在运行的键盘会随之 reload）。
+    NSString *current = isName ? [self readNameValue:nil] : [self readIconValue:nil];
+    if (![current isKindOfClass:[NSString class]]) current = @"";
+    BOOL unchanged = [current isEqualToString:value];
+    if (isName) {
+        self.pendingName = value;
+        if (!unchanged) self.nameDirty = YES;
+    } else {
+        self.pendingIcon = value;
+        if (!unchanged) self.iconDirty = YES;
+    }
+}
+
+// Deferred so the write never runs inside the resign-first-responder
+// transition (tapping another row re-targets the keyboard afterwards).
+- (void)handleFieldEditingDidEnd:(UITextField *)field isName:(BOOL)isName {
+    NSString *value = [self trimmedFieldText:field];
     __weak typeof(self) weakSelf = self;
     dispatch_async(dispatch_get_main_queue(), ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
+        BOOL wasPendingNewEntry = strongSelf.pendingNewEntry;
+        [strongSelf stageFieldValue:value forName:isName];
+        if (wasPendingNewEntry) {
+            // 名称与图标凑齐即物化；未凑齐时保留暂存，供继续填写或手势选择。
+            [strongSelf autoCommitPendingNewButtonIfNeeded];
+            return;
+        }
         [strongSelf persistPendingNameAndIcon];
     });
+}
+
+- (void)nameFieldEditingDidEnd:(UITextField *)field {
+    [self handleFieldEditingDidEnd:field isName:YES];
+}
+
+- (void)iconFieldEditingDidEnd:(UITextField *)field {
+    [self handleFieldEditingDidEnd:field isName:NO];
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
@@ -629,11 +706,10 @@ static NSBundle *mtpLocalBundle;
             __strong typeof(weakSelf) strongSelf = weakSelf;
             if (!strongSelf || !symbolName.length) return;
             if (strongSelf.pendingNewEntry) {
-                // 新建未保存按钮没有可落盘的条目：保持暂存，随按钮一起写入。
+                // 新建未保存按钮没有可落盘的条目：先暂存，凑齐（名称+图标）
+                // 时在 setIconValue: 里连带落盘；reload 保证 UI 始终跟上。
                 NSLog(@"[MetisKeyboard][SFSymbol] stage icon=%@ (pendingNewEntry)", symbolName);
                 [strongSelf setIconValue:symbolName specifier:strongSelf.iconLibrarySpec];
-                // 图标本身就是「有值」：已有手势选择时立即连带落盘。
-                [strongSelf autoCommitPendingNewButtonIfNeeded];
                 [strongSelf reloadSpecifiers];
                 return;
             }
@@ -703,14 +779,14 @@ static NSBundle *mtpLocalBundle;
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
     // 没有保存按钮：离开页面时把暂存的名称/图标写盘；新建按钮若已选过动作
-    // 也在此兜底落盘（正常情况下 viewWillAppear 已经提交），只有完全没选过
-    // 动作时才丢弃暂存的手势条目。
+    // 或名称与图标已凑齐，也在此兜底落盘（正常情况下 viewWillAppear 或字段
+    // 结束编辑已经提交），只有既无手势选择又未凑齐时才丢弃暂存的手势条目。
     if ([self isMovingFromParentViewController]) {
         // 正在编辑的字段先提交，避免带着未结束的编辑离开页面（无保存按钮，
         // 退出即落盘）。
         [self.view endEditing:YES];
         if (self.pendingNewEntry) {
-            if ([self pendingButtonHasAnySelection]) {
+            if ([self pendingButtonIsSavable]) {
                 [self commitPendingNewButtonPopping:NO reload:NO];
             } else {
                 [self removeCustomActionEntriesWithIdentifier:kNewButtonPendingIdentifier];
@@ -731,5 +807,28 @@ static NSBundle *mtpLocalBundle;
     [super viewDidLoad];
     // 本页不提供保存按钮：所有修改即时落盘。
     self.navigationItem.rightBarButtonItem = nil;
+    // 切后台/锁屏不会走 pop 支路（viewWillDisappear 的 isMovingFromParent
+    // 限定），此处兜底提交进行中的名称/图标编辑。
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(mtp_applicationWillResignActive:)
+                                                 name:UIApplicationWillResignActiveNotification
+                                               object:nil];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+// Terminating editing early still commits what the user typed: without this
+// the field stays first responder, no persistence trigger fires and the icon
+// change is lost with the Settings process.
+- (void)mtp_applicationWillResignActive:(NSNotification *)notification {
+    if (!self.isViewLoaded || !self.view.window) return;
+    [self.view endEditing:YES];
+    if (self.pendingNewEntry) {
+        [self autoCommitPendingNewButtonIfNeeded];
+        return;
+    }
+    [self persistPendingNameAndIcon];
 }
 @end
