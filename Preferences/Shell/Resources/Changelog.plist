@@ -91,18 +91,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.8.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>动作组默认预设只种入动作目录内的动作，删除后仍可重新添加</string>
-			</dict>
-		</array>
-	</dict>
 </array>
 </plist>
