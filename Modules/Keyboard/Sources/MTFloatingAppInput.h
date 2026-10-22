@@ -3,6 +3,11 @@
 #include <stdint.h>
 
 static NSString * const MTFloatInputSessionName = @"com.lindo.metis.keyboard.floating-input.session-v1";
+static NSString * const MTFloatInputBaseName = @"com.lindo.metis.keyboard.floating-input.base-v1";
+static NSString * const MTFloatInputFocusName = @"com.lindo.metis.keyboard.floating-input.focus-v1";
+static inline NSString *MTFloatInputKeyboardName(uint32_t pid) {
+    return [NSString stringWithFormat:@"com.lindo.metis.keyboard.floating-input.keyboard-v1.%u", pid];
+}
 static inline NSString *MTFloatInputName(uint32_t pid) {
     return [NSString stringWithFormat:@"com.lindo.metis.keyboard.floating-input.pinch-v1.%u", pid];
 }
@@ -24,6 +29,20 @@ typedef NS_ENUM(uint32_t, MTFloatPinchPhase) {
 };
 static inline uint64_t MTFloatInputSessionWord(uint32_t pid, uint32_t nonce) {
     return ((uint64_t)nonce << 32) | pid;
+}
+// Only docked keyboard geometry is relayed, as a fraction of the display height.
+// No text, responder identities, or user content crosses this channel.
+static inline uint64_t MTFloatKeyboardWord(uint32_t nonce, double top) {
+    if (!nonce) return 0;
+    uint32_t geometry = isfinite(top) && top >= 0 && top < 1
+        ? 0x10000U | (uint32_t)lround(top * 65535) : 0;
+    return ((uint64_t)nonce << 32) | geometry;
+}
+static inline BOOL MTFloatDecodeKeyboard(uint64_t word, uint32_t nonce, double *top) {
+    if (!nonce || (uint32_t)(word >> 32) != nonce || (word & 0xfffe0000ULL)) return NO;
+    if (!(word & 0x10000U) && (word & 0xffffU)) return NO;
+    *top = word & 0x10000U ? (word & 0xffffU) / 65535.0 : -1;
+    return YES;
 }
 static inline uint64_t MTFloatPinchWord(uint32_t nonce, uint8_t gesture, MTFloatPinchPhase phase, double scale) {
     if (!nonce || !gesture || phase > MTFloatPinchCancelled || !isfinite(scale) || scale <= 0) return 0;

@@ -104,9 +104,9 @@
 #define kCellBorderWidthkey @"shortcutborderwidth"
 #define kButtonWidthScalekey @"shortcutwidthscale"
 #define kSubActionPanelScaleKey @"subactionpanelscale"
-// 悬浮打开应用小窗的默认最大占屏比例（百分比存储，如 72 = 72%）。
-#define kFloatingCardMaxScaleKey @"floatingcardmaxscale"
-// 悬浮打开应用小窗的默认水平停靠位置（0=居左 1=居中 2=居右，缺省居中）。
+// 悬浮小窗占屏面积（百分比，缺省 20），与旧版线性比例使用不同的键。
+#define kFloatingCardAreaKey @"floatingcardarea"
+// 悬浮小窗默认水平停靠位置（0=居左 1=居中 2=居右，缺省居右）。
 #define kFloatingCardPositionKey @"floatingcardposition"
 // One mode switch: shelf replaces only the keyboard bottom action toolbar.
 // 速启面板常用应用：bundleID 数组（「常用应用排序与搜索别名」页写入，含排序）。
@@ -303,20 +303,19 @@ static inline NSInteger MTMultiRowCapacityForPreferences(NSDictionary *preferenc
                MTMultiRowButtonsPerRowFromPreferences(preferences) * maxMultiRowRows);
 }
 
-// 悬浮小窗布局把自动适配比例封顶在这个配置值上（0.30–1.00，缺省 0.72）。
-// 非法值（含 NaN）一律回退缺省，读配置失败不产生危险布局。
-static inline CGFloat MTFloatingCardMaxScaleFromPreferences(NSDictionary *preferences) {
-    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardMaxScaleKey] : nil;
-    CGFloat scale = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] / 100.0 : 0.72;
-    if (!(scale >= 0.30) || scale > 1.0) scale = 0.72;
-    return scale;
+// 使用独立面积键，避免把旧版本的线性缩放值误读成面积。新方案默认约 1/5 屏。
+static inline CGFloat MTFloatingCardAreaFromPreferences(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardAreaKey] : nil;
+    double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 20;
+    if (!isfinite(percent)) percent = 20;
+    return lround(MIN(60, MAX(10, percent)) / 5) * 5 / 100.0;
 }
 
-// 悬浮小窗打开时的默认水平位置：0=居左、1=居中、2=居右。非法值一律回退居中。
+// 悬浮小窗默认靠右；已有有效停靠设置仍然保留。
 static inline NSInteger MTFloatingCardPositionFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardPositionKey] : nil;
-    NSInteger position = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 1;
-    return (position >= 0 && position <= 2) ? position : 1;
+    NSInteger position = [value respondsToSelector:@selector(integerValue)] ? [value integerValue] : 2;
+    return (position >= 0 && position <= 2) ? position : 2;
 }
 
 // 速启面板停靠侧：0=靠左、1=靠右。缺省与非法值一律回退靠右。

@@ -1,9 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<!-- 更新说明数据源：只保留最近 5 个版本，版本降序由 MTPrefsChangelogModel 保证。
-     发版时在数组首位追加一条，并删除第 6 条；tag 只接受 新增 / 优化 / 修复（其他写法归入「调整」）。 -->
 <array>
+	<dict>
+		<key>version</key>
+		<string>0.9.4</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>悬浮应用保持显示时，可直接操作底层应用，无需先收起小窗</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>悬浮小窗默认约占屏幕五分之一，支持拖动、缩放和键盘避让</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>切换两个应用输入时自动交接键盘，收起与关闭由小窗按钮控制</string>
+			</dict>
+		</array>
+	</dict>
 	<dict>
 		<key>version</key>
 		<string>0.9.2</string>
@@ -59,19 +82,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>自定义动作的改动在所有引用点同步生效</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.8.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>动作组规则「添加动作」去掉中间菜单，直接从动作列表选择</string>
 			</dict>
 		</array>
 	</dict>

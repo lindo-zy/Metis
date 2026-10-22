@@ -158,34 +158,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 
 @class MTFloatingAppCoordinator;
 
-static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
-    // WindowServer 先选择触摸所属的渲染图层，再进入该进程的 UIKit hitTest。
-    // clearColor 的背景仅有 UIKit 点击层还不够：必须显式让透明边界参与命中。
-    for (NSString *getterName in @[@"allowsHitTesting", @"hitTestsAsOpaque"]) {
-        SEL getter = NSSelectorFromString(getterName);
-        NSString *setterName = [NSString stringWithFormat:@"set%@%@:",
-            [[getterName substringToIndex:1] uppercaseString], [getterName substringFromIndex:1]];
-        SEL setter = NSSelectorFromString(setterName);
-        NSMethodSignature *getSignature = [layer methodSignatureForSelector:getter];
-        NSMethodSignature *setSignature = [layer methodSignatureForSelector:setter];
-        if (![layer respondsToSelector:getter] || ![layer respondsToSelector:setter] ||
-            getSignature.numberOfArguments != 2 || setSignature.numberOfArguments != 3 ||
-            strcmp(setSignature.methodReturnType, "v")) return NO;
-        const char *result = getSignature.methodReturnType;
-        const char *argument = [setSignature getArgumentTypeAtIndex:2];
-        if ((strcmp(result, "B") && strcmp(result, "c")) ||
-            (strcmp(argument, "B") && strcmp(argument, "c"))) return NO;
-        @try {
-            ((void (*)(id, SEL, bool))objc_msgSend)(layer, setter, true);
-            if (!((bool (*)(id, SEL))objc_msgSend)(layer, getter)) return NO;
-        } @catch (__unused NSException *exception) { return NO; }
-    }
-    return YES;
-}
-
 @interface MTFloatingAppWindow : UIWindow
 @property(nonatomic, weak) UIView *card;
-@property(nonatomic, weak) UIView *backdrop;
 @end
 @implementation MTFloatingAppWindow
 - (BOOL)canBecomeKeyWindow { return NO; }
@@ -194,26 +168,24 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
     if (self.hidden || !self.card || self.card.hidden) return nil;
     CGPoint local = [self.card convertPoint:point fromView:self];
     if ([self.card pointInside:local withEvent:event]) return [self.card hitTest:local withEvent:event];
-    // 外部点击由独立背景层接收；不在 hitTest 中改变窗口生命周期。
-    UIView *backdrop = self.backdrop;
-    if (!backdrop) return nil;
-    CGPoint backgroundPoint = [backdrop convertPoint:point fromView:self];
-    return [backdrop hitTest:backgroundPoint withEvent:event];
+    return nil; // WindowServer also sees only the card-sized window context.
 }
 @end
 
 @interface MTFloatingAppCardController : UIViewController <UIGestureRecognizerDelegate>
 @property(nonatomic, weak) MTFloatingAppCoordinator *owner;
 @property(nonatomic, strong) UIView *card;
-@property(nonatomic, strong) UIView *backdrop;
 @property(nonatomic, strong) UIView *canvas;
 @property(nonatomic, strong) UIView *content;
 @property(nonatomic, strong) UILabel *titleLabel;
 @property(nonatomic, strong) UIActivityIndicatorView *spinner;
 @property(nonatomic) CGSize canvasSize;
 @property(nonatomic) CGPoint normalizedCenter;
-// 悬浮设置页写入的最大占屏比例；打开时注入，悬浮期间随 prefs 变更热更。
-@property(nonatomic) CGFloat maxScale;
+// 占屏面积（含标题栏），缺省 20%；键盘避让仅改变当前显示，不覆盖用户位置。
+@property(nonatomic) CGFloat areaFraction;
+@property(nonatomic) CGFloat keyboardTop;
+@property(nonatomic) BOOL positionInitialized;
+@property(nonatomic) BOOL layingOut;
 // 悬浮设置页写入的水平停靠位置（0=居左 1=居中 2=居右）；拖动后以拖动为准。
 @property(nonatomic) NSInteger horizontalAlignment;
 @property(nonatomic) BOOL horizontalCustomized;
@@ -258,6 +230,11 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
 @property(nonatomic) int inputSessionToken;
 @property(nonatomic) int inputToken;
 @property(nonatomic) int inputSceneToken;
+@property(nonatomic) int inputBaseToken;
+@property(nonatomic) int inputFocusToken;
+@property(nonatomic, strong) NSMutableDictionary<NSNumber *, NSNumber *> *keyboardTokens;
+@property(nonatomic) int baseInputSceneToken;
+@property(nonatomic) pid_t baseInputPID;
 @property(nonatomic) uint32_t inputNonce;
 @property(nonatomic) uint8_t inputGesture;
 @property(nonatomic) BOOL inputGestureFinished;
@@ -278,6 +255,7 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
 - (void)startInputRelay;
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce;
 - (void)stopInputRelay;
+- (void)updateKeyboardForPID:(pid_t)pid nonce:(uint32_t)nonce generation:(NSUInteger)generation;
 - (BOOL)protectsScene:(id)scene;
 - (id)protectedSettings:(id)settings scene:(id)scene;
 @end
@@ -286,7 +264,8 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
 - (instancetype)init {
     if ((self = [super init])) {
         self.normalizedCenter = CGPointMake(0.5, 0.45);
-        self.horizontalAlignment = 1;
+        self.horizontalAlignment = 2;
+        self.keyboardTop = -1;
         self.requestedZoom = self.displayedZoom = self.pinchStartZoom = 1;
     }
     return self;
@@ -294,15 +273,6 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
 - (void)loadView {
     self.view = [[UIView alloc] initWithFrame:UIScreen.mainScreen.bounds];
     self.view.backgroundColor = UIColor.clearColor;
-    self.backdrop = [[UIView alloc] initWithFrame:self.view.bounds];
-    self.backdrop.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.backdrop.backgroundColor = UIColor.clearColor;
-    BOOL hitTestingConfigured = MTFloatConfigureBackdropHitTesting(self.backdrop.layer);
-    // 不支持显式图层命中的系统使用实际绘制的轻微遮罩，避免再次漏收 App 外部点击。
-    if (!hitTestingConfigured) self.backdrop.backgroundColor = [UIColor colorWithWhite:0 alpha:0.03];
-    NSLog(@"[MetisKeyboard][FloatingApp] backdrop routing configured=%d", hitTestingConfigured);
-    [self.backdrop addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(outsideTapped:)]];
-    [self.view addSubview:self.backdrop];
     self.card = [[UIView alloc] init];
     self.card.backgroundColor = UIColor.secondarySystemBackgroundColor;
     self.card.layer.cornerRadius = 16;
@@ -340,21 +310,15 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
 }
 - (void)closeTapped { [self.owner close]; }
 - (void)minimizeTapped { [self.owner minimize]; }
-- (void)outsideTapped:(UITapGestureRecognizer *)gesture {
-    MTFloatingAppCoordinator *owner = self.owner;
-    // 收起/替换窗口后，已经排队的旧点击不能影响新的悬浮会话。
-    if (gesture.state != UIGestureRecognizerStateEnded || !owner || owner.controller != self ||
-        owner.window.hidden || owner.window.card != self.card || owner.window.backdrop != gesture.view) return;
-    NSLog(@"[MetisKeyboard][FloatingApp] outside tap minimize");
-    [owner minimize];
-}
 - (void)setTitle:(NSString *)title { [self loadViewIfNeeded]; self.titleLabel.text = title; }
 - (void)drag:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:self.view];
+    CGRect display = self.view.window.windowScene.coordinateSpace.bounds;
+    if (CGRectIsEmpty(display)) return;
     if (!CGPointEqualToPoint(translation, CGPointZero)) self.horizontalCustomized = YES;
-    CGPoint center = self.card.center;
-    center.x += translation.x; center.y += translation.y;
-    self.normalizedCenter = CGPointMake(center.x / MAX(1, self.view.bounds.size.width), center.y / MAX(1, self.view.bounds.size.height));
+    // Translation is in display points, not the scaled application's canvas.
+    self.normalizedCenter = CGPointMake(self.normalizedCenter.x + translation.x / display.size.width,
+                                        self.normalizedCenter.y + translation.y / display.size.height);
     [gesture setTranslation:CGPointZero inView:self.view];
     [self.view setNeedsLayout]; [self.view layoutIfNeeded];
 }
@@ -384,69 +348,74 @@ static BOOL MTFloatConfigureBackdropHitTesting(id layer) {
         NSLog(@"[MetisKeyboard][FloatingApp] resize zoom=%.3f", (double)self.displayedZoom);
     }
 }
-- (void)placeCard:(CGSize)size available:(CGRect)available {
-    self.displayedZoom = MTFloatingAppZoom(size, available, self.requestedZoom);
-    CGPoint center = CGPointMake(CGRectGetMinX(self.view.bounds) + self.view.bounds.size.width * self.normalizedCenter.x,
-                                 CGRectGetMinY(self.view.bounds) + self.view.bounds.size.height * self.normalizedCenter.y);
-    CGRect frame = MTFloatingAppFrame(size, available, self.displayedZoom, center,
-                                     self.horizontalAlignment, self.horizontalCustomized);
-    self.card.transform = CGAffineTransformIdentity;
-    self.card.bounds = (CGRect){CGPointZero, size};
-    self.card.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
-    self.card.transform = CGAffineTransformMakeScale(self.displayedZoom, self.displayedZoom);
-    if (self.horizontalCustomized) {
-        self.normalizedCenter = CGPointMake((self.card.center.x - CGRectGetMinX(self.view.bounds)) / MAX(1, self.view.bounds.size.width),
-                                            (self.card.center.y - CGRectGetMinY(self.view.bounds)) / MAX(1, self.view.bounds.size.height));
-    }
-}
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    CGRect bounds = self.view.bounds;
-    if (CGRectIsEmpty(bounds)) return;
-    UIEdgeInsets safe = self.view.safeAreaInsets;
-    CGSize size = self.canvasSize;
-    if (size.width < 1 || size.height < 1) size = UIScreen.mainScreen.bounds.size;
-    CGFloat cap = (self.maxScale >= 0.30 && self.maxScale <= 1.0) ? self.maxScale : 0.72;
-    UIView *header = [self.card viewWithTag:41];
-    [self.card bringSubviewToFront:header];
-    // 100% 视为全屏接管：卡片铺满整屏、内容铺满卡片，标题栏悬浮在安全区下方，
-    // 保证关闭/最小化/拖动仍可用；其余比例保持留白小窗布局。
-    if (cap >= 0.999) {
-        CGFloat scale = MIN(1.0, MIN(bounds.size.width / size.width, bounds.size.height / size.height));
-        CGFloat width = bounds.size.width, height = bounds.size.height;
-        CGFloat headerY = MAX(0, safe.top);
-        [self placeCard:bounds.size available:bounds];
-        self.card.layer.cornerRadius = self.displayedZoom >= 0.999 ? 0 : 16;
-        header.frame = CGRectMake(0, headerY, width, 44);
-        header.backgroundColor = [UIColor.secondarySystemBackgroundColor colorWithAlphaComponent:0.9];
-        [header viewWithTag:42].frame = CGRectMake(width - 44, 0, 44, 44);
-        [header viewWithTag:43].frame = CGRectMake(width - 88, 0, 44, 44);
-        self.titleLabel.frame = CGRectMake(12, 0, MAX(0, width - 104), 44);
-        self.content.frame = (CGRect){CGPointZero, bounds.size};
-        self.canvas.transform = CGAffineTransformIdentity;
-        self.canvas.bounds = (CGRect){CGPointZero, size};
-        self.canvas.center = CGPointMake(width / 2, height / 2);
-        self.canvas.transform = CGAffineTransformMakeScale(scale, scale);
-        self.spinner.center = CGPointMake(width / 2, height / 2);
-        return;
+    if (self.layingOut) return;
+    UIWindow *window = self.view.window ?: self.owner.window;
+    UIWindowScene *windowScene = window.windowScene;
+    if (!windowScene) return;
+    CGRect display = windowScene.coordinateSpace.bounds;
+    if (CGRectIsEmpty(display)) return;
+    UIEdgeInsets safe = UIEdgeInsetsMake(CGRectGetHeight(windowScene.statusBarManager.statusBarFrame), 0, 0, 0);
+    // A compact window's own safeAreaInsets no longer describes the full display.
+    for (UIWindow *reference in windowScene.windows) {
+        if (reference == window || reference.hidden ||
+            fabs(reference.frame.size.width - display.size.width) > 1 ||
+            fabs(reference.frame.size.height - display.size.height) > 1) continue;
+        UIEdgeInsets candidate = reference.safeAreaInsets;
+        safe.top = MAX(safe.top, candidate.top); safe.bottom = MAX(safe.bottom, candidate.bottom);
+        safe.left = MAX(safe.left, candidate.left); safe.right = MAX(safe.right, candidate.right);
     }
-    CGRect available = UIEdgeInsetsInsetRect(bounds, UIEdgeInsetsMake(safe.top + 8, safe.left, safe.bottom + 8, safe.right));
+    CGRect available = MTFloatingAppAvailableRect(display, UIEdgeInsetsInsetRect(display, safe), self.keyboardTop);
     if (CGRectIsEmpty(available)) return;
-    CGFloat scale = MIN(cap, MIN(available.size.width / size.width, MAX(1, available.size.height - 44) / size.height));
-    CGFloat width = size.width * scale, height = size.height * scale + 44;
+    CGSize canvas = self.canvasSize;
+    if (canvas.width < 1 || canvas.height < 1) canvas = display.size;
+    const CGFloat headerHeight = 36;
+    CGFloat scale = MTFloatingAppContentScale(canvas, display, available, self.areaFraction, headerHeight);
+    if (scale <= 0) return;
+    CGSize size = CGSizeMake(canvas.width * scale, canvas.height * scale + headerHeight);
+    self.displayedZoom = MTFloatingAppZoom(size, available, self.requestedZoom);
+    CGPoint center = CGPointMake(CGRectGetMinX(display) + display.size.width * self.normalizedCenter.x,
+                                 CGRectGetMinY(display) + display.size.height * self.normalizedCenter.y);
+    if (!self.positionInitialized) center.y = CGRectGetMinY(available) + size.height * self.displayedZoom / 2;
+    CGRect frame = MTFloatingAppFrame(size, available, self.displayedZoom, center,
+                                     self.horizontalAlignment, self.horizontalCustomized);
+    self.layingOut = YES;
+    // Crucial: restrict the actual CAContext/window to the card, rather than
+    // relying on a fullscreen transparent UIView to pass cross-process touches.
+    if (!CGRectEqualToRect(window.frame, frame)) window.frame = frame;
+    self.view.frame = window.bounds;
+    self.card.transform = CGAffineTransformIdentity;
+    self.card.bounds = (CGRect){CGPointZero, size};
+    self.card.center = CGPointMake(frame.size.width / 2, frame.size.height / 2);
+    self.card.transform = CGAffineTransformMakeScale(self.displayedZoom, self.displayedZoom);
     self.card.layer.cornerRadius = 16;
-    [self placeCard:CGSizeMake(width, height) available:available];
-    header.frame = CGRectMake(0, 0, width, 44);
-    header.backgroundColor = UIColor.clearColor;
-    [header viewWithTag:42].frame = CGRectMake(width - 44, 0, 44, 44);
-    [header viewWithTag:43].frame = CGRectMake(width - 88, 0, 44, 44);
-    self.titleLabel.frame = CGRectMake(12, 0, MAX(0, width - 104), 44);
-    self.content.frame = CGRectMake(0, 44, width, height - 44);
+    UIView *header = [self.card viewWithTag:41];
+    header.frame = CGRectMake(0, 0, size.width, headerHeight);
+    [header viewWithTag:42].frame = CGRectMake(size.width - 36, 0, 36, headerHeight);
+    [header viewWithTag:43].frame = CGRectMake(size.width - 72, 0, 36, headerHeight);
+    self.titleLabel.frame = CGRectMake(10, 0, MAX(0, size.width - 86), headerHeight);
+    self.titleLabel.adjustsFontSizeToFitWidth = YES;
+    self.content.frame = CGRectMake(0, headerHeight, size.width, size.height - headerHeight);
     self.canvas.transform = CGAffineTransformIdentity;
-    self.canvas.bounds = (CGRect){CGPointZero, size};
-    self.canvas.center = CGPointMake(width / 2, (height - 44) / 2);
+    self.canvas.bounds = (CGRect){CGPointZero, canvas};
+    self.canvas.center = CGPointMake(size.width / 2, (size.height - headerHeight) / 2);
     self.canvas.transform = CGAffineTransformMakeScale(scale, scale);
-    self.spinner.center = CGPointMake(width / 2, (height - 44) / 2);
+    self.spinner.center = self.canvas.center;
+    [self.card bringSubviewToFront:header];
+    if (self.keyboardTop < 0) {
+        self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display)) / display.size.width,
+                                            (CGRectGetMidY(frame) - CGRectGetMinY(display)) / display.size.height);
+        self.positionInitialized = YES;
+    }
+    self.layingOut = NO;
+}
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+    __weak typeof(self) weakSelf = self;
+    [coordinator animateAlongsideTransition:nil completion:^(__unused id<UIViewControllerTransitionCoordinatorContext> context) {
+        [weakSelf.view setNeedsLayout]; [weakSelf.view layoutIfNeeded];
+    }];
 }
 - (void)setHostViews:(NSArray<UIView *> *)views canvasSize:(CGSize)size {
     self.canvasSize = size;
@@ -534,6 +503,8 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         mtFloatingLocalBundle = [NSBundle bundleWithPath:bundlePath];
         coordinator = [self new]; coordinator.session = [MTFloatingAppSession new];
         coordinator.inputSessionToken = coordinator.inputToken = coordinator.inputSceneToken = NOTIFY_TOKEN_INVALID;
+        coordinator.inputBaseToken = coordinator.inputFocusToken = coordinator.baseInputSceneToken = NOTIFY_TOKEN_INVALID;
+        coordinator.keyboardTokens = [NSMutableDictionary dictionary];
         if (notify_register_check(MTFloatInputSessionName.UTF8String, &coordinator->_inputSessionToken) == NOTIFY_STATUS_OK) {
             // Revoke any marker left behind by the previous SpringBoard process.
             notify_set_state(coordinator.inputSessionToken, 0);
@@ -563,6 +534,40 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         if (notify_get_state(eventToken, &word) == NOTIFY_STATUS_OK) [host receivePinchWord:word nonce:nonce];
     }) != NOTIFY_STATUS_OK) { notify_cancel(self.inputSceneToken); self.inputSceneToken = NOTIFY_TOKEN_INVALID; return; }
     self.inputToken = token; self.inputNonce = nonce; self.inputGesture = 0; self.inputGestureFinished = NO;
+    uint64_t baseHash = MTFloatInputSceneHash(MTFloatObject(self.baseScene, @"identifier"));
+    self.baseInputPID = baseHash ? MTFloatPID(self.baseIdentifier) : 0;
+    if (self.baseInputPID == pid) self.baseInputPID = 0;
+    if (self.inputBaseToken == NOTIFY_TOKEN_INVALID &&
+        notify_register_check(MTFloatInputBaseName.UTF8String, &_inputBaseToken) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+    if (self.baseInputPID > 1 &&
+        (notify_register_check(MTFloatInputSceneName((uint32_t)self.baseInputPID).UTF8String, &_baseInputSceneToken) != NOTIFY_STATUS_OK ||
+         notify_set_state(self.baseInputSceneToken, baseHash) != NOTIFY_STATUS_OK)) { [self stopInputRelay]; return; }
+    if (self.inputFocusToken == NOTIFY_TOKEN_INVALID) {
+        int focusToken = NOTIFY_TOKEN_INVALID;
+        if (notify_register_dispatch(MTFloatInputFocusName.UTF8String, &focusToken, dispatch_get_main_queue(), ^(int eventToken) {
+            MTFloatingAppCoordinator *host = weakSelf;
+            uint64_t focus = 0;
+            if (!host || notify_get_state(eventToken, &focus) != NOTIFY_STATUS_OK ||
+                (uint32_t)(focus >> 32) != host.inputNonce || !host.inputNonce) return;
+            pid_t focusedPID = (pid_t)(uint32_t)focus;
+            [host updateKeyboardForPID:focusedPID nonce:host.inputNonce generation:host.session.generation];
+        }) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+        self.inputFocusToken = focusToken;
+    }
+    NSArray<NSNumber *> *participants = self.baseInputPID > 1 ? @[@(pid), @(self.baseInputPID)] : @[@(pid)];
+    for (NSNumber *participant in participants) {
+        pid_t participantPID = participant.intValue;
+        int keyboardToken = NOTIFY_TOKEN_INVALID;
+        if (notify_register_dispatch(MTFloatInputKeyboardName((uint32_t)participantPID).UTF8String, &keyboardToken,
+            dispatch_get_main_queue(), ^(__unused int eventToken) {
+                [weakSelf updateKeyboardForPID:participantPID nonce:nonce generation:generation];
+            }) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+        self.keyboardTokens[participant] = @(keyboardToken);
+        notify_set_state(keyboardToken, MTFloatKeyboardWord(nonce, -1));
+    }
+    uint32_t focusedPID = (uint32_t)(self.baseInputPID > 1 ? self.baseInputPID : pid);
+    if (notify_set_state(self.inputBaseToken, self.baseInputPID > 1 ? MTFloatInputSessionWord((uint32_t)self.baseInputPID, nonce) : 0) != NOTIFY_STATUS_OK ||
+        notify_set_state(self.inputFocusToken, MTFloatInputSessionWord(focusedPID, nonce)) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
     notify_set_state(token, 0);
     if (notify_set_state(self.inputSceneToken, sceneHash) != NOTIFY_STATUS_OK ||
         notify_set_state(self.inputSessionToken, MTFloatInputSessionWord((uint32_t)pid, nonce)) != NOTIFY_STATUS_OK) {
@@ -570,6 +575,24 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     }
     notify_post(MTFloatInputSessionName.UTF8String);
     NSLog(@"[MetisKeyboard][FloatingApp] input relay ready pid=%d generation=%lu", pid, (unsigned long)generation);
+}
+- (void)updateKeyboardForPID:(pid_t)pid nonce:(uint32_t)nonce generation:(NSUInteger)generation {
+    if (![self.session isCurrent:generation] || self.inputNonce != nonce || !self.activeLease ||
+        !self.controller || !self.window || ![MTGlobalPanel deviceUnlocked]) return;
+    NSString *identifier = pid == self.processPID ? self.session.bundleIdentifier :
+        (pid == self.baseInputPID ? self.baseIdentifier : nil);
+    NSNumber *token = self.keyboardTokens[@(pid)];
+    if (!identifier.length || !token || MTFloatPID(identifier) != pid) return;
+    uint64_t focus = 0, word = 0;
+    if (notify_get_state(self.inputFocusToken, &focus) != NOTIFY_STATUS_OK ||
+        focus != MTFloatInputSessionWord((uint32_t)pid, nonce) ||
+        notify_get_state(token.intValue, &word) != NOTIFY_STATUS_OK) return;
+    double top = -1;
+    if (!MTFloatDecodeKeyboard(word, nonce, &top)) return;
+    if (fabs(self.controller.keyboardTop - top) < .0001) return;
+    self.controller.keyboardTop = top;
+    [self.controller.view setNeedsLayout]; [self.controller.view layoutIfNeeded];
+    NSLog(@"[MetisKeyboard][FloatingApp] keyboard owner=%@ visible=%d", pid == self.processPID ? @"floating" : @"base", top >= 0);
 }
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce {
     uint8_t serial = 0; MTFloatPinchPhase phase; double scale = 0;
@@ -591,7 +614,15 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         notify_set_state(self.inputSessionToken, 0);
         notify_post(MTFloatInputSessionName.UTF8String);
     }
+    // Revoke identity before cancelling observers; queued callbacks become inert.
     self.inputNonce = 0; self.inputGesture = 0; self.inputGestureFinished = NO;
+    if (self.inputBaseToken != NOTIFY_TOKEN_INVALID) notify_set_state(self.inputBaseToken, 0);
+    if (self.inputFocusToken != NOTIFY_TOKEN_INVALID) { notify_set_state(self.inputFocusToken, 0); notify_cancel(self.inputFocusToken); }
+    self.inputFocusToken = NOTIFY_TOKEN_INVALID;
+    for (NSNumber *token in self.keyboardTokens.allValues) notify_cancel(token.intValue);
+    [self.keyboardTokens removeAllObjects];
+    if (self.baseInputSceneToken != NOTIFY_TOKEN_INVALID) notify_cancel(self.baseInputSceneToken);
+    self.baseInputSceneToken = NOTIFY_TOKEN_INVALID; self.baseInputPID = 0;
     if (self.inputToken != NOTIFY_TOKEN_INVALID) notify_cancel(self.inputToken);
     if (self.inputSceneToken != NOTIFY_TOKEN_INVALID) notify_cancel(self.inputSceneToken);
     self.inputToken = NOTIFY_TOKEN_INVALID;
@@ -682,7 +713,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         [self.shelf activate:self.session.bundleIdentifier title:self.controller.titleLabel.text];
     [self publishShelf];
     if (self.session.state == MTFloatingAppIdle || !self.controller) return;
-    self.controller.maxScale = MTFloatingCardMaxScaleFromPreferences(preferences);
+    self.controller.areaFraction = MTFloatingCardAreaFromPreferences(preferences);
     self.controller.horizontalAlignment = MTFloatingCardPositionFromPreferences(preferences);
     [self.controller.view setNeedsLayout];
 }
@@ -839,7 +870,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     self.requestedURL = url; self.urlAccepted = !url;
     self.controller = [MTFloatingAppCardController new]; self.controller.owner = self;
     NSDictionary *preferences = MTPrefsManager.sharedInstance.readPrefs;
-    self.controller.maxScale = MTFloatingCardMaxScaleFromPreferences(preferences);
+    self.controller.areaFraction = MTFloatingCardAreaFromPreferences(preferences);
     self.controller.horizontalAlignment = MTFloatingCardPositionFromPreferences(preferences);
     id application = MTFloatApplication(identifier);
     NSString *title = MTFloatObject(application, @"displayName") ?: identifier;
@@ -847,10 +878,11 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     self.window = [[MTFloatingAppWindow alloc] initWithWindowScene:windowScene];
     self.window.frame = windowScene.coordinateSpace.bounds;
     self.window.backgroundColor = UIColor.clearColor;
+    self.window.clipsToBounds = YES;
+    self.controller.view.clipsToBounds = YES;
     self.window.windowLevel = 100;
     self.window.rootViewController = self.controller;
     self.window.card = self.controller.card;
-    self.window.backdrop = self.controller.backdrop;
     // 卡片先保持隐藏：内容在延迟窗口内挂接则直接带内容显示，超时才显示加载
     // 指示；失败路径保持隐藏拆窗，不再闪现空转卡片。
     self.window.hidden = YES;
@@ -908,18 +940,20 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
             if ([self.publishedLayers isEqualToArray:layers] && CGSizeEqualToSize(self.controller.canvasSize, [self canvasSize])) return;
             NSMutableArray<UIView *> *main = [NSMutableArray array], *external = [NSMutableArray array];
             for (id layer in layers) {
-                BOOL keyboard = MTFloatInteger(layer, @"isKeyboardLayer", NO);
+                // The focused app owns a full-size native keyboard; never
+                // shrink its keyboard layer into the floating content canvas.
+                if (MTFloatInteger(layer, @"isKeyboardLayer", NO)) continue;
                 BOOL isExternal = MTFloatObject(layer, @"externalSceneID") != nil;
-                NSString *className = keyboard ? @"_UIKeyboardLayerHostView" : isExternal ? @"_UIExternalSceneLayerHostView" : @"_UIContextLayerHostView";
-                NSString *method = keyboard ? @"initWithKeyboardLayer:owningScene:" : isExternal ? @"initWithSceneLayer:parentScene:" : @"initWithSceneLayer:";
+                NSString *className = isExternal ? @"_UIExternalSceneLayerHostView" : @"_UIContextLayerHostView";
+                NSString *method = isExternal ? @"initWithSceneLayer:parentScene:" : @"initWithSceneLayer:";
                 Class hostClass = NSClassFromString(className);
                 SEL initializer = NSSelectorFromString(method);
                 if (![hostClass isSubclassOfClass:UIView.class] || ![hostClass instancesRespondToSelector:initializer]) continue;
-                UIView *view = (keyboard || isExternal)
+                UIView *view = isExternal
                     ? ((id (*)(id, SEL, id, id))objc_msgSend)([hostClass alloc], initializer, layer, self.scene)
                     : ((id (*)(id, SEL, id))objc_msgSend)([hostClass alloc], initializer, layer);
                 if (view) {
-                    NSMutableArray *destination = (keyboard || isExternal) ? external : main;
+                    NSMutableArray *destination = isExternal ? external : main;
                     [destination addObject:view];
                 }
             }
@@ -997,6 +1031,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
 - (void)presentCardIfPending:(NSUInteger)generation {
     if (![self.session isCurrent:generation] || self.windowPresented || !self.window) return;
     self.windowPresented = YES;
+    [self.controller.view setNeedsLayout]; [self.controller.view layoutIfNeeded];
     self.window.hidden = NO;
     NSLog(@"[MetisKeyboard][FloatingApp] card presented bundleID=%@ generation=%lu content=%d elapsed=%dms",
         self.session.bundleIdentifier, (unsigned long)generation, self.hasContent,

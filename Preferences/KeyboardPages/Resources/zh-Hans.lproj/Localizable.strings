@@ -597,15 +597,15 @@
 
 "FLOATING_APP_SIZE_GROUP" = "默认大小";
 
-"FLOATING_APP_MAX_SCALE" = "大小比例";
+"FLOATING_APP_MAX_SCALE" = "小窗占屏面积";
 
-"FLOATING_APP_SCALE_FOOTER" = "调整悬浮小窗默认最大占屏比例，设为 100% 时全屏打开，对新打开的悬浮生效。";
+"FLOATING_APP_SCALE_FOOTER" = "默认占屏幕面积的 20%（约五分之一）。可调节为 10%–60%，也可双指缩放。点击小窗外可直接操作底层应用，小窗保持显示；收起请点小窗顶部的减号。";
 
 "FLOATING_APP_POSITION_GROUP" = "默认位置";
 
 "FLOATING_APP_POSITION" = "停靠位置";
 
-"FLOATING_APP_POSITION_FOOTER" = "设置悬浮小窗打开时的默认水平位置；手动拖动后以拖动位置为准，对新打开的悬浮生效。";
+"FLOATING_APP_POSITION_FOOTER" = "默认在右上方打开。可选择停靠侧，并拖动小窗顶部调整位置；键盘弹出时自动避让。";
 
 "FLOATING_APP_POSITION_LEFT" = "居左";
 

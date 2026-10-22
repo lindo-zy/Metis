@@ -10,7 +10,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
 
-// 悬浮打开应用小窗的全局设置。比例与位置键由 MTFloatingCardMaxScaleFromPreferences /
+// 悬浮打开应用小窗的全局设置。比例与位置键由 MTFloatingCardAreaFromPreferences /
 // MTFloatingCardPositionFromPreferences 消费（SpringBoard 托管卡片读取同一份快照）。
 @implementation MTPFloatingAppController
 - (void)viewDidLoad {
@@ -23,18 +23,19 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [group setProperty:MTFloatingLocalized(@"FLOATING_APP_SCALE_FOOTER") forKey:@"footerText"];
     PSSpecifier *scale = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_APP_MAX_SCALE") target:self
         set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
-    [scale setProperty:kFloatingCardMaxScaleKey forKey:@"key"];
-    [scale setProperty:@72 forKey:@"default"];
+    [scale setProperty:kFloatingCardAreaKey forKey:@"key"];
+    [scale setProperty:@20 forKey:@"default"];
     [scale setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
-    [scale setProperty:@30 forKey:@"min"];
-    [scale setProperty:@100 forKey:@"max"];
+    [scale setProperty:@10 forKey:@"min"];
+    [scale setProperty:@60 forKey:@"max"];
     [scale setProperty:@YES forKey:@"showValue"];
+    [scale setProperty:@5 forKey:@"step"];
     PSSpecifier *positionGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"FLOATING_APP_POSITION_GROUP")];
     [positionGroup setProperty:MTFloatingLocalized(@"FLOATING_APP_POSITION_FOOTER") forKey:@"footerText"];
     PSSpecifier *position = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_APP_POSITION") target:self
         set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSStaticTextCell edit:nil];
     [position setProperty:kFloatingCardPositionKey forKey:@"key"];
-    [position setProperty:@1 forKey:@"default"];
+    [position setProperty:@2 forKey:@"default"];
     [position setProperty:MTPPanelSegmentCell.class forKey:@"cellClass"];
     [position setProperty:@[MTFloatingLocalized(@"FLOATING_APP_POSITION_LEFT"), MTFloatingLocalized(@"FLOATING_APP_POSITION_CENTER"),
         MTFloatingLocalized(@"FLOATING_APP_POSITION_RIGHT")] forKey:@"titles"];
@@ -70,6 +71,8 @@ static NSString *MTFloatingLocalized(NSString *key) {
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
+    if ([[specifier propertyForKey:@"key"] isEqual:kFloatingCardAreaKey]) return @(lround(MTFloatingCardAreaFromPreferences(preferences) * 100));
+    if ([[specifier propertyForKey:@"key"] isEqual:kFloatingCardPositionKey]) return @(MTFloatingCardPositionFromPreferences(preferences));
     if ([[specifier propertyForKey:@"key"] isEqual:kKbdLauncherScaleKey]) {
         return @(MTKbdLauncherScaleFromPreferences(preferences));
     }
@@ -101,6 +104,12 @@ static NSString *MTFloatingLocalized(NSString *key) {
         scale = lround(scale / 5) * 5;
         [MTPrefsManager.sharedInstance setValue:@(MIN(MAX(scale, kKbdLauncherScaleMinimum),
             kKbdLauncherScaleMaximum)) forKey:key];
+        return;
+    }
+    if ([key isEqual:kFloatingCardAreaKey]) {
+        double area = [value doubleValue];
+        if (!isfinite(area)) area = 20;
+        [MTPrefsManager.sharedInstance setValue:@(lround(MIN(60, MAX(10, area)) / 5) * 5) forKey:key];
         return;
     }
     NSInteger stored;

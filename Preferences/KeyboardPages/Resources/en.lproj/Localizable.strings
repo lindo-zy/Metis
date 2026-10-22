@@ -598,15 +598,15 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "FLOATING_APP_SIZE_GROUP" = "Default Size";
 
-"FLOATING_APP_MAX_SCALE" = "Size Ratio";
+"FLOATING_APP_MAX_SCALE" = "Window area";
 
-"FLOATING_APP_SCALE_FOOTER" = "Caps the floating window's default on-screen size. 100% opens it full screen. Applies to newly opened floating windows.";
+"FLOATING_APP_SCALE_FOOTER" = "Defaults to 20% of the screen area (about one fifth). Adjust from 10% to 60%, or pinch to resize. Touch outside to use the underlying app while keeping the window visible. Use the minus button to minimize.";
 
 "FLOATING_APP_POSITION_GROUP" = "Default Position";
 
 "FLOATING_APP_POSITION" = "Dock Position";
 
-"FLOATING_APP_POSITION_FOOTER" = "Chooses the floating window's default horizontal position when opened. Dragging the window overrides it. Applies to newly opened floating windows.";
+"FLOATING_APP_POSITION_FOOTER" = "Opens near the top right by default. Choose an alignment or drag the title bar to move it. The window avoids the keyboard.";
 
 "FLOATING_APP_POSITION_LEFT" = "Left";
 
