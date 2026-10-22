@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- 更新说明数据源：只保留最近 5 个版本，版本降序由 MTPrefsChangelogModel 保证。
+     发版时在数组首位追加一条，并删除第 6 条；tag 只接受 新增 / 优化 / 修复（其他写法归入「调整」）。 -->
+<array>
+	<dict>
+		<key>version</key>
+		<string>0.9.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>设置首页右上角新增「更新说明」入口，收纳最近 5 个版本</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.8.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>动作组默认预设只种入动作目录内的动作，删除后仍可重新添加</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.8.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>动作组规则点击动作行直达动作配置</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>自定义动作的改动在所有引用点同步生效</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.8.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>动作组规则「添加动作」去掉中间菜单，直接从动作列表选择</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.8.6</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>新建按钮填写名称与图标后离开页面，配置被丢弃</string>
+			</dict>
+		</array>
+	</dict>
+</array>
+</plist>

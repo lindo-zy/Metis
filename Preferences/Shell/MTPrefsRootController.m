@@ -3,10 +3,14 @@
 #import "MTPrefsRootModel.h"
 #import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
+#import "MTPrefsChangelogModel.h"
+#import "MTPrefsChangelogController.h"
 #import "MTLog.h"
 
 // 首页渲染：品牌头 + 搜索设置 + 卡片分区。模型与文案见 MTPrefsRootModel
 // （宿主测试权威）；本文件只做 UIKit 传输（02 §8：系统 grouped 风格）。
+// 导航栏右上角是「更新说明」入口：数据来自包内 Changelog.plist
+// （MTPrefsChangelogModel），呈现为半屏 UISheetPresentationController。
 @interface MTPrefsRootController () <UITextFieldDelegate>
 @end
 
@@ -22,6 +26,7 @@
     self.navigationItem.backButtonTitle = @"Metis";
     self.model = [MTPrefsRootModel rootPageModel];
     [self mtAttachToggleHandler];
+    [self mtInstallChangelogButton];
     [self render];
 }
 
@@ -128,6 +133,62 @@
         [strongSelf mtAttachToggleHandler];
         [strongSelf render];
     };
+}
+
+#pragma mark - Changelog entry
+
+// 右上角入口：44×44 热区 + 蓝色系统符号（与全库条目图标同色）。
+// 不显示红点/未读态：标题里的「上一发布 → 当前发布」已表达增量，避免新增偏好键。
+- (void)mtInstallChangelogButton {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    button.frame = CGRectMake(0.0, 0.0, 44.0, 44.0);
+    UIImageSymbolConfiguration *configuration =
+        [UIImageSymbolConfiguration configurationWithPointSize:20.0
+                                                        weight:UIImageSymbolWeightRegular];
+    UIImage *symbol = [UIImage systemImageNamed:@"clock.arrow.circlepath"];
+    if (!symbol) symbol = [UIImage systemImageNamed:@"arrow.circlepath"];
+    [button setImage:[symbol imageByApplyingSymbolConfiguration:configuration]
+            forState:UIControlStateNormal];
+    button.tintColor = UIColor.systemBlueColor;
+    button.accessibilityLabel = @"更新说明";
+    [button addTarget:self
+               action:@selector(mtPresentChangelog:)
+     forControlEvents:UIControlEventTouchUpInside];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:button];
+}
+
+- (void)mtPresentChangelog:(id)sender {
+    // 连点不叠层：半屏已在展示时直接忽略。
+    if (self.presentedViewController) return;
+    NSArray<MTChangelogEntry *> *entries = [MTPrefsChangelogModel entries];
+    MTPrefsChangelogController *controller =
+        [MTPrefsChangelogController controllerWithEntries:entries
+                                                   title:[MTPrefsChangelogModel sheetTitleForEntries:entries]];
+    [self mtConfigureChangelogSheetForController:controller];
+    [self presentViewController:controller animated:YES completion:nil];
+    MTLogInfo(MTLogModulePrefs, @"state=changelog-open entries=%lu",
+              (unsigned long)entries.count);
+}
+
+// 0.72 自定义档 + large：首屏约 3 个版本，上拖全展开；iOS 15 退化为 medium/large。
+- (void)mtConfigureChangelogSheetForController:(UIViewController *)controller {
+    UISheetPresentationController *sheet = controller.sheetPresentationController;
+    if (!sheet) return;
+    sheet.prefersGrabberVisible = YES;
+    sheet.preferredCornerRadius = 20.0;
+    sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
+    if (@available(iOS 16.0, *)) {
+        UISheetPresentationControllerDetent *compact = [UISheetPresentationControllerDetent
+            customDetentWithIdentifier:@"MetisChangelogCompact"
+                             resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
+            return context.maximumDetentValue * 0.72;
+        }];
+        sheet.detents = @[compact, UISheetPresentationControllerDetent.largeDetent];
+        sheet.selectedDetentIdentifier = @"MetisChangelogCompact";
+    } else {
+        sheet.detents = @[UISheetPresentationControllerDetent.mediumDetent,
+                          UISheetPresentationControllerDetent.largeDetent];
+    }
 }
 
 #pragma mark - Search

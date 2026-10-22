@@ -8,11 +8,13 @@ BUNDLE_NAME = MetisPrefs
 MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsGlobalModel.m \
 	MTPrefsSearchIndex.m \
+	MTPrefsChangelogModel.m \
 	MTPrefsEntryController.m \
 	MTPrefsRootController.m \
 	MTPrefsShellTableController.m \
 	MTPrefsSubbundleLoader.m \
 	MTPrefsGlobalController.m \
+	MTPrefsChangelogController.m \
 	MTPrefsReferencesController.m \
 	MTPrefsBackupController.m \
 	MTPrefsRestoreController.m
@@ -33,6 +35,8 @@ internal-stage::
 	$(ECHO_NOTHING)cp Resources/Metis.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis.png$(ECHO_END)
 	$(ECHO_NOTHING)cp Resources/Metis@2x.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis@2x.png$(ECHO_END)
 	$(ECHO_NOTHING)cp Resources/Metis@3x.png $(THEOS_STAGING_DIR)/Library/PreferenceLoader/Preferences/Metis@3x.png$(ECHO_END)
+	# 更新说明数据源：随 bundle 打包，由 MTPrefsChangelogModel 读取（失败即空态）。
+	$(ECHO_NOTHING)cp Resources/Changelog.plist "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Changelog.plist"$(ECHO_END)
 	$(ECHO_NOTHING)test -n "$(PACKAGE_VERSION)" || { echo "error: PACKAGE_VERSION not set (use build.sh)" >&2; exit 1; }$(ECHO_END)
 	$(ECHO_NOTHING)plutil -replace CFBundleShortVersionString -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
 	$(ECHO_NOTHING)plutil -replace CFBundleVersion -string "$(PACKAGE_VERSION)" "$(THEOS_STAGING_DIR)/Library/PreferenceBundles/MetisPrefs.bundle/Info.plist"$(ECHO_END)
