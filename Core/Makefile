@@ -40,7 +40,7 @@ MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
 	$(KEYBOARD)/MTFloatingAppShelfChannel.m \
 	$(KEYBOARD)/MTFloatingAppShelfState.m \
 	$(KEYBOARD)/MTFloatingAppShelfView.m \
-	$(KEYBOARD)/MTStatusBarGestureHooks.xm \
+	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTStatusBarGestureHooks.xm \
 	$(KEYBOARD)/MTContextGroupTypes.m \
 	$(KEYBOARD)/MTContextTypes.m \
 	$(KEYBOARD)/MTContextClassifier.m \
