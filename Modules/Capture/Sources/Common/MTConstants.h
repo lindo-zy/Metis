@@ -73,7 +73,8 @@ FOUNDATION_EXPORT CFStringRef const MTShellXRouteScan;      // prefs://root=shel
 /// scheme 无法被 LaunchServices 认领，只能寄生已注册 scheme。root id 白名单与
 /// Darwin 通知名对应（URL 入口只暴露其中 5 个动作：冻结/即时/取消按需求不开放，
 /// 仍可由 Darwin 通知与键盘系统动作入口触发）；单一事实源在此，解析与拦截见
-/// SpringBoard/MTURLRouter.xm，设置页文档见 MTExternalURLController。
+/// SpringBoard/MTURLRouter.xm，设置页入口见 MTCaptureRootListController「测试」分组
+/// （原「外部 URL 调用」文档页已并入该分组，点击行即按本表路由触发）。
 /// 命中即消费，不再向下打开设置页。
 FOUNDATION_EXPORT CFStringRef const MTURLRoutePrefix;         // metis_
 FOUNDATION_EXPORT CFStringRef const MTURLRouteFull;           // prefs://root=metis_full → 全屏截图
