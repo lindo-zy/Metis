@@ -246,6 +246,8 @@ check_core_linkage() (
         done
     done
     echo "==> RootHide Core linkage OK (7 binaries, arm64 + arm64e)"
+    # 必须随仓库执行，不依赖本地忽略的 Tests/，也不受 SKIP_TESTS 影响。
+    python3 "$ROOT_DIR/scripts/check-objc-classes.py" "$extract_dir"
 )
 
 build_one() {

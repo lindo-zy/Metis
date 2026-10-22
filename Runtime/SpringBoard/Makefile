@@ -25,7 +25,6 @@ MetisSpringBoard_FRAMEWORKS = UIKit CoreGraphics QuartzCore CoreText Photos Imag
 MetisSpringBoard_FILES += MTKeyboardSpringBoardEntry.xm \
 	../../Modules/Keyboard/Sources/MTServer.m \
 	../../Modules/Keyboard/Sources/MTSMSCodePolicy.m \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTStatusBarGestureHooks.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTEdgeGestureHooks.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTArcGestureHooks.xm \
 	../../Modules/Keyboard/Sources/MTEdgeDebugOverlay.m \

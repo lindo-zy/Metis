@@ -4,7 +4,7 @@
 <array>
 	<dict>
 		<key>version</key>
-		<string>0.9.5</string>
+		<string>0.9.6</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -24,6 +24,12 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>切换两个应用输入时自动交接键盘，收起与关闭由小窗按钮控制</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复状态栏手势组件重复加载导致的同名类冲突，并增加构建检查防止再次出现</string>
 			</dict>
 		</array>
 	</dict>

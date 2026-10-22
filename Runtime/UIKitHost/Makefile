@@ -5,10 +5,9 @@ TWEAK_NAME = MetisUIKit
 # 承载 键盘 hook、App 内状态栏手势与剪贴板 Helper 的统一 hook（03-architecture §1）。
 # 状态栏手势与 TypeX 单 tweak 行为对齐：App 侧识别器挂 App 状态栏视图，
 # 触发经 MetisCore SystemOpenBroker 转发 SpringBoard 执行；SpringBoard 内
-# 本镜像 ctor 提前 return，由 MetisSpringBoard 独占承载，避免双份 hook。
+# 本镜像 ctor 提前 return；两个入口共享 Core 中唯一的状态栏实现，避免双份类与 hook。
 MetisUIKit_FILES = MTUIKitEntry.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTKeyboardHooks.xm \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTStatusBarGestureHooks.xm \
 	../../Modules/Keyboard/Sources/MTPasteChip.m \
 
 MetisUIKit_CFLAGS = -fobjc-arc

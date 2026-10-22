@@ -40,6 +40,7 @@ MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
 	$(KEYBOARD)/MTFloatingAppShelfChannel.m \
 	$(KEYBOARD)/MTFloatingAppShelfState.m \
 	$(KEYBOARD)/MTFloatingAppShelfView.m \
+	$(KEYBOARD)/MTStatusBarGestureHooks.xm \
 	$(KEYBOARD)/MTContextGroupTypes.m \
 	$(KEYBOARD)/MTContextTypes.m \
 	$(KEYBOARD)/MTContextClassifier.m \
@@ -101,6 +102,10 @@ MetisCore_CFLAGS += -I$(CLIPBOARD)/Shared/Actions -I../Preferences/ClipboardPage
 
 MetisCore_FRAMEWORKS = Foundation CoreFoundation UIKit CoreGraphics QuartzCore ImageIO SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
 MetisCore_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices SpringBoardServices MobileCoreServices
+
+# 状态栏处理器及其关联对象键只存在于 Core。两个注入入口仍按宿主门控
+# 显式调用 MTStartStatusBarGestures；这个源文件没有自动安装 hook 的 ctor。
+MetisCore_LIBRARIES += substrate
 
 ifeq ($(THEOS_PACKAGE_SCHEME),roothide)
 MetisCore_LIBRARIES += roothide
