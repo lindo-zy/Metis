@@ -101,7 +101,9 @@ static NSString *MTCGTitle(MTContextGroup group) {
     self.previewTitle = [UILabel new]; self.previewTitle.text = MTCGL(@"BAR_PREVIEW");
     self.previewTitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote]; self.previewTitle.textColor = UIColor.secondaryLabelColor;
     [self.previewHeader addSubview:self.previewTitle];
-    self.scenario = [[UISegmentedControl alloc] initWithItems:@[MTCGL(@"CONTEXT_DEFAULT"), MTCGL(@"BAR_CONTEXT_DELETE"), MTCGL(@"CONTEXT_SELECTION"), MTCGL(@"BAR_CONTEXT_COPY"), MTCGL(@"CONTEXT_PASTE"), MTCGL(@"BAR_CONTEXT_TYPING"), MTCGL(@"CONTEXT_IDLE")]];
+    // 7 段等分，iPhone 上每段约 51 pt、字号固定 11 pt，横向只容得下 3 个汉字。
+    // 后两项用短名（有文字 / 无文字），完整名称保留给下方「上下文动作组」列表行。
+    self.scenario = [[UISegmentedControl alloc] initWithItems:@[MTCGL(@"CONTEXT_DEFAULT"), MTCGL(@"BAR_CONTEXT_DELETE"), MTCGL(@"CONTEXT_SELECTION"), MTCGL(@"BAR_CONTEXT_COPY"), MTCGL(@"CONTEXT_PASTE"), MTCGL(@"BAR_CONTEXT_TYPING_SHORT"), MTCGL(@"BAR_CONTEXT_IDLE_SHORT")]];
     [self.scenario setTitleTextAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:11]} forState:UIControlStateNormal];
     self.scenario.selectedSegmentIndex = 0; [self.scenario addTarget:self action:@selector(refreshToolbarPreview) forControlEvents:UIControlEventValueChanged];
     [self.previewHeader addSubview:self.scenario];

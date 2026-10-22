@@ -792,6 +792,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "BAR_CONTEXT_COPY" = "Copy";
 "BAR_CONTEXT_TYPING" = "Text in field";
+"BAR_CONTEXT_TYPING_SHORT" = "Has text";
+"BAR_CONTEXT_IDLE_SHORT" = "No text";
 "BAR_CONTEXT_DELETE" = "After deletion";
 "CTX_TEXT" = "Text";
 "CTX_URL" = "URL";

@@ -791,6 +791,8 @@
 
 "BAR_CONTEXT_COPY" = "复制";
 "BAR_CONTEXT_TYPING" = "输入框有文字";
+"BAR_CONTEXT_TYPING_SHORT" = "有文字";
+"BAR_CONTEXT_IDLE_SHORT" = "无文字";
 "BAR_CONTEXT_DELETE" = "删除后";
 "CTX_TEXT" = "文本";
 "CTX_URL" = "网址";
