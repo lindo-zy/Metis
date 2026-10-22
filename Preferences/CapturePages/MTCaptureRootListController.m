@@ -79,7 +79,7 @@
     return specifiers;
 }
 
-// 外部 URL 调用文档页：列出 8 条寄生路由（prefs://root=metis_*），供捷径等外部调用。
+// 外部 URL 调用文档页：列出 6 条寄生路由（prefs://root=metis_*），供捷径等外部调用。
 // 拦截实现在 SpringBoard 侧 MTURLRouter.xm，与 Darwin 通知入口共用协调器。
 - (PSSpecifier *)mtExternalURLSpecifier {
     NSString *title = @"外部 URL 调用";
