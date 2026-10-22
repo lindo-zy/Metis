@@ -605,7 +605,7 @@
 
 "FLOATING_APP_POSITION" = "停靠位置";
 
-"FLOATING_APP_POSITION_FOOTER" = "默认在右上方打开。可选择停靠侧，并拖动小窗顶部调整位置；键盘弹出时自动避让。";
+"FLOATING_APP_POSITION_FOOTER" = "默认在右上方打开。可选择停靠侧，并拖动小窗顶部调整位置。";
 
 "FLOATING_APP_POSITION_LEFT" = "居左";
 

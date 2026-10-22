@@ -15,13 +15,8 @@ static inline CGFloat MTFloatingAppContentScale(CGSize canvas, CGRect display, C
                                 MAX(0, available.size.height - header) / canvas.height)));
 }
 
-static inline CGRect MTFloatingAppAvailableRect(CGRect display, CGRect safeArea, CGFloat keyboardTop) {
-    CGRect available = CGRectInset(CGRectIntersection(display, safeArea), 8, 8);
-    if (isfinite(keyboardTop) && keyboardTop >= 0 && keyboardTop < 1) {
-        CGFloat bottom = CGRectGetMinY(display) + display.size.height * keyboardTop - 8;
-        available.size.height = MAX(0, MIN(CGRectGetMaxY(available), bottom) - CGRectGetMinY(available));
-    }
-    return available;
+static inline CGRect MTFloatingAppAvailableRect(CGRect display, CGRect safeArea) {
+    return CGRectInset(CGRectIntersection(display, safeArea), 8, 8);
 }
 
 // Scale the whole card (header and hosted canvas) by the same factor. Bounds
