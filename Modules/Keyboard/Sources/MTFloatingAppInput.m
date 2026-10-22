@@ -211,7 +211,9 @@ void MTStartFloatingAppInputClient(void) {
         dispatch_once(&once, ^{
             client = [MTFloatingAppInputClient new];
             __weak MTFloatingAppInputClient *weakClient = client;
-            if (notify_register_check(MTFloatInputBaseName.UTF8String, &client->_baseToken) != NOTIFY_STATUS_OK) { client = nil; return; }
+            int base = NOTIFY_TOKEN_INVALID;
+            if (notify_register_check(MTFloatInputBaseName.UTF8String, &base) != NOTIFY_STATUS_OK) { client = nil; return; }
+            client.baseToken = base;
             int focus = NOTIFY_TOKEN_INVALID;
             if (notify_register_dispatch(MTFloatInputFocusName.UTF8String, &focus, dispatch_get_main_queue(),
                 ^(__unused int token) { [weakClient focusChanged]; }) != NOTIFY_STATUS_OK) { client = nil; return; }

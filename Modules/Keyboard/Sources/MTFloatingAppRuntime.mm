@@ -316,9 +316,11 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     CGRect display = self.view.window.windowScene.coordinateSpace.bounds;
     if (CGRectIsEmpty(display)) return;
     if (!CGPointEqualToPoint(translation, CGPointZero)) self.horizontalCustomized = YES;
-    // Translation is in display points, not the scaled application's canvas.
-    self.normalizedCenter = CGPointMake(self.normalizedCenter.x + translation.x / display.size.width,
-                                        self.normalizedCenter.y + translation.y / display.size.height);
+    // Start from the displayed frame, including any keyboard avoidance. Using
+    // the saved pre-keyboard position would make dragging stick at the edge.
+    CGRect frame = self.view.window.frame;
+    self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display) + translation.x) / display.size.width,
+                                        (CGRectGetMidY(frame) - CGRectGetMinY(display) + translation.y) / display.size.height);
     [gesture setTranslation:CGPointZero inView:self.view];
     [self.view setNeedsLayout]; [self.view layoutIfNeeded];
 }
