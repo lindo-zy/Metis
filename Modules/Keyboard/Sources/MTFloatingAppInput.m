@@ -80,7 +80,7 @@
     if (self.focusToken == NOTIFY_TOKEN_INVALID || notify_get_state(self.focusToken, &focus) != NOTIFY_STATUS_OK ||
         (uint32_t)(focus >> 32) != self.nonce || (uint32_t)focus == (uint32_t)getpid()) return;
     // Leave the other app running and visible; relinquish only text input.
-    for (UIWindow *window in self.touchObservers.keyEnumerator)
+    for (UIWindow *window in self.touchObservers.keyEnumerator.allObjects)
         if ([self matchesWindow:window]) [window endEditing:YES];
 }
 - (void)observedTouchInWindow:(UIWindow *)window {

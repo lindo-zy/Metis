@@ -315,7 +315,10 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     CGPoint translation = [gesture translationInView:self.view];
     CGRect display = self.view.window.windowScene.coordinateSpace.bounds;
     if (CGRectIsEmpty(display)) return;
-    if (!CGPointEqualToPoint(translation, CGPointZero)) self.horizontalCustomized = YES;
+    if (!CGPointEqualToPoint(translation, CGPointZero)) {
+        self.horizontalCustomized = YES;
+        self.positionInitialized = YES;
+    }
     // Start from the displayed frame, including any keyboard avoidance. Using
     // the saved pre-keyboard position would make dragging stick at the edge.
     CGRect frame = self.view.window.frame;
