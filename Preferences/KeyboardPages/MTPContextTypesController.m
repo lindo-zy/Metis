@@ -148,18 +148,16 @@ void MTPCTXSaveTypes(NSString *group, NSArray<MTContextType *> *types) {
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path { [tableView deselectRowAtIndexPath:path animated:YES]; if (path.section == 1 && path.row == self.type.actions.count) [self addAction]; }
 - (void)addAction {
+    // 动作组规则添加动作只允许从动作列表挑选，不再提供快捷子项菜单。
     if (self.type.actions.count >= 8) return;
-    UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTPCTX(@"CTX_ADD_ACTION") message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     __weak typeof(self) weakSelf = self;
-    void (^append)(NSString *) = ^(NSString *selector) {
+    MTPSubActionPickerController *picker = [MTPSubActionPickerController new];
+    picker.actionContextKind = MTPanelKeyboardKind; picker.fullOrder = MTPPanelBuiltInActions();
+    picker.title = MTPCTX(@"CTX_ADD_ACTION");
+    picker.completion = ^(NSString *selector) {
         MTPContextTypeActionsController *owner = weakSelf; if (!owner || owner.type.actions.count >= 8 || !MTContextActionAllowed(selector, [MTPrefsManager.sharedInstance readPrefs])) return;
         owner.type.actions = [owner.type.actions arrayByAddingObject:selector]; [owner saveType];
     };
-    for (NSString *selector in @[@"url:open", @"url:search", @"ai:seed"]) [menu addAction:[UIAlertAction actionWithTitle:MTPCTX([@"CTX_ACTION_" stringByAppendingString:selector]) style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { append(selector); }]];
-    [menu addAction:[UIAlertAction actionWithTitle:MTPCTX(@"CTX_CATALOG") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-        MTPSubActionPickerController *picker = [MTPSubActionPickerController new]; picker.actionContextKind = MTPanelKeyboardKind; picker.fullOrder = MTPPanelBuiltInActions(); picker.completion = append; picker.title = MTPCTX(@"CTX_ADD_ACTION"); [weakSelf pushPage:picker];
-    }]];
-    [menu addAction:[UIAlertAction actionWithTitle:MTPCTX(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];
-    menu.popoverPresentationController.sourceView = self.view; menu.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(self.view.bounds), CGRectGetMaxY(self.view.bounds)-100,1,1); [self presentViewController:menu animated:YES completion:nil];
+    [self pushPage:picker];
 }
 @end
