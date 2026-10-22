@@ -6,6 +6,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.9.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>底栏预览的场景分段改用短标签，iPhone 上不再显示为「输入…」</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.9.0</string>
 		<key>items</key>
 		<array>
@@ -59,19 +72,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>动作组规则「添加动作」去掉中间菜单，直接从动作列表选择</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.8.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>新建按钮填写名称与图标后离开页面，配置被丢弃</string>
 			</dict>
 		</array>
 	</dict>
