@@ -24,7 +24,6 @@
 @property(nonatomic) int focusToken;
 @property(nonatomic) int inputToken;
 @property(nonatomic) int sceneToken;
-@property(nonatomic) int keyboardToken;
 @property(nonatomic) uint64_t sceneHash;
 @property(nonatomic) uint32_t nonce;
 @property(nonatomic) uint32_t gestureNonce;
@@ -38,7 +37,7 @@
 @implementation MTFloatingAppInputClient
 - (instancetype)init {
     if ((self = [super init])) {
-        _sessionToken = _baseToken = _focusToken = _inputToken = _sceneToken = _keyboardToken = NOTIFY_TOKEN_INVALID;
+        _sessionToken = _baseToken = _focusToken = _inputToken = _sceneToken = NOTIFY_TOKEN_INVALID;
         _gestures = [NSMapTable weakToStrongObjectsMapTable];
         _touchObservers = [NSMapTable weakToStrongObjectsMapTable];
     }
@@ -46,7 +45,7 @@
 }
 - (void)dealloc {
     [NSNotificationCenter.defaultCenter removeObserver:self];
-    for (NSNumber *token in @[@(_sessionToken), @(_baseToken), @(_focusToken), @(_inputToken), @(_sceneToken), @(_keyboardToken)])
+    for (NSNumber *token in @[@(_sessionToken), @(_baseToken), @(_focusToken), @(_inputToken), @(_sceneToken)])
         if (token.intValue != NOTIFY_TOKEN_INVALID) notify_cancel(token.intValue);
 }
 - (BOOL)matchesWindow:(UIWindow *)window {
@@ -95,9 +94,9 @@
     for (UIWindow *window in self.gestures.keyEnumerator) [window removeGestureRecognizer:[self.gestures objectForKey:window]];
     for (UIWindow *window in self.touchObservers.keyEnumerator) [window removeGestureRecognizer:[self.touchObservers objectForKey:window]];
     [self.gestures removeAllObjects]; [self.touchObservers removeAllObjects];
-    for (NSNumber *token in @[@(self.inputToken), @(self.sceneToken), @(self.keyboardToken)])
+    for (NSNumber *token in @[@(self.inputToken), @(self.sceneToken)])
         if (token.intValue != NOTIFY_TOKEN_INVALID) notify_cancel(token.intValue);
-    self.inputToken = self.sceneToken = self.keyboardToken = NOTIFY_TOKEN_INVALID;
+    self.inputToken = self.sceneToken = NOTIFY_TOKEN_INVALID;
 }
 - (void)refresh {
     uint64_t target = 0, base = 0;
@@ -110,7 +109,6 @@
         [self clearLocalSession]; self.floatingTarget = floating;
         if (nonce && notify_register_check(MTFloatInputSceneName((uint32_t)getpid()).UTF8String, &_sceneToken) == NOTIFY_STATUS_OK &&
             notify_get_state(self.sceneToken, &_sceneHash) == NOTIFY_STATUS_OK && self.sceneHash &&
-            notify_register_check(MTFloatInputKeyboardName((uint32_t)getpid()).UTF8String, &_keyboardToken) == NOTIFY_STATUS_OK &&
             (!floating || notify_register_check(MTFloatInputName((uint32_t)getpid()).UTF8String, &_inputToken) == NOTIFY_STATUS_OK)) self.nonce = nonce;
         if (!self.nonce) [self clearLocalSession];
     }
@@ -137,41 +135,6 @@
     if (installed) NSLog(@"[MetisKeyboard][FloatingApp] input observed role=%@ windows=%lu",
         floating ? @"floating" : @"base", (unsigned long)installed);
     [self focusChanged];
-    // Opening from a keyboard toolbar may start a session with a keyboard
-    // already visible; no new WillShow notification is required in that case.
-    if ([self ownsFocus]) {
-        for (UIWindow *window in self.touchObservers.keyEnumerator) {
-            UIView *view = window.rootViewController.viewIfLoaded;
-            if (!view || ![self matchesWindow:window]) continue;
-            CGRect frame = view.keyboardLayoutGuide.layoutFrame;
-            if (frame.size.height < 80) continue;
-            CGRect screenFrame = [view convertRect:frame toCoordinateSpace:window.windowScene.screen.coordinateSpace];
-            [self keyboardChanged:[NSNotification notificationWithName:UIKeyboardWillChangeFrameNotification object:nil
-                userInfo:@{UIKeyboardFrameEndUserInfoKey:[NSValue valueWithCGRect:screenFrame]}]];
-            break;
-        }
-    }
-}
-- (void)keyboardChanged:(NSNotification *)notification {
-    if (![self ownsFocus] || self.keyboardToken == NOTIFY_TOKEN_INVALID) return;
-    double top = -1;
-    if (![notification.name isEqual:UIKeyboardWillHideNotification]) {
-        CGRect frame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
-        for (UIWindow *window in self.touchObservers.keyEnumerator) {
-            if (![self matchesWindow:window]) continue;
-            UIWindowScene *scene = window.windowScene;
-            CGRect bounds = scene.coordinateSpace.bounds;
-            frame = [scene.coordinateSpace convertRect:frame fromCoordinateSpace:scene.screen.coordinateSpace];
-            CGRect overlap = CGRectIntersection(frame, bounds);
-            if (!CGRectIsEmpty(overlap) && overlap.size.width >= bounds.size.width * .5 &&
-                CGRectGetMaxY(overlap) >= CGRectGetMaxY(bounds) - 1)
-                top = (CGRectGetMinY(overlap) - CGRectGetMinY(bounds)) / MAX(1, bounds.size.height);
-            break;
-        }
-    }
-    uint64_t word = MTFloatKeyboardWord(self.nonce, top);
-    if (word && notify_set_state(self.keyboardToken, word) == NOTIFY_STATUS_OK)
-        notify_post(MTFloatInputKeyboardName((uint32_t)getpid()).UTF8String);
 }
 - (void)windowVisible:(__unused NSNotification *)notification { [self refresh]; }
 - (BOOL)gestureRecognizer:(__unused UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
@@ -224,8 +187,6 @@ void MTStartFloatingAppInputClient(void) {
             client.sessionToken = token;
             for (NSString *name in @[UIWindowDidBecomeVisibleNotification, UISceneDidActivateNotification])
                 [NSNotificationCenter.defaultCenter addObserver:client selector:@selector(windowVisible:) name:name object:nil];
-            for (NSString *name in @[UIKeyboardWillChangeFrameNotification, UIKeyboardDidChangeFrameNotification, UIKeyboardWillHideNotification])
-                [NSNotificationCenter.defaultCenter addObserver:client selector:@selector(keyboardChanged:) name:name object:nil];
             [client refresh];
         });
     });

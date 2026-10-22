@@ -606,7 +606,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "FLOATING_APP_POSITION" = "Dock Position";
 
-"FLOATING_APP_POSITION_FOOTER" = "Opens near the top right by default. Choose an alignment or drag the title bar to move it. The window avoids the keyboard.";
+"FLOATING_APP_POSITION_FOOTER" = "Opens near the top right by default. Choose an alignment or drag the title bar to move it.";
 
 "FLOATING_APP_POSITION_LEFT" = "Left";
 

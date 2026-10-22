@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.9.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复悬浮小窗内点击输入框无法弹出键盘、点击后小窗异常缩小的问题</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.9.6</string>
 		<key>items</key>
 		<array>
@@ -69,25 +82,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>动作组默认预设只种入动作目录内的动作，删除后仍可重新添加</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.8.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>动作组规则点击动作行直达动作配置</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>自定义动作的改动在所有引用点同步生效</string>
 			</dict>
 		</array>
 	</dict>

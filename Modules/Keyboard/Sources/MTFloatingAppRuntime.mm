@@ -181,9 +181,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic, strong) UIActivityIndicatorView *spinner;
 @property(nonatomic) CGSize canvasSize;
 @property(nonatomic) CGPoint normalizedCenter;
-// 占屏面积（含标题栏），缺省 20%；键盘避让仅改变当前显示，不覆盖用户位置。
+// 占屏面积（含标题栏），缺省 20%。
 @property(nonatomic) CGFloat areaFraction;
-@property(nonatomic) CGFloat keyboardTop;
 @property(nonatomic) BOOL positionInitialized;
 @property(nonatomic) BOOL layingOut;
 // 悬浮设置页写入的水平停靠位置（0=居左 1=居中 2=居右）；拖动后以拖动为准。
@@ -232,7 +231,6 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic) int inputSceneToken;
 @property(nonatomic) int inputBaseToken;
 @property(nonatomic) int inputFocusToken;
-@property(nonatomic, strong) NSMutableDictionary<NSNumber *, NSNumber *> *keyboardTokens;
 @property(nonatomic) int baseInputSceneToken;
 @property(nonatomic) pid_t baseInputPID;
 @property(nonatomic) uint32_t inputNonce;
@@ -255,7 +253,6 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 - (void)startInputRelay;
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce;
 - (void)stopInputRelay;
-- (void)updateKeyboardForPID:(pid_t)pid nonce:(uint32_t)nonce generation:(NSUInteger)generation;
 - (BOOL)protectsScene:(id)scene;
 - (id)protectedSettings:(id)settings scene:(id)scene;
 @end
@@ -265,7 +262,6 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     if ((self = [super init])) {
         self.normalizedCenter = CGPointMake(0.5, 0.45);
         self.horizontalAlignment = 2;
-        self.keyboardTop = -1;
         self.requestedZoom = self.displayedZoom = self.pinchStartZoom = 1;
     }
     return self;
@@ -319,8 +315,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
         self.horizontalCustomized = YES;
         self.positionInitialized = YES;
     }
-    // Start from the displayed frame, including any keyboard avoidance. Using
-    // the saved pre-keyboard position would make dragging stick at the edge.
+    // Start from the displayed frame so dragging follows the visible card.
     CGRect frame = self.view.window.frame;
     self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display) + translation.x) / display.size.width,
                                         (CGRectGetMidY(frame) - CGRectGetMinY(display) + translation.y) / display.size.height);
@@ -371,7 +366,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
         safe.top = MAX(safe.top, candidate.top); safe.bottom = MAX(safe.bottom, candidate.bottom);
         safe.left = MAX(safe.left, candidate.left); safe.right = MAX(safe.right, candidate.right);
     }
-    CGRect available = MTFloatingAppAvailableRect(display, UIEdgeInsetsInsetRect(display, safe), self.keyboardTop);
+    CGRect available = MTFloatingAppAvailableRect(display, UIEdgeInsetsInsetRect(display, safe));
     if (CGRectIsEmpty(available)) return;
     CGSize canvas = self.canvasSize;
     if (canvas.width < 1 || canvas.height < 1) canvas = display.size;
@@ -408,11 +403,9 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.canvas.transform = CGAffineTransformMakeScale(scale, scale);
     self.spinner.center = self.canvas.center;
     [self.card bringSubviewToFront:header];
-    if (self.keyboardTop < 0) {
-        self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display)) / display.size.width,
-                                            (CGRectGetMidY(frame) - CGRectGetMinY(display)) / display.size.height);
-        self.positionInitialized = YES;
-    }
+    self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display)) / display.size.width,
+                                        (CGRectGetMidY(frame) - CGRectGetMinY(display)) / display.size.height);
+    self.positionInitialized = YES;
     self.layingOut = NO;
 }
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
@@ -509,7 +502,6 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         coordinator = [self new]; coordinator.session = [MTFloatingAppSession new];
         coordinator.inputSessionToken = coordinator.inputToken = coordinator.inputSceneToken = NOTIFY_TOKEN_INVALID;
         coordinator.inputBaseToken = coordinator.inputFocusToken = coordinator.baseInputSceneToken = NOTIFY_TOKEN_INVALID;
-        coordinator.keyboardTokens = [NSMutableDictionary dictionary];
         if (notify_register_check(MTFloatInputSessionName.UTF8String, &coordinator->_inputSessionToken) == NOTIFY_STATUS_OK) {
             // Revoke any marker left behind by the previous SpringBoard process.
             notify_set_state(coordinator.inputSessionToken, 0);
@@ -547,29 +539,10 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     if (self.baseInputPID > 1 &&
         (notify_register_check(MTFloatInputSceneName((uint32_t)self.baseInputPID).UTF8String, &_baseInputSceneToken) != NOTIFY_STATUS_OK ||
          notify_set_state(self.baseInputSceneToken, baseHash) != NOTIFY_STATUS_OK)) { [self stopInputRelay]; return; }
-    if (self.inputFocusToken == NOTIFY_TOKEN_INVALID) {
-        int focusToken = NOTIFY_TOKEN_INVALID;
-        if (notify_register_dispatch(MTFloatInputFocusName.UTF8String, &focusToken, dispatch_get_main_queue(), ^(int eventToken) {
-            MTFloatingAppCoordinator *host = weakSelf;
-            uint64_t focus = 0;
-            if (!host || notify_get_state(eventToken, &focus) != NOTIFY_STATUS_OK ||
-                (uint32_t)(focus >> 32) != host.inputNonce || !host.inputNonce) return;
-            pid_t focusedPID = (pid_t)(uint32_t)focus;
-            [host updateKeyboardForPID:focusedPID nonce:host.inputNonce generation:host.session.generation];
-        }) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
-        self.inputFocusToken = focusToken;
-    }
-    NSArray<NSNumber *> *participants = self.baseInputPID > 1 ? @[@(pid), @(self.baseInputPID)] : @[@(pid)];
-    for (NSNumber *participant in participants) {
-        pid_t participantPID = participant.intValue;
-        int keyboardToken = NOTIFY_TOKEN_INVALID;
-        if (notify_register_dispatch(MTFloatInputKeyboardName((uint32_t)participantPID).UTF8String, &keyboardToken,
-            dispatch_get_main_queue(), ^(__unused int eventToken) {
-                [weakSelf updateKeyboardForPID:participantPID nonce:nonce generation:generation];
-            }) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
-        self.keyboardTokens[participant] = @(keyboardToken);
-        notify_set_state(keyboardToken, MTFloatKeyboardWord(nonce, -1));
-    }
+    if (self.inputFocusToken == NOTIFY_TOKEN_INVALID &&
+        notify_register_check(MTFloatInputFocusName.UTF8String, &_inputFocusToken) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+    // Text-input focus only; keyboard geometry itself is hosted inside the
+    // card's canvas, so the coordinator never relays keyboard frames.
     uint32_t focusedPID = (uint32_t)(self.baseInputPID > 1 ? self.baseInputPID : pid);
     if (notify_set_state(self.inputBaseToken, self.baseInputPID > 1 ? MTFloatInputSessionWord((uint32_t)self.baseInputPID, nonce) : 0) != NOTIFY_STATUS_OK ||
         notify_set_state(self.inputFocusToken, MTFloatInputSessionWord(focusedPID, nonce)) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
@@ -580,24 +553,6 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     }
     notify_post(MTFloatInputSessionName.UTF8String);
     NSLog(@"[MetisKeyboard][FloatingApp] input relay ready pid=%d generation=%lu", pid, (unsigned long)generation);
-}
-- (void)updateKeyboardForPID:(pid_t)pid nonce:(uint32_t)nonce generation:(NSUInteger)generation {
-    if (![self.session isCurrent:generation] || self.inputNonce != nonce || !self.activeLease ||
-        !self.controller || !self.window || ![MTGlobalPanel deviceUnlocked]) return;
-    NSString *identifier = pid == self.processPID ? self.session.bundleIdentifier :
-        (pid == self.baseInputPID ? self.baseIdentifier : nil);
-    NSNumber *token = self.keyboardTokens[@(pid)];
-    if (!identifier.length || !token || MTFloatPID(identifier) != pid) return;
-    uint64_t focus = 0, word = 0;
-    if (notify_get_state(self.inputFocusToken, &focus) != NOTIFY_STATUS_OK ||
-        focus != MTFloatInputSessionWord((uint32_t)pid, nonce) ||
-        notify_get_state(token.intValue, &word) != NOTIFY_STATUS_OK) return;
-    double top = -1;
-    if (!MTFloatDecodeKeyboard(word, nonce, &top)) return;
-    if (fabs(self.controller.keyboardTop - top) < .0001) return;
-    self.controller.keyboardTop = top;
-    [self.controller.view setNeedsLayout]; [self.controller.view layoutIfNeeded];
-    NSLog(@"[MetisKeyboard][FloatingApp] keyboard owner=%@ visible=%d", pid == self.processPID ? @"floating" : @"base", top >= 0);
 }
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce {
     uint8_t serial = 0; MTFloatPinchPhase phase; double scale = 0;
@@ -624,8 +579,6 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     if (self.inputBaseToken != NOTIFY_TOKEN_INVALID) notify_set_state(self.inputBaseToken, 0);
     if (self.inputFocusToken != NOTIFY_TOKEN_INVALID) { notify_set_state(self.inputFocusToken, 0); notify_cancel(self.inputFocusToken); }
     self.inputFocusToken = NOTIFY_TOKEN_INVALID;
-    for (NSNumber *token in self.keyboardTokens.allValues) notify_cancel(token.intValue);
-    [self.keyboardTokens removeAllObjects];
     if (self.baseInputSceneToken != NOTIFY_TOKEN_INVALID) notify_cancel(self.baseInputSceneToken);
     self.baseInputSceneToken = NOTIFY_TOKEN_INVALID; self.baseInputPID = 0;
     if (self.inputToken != NOTIFY_TOKEN_INVALID) notify_cancel(self.inputToken);
@@ -945,20 +898,21 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
             if ([self.publishedLayers isEqualToArray:layers] && CGSizeEqualToSize(self.controller.canvasSize, [self canvasSize])) return;
             NSMutableArray<UIView *> *main = [NSMutableArray array], *external = [NSMutableArray array];
             for (id layer in layers) {
-                // The focused app owns a full-size native keyboard; never
-                // shrink its keyboard layer into the floating content canvas.
-                if (MTFloatInteger(layer, @"isKeyboardLayer", NO)) continue;
+                // The hosted scene owns its keyboard layer: the system never
+                // renders a native keyboard for a non-frontmost scene, so host
+                // the keyboard layer into the card exactly like PullOver-X.
+                BOOL keyboard = MTFloatInteger(layer, @"isKeyboardLayer", NO);
                 BOOL isExternal = MTFloatObject(layer, @"externalSceneID") != nil;
-                NSString *className = isExternal ? @"_UIExternalSceneLayerHostView" : @"_UIContextLayerHostView";
-                NSString *method = isExternal ? @"initWithSceneLayer:parentScene:" : @"initWithSceneLayer:";
+                NSString *className = keyboard ? @"_UIKeyboardLayerHostView" : isExternal ? @"_UIExternalSceneLayerHostView" : @"_UIContextLayerHostView";
+                NSString *method = keyboard ? @"initWithKeyboardLayer:owningScene:" : isExternal ? @"initWithSceneLayer:parentScene:" : @"initWithSceneLayer:";
                 Class hostClass = NSClassFromString(className);
                 SEL initializer = NSSelectorFromString(method);
                 if (![hostClass isSubclassOfClass:UIView.class] || ![hostClass instancesRespondToSelector:initializer]) continue;
-                UIView *view = isExternal
+                UIView *view = (keyboard || isExternal)
                     ? ((id (*)(id, SEL, id, id))objc_msgSend)([hostClass alloc], initializer, layer, self.scene)
                     : ((id (*)(id, SEL, id))objc_msgSend)([hostClass alloc], initializer, layer);
                 if (view) {
-                    NSMutableArray *destination = isExternal ? external : main;
+                    NSMutableArray *destination = (keyboard || isExternal) ? external : main;
                     [destination addObject:view];
                 }
             }
