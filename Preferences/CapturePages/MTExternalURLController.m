@@ -3,7 +3,7 @@
 #import "MTExternalURLController.h"
 #import "../../Modules/Capture/Sources/Common/MTConstants.h"
 
-// 外部 URL 调用文档页：列出全部 6 条寄生路由（prefs://root=metis_*），点击复制。
+// 外部 URL 调用文档页：列出全部 5 条寄生路由（prefs://root=metis_*），点击复制。
 // 触发链路：捷径「打开 URL」动作 → openURL: → SpringBoard URL 分发层
 // （MTURLRouter.xm 拦截 metis_ 命名空间）→ MTCaptureCoordinator，与 Darwin
 // 通知入口是同一协调器方法。因此行为口径完全一致：总开关或截图模块关闭、
@@ -32,7 +32,7 @@
 #pragma mark - 数据源
 
 // 标题与 MTConstants 路由常量一一对应；改路由必须同步本表与 MTURLRouter.xm 白名单。
-// 冻结/即时截图不开放 URL 入口（仍可由 Darwin 通知与键盘系统动作触发）。
+// 冻结/即时/取消不开放 URL 入口（仍可由 Darwin 通知与键盘系统动作触发）。
 - (NSArray<NSArray<NSString *> *> *)mtRouteEntries {
     return @[
         @[@"全屏截图", (__bridge NSString *)MTURLRouteFull],
@@ -40,7 +40,6 @@
         @[@"全屏标记", (__bridge NSString *)MTURLRouteMarkup],
         @[@"滚动长截图", (__bridge NSString *)MTURLRouteLong],
         @[@"编辑剪贴板图片", (__bridge NSString *)MTURLRouteEditClipboard],
-        @[@"取消当前截图", (__bridge NSString *)MTURLRouteCancel],
     ];
 }
 
