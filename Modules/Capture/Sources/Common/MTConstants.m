@@ -47,8 +47,6 @@ CFStringRef const MTShellXRouteScan = CFSTR("prefs://root=shellx_scan");
 CFStringRef const MTURLRoutePrefix = CFSTR("metis_");
 CFStringRef const MTURLRouteFull = CFSTR("prefs://root=metis_full");
 CFStringRef const MTURLRouteArea = CFSTR("prefs://root=metis_area");
-CFStringRef const MTURLRouteFreeze = CFSTR("prefs://root=metis_freeze");
-CFStringRef const MTURLRouteInstant = CFSTR("prefs://root=metis_instant");
 CFStringRef const MTURLRouteMarkup = CFSTR("prefs://root=metis_markup");
 CFStringRef const MTURLRouteLong = CFSTR("prefs://root=metis_long");
 CFStringRef const MTURLRouteEditClipboard = CFSTR("prefs://root=metis_edit");
