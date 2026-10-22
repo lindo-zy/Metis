@@ -754,9 +754,7 @@ static NSInteger const MTLegacyRowLink = 2;
             [owner refreshIconPreview];
             [owner.tableView reloadData];
         };
-        [picker setRootController:[self rootController]];
-        [picker setParentController:[self parentController]];
-        [self pushController:picker];
+        [self mtPushChildController:picker];
         return;
     }
     if (self.isShortcutEntry && indexPath.row == MTActionRowPayload) {
@@ -781,9 +779,7 @@ static NSInteger const MTLegacyRowLink = 2;
             [view refreshIconPreview];
             [view.tableView reloadData];
         };
-        [picker setRootController:[self rootController]];
-        [picker setParentController:[self parentController]];
-        [self pushController:picker];
+        [self mtPushChildController:picker];
         return;
     }
     if (self.isOpenAppEntry && indexPath.row == MTActionRowPayload) {
@@ -806,9 +802,7 @@ static NSInteger const MTLegacyRowLink = 2;
             [strongSelf.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:MTActionRowPayload inSection:0]]
                                          withRowAnimation:UITableViewRowAnimationNone];
         };
-        [picker setRootController:[self rootController]];
-        [picker setParentController:[self parentController]];
-        [self pushController:picker];
+        [self mtPushChildController:picker];
     }
 }
 
@@ -1101,6 +1095,20 @@ static NSInteger const MTLegacyRowLink = 2;
     [self.navigationController popViewControllerAnimated:YES];
 }
 
+// 共享编辑器也会被没有 PS 根控制器的宿主（如剪切板子包直接 push 的场景）
+// 压栈：此时 pushController 是空操作，子选择器不会出现（已知故障形态）。
+// 根控制器可用时保持原有 PS 压栈链，否则退回普通 UINavigationController。
+- (void)mtPushChildController:(PSViewController *)controller {
+    if (!controller) return;
+    [controller setRootController:[self rootController]];
+    [controller setParentController:self];
+    if ([self rootController]) {
+        [self pushController:controller];
+        return;
+    }
+    [self.navigationController pushViewController:controller animated:YES];
+}
+
 - (UITextField *)newFieldWithText:(NSString *)text placeholder:(NSString *)placeholder {
     UITextField *field = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 210, 36)];
     field.text = text;
@@ -1145,9 +1153,7 @@ static NSInteger const MTLegacyRowLink = 2;
             owner.iconField.text = symbolName;
             [owner refreshIconPreview];
         };
-        [picker setRootController:[strongSelf rootController]];
-        [picker setParentController:[strongSelf parentController]];
-        [strongSelf pushController:picker];
+        [strongSelf mtPushChildController:picker];
     };
 }
 

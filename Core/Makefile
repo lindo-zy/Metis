@@ -76,6 +76,9 @@ MetisCore_FILES += $(wildcard AltList/*.m)
 # （宿主测试直接编译），UIKit 渲染层由设置壳/键盘子包共用。全部走 MetisCore
 # 单一镜像，维持跨 bundle 类唯一性（03-architecture §1）。
 MetisCore_FILES += $(wildcard PrefsUI/*.m)
+# 自定义动作编辑器与参数选择器（MTPLinkActionEditorController、MTPAppInfo、
+# MTPOpenAppPickerController、MTPAppShortcutPickerController、MTPSystemActionPickerController
+# 等）一并在此：键盘与剪切板设置子包共用同一套编辑 UI，避免第二份实现。
 
 MetisCore_CFLAGS = -fobjc-arc
 MetisCore_CFLAGS += -Wno-tautological-pointer-compare
