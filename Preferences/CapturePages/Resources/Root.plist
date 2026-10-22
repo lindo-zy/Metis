@@ -186,7 +186,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>点击对应行会立即发送该截图模式的测试请求，验证六种入口是否可达。</string>
+			<string>点击对应行会立即发送该截图模式的测试请求，验证各入口是否可达；「外部 URL 调用」页提供可复制给 iOS 捷径等外部工具使用的 URL 地址；「图片编辑」直接打开独立编辑器。</string>
 			<key>label</key>
 			<string>测试</string>
 		</dict>
