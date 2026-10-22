@@ -57,13 +57,17 @@ static BOOL MTContextSourceHasValidSyntax(NSString *source) {
     if ([group isEqual:@"paste"]) ids = @[@"url", @"address", @"number", @"image", @"text"];
     NSMutableArray *result = [NSMutableArray array];
     for (NSString *identifier in ids) {
-        NSArray *actions = @[@"copyAction:", @"url:search", @"ai:seed"];
+        // Defaults only seed actions the catalog actually offers, so every
+        // pre-filled slot can be re-added after the user deletes it. The
+        // synthesized context actions (url:open / url:search / ai:seed) remain
+        // executable for configurations that already reference them, but new
+        // configurations start from catalog actions only.
+        NSArray *actions = @[@"copyAction:", @"pasteAction:"];
         if ([group isEqual:@"delete"]) actions = @[@"undoAction:"];
         else if ([group isEqual:@"typing"]) actions = @[@"selectAllAction:", @"copyAction:", @"undoAction:"];
         else if ([group isEqual:@"idle"]) actions = @[];
-        else if ([group isEqual:@"paste"]) actions = @[@"undoAction:", @"ai:seed", @"copyAction:"];
-        else if ([group isEqual:@"copy"]) actions = @[@"pasteAction:", @"ai:seed", @"url:search"];
-        if ([identifier isEqual:@"url"]) actions = @[@"url:open", @"url:search", @"copyAction:", @"ai:seed"];
+        else if ([group isEqual:@"paste"]) actions = @[@"undoAction:", @"copyAction:"];
+        else if ([group isEqual:@"copy"]) actions = @[@"pasteAction:", @"copyAction:"];
         if ([identifier isEqual:@"image"]) actions = @[@"pasteAction:", @"copyAction:"];
         [result addObject:@{@"kind":@"builtin", @"id":identifier, @"enabled":@YES, @"actions":actions}];
     }
