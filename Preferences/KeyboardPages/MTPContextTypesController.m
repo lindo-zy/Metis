@@ -3,6 +3,7 @@
 #import "MTContextClassifier.h"
 #import "MTPPanelActionCatalog.h"
 #import "MTPSubActionPickerController.h"
+#import "MTPLinkActionEditorController.h"
 #import "MTSettingsNavigation.h"
 #import "MTBottomBarLayout.h"
 #import "MTCollectionView.h"
@@ -20,6 +21,19 @@ void MTPCTXSaveTypes(NSString *group, NSArray<MTContextType *> *types) {
     groups[MTContextCanonicalGroup(group)] = entries;
     [MTPrefsManager.sharedInstance setValue:groups forKey:kContextGroupTypesKey];
     [[MTContextClassifier sharedClassifier] invalidate];
+}
+// The user-defined definition a slot selector points at, if any. Only custom
+// actions carry an editable definition here: panels and built-in shortcuts are
+// reference-only in this list (the sub-action list treats them the same way),
+// and the synthesized context actions (url:open / url:search / ai:seed) have no
+// definition at all.
+static NSDictionary *MTPContextTypeActionDefinition(NSString *selector) {
+    if (![selector isKindOfClass:NSString.class] || !selector.length) return nil;
+    if (!MTIsLinkActionSelector(selector)) return nil;
+    for (NSDictionary *entry in [MTPrefsManager.sharedInstance readPrefs][kLinkActionskey]) {
+        if ([entry isKindOfClass:NSDictionary.class] && [entry[@"selector"] isEqual:selector]) return entry;
+    }
+    return nil;
 }
 @interface MTPContextTypesController ()
 @property(nonatomic, strong) UITableView *table;
@@ -146,7 +160,12 @@ void MTPCTXSaveTypes(NSString *group, NSArray<MTContextType *> *types) {
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)path {
     if (style == UITableViewCellEditingStyleDelete && [self tableView:tableView canMoveRowAtIndexPath:path]) { NSMutableArray *actions = [self.type.actions mutableCopy]; [actions removeObjectAtIndex:path.row]; self.type.actions = actions; [self saveType]; }
 }
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path { [tableView deselectRowAtIndexPath:path animated:YES]; if (path.section == 1 && path.row == self.type.actions.count) [self addAction]; }
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
+    [tableView deselectRowAtIndexPath:path animated:YES];
+    if (path.section != 1) return;
+    if (path.row >= (NSInteger)self.type.actions.count) { [self addAction]; return; }
+    [self editActionAtRow:path.row];
+}
 - (void)addAction {
     // 动作组规则添加动作只允许从动作列表挑选，不再提供快捷子项菜单。
     if (self.type.actions.count >= 8) return;
@@ -157,6 +176,51 @@ void MTPCTXSaveTypes(NSString *group, NSArray<MTContextType *> *types) {
     picker.completion = ^(NSString *selector) {
         MTPContextTypeActionsController *owner = weakSelf; if (!owner || owner.type.actions.count >= 8 || !MTContextActionAllowed(selector, [MTPrefsManager.sharedInstance readPrefs])) return;
         owner.type.actions = [owner.type.actions arrayByAddingObject:selector]; [owner saveType];
+    };
+    [self pushPage:picker];
+}
+// Tapping an action row opens its configuration, mirroring the sub-action
+// list: a user-defined action opens the editor for its shared definition (the
+// change is global — every reference to that selector follows), while an
+// action without a definition (built-in shortcuts, panels, url:open /
+// url:search / ai:seed) is replaced through the same catalog the add row uses.
+- (void)editActionAtRow:(NSUInteger)row {
+    if (row >= self.type.actions.count) return;
+    NSString *selector = self.type.actions[row];
+    NSDictionary *definition = MTPContextTypeActionDefinition(selector);
+    __weak typeof(self) weakSelf = self;
+    if ([definition isKindOfClass:NSDictionary.class]) {
+        MTPLinkActionEditorController *editor = [MTPLinkActionEditorController new];
+        editor.entry = [definition mutableCopy];
+        editor.completion = ^(NSDictionary *savedEntry) {
+            MTPContextTypeActionsController *owner = weakSelf;
+            if (!owner || ![savedEntry isKindOfClass:NSDictionary.class] || ![savedEntry[@"selector"] isEqual:selector]) return;
+            // The definition lives in its own store, not in the group config:
+            // rewrite the whole domain so other keys survive the replace-style
+            // writePrefs of this unsandboxed process.
+            NSMutableDictionary *prefs = [[MTPrefsManager.sharedInstance readPrefs] mutableCopy] ?: [NSMutableDictionary dictionary];
+            NSMutableArray *linkActions = [NSMutableArray array];
+            for (NSDictionary *entry in prefs[kLinkActionskey]) {
+                if (![entry isKindOfClass:NSDictionary.class]) continue;
+                [linkActions addObject:[entry[@"selector"] isEqual:selector] ? [savedEntry mutableCopy] : [entry mutableCopy]];
+            }
+            prefs[kLinkActionskey] = linkActions;
+            [MTPrefsManager.sharedInstance writePrefs:prefs];
+            [owner.table reloadData]; [owner installPreview];
+        };
+        [self pushPage:editor];
+        return;
+    }
+    MTPSubActionPickerController *picker = [MTPSubActionPickerController new];
+    picker.actionContextKind = MTPanelKeyboardKind; picker.fullOrder = MTPPanelBuiltInActions();
+    picker.selectedSelector = selector; picker.title = MTPCTX(@"KEYBOARD_PANEL_REPLACE_ACTION");
+    picker.completion = ^(NSString *replacement) {
+        MTPContextTypeActionsController *owner = weakSelf;
+        if (!owner || !replacement.length || row >= owner.type.actions.count) return;
+        if ([owner.type.actions[row] isEqual:replacement]) return;
+        if (!MTContextActionAllowed(replacement, [MTPrefsManager.sharedInstance readPrefs])) return;
+        NSMutableArray *actions = [owner.type.actions mutableCopy];
+        actions[row] = replacement; owner.type.actions = actions; [owner saveType];
     };
     [self pushPage:picker];
 }
