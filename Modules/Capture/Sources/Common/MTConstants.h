@@ -71,7 +71,7 @@ FOUNDATION_EXPORT CFStringRef const MTShellXRouteScan;      // prefs://root=shel
 /// 寄生路由前缀：prefs scheme 由 Preferences.app 认领，URL 必然经过 SpringBoard
 /// 分发层（与 SHELLX prefs://root=shellx_* 同链路）。Metis 无 App Bundle，自有
 /// scheme 无法被 LaunchServices 认领，只能寄生已注册 scheme。root id 白名单与
-/// Darwin 通知名对应（URL 入口只暴露其中 6 个动作：冻结/即时截图按需求不开放，
+/// Darwin 通知名对应（URL 入口只暴露其中 5 个动作：冻结/即时/取消按需求不开放，
 /// 仍可由 Darwin 通知与键盘系统动作入口触发）；单一事实源在此，解析与拦截见
 /// SpringBoard/MTURLRouter.xm，设置页文档见 MTExternalURLController。
 /// 命中即消费，不再向下打开设置页。
@@ -81,7 +81,6 @@ FOUNDATION_EXPORT CFStringRef const MTURLRouteArea;           // prefs://root=me
 FOUNDATION_EXPORT CFStringRef const MTURLRouteMarkup;         // prefs://root=metis_markup → 全屏标记
 FOUNDATION_EXPORT CFStringRef const MTURLRouteLong;           // prefs://root=metis_long → 滚动长截图
 FOUNDATION_EXPORT CFStringRef const MTURLRouteEditClipboard;  // prefs://root=metis_edit → 编辑剪贴板图片（不抓屏）
-FOUNDATION_EXPORT CFStringRef const MTURLRouteCancel;         // prefs://root=metis_cancel → 取消当前任务
 
 // MARK: - 进程内通知名（同样不携带图片对象，只提示协调器刷新）
 

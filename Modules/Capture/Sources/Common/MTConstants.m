@@ -50,7 +50,6 @@ CFStringRef const MTURLRouteArea = CFSTR("prefs://root=metis_area");
 CFStringRef const MTURLRouteMarkup = CFSTR("prefs://root=metis_markup");
 CFStringRef const MTURLRouteLong = CFSTR("prefs://root=metis_long");
 CFStringRef const MTURLRouteEditClipboard = CFSTR("prefs://root=metis_edit");
-CFStringRef const MTURLRouteCancel = CFSTR("prefs://root=metis_cancel");
 
 NSString * const MTNotificationResultUpdated = @"com.lindo.metis.capture/result/updated";
 

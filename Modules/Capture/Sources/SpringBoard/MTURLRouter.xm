@@ -29,7 +29,7 @@ static inline NSString *MTRouteRootOf(CFStringRef route) {
 }
 
 // root id → Darwin 通知名。键由 MTURLRoute* 常量反推，值逐字对应，改路由必须同步两边。
-// 冻结/即时截图不在表内（需求决定不走 URL 入口，仍可由 Darwin 通知与键盘动作触发）；
+// 冻结/即时/取消不在表内（需求决定不走 URL 入口，仍可由 Darwin 通知与键盘动作触发）；
 // 未知 metis_ root 一律消费并记日志，不放行到设置页。
 static NSDictionary<NSString *, NSString *> *MTRouteTable(void) {
     static NSDictionary *table;
@@ -41,7 +41,6 @@ static NSDictionary<NSString *, NSString *> *MTRouteTable(void) {
             MTRouteRootOf(MTURLRouteMarkup):        (__bridge NSString *)MTDarwinCaptureMarkup,
             MTRouteRootOf(MTURLRouteLong):          (__bridge NSString *)MTDarwinCaptureLong,
             MTRouteRootOf(MTURLRouteEditClipboard): (__bridge NSString *)MTDarwinEditClipboard,
-            MTRouteRootOf(MTURLRouteCancel):        (__bridge NSString *)MTDarwinCaptureCancel,
         };
     });
     return table;
