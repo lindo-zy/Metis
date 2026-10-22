@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.9.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>截图设置「测试」分组的入口改为按外部 URL 路由触发，点击即启动对应截图，并移除单独的「外部 URL 调用」页</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>测试分组新增「编辑剪贴板图片」入口</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.9.9</string>
 		<key>items</key>
 		<array>
