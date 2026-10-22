@@ -44,6 +44,16 @@ CFStringRef const MTShellXRouteAI2 = CFSTR("prefs://root=shellx_ai2");
 CFStringRef const MTShellXRouteTranslate = CFSTR("prefs://root=shellx_translate");
 CFStringRef const MTShellXRouteScan = CFSTR("prefs://root=shellx_scan");
 
+CFStringRef const MTURLRoutePrefix = CFSTR("metis_");
+CFStringRef const MTURLRouteFull = CFSTR("prefs://root=metis_full");
+CFStringRef const MTURLRouteArea = CFSTR("prefs://root=metis_area");
+CFStringRef const MTURLRouteFreeze = CFSTR("prefs://root=metis_freeze");
+CFStringRef const MTURLRouteInstant = CFSTR("prefs://root=metis_instant");
+CFStringRef const MTURLRouteMarkup = CFSTR("prefs://root=metis_markup");
+CFStringRef const MTURLRouteLong = CFSTR("prefs://root=metis_long");
+CFStringRef const MTURLRouteEditClipboard = CFSTR("prefs://root=metis_edit");
+CFStringRef const MTURLRouteCancel = CFSTR("prefs://root=metis_cancel");
+
 NSString * const MTNotificationResultUpdated = @"com.lindo.metis.capture/result/updated";
 
 NSString * const MTKeyEnabled = @"Enabled";

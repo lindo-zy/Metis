@@ -1,5 +1,6 @@
 #import "MTCaptureRootListController.h"
 #import "MTStandaloneEditorController.h"
+#import "MTExternalURLController.h"
 #import "../../Modules/Capture/Sources/Common/MTConstants.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
 
@@ -32,6 +33,8 @@
         [items insertObject:specifier atIndex:insertIndex];
         insertIndex++;
     }
+    [items insertObject:[self mtExternalURLSpecifier] atIndex:insertIndex];
+    insertIndex++;
     [items insertObject:[self mtStandaloneEditorSpecifier] atIndex:insertIndex];
     return items;
 }
@@ -43,7 +46,8 @@
     return nil;
 }
 
-// 测试入口直发 Darwin 通知（外部 URL scheme 已移除）；名称与 SB 入口注册表一致。
+// 测试入口直发 Darwin 通知；外部 URL 路由（prefs://root=metis_*）由 SpringBoard 侧
+// MTURLRouter.xm 拦截，入口文档见「外部 URL 调用」行。名称与 SB 入口注册表一致。
 - (NSArray<NSArray<NSString *> *> *)mtSchemeEntries {
     return @[
         @[@"启动（区域截图）", (__bridge NSString *)MTDarwinActivate],
@@ -73,6 +77,19 @@
         [specifiers addObject:specifier];
     }
     return specifiers;
+}
+
+// 外部 URL 调用文档页：列出 8 条寄生路由（prefs://root=metis_*），供捷径等外部调用。
+// 拦截实现在 SpringBoard 侧 MTURLRouter.xm，与 Darwin 通知入口共用协调器。
+- (PSSpecifier *)mtExternalURLSpecifier {
+    NSString *title = @"外部 URL 调用";
+    return [PSSpecifier preferenceSpecifierNamed:title
+                                          target:self
+                                             set:NULL
+                                             get:NULL
+                                          detail:MTExternalURLController.class
+                                            cell:PSLinkCell
+                                            edit:Nil];
 }
 
 // 独立图片编辑入口：不发 Darwin 通知，直接在本页进程内拉起编辑器
