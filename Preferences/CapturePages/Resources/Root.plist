@@ -186,7 +186,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>点击对应行会立即发送该截图模式的测试请求，验证各入口是否可达；「外部 URL 调用」页提供可复制给 iOS 捷径等外部工具使用的 URL 地址；「图片编辑」直接打开独立编辑器。</string>
+			<string>点击对应行会立即按该行的外部 URL 路由（prefs://root=metis_*）发送请求并启动对应截图，链路与 iOS 捷径「打开 URL」一致（SpringBoard 拦截后直达截图协调器），可用来验证路由与各入口是否可达；「启动（区域截图）」走 Darwin 通知入口；「图片编辑」直接打开独立编辑器。总开关或截图模块关闭、已有截图任务进行中时，请求会被忽略。</string>
 			<key>label</key>
 			<string>测试</string>
 		</dict>

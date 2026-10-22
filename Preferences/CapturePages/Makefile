@@ -9,7 +9,6 @@ MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	MTEditorOrderController.m \
 	MTEditorButtonEditController.m \
 	MTCustomURLController.m \
-	MTExternalURLController.m \
 	MTStandaloneEditorController.m \
 	../../Modules/Capture/Sources/Common/MTConstants.m \
 	../../Modules/Capture/Sources/Common/MTPanelAppearance.m \
