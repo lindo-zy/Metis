@@ -190,7 +190,9 @@ void MTStartFloatingAppInputClient(void) {
             if (notify_register_dispatch(MTFloatInputFocusName.UTF8String, &focus, dispatch_get_main_queue(),
                 ^(__unused int token) { [weakClient focusChanged]; }) != NOTIFY_STATUS_OK) { client = nil; return; }
             client.focusToken = focus;
-            notify_register_check(MTFloatInputActivityName.UTF8String, &client->_activityToken);
+            int activity = NOTIFY_TOKEN_INVALID;
+            if (notify_register_check(MTFloatInputActivityName.UTF8String, &activity) == NOTIFY_STATUS_OK)
+                client.activityToken = activity;
             int token = NOTIFY_TOKEN_INVALID;
             if (notify_register_dispatch(MTFloatInputSessionName.UTF8String, &token, dispatch_get_main_queue(),
                 ^(__unused int event) { [weakClient refresh]; }) != NOTIFY_STATUS_OK) { client = nil; return; }
