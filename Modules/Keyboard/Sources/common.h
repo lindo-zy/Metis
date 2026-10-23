@@ -107,6 +107,7 @@
 #define kSubActionPanelScaleKey @"subactionpanelscale"
 // 悬浮小窗占屏面积（百分比，缺省 20），与旧版线性比例使用不同的键。
 #define kFloatingCardAreaKey @"floatingcardarea"
+#define kFloatingCardAutoResizeKey @"floatingcardautoresizeBOOL"
 // 悬浮小窗默认水平停靠位置（0=居左 1=居中 2=居右，缺省居右）。
 #define kFloatingCardPositionKey @"floatingcardposition"
 // One mode switch: shelf replaces only the keyboard bottom action toolbar.
@@ -309,6 +310,12 @@ static inline CGFloat MTFloatingCardAreaFromPreferences(NSDictionary *preference
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardAreaKey] : nil;
     double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 20;
     return lround(MTFloatingAppClampArea(percent / 100.0) * 20) / 20.0;
+}
+
+// 默认开启点击放大、离开缩小；非法或缺失值保持默认。
+static inline BOOL MTFloatingCardAutoResizeFromPreferences(NSDictionary *preferences) {
+    id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kFloatingCardAutoResizeKey] : nil;
+    return [value isKindOfClass:NSNumber.class] ? [value boolValue] : YES;
 }
 
 // 悬浮小窗默认靠右；已有有效停靠设置仍然保留。

@@ -10,6 +10,7 @@
 #import "MTGlobalPanel.h"
 #import "common.h"
 #import <UIKit/UIKit.h>
+#import <UIKit/UIGestureRecognizerSubclass.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
@@ -156,6 +157,17 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     return nil;
 }
 
+// Observe native title-bar and SpringBoard/Home Screen touches without consuming them.
+@interface MTFloatingAppNativeTouchObserver : UIGestureRecognizer
+@property(nonatomic, copy) void (^observedTouch)(UITouch *touch);
+@end
+@implementation MTFloatingAppNativeTouchObserver
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    if (self.observedTouch) self.observedTouch(touches.anyObject);
+    self.state = UIGestureRecognizerStateFailed;
+}
+@end
+
 @class MTFloatingAppCoordinator;
 
 @interface MTFloatingAppWindow : UIWindow
@@ -183,6 +195,10 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic) CGPoint normalizedCenter;
 // 占屏面积（含标题栏），缺省 20%。
 @property(nonatomic) CGFloat areaFraction;
+@property(nonatomic) CGFloat presetAreaFraction;
+@property(nonatomic) BOOL automaticResizeEnabled;
+@property(nonatomic) BOOL interactionKnown;
+@property(nonatomic) BOOL interactionActive;
 @property(nonatomic) BOOL positionInitialized;
 @property(nonatomic) BOOL layingOut;
 // 悬浮设置页写入的水平停靠位置（0=居左 1=居中 2=居右）；拖动后以拖动为准。
@@ -194,6 +210,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic, strong) UIPanGestureRecognizer *dragGesture;
 @property(nonatomic, strong) UIPinchGestureRecognizer *pinchGesture;
 - (void)setTitle:(NSString *)title;
+- (void)applySizingPreferences:(NSDictionary *)preferences;
+- (void)applyInteractionActive:(BOOL)active;
 - (void)setHostViews:(NSArray<UIView *> *)views canvasSize:(CGSize)size;
 - (void)applyPinchScale:(CGFloat)scale phase:(MTFloatPinchPhase)phase;
 @end
@@ -231,6 +249,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic) int inputSceneToken;
 @property(nonatomic) int inputBaseToken;
 @property(nonatomic) int inputFocusToken;
+@property(nonatomic) int inputActivityToken;
+@property(nonatomic, strong) NSMapTable<UIWindow *, MTFloatingAppNativeTouchObserver *> *nativeTouchObservers;
 @property(nonatomic) int baseInputSceneToken;
 @property(nonatomic) pid_t baseInputPID;
 @property(nonatomic) uint32_t inputNonce;
@@ -253,6 +273,9 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 - (void)startInputRelay;
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce;
 - (void)stopInputRelay;
+- (void)receiveActivityWord:(uint64_t)word nonce:(uint32_t)nonce;
+- (void)installNativeTouchObservers;
+- (void)nativeWindowVisible:(NSNotification *)notification;
 - (BOOL)protectsScene:(id)scene;
 - (id)protectedSettings:(id)settings scene:(id)scene;
 @end
@@ -262,7 +285,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     if ((self = [super init])) {
         self.normalizedCenter = CGPointMake(0.5, 0.45);
         self.horizontalAlignment = 2;
-        self.areaFraction = self.pinchStartArea = .20;
+        self.areaFraction = self.pinchStartArea = self.presetAreaFraction = .20;
+        self.automaticResizeEnabled = YES;
         self.pinchPreviousScale = 1;
     }
     return self;
@@ -308,6 +332,27 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 - (void)closeTapped { [self.owner close]; }
 - (void)minimizeTapped { [self.owner minimize]; }
 - (void)setTitle:(NSString *)title { [self loadViewIfNeeded]; self.titleLabel.text = title; }
+- (void)applySizingPreferences:(NSDictionary *)preferences {
+    CGFloat preset = MTFloatingCardAreaFromPreferences(preferences);
+    BOOL enabled = MTFloatingCardAutoResizeFromPreferences(preferences);
+    BOOL presetChanged = fabs(preset - self.presetAreaFraction) > .00001;
+    BOOL enabling = enabled && !self.automaticResizeEnabled;
+    self.presetAreaFraction = preset;
+    self.automaticResizeEnabled = enabled;
+    if (presetChanged || enabling) {
+        self.areaFraction = enabled && self.interactionKnown && !self.interactionActive ? .10 : preset;
+        [self.view setNeedsLayout];
+    }
+}
+- (void)applyInteractionActive:(BOOL)active {
+    if (self.interactionKnown && self.interactionActive == active) return;
+    self.interactionKnown = YES;
+    self.interactionActive = active;
+    if (!self.automaticResizeEnabled) return;
+    self.areaFraction = active ? self.presetAreaFraction : .10;
+    NSLog(@"[MetisKeyboard][FloatingApp] auto resize active=%d area=%.3f", active, (double)self.areaFraction);
+    [self.view setNeedsLayout]; [self.view layoutIfNeeded];
+}
 - (void)drag:(UIPanGestureRecognizer *)gesture {
     CGPoint translation = [gesture translationInView:self.view];
     CGRect display = self.view.window.windowScene.coordinateSpace.bounds;
@@ -515,7 +560,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         mtFloatingLocalBundle = [NSBundle bundleWithPath:bundlePath];
         coordinator = [self new]; coordinator.session = [MTFloatingAppSession new];
         coordinator.inputSessionToken = coordinator.inputToken = coordinator.inputSceneToken = NOTIFY_TOKEN_INVALID;
-        coordinator.inputBaseToken = coordinator.inputFocusToken = coordinator.baseInputSceneToken = NOTIFY_TOKEN_INVALID;
+        coordinator.inputBaseToken = coordinator.inputFocusToken = coordinator.inputActivityToken = coordinator.baseInputSceneToken = NOTIFY_TOKEN_INVALID;
         if (notify_register_check(MTFloatInputSessionName.UTF8String, &coordinator->_inputSessionToken) == NOTIFY_STATUS_OK) {
             // Revoke any marker left behind by the previous SpringBoard process.
             notify_set_state(coordinator.inputSessionToken, 0);
@@ -555,6 +600,16 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
          notify_set_state(self.baseInputSceneToken, baseHash) != NOTIFY_STATUS_OK)) { [self stopInputRelay]; return; }
     if (self.inputFocusToken == NOTIFY_TOKEN_INVALID &&
         notify_register_check(MTFloatInputFocusName.UTF8String, &_inputFocusToken) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+    if (notify_register_dispatch(MTFloatInputActivityName.UTF8String, &_inputActivityToken,
+        dispatch_get_main_queue(), ^(int eventToken) {
+        MTFloatingAppCoordinator *host = weakSelf;
+        if (![host.session isCurrent:generation] || host.inputNonce != nonce || host.processPID != pid ||
+            MTFloatPID(host.session.bundleIdentifier) != pid || !host.window || host.window.hidden ||
+            ![MTGlobalPanel deviceUnlocked]) return;
+        uint64_t word = 0;
+        if (notify_get_state(eventToken, &word) == NOTIFY_STATUS_OK) [host receiveActivityWord:word nonce:nonce];
+    }) != NOTIFY_STATUS_OK) { [self stopInputRelay]; return; }
+    notify_set_state(self.inputActivityToken, 0);
     // Text-input focus only; keyboard geometry itself is hosted inside the
     // card's canvas, so the coordinator never relays keyboard frames.
     uint32_t focusedPID = (uint32_t)(self.baseInputPID > 1 ? self.baseInputPID : pid);
@@ -566,8 +621,42 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         [self stopInputRelay]; return;
     }
     notify_post(MTFloatInputSessionName.UTF8String);
+    [self installNativeTouchObservers];
     NSLog(@"[MetisKeyboard][FloatingApp] input relay ready pid=%d generation=%lu", pid, (unsigned long)generation);
 }
+- (void)receiveActivityWord:(uint64_t)word nonce:(uint32_t)nonce {
+    if (self.inputNonce != nonce || !self.window || self.window.hidden ||
+        self.session.state == MTFloatingAppIdle || ![MTGlobalPanel deviceUnlocked] ||
+        !MTFloatInputActivityMatches(word, nonce, (uint32_t)self.processPID, (uint32_t)self.baseInputPID)) return;
+    [self.controller applyInteractionActive:(uint32_t)word == (uint32_t)self.processPID];
+}
+- (void)installNativeTouchObservers {
+    if (!self.inputNonce || !self.window) return;
+    if (!self.nativeTouchObservers) self.nativeTouchObservers = [NSMapTable weakToStrongObjectsMapTable];
+    NSUInteger generation = self.session.generation;
+    uint32_t nonce = self.inputNonce;
+    for (UIWindow *window in self.window.windowScene.windows) {
+        if ((window.hidden && window != self.window) || [self.nativeTouchObservers objectForKey:window]) continue;
+        MTFloatingAppNativeTouchObserver *observer = [MTFloatingAppNativeTouchObserver new];
+        observer.cancelsTouchesInView = NO; observer.delaysTouchesBegan = NO; observer.delaysTouchesEnded = NO;
+        __weak typeof(self) weakSelf = self;
+        observer.observedTouch = ^(UITouch *touch) {
+            MTFloatingAppCoordinator *host = weakSelf;
+            if (!touch || ![host.session isCurrent:generation] || host.inputNonce != nonce || !host.window ||
+                host.window.hidden || ![MTGlobalPanel deviceUnlocked]) return;
+            BOOL active = touch.window == host.window;
+            if (active) {
+                // Minimize/close retain their original actions without an expansion first.
+                for (UIView *view = touch.view; view; view = view.superview)
+                    if ([view isKindOfClass:UIControl.class]) return;
+            }
+            [host.controller applyInteractionActive:active];
+        };
+        [window addGestureRecognizer:observer];
+        [self.nativeTouchObservers setObject:observer forKey:window];
+    }
+}
+- (void)nativeWindowVisible:(__unused NSNotification *)notification { [self installNativeTouchObservers]; }
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce {
     uint8_t serial = 0; MTFloatPinchPhase phase; double scale = 0;
     if (self.inputNonce != nonce || !MTFloatDecodePinch(word, nonce, &serial, &phase, &scale)) return;
@@ -590,6 +679,13 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     }
     // Revoke identity before cancelling observers; queued callbacks become inert.
     self.inputNonce = 0; self.inputGesture = 0; self.inputGestureFinished = NO;
+    for (UIWindow *window in self.nativeTouchObservers.keyEnumerator.allObjects)
+        [window removeGestureRecognizer:[self.nativeTouchObservers objectForKey:window]];
+    [self.nativeTouchObservers removeAllObjects];
+    if (self.inputActivityToken != NOTIFY_TOKEN_INVALID) {
+        notify_set_state(self.inputActivityToken, 0); notify_cancel(self.inputActivityToken);
+    }
+    self.inputActivityToken = NOTIFY_TOKEN_INVALID;
     if (self.inputBaseToken != NOTIFY_TOKEN_INVALID) notify_set_state(self.inputBaseToken, 0);
     if (self.inputFocusToken != NOTIFY_TOKEN_INVALID) { notify_set_state(self.inputFocusToken, 0); notify_cancel(self.inputFocusToken); }
     self.inputFocusToken = NOTIFY_TOKEN_INVALID;
@@ -676,7 +772,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
 }
 - (void)applyPreferencesChanged {
     // 折叠动作分组、切换任意开关等所有 writePrefs 都会广播 kPrefsChangedIdentifier；
-    // 悬浮卡片不该因此被拆掉，只把卡片消费的两项设置（比例/停靠位）热更进当前会话。
+    // 悬浮卡片不该因此被拆掉，只热更卡片设置，保留当前交互状态和手动缩放。
     if (!NSThread.isMainThread) { dispatch_async(dispatch_get_main_queue(), ^{ [self applyPreferencesChanged]; }); return; }
     MTPrefsManager *manager = MTPrefsManager.sharedInstance;
     [manager reload];
@@ -685,7 +781,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         [self.shelf activate:self.session.bundleIdentifier title:self.controller.titleLabel.text];
     [self publishShelf];
     if (self.session.state == MTFloatingAppIdle || !self.controller) return;
-    self.controller.areaFraction = MTFloatingCardAreaFromPreferences(preferences);
+    [self.controller applySizingPreferences:preferences];
     self.controller.horizontalAlignment = MTFloatingCardPositionFromPreferences(preferences);
     [self.controller.view setNeedsLayout];
 }
@@ -842,7 +938,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     self.requestedURL = url; self.urlAccepted = !url;
     self.controller = [MTFloatingAppCardController new]; self.controller.owner = self;
     NSDictionary *preferences = MTPrefsManager.sharedInstance.readPrefs;
-    self.controller.areaFraction = MTFloatingCardAreaFromPreferences(preferences);
+    [self.controller applySizingPreferences:preferences];
     self.controller.horizontalAlignment = MTFloatingCardPositionFromPreferences(preferences);
     id application = MTFloatApplication(identifier);
     NSString *title = MTFloatObject(application, @"displayName") ?: identifier;
@@ -1167,6 +1263,8 @@ void MTStartFloatingAppHost(void) {
             hook(workspaceClass, trusted, (IMP)MTFloatTrustedOpen, (IMP *)&MTFloatOriginalTrustedOpen);
         MTFloatingAppCoordinator *host = MTFloatingAppCoordinator.shared;
         host.shelf = [MTFloatingAppShelfState new];
+        [NSNotificationCenter.defaultCenter addObserver:host selector:@selector(nativeWindowVisible:)
+            name:UIWindowDidBecomeVisibleNotification object:nil];
         __weak MTFloatingAppCoordinator *weakHost = host;
         host.shelfLaunchObserver = [NSNotificationCenter.defaultCenter
             addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:NSOperationQueue.mainQueue

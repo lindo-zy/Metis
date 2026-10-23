@@ -30,6 +30,13 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [scale setProperty:@80 forKey:@"max"];
     [scale setProperty:@YES forKey:@"showValue"];
     [scale setProperty:@5 forKey:@"step"];
+    PSSpecifier *autoGroup = [PSSpecifier groupSpecifierWithName:@""];
+    [autoGroup setProperty:MTFloatingLocalized(@"FLOATING_APP_AUTO_RESIZE_FOOTER") forKey:@"footerText"];
+    PSSpecifier *autoResize = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_APP_AUTO_RESIZE") target:self
+        set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
+    [autoResize setProperty:kFloatingCardAutoResizeKey forKey:@"key"];
+    [autoResize setProperty:@YES forKey:@"default"];
+    autoResize.identifier = kFloatingCardAutoResizeKey;
     PSSpecifier *positionGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"FLOATING_APP_POSITION_GROUP")];
     [positionGroup setProperty:MTFloatingLocalized(@"FLOATING_APP_POSITION_FOOTER") forKey:@"footerText"];
     PSSpecifier *position = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"FLOATING_APP_POSITION") target:self
@@ -64,13 +71,14 @@ static NSString *MTFloatingLocalized(NSString *key) {
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
-    _specifiers = [@[group, scale, positionGroup, position,
+    _specifiers = [@[group, scale, autoGroup, autoResize, positionGroup, position,
         quickGroup, launcherSide, launcherScale, launcherReset, manage] mutableCopy];
     return _specifiers;
 }
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     NSDictionary *preferences = [MTPrefsManager.sharedInstance readPrefs];
+    if ([[specifier propertyForKey:@"key"] isEqual:kFloatingCardAutoResizeKey]) return @(MTFloatingCardAutoResizeFromPreferences(preferences));
     if ([[specifier propertyForKey:@"key"] isEqual:kFloatingCardAreaKey]) return @(lround(MTFloatingCardAreaFromPreferences(preferences) * 100));
     if ([[specifier propertyForKey:@"key"] isEqual:kFloatingCardPositionKey]) return @(MTFloatingCardPositionFromPreferences(preferences));
     if ([[specifier propertyForKey:@"key"] isEqual:kKbdLauncherScaleKey]) {
@@ -94,7 +102,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
     if (![value isKindOfClass:NSNumber.class]) return;
     NSString *key = [specifier propertyForKey:@"key"];
-    if ([key isEqual:kFloatingShelfEnabledKey]) {
+    if ([key isEqual:kFloatingShelfEnabledKey] || [key isEqual:kFloatingCardAutoResizeKey]) {
         [MTPrefsManager.sharedInstance setValue:@([value boolValue]) forKey:key]; return;
     }
     if ([key isEqual:kKbdLauncherScaleKey]) {

@@ -61,6 +61,13 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
         }
     }
 
+    MTSettingsRow *autoResize = [MTSettingsRow linkRowWithIdentifier:@"floating-auto-resize" title:@"点击放大，离开缩小"];
+    autoResize.routeKind = MTSettingsRouteSubbundle;
+    autoResize.subBundle = @"MetisKeyboardPrefs";
+    autoResize.className = @"MTPFloatingAppController";
+    add(@"点击放大，离开缩小", @"全局 · 悬浮应用", autoResize);
+    add(@"悬浮自动缩放", @"全局 · 悬浮应用", autoResize);
+
     MTSettingsRow *groups = [MTSettingsRow linkRowWithIdentifier:@"keyboard-action-groups" title:@"底栏编排"];
     groups.routeKind = MTSettingsRouteSubbundle;
     groups.subBundle = @"MetisKeyboardPrefs";

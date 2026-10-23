@@ -4,6 +4,7 @@
 
 static NSString * const MTFloatInputSessionName = @"com.lindo.metis.keyboard.floating-input.session-v1";
 static NSString * const MTFloatInputBaseName = @"com.lindo.metis.keyboard.floating-input.base-v1";
+static NSString * const MTFloatInputActivityName = @"com.lindo.metis.keyboard.floating-input.activity-v1";
 static NSString * const MTFloatInputFocusName = @"com.lindo.metis.keyboard.floating-input.focus-v1";
 static inline NSString *MTFloatInputName(uint32_t pid) {
     return [NSString stringWithFormat:@"com.lindo.metis.keyboard.floating-input.pinch-v1.%u", pid];
@@ -26,6 +27,11 @@ typedef NS_ENUM(uint32_t, MTFloatPinchPhase) {
 };
 static inline uint64_t MTFloatInputSessionWord(uint32_t pid, uint32_t nonce) {
     return ((uint64_t)nonce << 32) | pid;
+}
+static inline BOOL MTFloatInputActivityMatches(uint64_t word, uint32_t nonce, uint32_t targetPID, uint32_t basePID) {
+    uint32_t pid = (uint32_t)word;
+    return nonce && targetPID > 1 && (uint32_t)(word >> 32) == nonce &&
+        (pid == targetPID || (basePID > 1 && pid == basePID));
 }
 static inline uint64_t MTFloatPinchWord(uint32_t nonce, uint8_t gesture, MTFloatPinchPhase phase, double scale) {
     if (!nonce || !gesture || phase > MTFloatPinchCancelled || !isfinite(scale) || scale <= 0) return 0;

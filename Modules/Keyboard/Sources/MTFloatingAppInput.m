@@ -22,6 +22,7 @@
 @property(nonatomic) int sessionToken;
 @property(nonatomic) int baseToken;
 @property(nonatomic) int focusToken;
+@property(nonatomic) int activityToken;
 @property(nonatomic) int inputToken;
 @property(nonatomic) int sceneToken;
 @property(nonatomic) uint64_t sceneHash;
@@ -37,7 +38,7 @@
 @implementation MTFloatingAppInputClient
 - (instancetype)init {
     if ((self = [super init])) {
-        _sessionToken = _baseToken = _focusToken = _inputToken = _sceneToken = NOTIFY_TOKEN_INVALID;
+        _sessionToken = _baseToken = _focusToken = _activityToken = _inputToken = _sceneToken = NOTIFY_TOKEN_INVALID;
         _gestures = [NSMapTable weakToStrongObjectsMapTable];
         _touchObservers = [NSMapTable weakToStrongObjectsMapTable];
     }
@@ -45,7 +46,7 @@
 }
 - (void)dealloc {
     [NSNotificationCenter.defaultCenter removeObserver:self];
-    for (NSNumber *token in @[@(_sessionToken), @(_baseToken), @(_focusToken), @(_inputToken), @(_sceneToken)])
+    for (NSNumber *token in @[@(_sessionToken), @(_baseToken), @(_focusToken), @(_activityToken), @(_inputToken), @(_sceneToken)])
         if (token.intValue != NOTIFY_TOKEN_INVALID) notify_cancel(token.intValue);
 }
 - (BOOL)matchesWindow:(UIWindow *)window {
@@ -81,6 +82,11 @@
     // Leave the other app running and visible; relinquish only text input.
     for (UIWindow *window in self.touchObservers.keyEnumerator.allObjects)
         if ([self matchesWindow:window]) [window endEditing:YES];
+}
+- (void)publishTouchActivityInWindow:(UIWindow *)window {
+    if (![self isCurrent] || ![self matchesWindow:window] || self.activityToken == NOTIFY_TOKEN_INVALID) return;
+    if (notify_set_state(self.activityToken, MTFloatInputSessionWord((uint32_t)getpid(), self.nonce)) == NOTIFY_STATUS_OK)
+        notify_post(MTFloatInputActivityName.UTF8String);
 }
 - (void)observedTouchInWindow:(UIWindow *)window {
     if (![self isCurrent] || ![self matchesWindow:window] || [self ownsFocus]) return;
@@ -123,7 +129,10 @@
                 observer.cancelsTouchesInView = NO; observer.delaysTouchesBegan = NO; observer.delaysTouchesEnded = NO;
                 __weak typeof(self) weakSelf = self;
                 __weak UIWindow *weakWindow = window;
-                observer.observedTouch = ^{ [weakSelf observedTouchInWindow:weakWindow]; };
+                observer.observedTouch = ^{
+                    [weakSelf observedTouchInWindow:weakWindow];
+                    [weakSelf publishTouchActivityInWindow:weakWindow];
+                };
                 [window addGestureRecognizer:observer]; [self.touchObservers setObject:observer forKey:window];
                 installed++;
             }
@@ -181,6 +190,7 @@ void MTStartFloatingAppInputClient(void) {
             if (notify_register_dispatch(MTFloatInputFocusName.UTF8String, &focus, dispatch_get_main_queue(),
                 ^(__unused int token) { [weakClient focusChanged]; }) != NOTIFY_STATUS_OK) { client = nil; return; }
             client.focusToken = focus;
+            notify_register_check(MTFloatInputActivityName.UTF8String, &client->_activityToken);
             int token = NOTIFY_TOKEN_INVALID;
             if (notify_register_dispatch(MTFloatInputSessionName.UTF8String, &token, dispatch_get_main_queue(),
                 ^(__unused int event) { [weakClient refresh]; }) != NOTIFY_STATUS_OK) { client = nil; return; }
