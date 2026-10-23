@@ -600,7 +600,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "FLOATING_APP_MAX_SCALE" = "Window area";
 
-"FLOATING_APP_SCALE_FOOTER" = "Defaults to 20% of the screen area (about one fifth). Adjust from 10% to 60%, or pinch to resize. Touch outside to use the underlying app while keeping the window visible. Use the minus button to minimize.";
+"FLOATING_APP_SCALE_FOOTER" = "Defaults to 20% of the screen area (about one fifth). Settings and pinch resizing both support 10%–80% of the screen area, with continuous pinch adjustment. Only app content scales; the title and header buttons stay the same size. Touch outside to use the underlying app while keeping the window visible. Use the minus button to minimize.";
 
 "FLOATING_APP_POSITION_GROUP" = "Default Position";
 

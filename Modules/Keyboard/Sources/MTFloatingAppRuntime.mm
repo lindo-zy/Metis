@@ -188,9 +188,9 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 // 悬浮设置页写入的水平停靠位置（0=居左 1=居中 2=居右）；拖动后以拖动为准。
 @property(nonatomic) NSInteger horizontalAlignment;
 @property(nonatomic) BOOL horizontalCustomized;
-@property(nonatomic) CGFloat requestedZoom;
-@property(nonatomic) CGFloat displayedZoom;
-@property(nonatomic) CGFloat pinchStartZoom;
+@property(nonatomic) CGFloat displayedContentScale;
+@property(nonatomic) CGFloat pinchStartArea;
+@property(nonatomic) CGFloat pinchPreviousScale;
 @property(nonatomic, strong) UIPanGestureRecognizer *dragGesture;
 @property(nonatomic, strong) UIPinchGestureRecognizer *pinchGesture;
 - (void)setTitle:(NSString *)title;
@@ -262,7 +262,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     if ((self = [super init])) {
         self.normalizedCenter = CGPointMake(0.5, 0.45);
         self.horizontalAlignment = 2;
-        self.requestedZoom = self.displayedZoom = self.pinchStartZoom = 1;
+        self.areaFraction = self.pinchStartArea = .20;
+        self.pinchPreviousScale = 1;
     }
     return self;
 }
@@ -339,13 +340,27 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     }
 }
 - (void)applyPinchScale:(CGFloat)scale phase:(MTFloatPinchPhase)phase {
-    if (!isfinite(scale) || scale <= 0) return;
-    if (phase == MTFloatPinchBegan) self.pinchStartZoom = self.displayedZoom;
-    self.requestedZoom = phase == MTFloatPinchCancelled ? self.pinchStartZoom : self.pinchStartZoom * scale;
+    if (!isfinite(scale) || scale <= 0 || self.displayedContentScale <= 0) return;
+    if (phase == MTFloatPinchBegan) {
+        self.pinchStartArea = self.areaFraction;
+        self.pinchPreviousScale = 1;
+    }
+    if (phase == MTFloatPinchCancelled) {
+        self.areaFraction = self.pinchStartArea;
+    } else {
+        CGRect display = self.view.window.windowScene.coordinateSpace.bounds;
+        if (CGRectIsEmpty(display)) return;
+        CGSize canvas = self.canvasSize;
+        if (canvas.width < 1 || canvas.height < 1) canvas = display.size;
+        // Advance from the visible size so reversing at either limit responds immediately.
+        CGFloat contentScale = self.displayedContentScale * scale / self.pinchPreviousScale;
+        self.areaFraction = MTFloatingAppAreaForContentScale(canvas, display, contentScale, 36);
+    }
+    self.pinchPreviousScale = scale;
     [self.view setNeedsLayout]; [self.view layoutIfNeeded];
     if (phase == MTFloatPinchEnded || phase == MTFloatPinchCancelled) {
-        self.requestedZoom = self.displayedZoom;
-        NSLog(@"[MetisKeyboard][FloatingApp] resize zoom=%.3f", (double)self.displayedZoom);
+        NSLog(@"[MetisKeyboard][FloatingApp] resize area=%.3f contentScale=%.3f",
+              (double)self.areaFraction, (double)self.displayedContentScale);
     }
 }
 - (void)viewDidLayoutSubviews {
@@ -374,11 +389,11 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     CGFloat scale = MTFloatingAppContentScale(canvas, display, available, self.areaFraction, headerHeight);
     if (scale <= 0) return;
     CGSize size = CGSizeMake(canvas.width * scale, canvas.height * scale + headerHeight);
-    self.displayedZoom = MTFloatingAppZoom(size, available, self.requestedZoom);
+    self.displayedContentScale = scale;
     CGPoint center = CGPointMake(CGRectGetMinX(display) + display.size.width * self.normalizedCenter.x,
                                  CGRectGetMinY(display) + display.size.height * self.normalizedCenter.y);
-    if (!self.positionInitialized) center.y = CGRectGetMinY(available) + size.height * self.displayedZoom / 2;
-    CGRect frame = MTFloatingAppFrame(size, available, self.displayedZoom, center,
+    if (!self.positionInitialized) center.y = CGRectGetMinY(available) + size.height / 2;
+    CGRect frame = MTFloatingAppFrame(size, available, center,
                                      self.horizontalAlignment, self.horizontalCustomized);
     self.layingOut = YES;
     // Crucial: restrict the actual CAContext/window to the card, rather than
@@ -388,7 +403,6 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.card.transform = CGAffineTransformIdentity;
     self.card.bounds = (CGRect){CGPointZero, size};
     self.card.center = CGPointMake(frame.size.width / 2, frame.size.height / 2);
-    self.card.transform = CGAffineTransformMakeScale(self.displayedZoom, self.displayedZoom);
     self.card.layer.cornerRadius = 16;
     UIView *header = [self.card viewWithTag:41];
     header.frame = CGRectMake(0, 0, size.width, headerHeight);

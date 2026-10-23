@@ -27,7 +27,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     [scale setProperty:@20 forKey:@"default"];
     [scale setProperty:MTPPanelSliderCell.class forKey:@"cellClass"];
     [scale setProperty:@10 forKey:@"min"];
-    [scale setProperty:@60 forKey:@"max"];
+    [scale setProperty:@80 forKey:@"max"];
     [scale setProperty:@YES forKey:@"showValue"];
     [scale setProperty:@5 forKey:@"step"];
     PSSpecifier *positionGroup = [PSSpecifier groupSpecifierWithName:MTFloatingLocalized(@"FLOATING_APP_POSITION_GROUP")];
@@ -108,8 +108,7 @@ static NSString *MTFloatingLocalized(NSString *key) {
     }
     if ([key isEqual:kFloatingCardAreaKey]) {
         double area = [value doubleValue];
-        if (!isfinite(area)) area = 20;
-        [MTPrefsManager.sharedInstance setValue:@(lround(MIN(60, MAX(10, area)) / 5) * 5) forKey:key];
+        [MTPrefsManager.sharedInstance setValue:@(lround(MTFloatingAppClampArea(area / 100.0) * 20) * 5) forKey:key];
         return;
     }
     NSInteger stored;

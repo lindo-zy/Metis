@@ -14,6 +14,7 @@
 
 #import "MTPrefsManager.h"
 #import "MTGlobals.h"
+#import "MTFloatingAppGeometry.h"
 
 #define bundlePath MT_ROOT_PATH_NS(@"/Library/PreferenceBundles/MetisKeyboardPrefs.bundle")
 //#define typexBundlePath @"/Library/Application Support/MetisKeyboard.bundle"
@@ -307,8 +308,7 @@ static inline NSInteger MTMultiRowCapacityForPreferences(NSDictionary *preferenc
 static inline CGFloat MTFloatingCardAreaFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:[NSDictionary class]] ? preferences[kFloatingCardAreaKey] : nil;
     double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 20;
-    if (!isfinite(percent)) percent = 20;
-    return lround(MIN(60, MAX(10, percent)) / 5) * 5 / 100.0;
+    return lround(MTFloatingAppClampArea(percent / 100.0) * 20) / 20.0;
 }
 
 // 悬浮小窗默认靠右；已有有效停靠设置仍然保留。

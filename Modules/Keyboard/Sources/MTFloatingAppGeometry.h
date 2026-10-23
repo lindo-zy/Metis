@@ -2,13 +2,17 @@
 #import <CoreGraphics/CoreGraphics.h>
 #include <math.h>
 
+static inline CGFloat MTFloatingAppClampArea(CGFloat area) {
+    return isfinite(area) ? MIN(.80, MAX(.10, area)) : .20;
+}
+
 // Area includes the header; 20% is not a 20% linear scale.
 static inline CGFloat MTFloatingAppContentScale(CGSize canvas, CGRect display, CGRect available,
                                                CGFloat area, CGFloat header) {
     if (canvas.width <= 0 || canvas.height <= 0 || !isfinite(canvas.width) || !isfinite(canvas.height) ||
         CGRectIsEmpty(display) || CGRectIsEmpty(available) || CGRectIsInfinite(display) ||
         CGRectIsInfinite(available) || !isfinite(header) || header < 0) return 0;
-    if (!isfinite(area) || area < .10 || area > .60) area = .20;
+    area = MTFloatingAppClampArea(area);
     CGFloat pixels = display.size.width * display.size.height * area;
     CGFloat scale = (sqrt(header * header + 4 * canvas.height * pixels / canvas.width) - header) / (2 * canvas.height);
     return MAX(0, MIN(scale, MIN(available.size.width / canvas.width,
@@ -19,20 +23,21 @@ static inline CGRect MTFloatingAppAvailableRect(CGRect display, CGRect safeArea)
     return CGRectInset(CGRectIntersection(display, safeArea), 8, 8);
 }
 
-// Scale the whole card (header and hosted canvas) by the same factor. Bounds
-// remain in unscaled coordinates so UIKit also transforms host input correctly.
-static inline CGFloat MTFloatingAppZoom(CGSize card, CGRect available, CGFloat requested) {
-    if (card.width <= 0 || card.height <= 0 || CGRectIsEmpty(available) || CGRectIsInfinite(available) ||
-        !isfinite(card.width) || !isfinite(card.height)) return 1;
-    CGFloat maximum = MIN(available.size.width / card.width, available.size.height / card.height);
-    // Keep the two 36pt header controls usable, including initially small cards.
-    CGFloat minimum = MIN(maximum, MIN(1, MAX(30.0 / 36.0, 132 / card.width)));
-    return MAX(minimum, MIN(maximum, isfinite(requested) ? requested : 1));
+// Convert a pinch's content scale back to the same area contract as Settings.
+// The header stays 36pt, so area does not simply scale by the pinch squared.
+static inline CGFloat MTFloatingAppAreaForContentScale(CGSize canvas, CGRect display,
+                                                       CGFloat scale, CGFloat header) {
+    if (canvas.width <= 0 || canvas.height <= 0 || !isfinite(canvas.width) || !isfinite(canvas.height) ||
+        CGRectIsEmpty(display) || CGRectIsInfinite(display) || !isfinite(scale) || scale <= 0 ||
+        !isfinite(header) || header < 0) return .20;
+    CGFloat area = canvas.width * scale * (canvas.height * scale + header) /
+                   (display.size.width * display.size.height);
+    return MTFloatingAppClampArea(area);
 }
 
-static inline CGRect MTFloatingAppFrame(CGSize card, CGRect available, CGFloat zoom,
+static inline CGRect MTFloatingAppFrame(CGSize card, CGRect available,
                                        CGPoint center, NSInteger alignment, BOOL customized) {
-    CGSize displayed = CGSizeMake(card.width * zoom, card.height * zoom);
+    CGSize displayed = card;
     if (!customized) {
         if (alignment == 0) center.x = CGRectGetMinX(available) + displayed.width / 2;
         else if (alignment == 2) center.x = CGRectGetMaxX(available) - displayed.width / 2;
