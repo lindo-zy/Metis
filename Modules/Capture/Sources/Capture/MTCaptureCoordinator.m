@@ -2,6 +2,7 @@
 #import "MTCaptureCoordinator.h"
 #import "MTCaptureTask.h"
 #import "MTCaptureProvider.h"
+#import "MTPhotoImportSession.h"
 #import "MTLongShotSession.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
@@ -60,6 +61,7 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) MTCaptureWindow *editorWindow;
 @property (nonatomic, strong, nullable) MTEditorViewController *editorController;
 @property (nonatomic, strong, nullable) UIImage *preEditImage;   // 进入编辑器前的结果图（取消编辑时恢复）
+@property (nonatomic, strong, nullable) MTPhotoImportSession *photoImportSession;
 @end
 
 static MTCaptureCoordinator *_sharedCoordinator = nil;
@@ -197,6 +199,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     }
     [self mtTeardownLongShotSession];
     [self mtDestroyCaptureWindow];
+    [self.photoImportSession cancel];
+    self.photoImportSession = nil;
     [self mtDestroyEditorWindow];
     self.editingFloatingSnap = nil;
     [self mtRestoreFloatingSnaps];
@@ -813,8 +817,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
 /// 图片编辑入口（系统动作「图片编辑」经 Darwin 通知到达）：编辑剪贴板里的图片，不抓屏。
 /// 与 openEditorWithImage: 同为 isReedit 任务路径——取消即结束任务、不回写输出动作；
-/// 完成键按编辑器语义输出（0.4.6 起为复制图片）。剪贴板无图/任务槽占用时记录日志
-/// 并放弃。区域模式使编辑器沿用区域图片卡片布局，与设置页独立入口一致。
+/// 完成键按编辑器语义输出（0.4.6 起为复制图片）。剪贴板无图时从相册导入；
+/// 选图和异步加载期间占用同一任务槽，取消后迟到的加载结果不能重新打开编辑器。
 - (void)mtEditPasteboardImage {
     if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self mtEditPasteboardImage]; });
@@ -825,8 +829,14 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureLogInfo(@"pasteboard edit ignored: master switch off");
         return;
     }
+    MTCaptureTask *task = [self mtAcquireTaskForMode:MTCaptureModeArea config:config];
+    if (!task) {
+        MTCaptureLogWarn(@"image edit rejected: another task is busy");
+        return;
+    }
+    task.isReedit = YES;
     UIImage *image = nil;
-    // hasImages 检测不触发 iOS 16+ 读取授权弹窗；无图时明确反馈，不静默。
+    // hasImages 检测不触发 iOS 16+ 读取授权弹窗。
     if (UIPasteboard.generalPasteboard.hasImages) {
         UIImage *candidate = UIPasteboard.generalPasteboard.image;
         if ([candidate isKindOfClass:UIImage.class] &&
@@ -835,17 +845,24 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         }
     }
     if (!image) {
-        MTCaptureLogInfo(@"pasteboard edit rejected: no image on pasteboard");
-        return;
-    }
-    MTCaptureTask *task = [self mtAcquireTaskForMode:MTCaptureModeArea config:config];
-    if (!task) {
-        MTCaptureLogWarn(@"pasteboard edit rejected: another task is busy");
+        MTDismissActiveKeyboardForEditor();
+        __weak typeof(self) weakSelf = self;
+        MTPhotoImportSession *session = [[MTPhotoImportSession alloc] initWithCompletion:^(UIImage *importedImage) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self || ![self mtIsTaskCurrent:task]) return;
+            self.photoImportSession = nil;
+            if (!importedImage || !MTCapturePreferences.config.enabled) {
+                [self mtCancelCurrentTaskClosingFloatingSnaps:NO];
+                return;
+            }
+            [self mtBeginEditorForAcquiredTask:task image:importedImage];
+        }];
+        self.photoImportSession = session;
+        if (![session start]) [self mtCancelCurrentTaskClosingFloatingSnaps:NO];
         return;
     }
     MTCaptureLogInfo(@"pasteboard edit accepted (%.0fx%.0f pt, task %@)",
               image.size.width, image.size.height, task.taskID);
-    task.isReedit = YES;
     [self mtBeginEditorForAcquiredTask:task image:image];
 }
 
