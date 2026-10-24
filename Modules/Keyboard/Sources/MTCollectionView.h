@@ -59,7 +59,7 @@ typedef NS_ENUM(NSInteger, direction) {
 @property (nonatomic, assign) CGFloat widthScale;
 // Display style is per toolbar too: YES renders short text labels, NO renders
 // the stock icons (the default).
-@property (nonatomic, assign) BOOL useShortLabel;
+@property (nonatomic, copy) NSDictionary<NSString *, NSString *> *buttonDisplayModes;
 
 // 顶部工具栏固定按 buttonsPerRow 换行：第一行紧贴键盘、第二行向上堆叠，
 // 最多两行/16 个。

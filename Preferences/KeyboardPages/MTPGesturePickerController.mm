@@ -6,6 +6,7 @@
 #import "MTHelper.h"
 #import "MTShortcutsGenerator.h"
 #import "common.h"
+#import "MTToolbarButtonDisplay.h"
 
 static NSBundle *mtpLocalBundle;
 
@@ -279,11 +280,11 @@ static NSBundle *mtpLocalBundle;
     return NO;
 }
 
-// 「名称 + 图标同时非空」即视为一次完整配置：无需先选手势动作也可物化。
-// 填写过程按最后一次输入落盘，不需要额外的保存按钮。
+// Text buttons can be created from a name alone. Icon buttons may also use
+// their action's default icon once a gesture has been selected.
 - (BOOL)pendingButtonHasCompleteIdentity {
     return [self.pendingName isKindOfClass:[NSString class]] && self.pendingName.length > 0
-        && [self.pendingIcon isKindOfClass:[NSString class]] && self.pendingIcon.length > 0;
+        && (![[self readDisplayMode:nil] isEqual:MTButtonDisplayIcon] || self.pendingIcon.length > 0);
 }
 
 // A pending new button is worth materialising once it carries either a gesture
@@ -352,6 +353,7 @@ static NSBundle *mtpLocalBundle;
     entry[@"label"] = name;
     entry[@"name"] = name;
     entry[@"icon"] = icon;
+    entry[kMTButtonDisplayMode] = [self readDisplayMode:nil];
     if (!entry[@"images12"]) entry[@"images12"] = canonical[@"images12"] ?: @"UIButtonBarListIcon";
     if (!entry[@"images13"]) entry[@"images13"] = icon;
     // Adding is unlimited. Once the active capacity is full, save the new
@@ -398,6 +400,28 @@ static NSBundle *mtpLocalBundle;
 
 #pragma mark - Specifier value handlers
 
+- (id)readDisplayMode:(PSSpecifier *)specifier {
+    if (self.pendingNewEntry || self.displayModeChanged) return MTButtonDisplayMode(self.buttonDisplayMode);
+    return MTButtonDisplayMode([self storedShortcutEntry][kMTButtonDisplayMode]);
+}
+
+- (void)setDisplayMode:(id)value specifier:(PSSpecifier *)specifier {
+    [self.view endEditing:YES];
+    [self persistPendingNameAndIcon];
+    NSString *mode = MTButtonDisplayMode(value);
+    self.buttonDisplayMode = mode;
+    if (self.displayModeChanged) self.displayModeChanged(mode);
+    else if (!self.pendingNewEntry) [self updateStoredShortcutEntryWithMutator:^(NSMutableDictionary *entry) {
+        entry[kMTButtonDisplayMode] = mode;
+    }];
+    // Defer table reconstruction until the segmented control finishes its event.
+    __weak typeof(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [weakSelf autoCommitPendingNewButtonIfNeeded];
+        [weakSelf reloadSpecifiers];
+    });
+}
+
 - (id)readNameValue:(PSSpecifier *)specifier {
     if (self.pendingNewEntry) {
         NSString *tapAction = [self selectedActionForGesture:MTShortcutGestureTap identifier:kNewButtonPendingIdentifier] ?: @"";
@@ -422,7 +446,7 @@ static NSBundle *mtpLocalBundle;
         : @"";
     if (self.pendingNewEntry) {
         self.pendingName = name;
-        // 「有值就保存」：名称与图标都填好时立即物化按钮。
+        // Text buttons can auto-save from a name alone.
         [self scheduleAutoCommitIfNeeded];
         return;
     }
@@ -495,24 +519,32 @@ static NSBundle *mtpLocalBundle;
         [displayGroup setProperty:LOCALIZED(@"FOOTER_CUSTOM_APPEARANCE") forKey:@"footerText"];
         [snippetEntrySpecifiers addObject:displayGroup];
 
+        PSSpecifier *displayMode = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"DISPLAY_STYLE") target:self set:@selector(setDisplayMode:specifier:) get:@selector(readDisplayMode:) detail:nil cell:PSSegmentCell edit:nil];
+        [displayMode setValues:@[MTButtonDisplayText, MTButtonDisplayIcon] titles:@[LOCALIZED(@"TEXT"), LOCALIZED(@"ICON")]];
+        [snippetEntrySpecifiers addObject:displayMode];
+
         PSSpecifier *customNameSpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"CUSTOM_NAME") target:self set:@selector(setNameValue:specifier:) get:@selector(readNameValue:) detail:nil cell:PSEditTextCell edit:nil];
         [customNameSpec setProperty:@YES forKey:@"noAutoCorrect"];
         [customNameSpec setProperty:LOCALIZED(@"CUSTOM_NAME") forKey:@"label"];
         self.customNameSpec = customNameSpec;
         [snippetEntrySpecifiers addObject:customNameSpec];
 
-        PSSpecifier *customIconSpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"CUSTOM_ICON") target:self set:@selector(setIconValue:specifier:) get:@selector(readIconValue:) detail:nil cell:PSEditTextCell edit:nil];
-        [customIconSpec setProperty:@YES forKey:@"noAutoCorrect"];
-        [customIconSpec setProperty:LOCALIZED(@"CUSTOM_ICON") forKey:@"label"];
-        self.customIconSpec = customIconSpec;
-        [snippetEntrySpecifiers addObject:customIconSpec];
+        self.customIconSpec = nil;
+        self.iconLibrarySpec = nil;
+        if ([[self readDisplayMode:nil] isEqual:MTButtonDisplayIcon]) {
+            PSSpecifier *customIconSpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"CUSTOM_ICON") target:self set:@selector(setIconValue:specifier:) get:@selector(readIconValue:) detail:nil cell:PSEditTextCell edit:nil];
+            [customIconSpec setProperty:@YES forKey:@"noAutoCorrect"];
+            [customIconSpec setProperty:LOCALIZED(@"CUSTOM_ICON") forKey:@"label"];
+            self.customIconSpec = customIconSpec;
+            [snippetEntrySpecifiers addObject:customIconSpec];
 
-        // 图标库入口行：左侧实时预览当前图标，点击推入 SF 图标库；回写走
-        // setIconValue: 的既有校验，保存由「结束编辑/选中/离开页面」触发。
-        PSSpecifier *iconLibrarySpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"ICON_LIBRARY_ROW") target:self set:nil get:nil detail:nil cell:PSLinkCell edit:nil];
-        [iconLibrarySpec setProperty:LOCALIZED(@"ICON_LIBRARY_ROW") forKey:@"label"];
-        self.iconLibrarySpec = iconLibrarySpec;
-        [snippetEntrySpecifiers addObject:iconLibrarySpec];
+            // 图标库入口行：左侧实时预览当前图标，点击推入 SF 图标库；回写走
+            // setIconValue: 的既有校验，保存由「结束编辑/选中/离开页面」触发。
+            PSSpecifier *iconLibrarySpec = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"ICON_LIBRARY_ROW") target:self set:nil get:nil detail:nil cell:PSLinkCell edit:nil];
+            [iconLibrarySpec setProperty:LOCALIZED(@"ICON_LIBRARY_ROW") forKey:@"label"];
+            self.iconLibrarySpec = iconLibrarySpec;
+            [snippetEntrySpecifiers addObject:iconLibrarySpec];
+        }
 
         PSSpecifier *gestureTypeGroup = [PSSpecifier preferenceSpecifierNamed:LOCALIZED(@"GESTURES") target:nil set:nil get:nil detail:nil cell:PSGroupCell edit:nil];
         [snippetEntrySpecifiers addObject:gestureTypeGroup];
@@ -659,7 +691,7 @@ static NSBundle *mtpLocalBundle;
         BOOL wasPendingNewEntry = strongSelf.pendingNewEntry;
         [strongSelf stageFieldValue:value forName:isName];
         if (wasPendingNewEntry) {
-            // 名称与图标凑齐即物化；未凑齐时保留暂存，供继续填写或手势选择。
+            // Save a complete identity, including a text-only name; otherwise keep staging.
             [strongSelf autoCommitPendingNewButtonIfNeeded];
             return;
         }

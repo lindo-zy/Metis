@@ -1,6 +1,7 @@
 #import "common.h"
 #import "MTShared.h"
 #import "MTCollectionView.h"
+#import "MTToolbarButtonDisplay.h"
 #import "MTHelper.h"
 #import "MTAIPanel.h"
 #import "MTKeyboardPanel.h"
@@ -278,7 +279,6 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     self.borderEnabled = [self mtChromeBool:kCellBorderEnabledkey fallback:NO];
     self.borderWidth = [self mtChromeFloat:kCellBorderWidthkey fallback:buttonBorderWidthDefault];
     self.widthScale = MIN(100, MAX(30, [self mtChromeFloat:kButtonWidthScalekey fallback:buttonWidthScaleDefault]));
-    self.useShortLabel = [self mtChromeBool:kShortLabelEnabledKey fallback:NO];
     // 顶部固定使用多行布局；每行个数夹在 [1, 8] 防御 plist
     // 手改出的越界值（设置页滑动条本身已限范围）。
     float storedPerRow = [self mtChromeFloat:kButtonsPerRowKey fallback:buttonsPerRowDefault];
@@ -622,6 +622,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     NSMutableArray *images12 = [NSMutableArray array];
     NSMutableArray *images13 = [NSMutableArray array];
     NSMutableArray *selectors = [NSMutableArray array];
+    NSMutableDictionary *displayModes = [NSMutableDictionary dictionary];
     NSString *shortcutsKey = [self scopedPreferenceKey:kShortcutskey];
     id configuredValue = currentPrefs[shortcutsKey];
     NSArray *configuredShortcuts = [configuredValue isKindOfClass:[NSArray class]] ? configuredValue : nil;
@@ -648,6 +649,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
             if (enabledButtons >= capacity) continue;
             if (item[@"images12"] && item[@"images13"] && selector) {
                 [self integrateShortcutItem:item intoImages12:images12 images13:images13 selectors:selectors names:customNames];
+                displayModes[selector] = MTButtonDisplayMode(item[kMTButtonDisplayMode]);
                 enabledButtons++;
             }
         }
@@ -669,6 +671,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
         self.customNames = @{};
     }
 
+    self.buttonDisplayModes = displayModes;
     self.shortcuts = @[images12, images13, selectors];
     [self reloadButtonChrome];
     [self mtApplyLayoutForConfiguration];
@@ -2788,24 +2791,25 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     int cellIndex = (int)indexPath.item;
     //[cell.btn setTitle:_buttons[indexPath.row] forState:UIControlStateNormal];
     NSString* selectorName = ((NSArray *)_shortcuts[kselectors])[cellIndex];
+    BOOL showsText = ![MTButtonDisplayMode(self.buttonDisplayModes[selectorName]) isEqual:MTButtonDisplayIcon];
     
     UIImage* image;
     NSAttributedString *imageOfName = [[NSMutableAttributedString alloc] initWithString:@""];
     
     
     if (@available(iOS 13.0, *)){
-        imageOfName = self.useShortLabel
+        imageOfName = showsText
             ? [(self.customNames[selectorName] ?: [MTHelper localizedStringForActionNamed:selectorName shortName:YES bundle:tweakBundle]) attributedString]
             : [((NSArray *)_shortcuts[kbuttonsImages13])[cellIndex] attributedString];
     }else{
-        imageOfName = self.useShortLabel
+        imageOfName = showsText
             ? [(self.customNames[selectorName] ?: [MTHelper localizedStringForActionNamed:selectorName shortName:YES bundle:tweakBundle]) attributedString]
             : [((NSArray *)_shortcuts[kbuttonsImages12])[cellIndex] attributedString];
     }
-    if (!self.useShortLabel) {
+    if (!showsText) {
         image = [MTHelper imageForName:imageOfName.string withSystemColor:NO completion:nil];
     }
-    if (self.useShortLabel){
+    if (showsText){
         [cell.btn setImage:nil forState:UIControlStateNormal];
         [cell.btn setAttributedTitle:[self shortLabelTitleByFittingText:imageOfName
                                                                  button:cell.btn
@@ -2817,6 +2821,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
         [cell.btn setImage:image forState:UIControlStateNormal];
     }
     cell.btn.accessibilityIdentifier = selectorName;
+    cell.btn.accessibilityLabel = self.customNames[selectorName] ?: [MTHelper localizedStringForActionNamed:selectorName shortName:NO bundle:tweakBundle];
     [cell.btn removeTarget:nil action:NULL forControlEvents:UIControlEventAllEvents];
     
     // Single tap is the button's own TouchUpInside event: it fires on touch-up
@@ -2856,7 +2861,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     //}
     //self.layer.masksToBounds = NO;
     
-    if (self.useShortLabel) cell.btn.clipsToBounds = YES; else cell.btn.clipsToBounds = NO;
+    cell.btn.clipsToBounds = showsText;
 
     // Button chrome: corner radius and the optional outlined border. The border
     // color follows the system label color so it stays visible on both light

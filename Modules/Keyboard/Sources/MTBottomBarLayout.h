@@ -2,18 +2,14 @@
 #import <Foundation/Foundation.h>
 #import "MTContextGroupPreferences.h"
 #import "MTContextGroupTypes.h"
+#import "MTToolbarButtonDisplay.h"
 
 #define kBottomBarLayoutKey @"bottomBarLayoutV1"
 #define MTBottomBarSegmentCapacity 8
 
-// 左右两段各自控制按钮「显示文本」与「显示边框」，互不联动：
-// 左段可以是图标、右段是文本，边框也可以只开一侧。未写入的新键回落到
-// 旧的底栏全局开关，保证升级前只开过一个开关的配置不丢。
-#define kBottomBarLeftLabelKey @"bottomBarLeftLabelBOOL"
-#define kBottomBarRightLabelKey @"bottomBarRightLabelBOOL"
+// Borders remain segment-scoped; text/icon display is stored on each entry.
 #define kBottomBarLeftBorderKey @"bottomBarLeftBorderBOOL"
 #define kBottomBarRightBorderKey @"bottomBarRightBorderBOOL"
-#define MTBottomBarLegacyLabelKey @"shortLabelBOOL"
 #define MTBottomBarLegacyBorderKey @"shortcutborderBOOL"
 
 static inline BOOL MTBottomBarSegmentSwitch(NSDictionary *prefs, NSString *key, NSString *legacyKey) {
@@ -23,9 +19,6 @@ static inline BOOL MTBottomBarSegmentSwitch(NSDictionary *prefs, NSString *key, 
     return [legacy respondsToSelector:@selector(boolValue)] ? [legacy boolValue] : NO;
 }
 // segment: 0 = 左段，1 = 右段。
-static inline BOOL MTBottomBarSegmentLabelEnabled(NSDictionary *prefs, NSUInteger segment) {
-    return MTBottomBarSegmentSwitch(prefs, segment == 0 ? kBottomBarLeftLabelKey : kBottomBarRightLabelKey, MTBottomBarLegacyLabelKey);
-}
 static inline BOOL MTBottomBarSegmentBorderEnabled(NSDictionary *prefs, NSUInteger segment) {
     return MTBottomBarSegmentSwitch(prefs, segment == 0 ? kBottomBarLeftBorderKey : kBottomBarRightBorderKey, MTBottomBarLegacyBorderKey);
 }
@@ -43,6 +36,7 @@ static inline NSDictionary *MTBottomBarEntry(id raw) {
     if ([value isEqual:@"input"]) value = @"typing";
     NSInteger index = [raw[@"index"] isKindOfClass:NSNumber.class] ? [raw[@"index"] integerValue] : 0;
     return @{@"kind":kind, @"value":value, @"index":@(MAX(0, MIN(7, index))),
+        kMTButtonDisplayMode:MTButtonDisplayMode(raw[kMTButtonDisplayMode]),
         @"title":[raw[@"title"] isKindOfClass:NSString.class] ? [raw[@"title"] substringToIndex:MIN((NSUInteger)128, [raw[@"title"] length])] : @"",
         @"fallback":@([raw[@"fallback"] isKindOfClass:NSNumber.class] && [raw[@"fallback"] boolValue])};
 }

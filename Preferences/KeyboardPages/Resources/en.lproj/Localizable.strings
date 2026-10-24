@@ -196,7 +196,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 //=====================SHORTCUT APPEARANCE=====================
 "CUSTOM_APPEARANCE" = "Appearance";
-"FOOTER_CUSTOM_APPEARANCE" = "The name replaces the shortcut's label in short-label toolbar mode. The icon accepts a standard SF Symbol name (e.g. doc.on.doc) or an app Bundle ID (e.g. com.apple.Preferences) to show that app's icon at symbol size; an invalid value falls back to the default icon.";
+"FOOTER_CUSTOM_APPEARANCE" = "Each button has its own display style and shows text by default. The name is used for text and accessibility. In icon mode, choose an SF Symbol or enter an app bundle ID; empty or invalid icons use the default. Switching styles keeps the name, icon and gestures.";
 "CUSTOM_NAME" = "Name";
 "CUSTOM_ICON" = "Icon";
 "CUSTOM_ICON_INVALID" = "Invalid icon. Enter an SF Symbol name or an app Bundle ID; the default icon will be used.";
@@ -229,8 +229,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "MAX_BUTTONS_REACHED" = "The top toolbar can have at most %d enabled buttons";
 "DUPLICATE_ACTION" = "This action is already in the toolbar";
 "CHOOSE_TAP_FIRST" = "Set the tap action first";
-"FOOTER_TOOLBAR_BUTTONS" = "Tap to edit gestures and drag to reorder. The bottom toolbar supports up to eight enabled buttons without paging. Excess buttons are retained and disabled.";
-"FOOTER_TOP_TOOLBAR_BUTTONS" = "Store any number of buttons; only one surface can be enabled: one row or two rows at the configured column count. Reducing capacity disables excess buttons without deleting them.";
+"FOOTER_TOOLBAR_BUTTONS" = "Tap a button to configure its text or icon and gestures. Text is the default. Drag to reorder. Up to eight buttons can be enabled; excess buttons are retained and disabled.";
+"FOOTER_TOP_TOOLBAR_BUTTONS" = "Tap a button to configure its text or icon and gestures. Text is the default. Store any number of buttons with up to two rows enabled; reducing capacity disables excess buttons without deleting them.";
 "ANSWER_OK" = "OK";
 "ANSWER_CANCEL" = "Cancel";
 "SAVE" = "Save";
@@ -761,11 +761,8 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "BAR_SWAP" = "Swap segments";
 "BAR_SINGLE" = "Single segment";
 "BAR_EQUAL" = "Equal-width cells";
-"BAR_LABEL_LEFT" = "Left Segment: Text";
-"BAR_LABEL_RIGHT" = "Right Segment: Text";
 "BAR_BORDER_LEFT" = "Left Segment: Border";
 "BAR_BORDER_RIGHT" = "Right Segment: Border";
-"BAR_LABEL_HINT" = "Off shows icons only in this segment";
 "BAR_BORDER_HINT" = "Thickness follows the appearance setting";
 "BAR_KIND_ACTION" = "Fixed action";
 "BAR_KIND_CONTEXT" = "Context group";
@@ -777,15 +774,15 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "BAR_CONTEXT_INPUT" = "Input type";
 "BAR_CONTEXT_IDLE" = "Empty field";
 "BAR_CONTEXT_INDEX" = "Action position in group";
-"BAR_EDIT_ACTION" = "Name, icon & gesture actions";
+"BAR_EDIT_ACTION" = "Display style, name, icon and gestures";
 "BAR_EDIT_GROUP" = "Configure group actions";
 "BAR_UP" = "Move up";
 "BAR_DOWN" = "Move down";
 "BAR_MOVE" = "Move to other segment";
 "BAR_REMOVE" = "Remove item";
-"BAR_EDIT_HINT" = "Mix actions, context cells and apps. An empty right segment gives its width to the left. Tap Auto context to configure groups.";
+"BAR_EDIT_HINT" = "Mix actions, context cells and apps. Each cell shows text by default; tap to choose text or icon independently, or edit its action or context group. An empty right segment gives its width to the left.";
 "BAR_RIGHT_SAVED" = "The right segment is saved while single-segment mode is active. Turn it off to restore the right segment.";
-"BAR_LAYOUT_HINT" = "Mix actions, context groups and apps in either segment. Equal-width mode gives every cell the same width. Otherwise, segment widths follow content types, with equal cells inside each segment. Empty segments yield their space. Text and borders are set per segment; a segment with text off shows icons only.";
+"BAR_LAYOUT_HINT" = "Mix actions, context groups and apps in either segment. Equal-width mode gives every cell the same width. Otherwise, segment widths follow content types, with equal cells inside each segment. Empty segments yield their space. Choose text or icon on each cell; borders are set per segment.";
 "BAR_CONTEXT_HINT" = "Context cells determine capacity. The first matching type supplies its first N actions without filling from extra actions.";
 "BAR_METRICS" = "Left %lu cells · Right %lu cells\nAvailable %.0f pt · Left cell %.1f pt · Right cell %.1f pt";
 "BAR_SAVED_ACTIONS" = "Saved buttons (including disabled)";
@@ -849,3 +846,5 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 
 "FLOATING_APP_AUTO_RESIZE" = "Expand on scroll, shrink when leaving";
 "FLOATING_APP_AUTO_RESIZE_FOOTER" = "On by default. Scroll the floating app content with one finger to expand to the window area preset above. Tapping, long pressing, and dragging the title bar do not trigger expansion. Touch the underlying app or Home Screen to shrink to 10%. The title and buttons stay the same size, and pinch resizing remains available. Turn off for manual sizing only.";
+
+"BUTTON_DISPLAY_HINT" = "Changes only this button. Text is the default; icon mode uses this button’s configured icon.";

@@ -10,6 +10,7 @@
 #import "common.h"
 #import "MTShared.h"
 #import "MTBottomBarLayout.h"
+#import "MTPAppInfo.h"
 #import <notify.h>
 #import <objc/message.h>
 
@@ -229,14 +230,13 @@
     NSArray *records = [self recordsFromSnapshot:self.snapshot];
     NSMutableArray *fallbacks = [records mutableCopy];
     [fallbacks addObjectsFromArray:[self fallbackRecordsAfter:records limit:MTFloatingShelfCapacity]];
-    // 两段共用同一套按钮模型，但「显示文本 / 显示边框」按段独立读取，
-    // 因此左段可以只显示图标、右段显示文本。
+    // Each slot owns its text/icon choice; borders still belong to a segment.
     NSArray *segmentEntries = @[layout[@"left"], [layout[@"single"] boolValue] ? @[] : layout[@"right"]];
     for (NSUInteger segment = 0; segment < segmentEntries.count; segment++) {
-        BOOL showsLabel = MTBottomBarSegmentLabelEnabled(preferences, segment);
         BOOL showsBorder = MTBottomBarSegmentBorderEnabled(preferences, segment);
         NSMutableArray *buttons = [NSMutableArray array];
         for (NSDictionary *entry in segmentEntries[segment]) {
+            BOOL showsLabel = MTButtonShowsText(entry);
             NSString *kind = entry[@"kind"], *value = entry[@"value"];
             NSString *stableKey = [NSString stringWithFormat:@"%lu:%lu:%@:%@", (unsigned long)segment, (unsigned long)buttons.count, kind, value];
             UIButton *existing = self.stableButtons[stableKey];
@@ -252,9 +252,9 @@
             BOOL fixed = [kind isEqual:@"action"];
             if (fixed) {
                 NSDictionary *definition = [self shortcutDefinition:value];
-                title = [MTHelper customNameForShortcutItem:definition] ?: [self.actionTarget subActionPanelTitleForSelector:value];
-                NSString *customIcon = [MTHelper customIconForShortcutItem:definition];
-                icon = customIcon.length ? [MTHelper imageForName:customIcon withSystemColor:YES completion:nil] : [self.actionTarget subActionPanelImageForSelector:value];
+                title = [MTHelper customNameForShortcutItem:definition] ?: (MTIsDraftActionSelector(value) ? definition[@"label"] : nil) ?: [self.actionTarget subActionPanelTitleForSelector:value];
+                NSString *iconName = [MTHelper resolvedIconNameForShortcutItem:definition defaultName:definition[@"images13"]];
+                icon = (iconName.length ? [MTHelper imageForName:iconName withSystemColor:YES completion:nil] : nil) ?: [self.actionTarget subActionPanelImageForSelector:value];
             } else if ([kind isEqual:@"app"]) {
                 app = @{@"bundleID":value, @"fallback":@YES, @"title":[entry[@"title"] length] ? entry[@"title"] : value};
                 for (NSDictionary *record in records) if ([record[@"bundleID"] isEqual:value]) { app = record; break; }
@@ -277,6 +277,7 @@
             if (app) {
                 NSString *identifier = app[@"bundleID"];
                 title = [app[@"title"] isKindOfClass:NSString.class] ? app[@"title"] : identifier;
+                if ([title isEqual:identifier]) title = [MTPAppInfo displayNameForBundleID:identifier] ?: title;
                 icon = [self iconForApp:identifier];
             }
             SEL action = app ? @selector(activate:) : @selector(activateContext:);
@@ -311,7 +312,7 @@
             button.titleLabel.minimumScaleFactor = 0.65;
             [button setTitleColor:tint forState:UIControlStateNormal];
             if (showsLabel) {
-                NSString *shortTitle = fixed ? ([MTHelper customNameForShortcutItem:[self shortcutDefinition:value]] ?: [MTHelper localizedStringForActionNamed:value shortName:YES bundle:[NSBundle bundleWithPath:bundlePath]]) : title;
+                NSString *shortTitle = fixed && !MTIsDraftActionSelector(value) ? ([MTHelper customNameForShortcutItem:[self shortcutDefinition:value]] ?: [MTHelper localizedStringForActionNamed:value shortName:YES bundle:[NSBundle bundleWithPath:bundlePath]]) : title;
                 [button setImage:nil forState:UIControlStateNormal];
                 [button setTitle:shortTitle forState:UIControlStateNormal];
             }

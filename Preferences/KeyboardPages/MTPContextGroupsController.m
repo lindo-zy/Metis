@@ -70,10 +70,8 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)testInputSection { return 6; }
 - (void)buildSettingsRows {
     [super buildSettingsRows];
-    // 外观分区复用顶部工具栏的按钮设置。底栏的「显示文本」「显示边框」已改为
-    // 左右两段分别控制（见「布局与显示」分区），这里去掉对应的全局行，避免
-    // 同一项出现两个互相覆盖的开关。
-    NSUInteger drop = MIN((NSUInteger)2, self.appearanceRows.count);
+    // Borders are segment-scoped; display mode is edited on individual slots.
+    NSUInteger drop = MIN((NSUInteger)1, self.appearanceRows.count);
     self.appearanceRows = [self.appearanceRows subarrayWithRange:NSMakeRange(drop, self.appearanceRows.count - drop)];
 }
 - (void)refresh {
@@ -177,7 +175,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 9; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section < 2) return [self.layout[section ? @"right" : @"left"] count] + 1;
-    if (section == 2) return 7;
+    if (section == 2) return 5;
     if (section == 3) return 8;
     if (section == 4) return 0;
     if (section == 5) return 4;
@@ -233,7 +231,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
         } else {
             NSDictionary *entry = entries[path.row]; cell.textLabel.text = [self entryTitle:entry];
             NSString *kind = entry[@"kind"];
-            cell.detailTextLabel.text = MTCGL([@"BAR_KIND_" stringByAppendingString:kind.uppercaseString]);
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@", MTCGL([@"BAR_KIND_" stringByAppendingString:kind.uppercaseString]), MTCGL(MTButtonShowsText(entry) ? @"TEXT" : @"ICON")];
             cell.imageView.image = [kind isEqual:@"action"] ? [self.actionHost subActionPanelImageForSelector:entry[@"value"]] : [UIImage systemImageNamed:[kind isEqual:@"app"] ? @"app" : @"square.stack.3d.up"];
             cell.showsReorderControl = YES;
         }
@@ -258,10 +256,9 @@ static NSString *MTCGTitle(MTContextGroup group) {
                 toggle.on = [self.layout[path.row == 1 ? @"single" : @"equal"] boolValue];
                 [toggle addTarget:self action:@selector(toggleLayout:) forControlEvents:UIControlEventValueChanged];
             } else {
-                // 左右两段各一行：文本开关关掉即该段只显示图标，边框同理。
                 NSInteger item = path.row - 3;
-                cell.textLabel.text = MTCGL(@[@"BAR_LABEL_LEFT", @"BAR_LABEL_RIGHT", @"BAR_BORDER_LEFT", @"BAR_BORDER_RIGHT"][item]);
-                cell.detailTextLabel.text = MTCGL(item < 2 ? @"BAR_LABEL_HINT" : @"BAR_BORDER_HINT");
+                cell.textLabel.text = MTCGL(@[@"BAR_BORDER_LEFT", @"BAR_BORDER_RIGHT"][item]);
+                cell.detailTextLabel.text = MTCGL(@"BAR_BORDER_HINT");
                 toggle.on = [self segmentDisplayEnabledAtIndex:item];
                 [toggle addTarget:self action:@selector(toggleSegmentDisplay:) forControlEvents:UIControlEventValueChanged];
             }
@@ -306,14 +303,13 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (void)toggleLayout:(UISwitch *)sender {
     self.layout[sender.tag == 1 ? @"single" : @"equal"] = @(sender.on); [self saveLayout];
 }
-// 0/1 = 左/右段文本，2/3 = 左/右段边框；每一项独立落盘，互不影响另一段。
+// 0/1 = left/right border.
 - (BOOL)segmentDisplayEnabledAtIndex:(NSInteger)index {
-    return index < 2 ? MTBottomBarSegmentLabelEnabled(self.preferences, (NSUInteger)index)
-                     : MTBottomBarSegmentBorderEnabled(self.preferences, (NSUInteger)(index - 2));
+    return MTBottomBarSegmentBorderEnabled(self.preferences, (NSUInteger)index);
 }
 - (void)toggleSegmentDisplay:(UISwitch *)sender {
     NSInteger index = sender.tag - 3;
-    NSArray<NSString *> *keys = @[kBottomBarLeftLabelKey, kBottomBarRightLabelKey, kBottomBarLeftBorderKey, kBottomBarRightBorderKey];
+    NSArray<NSString *> *keys = @[kBottomBarLeftBorderKey, kBottomBarRightBorderKey];
     if (index < 0 || index >= (NSInteger)keys.count) return;
     [MTPrefsManager.sharedInstance setValue:@(sender.on) forKey:keys[index]];
     [self refresh];
@@ -357,8 +353,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
     if (path.section < 2) {
         NSArray *entries = self.layout[path.section ? @"right" : @"left"];
         if (path.row == entries.count) { if (entries.count < 8) [self addEntryAtPath:path]; return; }
-        if ([entries[path.row][@"kind"] isEqual:@"context"]) [self openContextGroup:entries[path.row][@"value"]];
-        else [self editEntryAtPath:path];
+        [self editEntryAtPath:path];
     } else if (path.section == 2 && path.row == 0) {
         [self swapSegments];
     } else if (path.section == 3) {
@@ -439,9 +434,15 @@ static NSString *MTCGTitle(MTContextGroup group) {
     NSDictionary *entry = self.layout[segment][path.row];
     UIAlertController *menu = [UIAlertController alertControllerWithTitle:[self entryTitle:entry] message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     __weak typeof(self) weakSelf = self;
+    [menu addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"%@ · %@", MTCGL(@"DISPLAY_STYLE"), MTCGL(MTButtonShowsText(entry) ? @"TEXT" : @"ICON")] style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+        [weakSelf chooseDisplayModeAtPath:path];
+    }]];
     if ([entry[@"kind"] isEqual:@"action"]) [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"BAR_EDIT_ACTION") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
         [weakSelf ensureShortcutDefinition:entry[@"value"]];
-        MTPGesturePickerController *editor = [MTPGesturePickerController new]; editor.identifier = entry[@"value"]; editor.configuration = @"bottom"; editor.fullOrder = weakSelf.fullOrder; editor.title = [weakSelf entryTitle:entry]; [weakSelf pushPage:editor];
+        MTPGesturePickerController *editor = [MTPGesturePickerController new]; editor.identifier = entry[@"value"]; editor.configuration = @"bottom"; editor.fullOrder = weakSelf.fullOrder; editor.title = [weakSelf entryTitle:entry];
+        editor.buttonDisplayMode = MTButtonDisplayMode(entry[kMTButtonDisplayMode]);
+        editor.displayModeChanged = ^(NSString *mode) { [weakSelf setDisplayMode:mode atPath:path]; };
+        [weakSelf pushPage:editor];
     }]];
     if ([entry[@"kind"] isEqual:@"context"]) [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"BAR_EDIT_GROUP") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [weakSelf openContextGroup:entry[@"value"]]; }]];
     NSArray *entries = self.layout[segment];
@@ -457,6 +458,27 @@ static NSString *MTCGTitle(MTContextGroup group) {
     [menu addAction:[UIAlertAction actionWithTitle:MTCGL(@"BAR_REMOVE") style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
         [weakSelf tableView:weakSelf.tableView commitEditingStyle:UITableViewCellEditingStyleDelete forRowAtIndexPath:path];
     }]];
+    [self presentMenu:menu atPath:path];
+}
+- (void)setDisplayMode:(NSString *)mode atPath:(NSIndexPath *)path {
+    NSString *segment = path.section ? @"right" : @"left";
+    NSMutableArray *entries = [self.layout[segment] mutableCopy];
+    if (path.row >= entries.count) return;
+    NSMutableDictionary *entry = [entries[path.row] mutableCopy];
+    entry[kMTButtonDisplayMode] = MTButtonDisplayMode(mode);
+    entries[path.row] = entry;
+    self.layout[segment] = entries;
+    [self saveLayout];
+}
+- (void)chooseDisplayModeAtPath:(NSIndexPath *)path {
+    NSDictionary *entry = self.layout[path.section ? @"right" : @"left"][path.row];
+    UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTCGL(@"DISPLAY_STYLE") message:MTCGL(@"BUTTON_DISPLAY_HINT") preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak typeof(self) weakSelf = self;
+    for (NSString *mode in @[MTButtonDisplayText, MTButtonDisplayIcon]) {
+        NSString *title = MTCGL([mode isEqual:MTButtonDisplayIcon] ? @"ICON" : @"TEXT");
+        if ([MTButtonDisplayMode(entry[kMTButtonDisplayMode]) isEqual:mode]) title = [@"✓ " stringByAppendingString:title];
+        [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [weakSelf setDisplayMode:mode atPath:path]; }]];
+    }
     [self presentMenu:menu atPath:path];
 }
 - (void)openFloatingApps {

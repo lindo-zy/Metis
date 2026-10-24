@@ -197,7 +197,7 @@
 
 //=====================SHORTCUT APPEARANCE=====================
 "CUSTOM_APPEARANCE" = "显示";
-"FOOTER_CUSTOM_APPEARANCE" = "名称会替换短文本工具栏模式中的快捷方式显示名称。图标支持 SF Symbols 标准图标名称（如 doc.on.doc），或应用 Bundle ID（如 com.apple.Preferences，显示对应应用图标，大小与 SF 图标一致），无效的名称将回退为默认图标。";
+"FOOTER_CUSTOM_APPEARANCE" = "每个按钮独立选择显示方式，默认显示文字。名称用于文字显示与辅助朗读；切换为图标后可选择 SF Symbols 或填写应用 Bundle ID，留空或无效时使用默认图标。切换显示方式会保留名称、图标与手势配置。";
 "CUSTOM_NAME" = "名称";
 "CUSTOM_ICON" = "图标";
 "CUSTOM_ICON_INVALID" = "图标无效。请填写 SF Symbols 名称或应用 Bundle ID，将使用默认图标。";
@@ -228,8 +228,8 @@
 "MAX_BUTTONS_REACHED" = "顶部工具栏最多同时开启 %d 个按钮";
 "DUPLICATE_ACTION" = "该动作已添加到工具栏";
 "CHOOSE_TAP_FIRST" = "请先设置点按动作";
-"FOOTER_TOOLBAR_BUTTONS" = "点击按钮编辑手势，拖动调整顺序。底部工具栏最多同时启用 8 个按钮，不支持翻页。超出的按钮保留配置并关闭。";
-"FOOTER_TOP_TOOLBAR_BUTTONS" = "按钮可无限保存，启用数量限定为当前一屏容量：单行按每行个数，双行按两行容量。减少容量时，超出的按钮会关闭，配置不会删除。";
+"FOOTER_TOOLBAR_BUTTONS" = "点击按钮分别设置文字或图标与手势，默认显示文字；拖动调整顺序。底部工具栏最多同时启用 8 个按钮，超出的按钮保留配置并关闭。";
+"FOOTER_TOP_TOOLBAR_BUTTONS" = "点击按钮分别设置文字或图标与手势，默认显示文字。按钮可无限保存，最多启用两行容量；减少容量时，超出的按钮会关闭，配置不会删除。";
 "ANSWER_OK" = "好";
 "ANSWER_CANCEL" = "取消";
 "SAVE" = "保存";
@@ -760,11 +760,8 @@
 "BAR_SWAP" = "交换左右段";
 "BAR_SINGLE" = "单段占满";
 "BAR_EQUAL" = "等宽格";
-"BAR_LABEL_LEFT" = "左段显示文本";
-"BAR_LABEL_RIGHT" = "右段显示文本";
 "BAR_BORDER_LEFT" = "左段显示边框";
 "BAR_BORDER_RIGHT" = "右段显示边框";
-"BAR_LABEL_HINT" = "关闭后该段只显示图标";
 "BAR_BORDER_HINT" = "粗细沿用「外观」里的边框宽度";
 "BAR_KIND_ACTION" = "固定动作";
 "BAR_KIND_CONTEXT" = "上下文动作组";
@@ -776,15 +773,15 @@
 "BAR_CONTEXT_INPUT" = "输入类型";
 "BAR_CONTEXT_IDLE" = "输入框无文字";
 "BAR_CONTEXT_INDEX" = "显示组内第几个动作";
-"BAR_EDIT_ACTION" = "名称、图标与手势动作";
+"BAR_EDIT_ACTION" = "显示方式、名称、图标与手势动作";
 "BAR_EDIT_GROUP" = "配置组内动作";
 "BAR_UP" = "上移";
 "BAR_DOWN" = "下移";
 "BAR_MOVE" = "移到另一段";
 "BAR_REMOVE" = "移除条目";
-"BAR_EDIT_HINT" = "固定动作、上下文、应用都可以混排；右段留空时宽度全给左段。点自动上下文进入组配置。";
+"BAR_EDIT_HINT" = "固定动作、上下文、应用都可以混排；每个格子默认显示文字，点击可独立选择文字或图标，也可编辑动作或上下文组。右段留空时宽度全给左段。";
 "BAR_RIGHT_SAVED" = "单段模式下右段暂不显示，编排已保留；关闭单段模式即可恢复。";
-"BAR_LAYOUT_HINT" = "任一段都可混排动作、上下文和应用。等宽时所有格宽相同；关闭后按内容类型分配两段宽度，段内仍等分。空段自动让出宽度。文本与边框按左右段分别设置，关闭文本的那一段只显示图标。";
+"BAR_LAYOUT_HINT" = "任一段都可混排动作、上下文和应用。等宽时所有格宽相同；关闭后按内容类型分配两段宽度，段内仍等分。空段自动让出宽度。显示文字或图标在每个格子中独立设置；边框按左右段分别设置。";
 "BAR_CONTEXT_HINT" = "上下文格决定每组可显示的动作数量。按类型顺序判定，只显示前 N 个，不补位。";
 "BAR_METRICS" = "左段 %lu 格 · 右段 %lu 格\n可用 %.0f pt · 左格 %.1f pt · 右格 %.1f pt";
 "BAR_SAVED_ACTIONS" = "已有按钮（含已停用）";
@@ -848,3 +845,5 @@
 
 "FLOATING_APP_AUTO_RESIZE" = "滚动放大，离开缩小";
 "FLOATING_APP_AUTO_RESIZE_FOOTER" = "默认开启。在悬浮 App 内容中单指滚动时，放大到上方预设的占屏面积；点击、长按和标题栏拖动不会触发放大。点击外部操作底层 App 或桌面后缩至 10%。标题和按钮保持固定尺寸，仍可双指缩放。关闭后仅手动调整大小。";
+
+"BUTTON_DISPLAY_HINT" = "仅修改当前按钮，默认显示文字；选择图标后使用该按钮配置的图标。";

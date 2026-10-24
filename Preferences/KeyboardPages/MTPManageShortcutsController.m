@@ -605,10 +605,6 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         : (backgroundTintOn ? cellsHeightDefault + 5 : cellsHeightDefault);
 
     NSMutableArray<MTPToolbarSettingsRow *> *appearanceRows = [@[
-        [MTPToolbarSettingsRow segmentRowWithKey:[self scopedAppearanceKey:kShortLabelEnabledKey]
-                                  label:LOCALIZED(@"DISPLAY_STYLE")
-                                 titles:@[LOCALIZED(@"ICON"), LOCALIZED(@"TEXT")]
-                           defaultValue:0],
         [MTPToolbarSettingsRow switchRowWithKey:[self scopedAppearanceKey:kCellBorderEnabledkey]
                                   label:LOCALIZED(@"BORDER_ENABLED") defaultValue:NO],
         [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellBorderWidthkey]

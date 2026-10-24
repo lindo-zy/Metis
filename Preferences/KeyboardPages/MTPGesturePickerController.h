@@ -14,6 +14,9 @@
 // Pending (unsaved) name/icon typed on the new-button page.
 @property (nonatomic, copy) NSString *pendingName;
 @property (nonatomic, copy) NSString *pendingIcon;
+// Bottom arrangement slots own display independently, even for duplicate actions.
+@property (nonatomic, copy) NSString *buttonDisplayMode;
+@property (nonatomic, copy) void (^displayModeChanged)(NSString *mode);
 @end
 
 @interface PSSpecifier (MTPGesturePickerController)

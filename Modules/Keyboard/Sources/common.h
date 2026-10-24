@@ -96,7 +96,6 @@
 #define kPasteAndGoEnabledkey @"pasteandgo"
 #define kHeightOffsetkey @"heightoffset"
 #define kEnabledSmartDeleteForwardkey @"smartdeleteforwardBOOL"
-#define kShortLabelEnabledKey @"shortLabelBOOL"
 #define kCellHeightkey @"shortcutheight"
 #define kCellRadiuskey @"shortcutradius"
 #define kCellSpacingkey @"shortcutspacing"
