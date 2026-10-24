@@ -1,9 +1,9 @@
 #import "MTPrefsGlobalModel.h"
+#import "../../Modules/Keyboard/Sources/MTPrefsManager.h"
 
 // 功能开关沿用键盘细节域（com.lindo.metis.keyboard）：迁页面不改键名与
 // prefschanged 通知，运行端零改动（02 §6：原有具体功能开关仍按功能语义保留）。
 static NSString *const MTGlobalPrefsDomain = @"com.lindo.metis.keyboard";
-static NSString *const MTGlobalPrefsChanged = @"com.lindo.metis.keyboard/prefschanged";
 static NSString *const MTSmsCodeCopyKey = @"smscodecopyBOOL";
 static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
 
@@ -166,6 +166,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
 
 // 读取缺省关，与运行端默认一致（MTSMSCodePolicy / MTBrowserRedirectHooks）。
 + (BOOL)mtBooleanForKey:(NSString *)key {
+    CFPreferencesAppSynchronize((__bridge CFStringRef)MTGlobalPrefsDomain);
     CFPropertyListRef value = CFPreferencesCopyAppValue((__bridge CFStringRef)key,
                                                         (__bridge CFStringRef)MTGlobalPrefsDomain);
     BOOL enabled = NO;
@@ -176,16 +177,11 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     return enabled;
 }
 
-// 写入权威域 + 广播 prefschanged：与 PS 开关 PostNotification 等效
-// （MTPRootListController 同款双发无害），键盘进程即时重载。
+// Use the same writer as the keyboard settings: persist the domain, cold-boot
+// plist and shared snapshot together before broadcasting prefschanged. A
+// CFPreferences-only write can leave the old enabled value in the boot fallback.
 + (void)mtSetBoolean:(BOOL)value forKey:(NSString *)key {
-    CFPreferencesSetAppValue((__bridge CFStringRef)key,
-                             value ? kCFBooleanTrue : kCFBooleanFalse,
-                             (__bridge CFStringRef)MTGlobalPrefsDomain);
-    CFPreferencesAppSynchronize((__bridge CFStringRef)MTGlobalPrefsDomain);
-    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-                                         (__bridge CFStringRef)MTGlobalPrefsChanged,
-                                         NULL, NULL, YES);
+    [[MTPrefsManager sharedInstance] setValue:@(value) forKey:key];
 }
 
 @end

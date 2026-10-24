@@ -30,7 +30,7 @@
     }
     MTSettingsRow *redirect = [self.model rowWithIdentifier:@"global-browser-redirect"];
     if (redirect) {
-        __weak typeof(self) weakSelf = weakSelf;
+        __weak typeof(self) weakSelf = self;
         redirect.toggleHandler = ^(BOOL on) {
             __strong typeof(weakSelf) strongSelf = weakSelf;
             if (!strongSelf) return;

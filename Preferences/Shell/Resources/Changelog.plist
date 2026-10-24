@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>顶部与底部键盘按钮默认显示文字，可在各按钮中独立选择图标；移除整栏和左右段统一显示方式开关</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复浏览器重定向关闭操作未保存的问题，保持默认关闭，并同步保存启动回退配置，避免更新或重启后恢复旧的开启状态</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.8</string>
 		<key>items</key>
 		<array>
@@ -57,25 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>重构测试条目显示与动作映射，点击和页面刷新后持续保留标题及 URL，避免界面状态翻转</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复设置「测试」分组点击全屏截图、区域截图等入口无法触发截图的问题</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>「测试」分组各 URL 入口下方直接显示对应的 URL scheme</string>
 			</dict>
 		</array>
 	</dict>
