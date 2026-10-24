@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>「图片编辑」在剪贴板没有图片时，可从相册选择一张图片再进入编辑</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.6</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>补齐悬浮小窗缩放、自动调整大小和滚动触发的更新说明</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>悬浮应用改为单指滚动内容时按预设比例放大，点击、长按和拖动标题栏不再触发放大</string>
 			</dict>
 		</array>
 	</dict>
