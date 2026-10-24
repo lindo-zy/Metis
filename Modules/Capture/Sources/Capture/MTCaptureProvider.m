@@ -1,5 +1,4 @@
 #import "MTCaptureProvider.h"
-#import "MTCaptureLayerExclusion.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Common/MTLongShotControl.h"
 #import <dlfcn.h>
@@ -37,8 +36,6 @@ static void MTResolveScreenCaptureSymbols(void) {
 }
 
 @interface MTCaptureProvider ()
-@property (nonatomic, strong) MTCaptureLayerExclusion *layerExclusion;
-@property (nonatomic, copy) NSArray<UIWindow *> *protectedWindows;
 @property (nonatomic, copy, readwrite, nullable) NSString *lastCaptureMethod;
 @end
 
@@ -99,31 +96,15 @@ static void MTResolveScreenCaptureSymbols(void) {
     }
 }
 
-- (void)endVisibleWindowExclusion {
-    NSParameterAssert(NSThread.isMainThread);
-    [self.layerExclusion invalidate]; self.layerExclusion = nil; self.protectedWindows = nil;
-}
-- (BOOL)mtPrepareVisibleWindows:(NSArray<UIWindow *> *)windows {
-    if (self.layerExclusion.isActive && [self.protectedWindows isEqualToArray:windows]) return NO;
-    [self endVisibleWindowExclusion];
-    NSMutableArray *layers = [NSMutableArray array];
-    for (UIWindow *window in windows) [layers addObject:window.layer];
-    self.layerExclusion = [MTCaptureLayerExclusion beginWithLayers:layers];
-    if (self.layerExclusion) self.protectedWindows = windows;
-    MTCaptureLogInfo(@"long shot visible capture exclusion (layers=%lu active=%d)",
-              (unsigned long)layers.count, self.layerExclusion.isActive);
-    [CATransaction flush];
-    return self.layerExclusion.isActive; // 新标记等两帧提交；期间窗口仍可见。
-}
-
 - (void)captureExcludingWindows:(NSArray<UIWindow *> *)windows
                     completion:(void (^)(UIImage *, BOOL, NSString *, NSError *))completion {
     NSParameterAssert(completion);
     void (^begin)(void) = ^{
-        BOOL keepVisible = self.keepsExcludedWindowsVisible && windows.count > 0;
-        BOOL needsExclusionCommit = keepVisible && [self mtPrepareVisibleWindows:windows];
+        // 只排除本次抓帧中的窗口，不能设置图层的全局禁止捕获位（会让系统录屏也看不见 HUD）。
+        UIImage *visibleSnapshot = self.keepsExcludedWindowsVisible && windows.count && !self.fallbackOnlyCapture
+            ? [self mtSnapshotExcludingWindows:windows] : nil;
         NSMutableArray<NSDictionary *> *hidden = [NSMutableArray array];
-        if (windows.count && !keepVisible) {
+        if (windows.count && !visibleSnapshot) {
             for (UIWindow *window in windows) {
                 if (window.hidden || !window.rootViewController) continue;
                 [hidden addObject:@{@"window": window, @"controller": window.rootViewController}];
@@ -142,23 +123,21 @@ static void MTResolveScreenCaptureSymbols(void) {
                     return;
                 }
             }
-            BOOL layerExcluded = keepVisible && self.layerExclusion.isActive &&
-                                 [self.protectedWindows isEqualToArray:windows];
-            BOOL canCaptureScreen = !keepVisible || layerExcluded;
             NSString *method = [[self class] resolvedCaptureMethod];
-            __block UIImage *image = nil;
+            __block UIImage *image = visibleSnapshot;
+            if (image) method = @"private-excluding-windows";
             BOOL isPartial = NO;
 
             @try {
-                if (windows.count && !layerExcluded && !self.fallbackOnlyCapture) {
+                if (!image && windows.count && !self.fallbackOnlyCapture) {
                     image = [self mtSnapshotExcludingWindows:windows];
                     if (image) method = @"private-excluding-windows";
                 }
-                if (!image && canCaptureScreen && _MTCreateScreenUIImage) {
+                if (!image && _MTCreateScreenUIImage) {
                     image = _MTCreateScreenUIImage();
                     if (image) method = @"private-uicreate";
                 }
-                if (!image && canCaptureScreen && _MTGetScreenImage) {
+                if (!image && _MTGetScreenImage) {
                     CGImageRef screenCG = _MTGetScreenImage();
                     if (screenCG) {
                         image = [UIImage imageWithCGImage:screenCG];
@@ -166,11 +145,7 @@ static void MTResolveScreenCaptureSymbols(void) {
                         if (image) method = @"private-uigetscreen";
                     }
                 }
-                if (!image && layerExcluded && !self.fallbackOnlyCapture) {
-                    image = [self mtSnapshotExcludingWindows:windows];
-                    if (image) method = @"private-excluding-windows";
-                }
-                if (!image && canCaptureScreen) {
+                if (!image) {
                     image = [self mtGrabBySnapshotFallback];
                     isPartial = (image != nil);
                     method = @"fallback-snapshot";
@@ -192,7 +167,7 @@ static void MTResolveScreenCaptureSymbols(void) {
             if (!image) {
                 NSError *error = [NSError errorWithDomain:MTCaptureErrorDomain
                                                      code:MTCaptureErrorCaptureFailed
-                                                 userInfo:@{NSLocalizedDescriptionKey: keepVisible ? @"当前系统无法在浮窗可见时排除浮窗抓屏" : @"所有抓取路径均未取得屏幕图像"}];
+                                                 userInfo:@{NSLocalizedDescriptionKey: @"所有抓取路径均未取得屏幕图像"}];
                 self.lastCaptureMethod = method;
                 dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, NO, method, error); });
                 return;
@@ -226,7 +201,7 @@ static void MTResolveScreenCaptureSymbols(void) {
             });
           }
         };
-        if (hidden.count || needsExclusionCommit) {
+        if (hidden.count) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 / 60.0 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), grabBlock);
         } else {

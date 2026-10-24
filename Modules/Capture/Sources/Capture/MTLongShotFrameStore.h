@@ -8,6 +8,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) MTLongShotFrameMatch match;
 @property (nonatomic) NSInteger count;
 @property (nonatomic) NSInteger totalHeight;
+@property (nonatomic) NSInteger pixelHeight;
 @property (nonatomic) BOOL previewUnavailable;
 @property (nonatomic, strong, nullable) UIImage *preview;
 @end

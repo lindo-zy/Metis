@@ -106,7 +106,7 @@ static NSData *MTFrameSignature(CGImageRef source, CGRect rect) {
         self.anchorSignature = signature;
     }
     MTLongShotFrameResult *result = [MTLongShotFrameResult new];
-    result.match = match; result.count = self.slices.count;
+    result.match = match; result.count = self.slices.count; result.pixelHeight = rect.size.height;
     for (MTLongShotSlice *slice in self.slices) result.totalHeight += slice.renderedPixelHeight;
     if (match.kind == MTLongShotMatchForward && !self.previewDisabled) {
         if (!self.preview) self.preview = [[MTLongPreviewCanvas alloc] initWithWidthPixels:88 * self.scale

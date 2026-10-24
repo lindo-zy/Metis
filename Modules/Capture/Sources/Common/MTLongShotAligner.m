@@ -116,8 +116,8 @@ static NSInteger MTStableEdge(const uint8_t *prev, const uint8_t *cur, NSInteger
     return limit;
 }
 
-MTLongShotFrameMatch MTLongShotMatchFrames(const uint8_t *prev, const uint8_t *cur,
-                                          NSInteger rows, NSInteger fixedTop, NSInteger fixedBottom) {
+static MTLongShotFrameMatch MTMatchWithBounds(const uint8_t *prev, const uint8_t *cur,
+                                             NSInteger rows, NSInteger fixedTop, NSInteger fixedBottom) {
     MTLongShotFrameMatch result = {MTLongShotMatchUncertain, 0, 0, 0};
     if (!prev || !cur || rows < 128) return result;
     NSInteger top = MAX(0, fixedTop), bottom = MAX(0, fixedBottom);
@@ -156,7 +156,29 @@ MTLongShotFrameMatch MTLongShotMatchFrames(const uint8_t *prev, const uint8_t *c
         NSInteger tolerantTop = fixedTop < 0 ? MTStableEdge(prev, cur, rows, NO) : top;
         NSInteger tolerantBottom = fixedBottom < 0 ? MTStableEdge(prev, cur, rows, YES) : bottom;
         if (tolerantTop != top || tolerantBottom != bottom)
-            return MTLongShotMatchFrames(prev, cur, rows, tolerantTop, tolerantBottom);
+            return MTMatchWithBounds(prev, cur, rows, tolerantTop, tolerantBottom);
+    }
+    return result;
+}
+
+MTLongShotFrameMatch MTLongShotMatchFrames(const uint8_t *prev, const uint8_t *cur,
+                                          NSInteger rows, NSInteger fixedTop, NSInteger fixedBottom) {
+    MTLongShotFrameMatch result = MTMatchWithBounds(prev, cur, rows, fixedTop, fixedBottom);
+    if (!prev || !cur || rows < 128 || result.kind != MTLongShotMatchUncertain || fixedTop >= 0) return result;
+
+    // 大标题折叠、搜索栏收起及状态栏数字变化会让逐行静止检测在屏幕顶部提前结束。
+    // 在多个正文起点独立验证同一位移，至少两处一致才接纳；不放宽像素匹配/次峰阈值。
+    // 无重叠、空白或周期列表仍须返回 Uncertain，交由会话缩步恢复，不能盲目追加。
+    const NSInteger divisors[] = {12, 8, 6, 4, 3};
+    MTLongShotFrameMatch candidate = result;
+    NSInteger bottom = fixedBottom >= 0 ? fixedBottom : result.fixedBottomRows;
+    for (NSUInteger i = 0; i < sizeof(divisors) / sizeof(divisors[0]); i++) {
+        NSInteger top = rows / divisors[i];
+        MTLongShotFrameMatch match = MTMatchWithBounds(prev, cur, rows, top, bottom);
+        if (match.kind != MTLongShotMatchForward && match.kind != MTLongShotMatchReverse) continue;
+        if (candidate.kind == match.kind && labs(candidate.shiftRows - match.shiftRows) <= 1)
+            return candidate;
+        candidate = match;
     }
     return result;
 }

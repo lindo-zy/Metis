@@ -10,6 +10,7 @@
 #import "../Overlay/MTLongShotHUD.h"
 #import <QuartzCore/QuartzCore.h>
 #import <stdatomic.h>
+#import <math.h>
 
 // 一个阶段只有一个在途操作。running 表示用户是否要求继续，finishRequested 优先于 running。
 typedef NS_ENUM(NSInteger, MTLongShotPhase) {
@@ -38,6 +39,9 @@ static dispatch_queue_t MTLongShotImageQueue(void) {
 @property (nonatomic) MTLongShotPhase phase;
 @property (nonatomic) CGRect displayRect;
 @property (nonatomic) MTLongShotScrollPlan plan;
+@property (nonatomic) MTLongShotScrollPlan forwardPlan;
+@property (nonatomic) CGFloat nextScrollDistance;
+@property (nonatomic) NSInteger recoveryAttempts;
 @property (nonatomic) NSUInteger generation;
 @property (nonatomic) NSInteger count;
 @property (nonatomic) NSInteger duplicates;
@@ -170,7 +174,8 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
             [self mtStop:self.scroller.availabilityError ?: @"选区无法短滑\n请扩大正文区域" terminal:YES]; return;
         }
     }
-    self.running = YES; self.duplicates = self.uncertain = 0;
+    self.running = YES; self.duplicates = self.uncertain = self.recoveryAttempts = 0;
+    self.forwardPlan = (MTLongShotScrollPlan){0};
     [self mtCapture];
 }
 - (void)mtStop:(NSString *)message terminal:(BOOL)terminal {
@@ -192,7 +197,7 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     dispatch_async(MTLongShotImageQueue(), ^{ [store discardPreview]; });
     if (self.phase == MTLongShotPhaseExporting) return;
     // 不在资源不足时重抓末帧；已有内容由正在执行的操作释放后导出。
-    // 可见浮窗不能回退到普通整屏抓取；内存警告时停止新快照，收尾已有帧。
+    // 内存警告时停止新快照，收尾已有帧。
     [self mtFinishForMemory];
 }
 - (void)mtFinishForMemory {
@@ -289,13 +294,32 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     }
     if (kind == MTLongShotMatchUncertain) {
         self.uncertain++;
-        // 只允许原地静置重采一次，绝不再前滚或盲目反向回滚。
+        // 先排除动画未稳定；仍无重叠时有限回滑到上一可靠锚点附近，不能继续前滚丢正文。
         if (self.uncertain < 2) { [self mtSettleThenCapture]; return; }
+        if ([self mtRecoverOverlap]) return;
         [self mtStop:@"未找到可靠重叠\n稍回滑后点截取" terminal:NO]; return;
     }
     self.uncertain = 0;
     if (kind == MTLongShotMatchReverse) {
         [self mtStop:@"画面发生回退\n恢复位置后继续" terminal:NO]; return;
+    }
+    CGFloat previousDistance = self.forwardPlan.start.y - self.forwardPlan.end.y;
+    if (kind == MTLongShotMatchForward && result.match.shiftRows > 0 && previousDistance > 0 &&
+        result.pixelHeight > 0 && self.displayRect.size.height > 0) {
+        CGFloat pixelsPerPoint = result.pixelHeight / self.displayRect.size.height;
+        CGFloat bodyHeight = (result.pixelHeight - result.match.fixedTopRows - result.match.fixedBottomRows) / pixelsPerPoint;
+        CGFloat gain = MAX(1.0, result.match.shiftRows / pixelsPerPoint / previousDistance);
+        // 以真实正文/实测滚动增益控制下一步，保留近半屏正文重叠；逐步增大，避免首屏折叠时跳过正文。
+        CGFloat target = MIN(bodyHeight * 0.55 / gain, previousDistance * 1.25);
+        if (self.recoveryAttempts) target = MIN(target, previousDistance * 0.5);
+        self.nextScrollDistance = MAX(24, target);
+        MTCaptureLogInfo(@"long shot adaptive step (task %@ body=%.1f gain=%.2f next=%.1f)",
+                         self.taskID, bodyHeight, gain, self.nextScrollDistance);
+    }
+    if (kind == MTLongShotMatchDuplicate && self.recoveryAttempts) {
+        // 回到锚点不是到底。下一次用已经缩短的步长重新前进，不能因恢复帧误判结束。
+        self.duplicates = 0;
+        [self mtScroll]; return;
     }
     self.duplicates = kind == MTLongShotMatchDuplicate ? self.duplicates + 1 : 0;
     if (self.duplicates >= 2) {
@@ -312,11 +336,34 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
 }
 - (void)mtScroll {
     if (![self mtLive] || !self.running || self.phase != MTLongShotPhaseReady || self.finishRequested) return;
+    CGFloat maximum = self.plan.start.y - self.plan.end.y;
+    CGFloat distance = MIN(maximum, self.nextScrollDistance > 0 ? self.nextScrollDistance : self.displayRect.size.height * 0.30);
+    CGFloat center = (self.plan.start.y + self.plan.end.y) / 2;
+    MTLongShotScrollPlan plan = {CGPointMake(self.plan.start.x, center + distance / 2),
+                                CGPointMake(self.plan.end.x, center - distance / 2)};
+    self.forwardPlan = plan; self.recoveryAttempts = 0;
+    [self mtPerformScroll:plan recovering:NO];
+}
+- (BOOL)mtRecoverOverlap {
+    if (![self mtLive] || self.phase != MTLongShotPhaseReady || ![self mtTargetCurrent] ||
+        self.recoveryAttempts >= 2 || !self.running || self.finishRequested) return NO;
+    MTLongShotScrollPlan rollback;
+    if (!MTLongShotBuildCorrectiveScrollPlan(self.forwardPlan, pow(0.5, self.recoveryAttempts + 1), &rollback)) return NO;
+    self.recoveryAttempts++; self.uncertain = 0;
+    CGFloat shortened = (self.forwardPlan.start.y - self.forwardPlan.end.y) * 0.5;
+    self.nextScrollDistance = self.nextScrollDistance > 0 ? MIN(self.nextScrollDistance, shortened) : shortened;
+    MTCaptureLogInfo(@"long shot recovering overlap (task %@ attempt=%ld distance=%.1f)",
+                     self.taskID, (long)self.recoveryAttempts, rollback.end.y - rollback.start.y);
+    [self mtPerformScroll:rollback recovering:YES];
+    return YES;
+}
+- (void)mtPerformScroll:(MTLongShotScrollPlan)plan recovering:(BOOL)recovering {
+    if (![self mtLive] || !self.running || self.phase != MTLongShotPhaseReady || self.finishRequested) return;
     if (![self mtTargetCurrent]) { [self mtStop:@"前台 App 已变化\n点完成保存" terminal:YES]; return; }
-    [self mtSetPhase:MTLongShotPhaseScrolling]; self.hud.statusText = @"短滑到下一段";
+    [self mtSetPhase:MTLongShotPhaseScrolling]; self.hud.statusText = recovering ? @"正在恢复拼接重叠" : @"滚动到下一段";
     NSUInteger token = self.generation;
     __weak MTLongShotSession *weak = self;
-    [self.scroller scrollWithPlan:self.plan duration:self.task.configSnapshot.longShotOptions.scrollDuration completion:^(BOOL completed) {
+    [self.scroller scrollWithPlan:plan duration:self.task.configSnapshot.longShotOptions.scrollDuration completion:^(BOOL completed) {
         MTLongShotSession *s = weak;
         if (![s mtLive] || s.generation != token) return;
         [s mtSetPhase:MTLongShotPhaseReady];
@@ -412,7 +459,6 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         atomic_fetch_add(&MTLockGeneration, 1); MTLockSession = nil;
         CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, MTLockName, NULL);
     }
-    [self.provider endVisibleWindowExclusion];
     self.hud.delegate = nil; [self.window hideAndDestroyWithCompletion:nil];
     self.window = nil; self.hud = nil; self.store = nil; self.task = nil; self.delegate = nil;
     if (remove) {
