@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复悬浮小窗收起后位置跳动的问题：点开小窗再点外部收起时，窗口停在拖动到的位置，不再跳到屏幕中间</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.7</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>「测试」分组各 URL 入口下方直接显示对应的 URL scheme</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>补齐悬浮小窗缩放、自动调整大小和滚动触发的更新说明</string>
 			</dict>
 		</array>
 	</dict>

@@ -341,7 +341,8 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.presetAreaFraction = preset;
     self.automaticResizeEnabled = enabled;
     if (presetChanged || enabling) {
-        self.areaFraction = enabled && self.interactionKnown && !self.interactionActive ? .10 : preset;
+        self.areaFraction = enabled && self.interactionKnown && !self.interactionActive
+            ? MTFloatingAppCollapsedArea() : preset;
         [self.view setNeedsLayout];
     }
 }
@@ -350,7 +351,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.interactionKnown = YES;
     self.interactionActive = active;
     if (!self.automaticResizeEnabled) return;
-    self.areaFraction = active ? self.presetAreaFraction : .10;
+    self.areaFraction = active ? self.presetAreaFraction : MTFloatingAppCollapsedArea();
     NSLog(@"[MetisKeyboard][FloatingApp] auto resize active=%d area=%.3f", active, (double)self.areaFraction);
     [self.view setNeedsLayout]; [self.view layoutIfNeeded];
 }
@@ -463,9 +464,15 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.canvas.transform = CGAffineTransformMakeScale(scale, scale);
     self.spinner.center = self.canvas.center;
     [self.card bringSubviewToFront:header];
-    self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display)) / display.size.width,
-                                        (CGRectGetMidY(frame) - CGRectGetMinY(display)) / display.size.height);
-    self.positionInitialized = YES;
+    // 位置记忆只代表“用户摆放的缩小态位置”。放大态卡片会被 available 边界钳制，
+    // 把钳制后的中心写回记忆，缩回小窗时就会停在屏幕中部而不是拖动位置；所以只有
+    // 交互过的自动缩小态（以及拖动结束，见 -drag:）允许更新记忆与首次定位标记。
+    if (self.automaticResizeEnabled && self.interactionKnown && !self.interactionActive &&
+        self.areaFraction <= MTFloatingAppCollapsedArea() + 1e-6) {
+        self.normalizedCenter = CGPointMake((CGRectGetMidX(frame) - CGRectGetMinX(display)) / display.size.width,
+                                            (CGRectGetMidY(frame) - CGRectGetMinY(display)) / display.size.height);
+        self.positionInitialized = YES;
+    }
     self.layingOut = NO;
 }
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {

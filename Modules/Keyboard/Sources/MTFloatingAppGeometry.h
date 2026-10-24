@@ -6,6 +6,12 @@ static inline CGFloat MTFloatingAppClampArea(CGFloat area) {
     return isfinite(area) ? MIN(.80, MAX(.10, area)) : .20;
 }
 
+// 自动缩放开启时离开卡片后的收缩面积。位置记忆只在这个尺寸下维护：
+// 放大态卡片会被 available 边界钳制，把钳制结果写回记忆会让缩回时丢掉拖动位置。
+static inline CGFloat MTFloatingAppCollapsedArea(void) {
+    return .10;
+}
+
 // Area includes the header; 20% is not a 20% linear scale.
 static inline CGFloat MTFloatingAppContentScale(CGSize canvas, CGRect display, CGRect available,
                                                CGFloat area, CGFloat header) {
