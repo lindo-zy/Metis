@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.5</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>截图测试条目统一通过系统通知启动对应功能，修复仅首项能够生效的问题</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>重构测试条目显示与动作映射，点击和页面刷新后持续保留标题及 URL，避免界面状态翻转</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.4</string>
 		<key>items</key>
 		<array>
@@ -57,25 +76,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>悬浮应用支持点击后按预设比例放大、点击外部缩至 10%，设置中可关闭自动调整大小</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.0</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>悬浮小窗放大时，顶部标题和按钮保持固定大小，避免跟随内容过度放大</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>悬浮小窗支持在 10%–80% 的占屏面积范围内双指连续缩放</string>
 			</dict>
 		</array>
 	</dict>

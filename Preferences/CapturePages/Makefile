@@ -6,11 +6,13 @@ BUNDLE_NAME = MetisCapturePrefs
 # MetisCore 单一镜像（与 KeyboardPages 共用，保证 Preferences.app 内类唯一），
 # 本子包经 MetisCore.dylib 链接使用。
 MetisCapturePrefs_FILES = MTCaptureRootListController.m \
+	MTCaptureTestCell.m \
 	MTEditorOrderController.m \
 	MTEditorButtonEditController.m \
 	MTCustomURLController.m \
 	MTStandaloneEditorController.m \
 	../../Modules/Capture/Sources/Common/MTConstants.m \
+	../../Modules/Capture/Sources/Common/MTCaptureAction.m \
 	../../Modules/Capture/Sources/Common/MTPanelAppearance.m \
 	../../Modules/Capture/Sources/Common/MTEditorOrder.m \
 	../../Modules/Capture/Sources/Common/MTSelectionToolbar.m \

@@ -68,14 +68,10 @@ FOUNDATION_EXPORT CFStringRef const MTShellXRouteScan;      // prefs://root=shel
 
 // MARK: - 外部 URL 路由（iOS 捷径「打开 URL」动作等外部调用入口）
 
-/// 寄生路由前缀：prefs scheme 由 Preferences.app 认领，URL 必然经过 SpringBoard
-/// 分发层（与 SHELLX prefs://root=shellx_* 同链路）。Metis 无 App Bundle，自有
-/// scheme 无法被 LaunchServices 认领，只能寄生已注册 scheme。root id 白名单与
-/// Darwin 通知名对应（URL 入口只暴露其中 5 个动作：冻结/即时/取消按需求不开放，
-/// 仍可由 Darwin 通知与键盘系统动作入口触发）；单一事实源在此，解析与拦截见
-/// SpringBoard/MTURLRouter.xm，设置页入口见 MTCaptureRootListController「测试」分组
-/// （原「外部 URL 调用」文档页已并入该分组，点击行即按本表路由触发）。
-/// 命中即消费，不再向下打开设置页。
+/// prefs scheme 由 Preferences.app 认领，外部请求由 SpringBoard/MTURLRouter.xm
+/// 拦截。路由与通知的对应关系集中于 MTCaptureAction，设置页测试通过通知请求
+/// 同一动作并展示对应 URL；本地测试点击不用于证明外部 URL 链路可达。
+/// URL 入口仅暴露全屏、区域、标记、长截图和剪贴板编辑，命中后不打开设置页。
 FOUNDATION_EXPORT CFStringRef const MTURLRoutePrefix;         // metis_
 FOUNDATION_EXPORT CFStringRef const MTURLRouteFull;           // prefs://root=metis_full → 全屏截图
 FOUNDATION_EXPORT CFStringRef const MTURLRouteArea;           // prefs://root=metis_area → 区域截图
