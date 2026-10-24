@@ -35,7 +35,6 @@ static dispatch_queue_t MTLongShotImageQueue(void) {
 @property (nonatomic, strong) MTLongShotHUD *hud;
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, strong) id memoryObserver;
-@property (nonatomic) MTLongShotMode mode;
 @property (nonatomic) MTLongShotPhase phase;
 @property (nonatomic) CGRect displayRect;
 @property (nonatomic) MTLongShotScrollPlan plan;
@@ -48,7 +47,6 @@ static dispatch_queue_t MTLongShotImageQueue(void) {
 @property (nonatomic) BOOL terminalPause;
 @property (nonatomic) BOOL memoryStopped;
 @property (nonatomic) BOOL previewDisabled;
-@property (nonatomic) CFTimeInterval nextSample;
 - (void)mtCancel;
 @end
 static __weak MTLongShotSession *MTLockSession;
@@ -86,11 +84,11 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     }
 }
 @implementation MTLongShotSession
-+ (instancetype)startWithTask:(MTCaptureTask *)task mode:(MTLongShotMode)mode
++ (instancetype)startWithTask:(MTCaptureTask *)task
                   displayRect:(CGRect)displayRect delegate:(id<MTLongShotSessionDelegate>)delegate {
     NSParameterAssert(NSThread.isMainThread);
     MTLongShotSession *s = [self new];
-    s.task = task; s.taskID = task.taskID; s.delegate = delegate; s.mode = mode;
+    s.task = task; s.taskID = task.taskID; s.delegate = delegate;
     s.displayRect = displayRect; s.phase = MTLongShotPhaseReady;
     s.target = MTLongShotFrontmostIdentifier(UIApplication.sharedApplication);
     s.provider = [MTCaptureProvider new]; s.provider.detachesCapturedImage = YES;
@@ -110,8 +108,7 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     s.hud = [[MTLongShotHUD alloc] initWithFrame:s.window.bounds]; s.hud.delegate = s;
     [s.window hostContentView:s.hud];
     s.window.rootViewController.view.frame = s.window.bounds; s.hud.frame = s.window.bounds;
-    [s.hud setModeTitle:mode == MTLongShotModeAutomatic ? @"自动拼接" :
-                        mode == MTLongShotModeSmart ? @"智能拼接" : @"采样拼接"];
+    [s.hud setModeTitle:@"自动拼接"];
     [s.window showAnimated:NO becomeKey:NO];
     [s mtShowReady:@"点「截取」开始"];
     atomic_fetch_add(&MTLockGeneration, 1); MTLockSession = s;
@@ -122,7 +119,7 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { [weak mtMemoryWarning]; }];
     s.timer = [NSTimer timerWithTimeInterval:0.2 repeats:YES block:^(NSTimer *timer) { [weak mtTick]; }];
     [NSRunLoop.mainRunLoop addTimer:s.timer forMode:NSRunLoopCommonModes];
-    MTCaptureLogInfo(@"long shot ready (task %@ mode=%ld rect=%@)", s.taskID, (long)mode, NSStringFromCGRect(displayRect));
+    MTCaptureLogInfo(@"long shot ready (task %@ rect=%@)", s.taskID, NSStringFromCGRect(displayRect));
     return s;
 }
 - (BOOL)isFinished { return self.phase == MTLongShotPhaseFinished; }
@@ -135,10 +132,10 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
 }
 - (void)mtSetPhase:(MTLongShotPhase)phase {
     self.phase = phase;
-    BOOL active = self.running && self.mode != MTLongShotModeSmart;
+    BOOL active = self.running;
     BOOL enabled = !self.finishRequested && !self.terminalPause && !self.memoryStopped &&
                    (phase == MTLongShotPhaseReady || active);
-    NSString *title = active ? @"暂停" : (self.count && self.mode != MTLongShotModeSmart ? @"继续" : @"截取");
+    NSString *title = active ? @"暂停" : (self.count ? @"继续" : @"截取");
     [self.hud setCaptureTitle:title enabled:enabled];
     [self.hud setFinishing:self.finishRequested || phase == MTLongShotPhaseExporting];
 }
@@ -151,16 +148,14 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         if (!self.terminalPause) [self mtStop:@"前台 App 已变化\n点完成保存" terminal:YES];
         return;
     }
-    if (self.running && self.mode == MTLongShotModeAutomatic && self.hud.isPreviewInteracting) {
+    if (self.running && self.hud.isPreviewInteracting) {
         self.running = NO;
         [self mtSetPhase:self.phase]; self.hud.statusText = @"预览时暂停\n点继续恢复";
     }
-    if (self.running && self.phase == MTLongShotPhaseReady && self.mode == MTLongShotModeSampling &&
-        CACurrentMediaTime() >= self.nextSample && !self.hud.isPreviewInteracting) [self mtCapture];
 }
 - (void)longShotHUDDidTapCapture:(UIView *)hud {
     if (![self mtLive] || self.finishRequested || self.terminalPause || self.memoryStopped) return;
-    if (self.running && self.mode != MTLongShotModeSmart) {
+    if (self.running) {
         self.running = NO;
         // 在途帧完成后停；不强行取消写盘或中途抬指导致漏段。
         [self mtSetPhase:self.phase]; self.hud.statusText = @"已暂停\n点继续或完成";
@@ -168,7 +163,7 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     }
     if (self.phase != MTLongShotPhaseReady) return;
     if (![self mtTargetCurrent]) { [self mtStop:@"请返回原 App\n点完成保存" terminal:YES]; return; }
-    if (self.mode != MTLongShotModeSampling && !self.scroller) {
+    if (!self.scroller) {
         self.scroller = [MTLongShotScroller new];
         if (self.scroller.availabilityError || !MTLongShotBuildScrollPlan(self.displayRect,
                 self.task.capturedScreenBounds, self.window.frame, &_plan)) {
@@ -267,8 +262,8 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
                 }
                 if (result.preview && !s.previewDisabled) [s.hud setPreviewImage:result.preview
                                            usedPixelHeight:CGImageGetHeight(result.preview.CGImage)];
-                MTCaptureLogInfo(@"long shot frame (task %@ mode=%ld kind=%ld count=%ld shift=%ld fixed=%ld/%ld footprint=%llu available=%llu)",
-                    s.taskID, (long)s.mode, (long)result.match.kind, (long)s.count, (long)result.match.shiftRows,
+                MTCaptureLogInfo(@"long shot frame (task %@ kind=%ld count=%ld shift=%ld fixed=%ld/%ld footprint=%llu available=%llu)",
+                    s.taskID, (long)result.match.kind, (long)s.count, (long)result.match.shiftRows,
                     (long)result.match.fixedTopRows, (long)result.match.fixedBottomRows,
                     (unsigned long long)MTLongShotProcessFootprintBytes(), (unsigned long long)MTLongShotAvailableMemoryBytes());
                 [s mtAcceptResult:result];
@@ -294,11 +289,8 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
     }
     if (kind == MTLongShotMatchUncertain) {
         self.uncertain++;
-        // 自动/智能只允许原地静置重采一次，绝不再前滚或盲目反向回滚。
-        if (self.uncertain < 2 && self.mode != MTLongShotModeSampling) { [self mtSettleThenCapture:YES]; return; }
-        if (self.mode == MTLongShotModeSampling && self.uncertain < 3) {
-            self.nextSample = CACurrentMediaTime() + self.task.configSnapshot.longShotOptions.idleInterval; return;
-        }
+        // 只允许原地静置重采一次，绝不再前滚或盲目反向回滚。
+        if (self.uncertain < 2) { [self mtSettleThenCapture]; return; }
         [self mtStop:@"未找到可靠重叠\n稍回滑后点截取" terminal:NO]; return;
     }
     self.uncertain = 0;
@@ -306,7 +298,7 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         [self mtStop:@"画面发生回退\n恢复位置后继续" terminal:NO]; return;
     }
     self.duplicates = kind == MTLongShotMatchDuplicate ? self.duplicates + 1 : 0;
-    if (self.mode == MTLongShotModeAutomatic && self.duplicates >= 2) {
+    if (self.duplicates >= 2) {
         // 至少已有一次可靠推进，再经过两次完整短滑/静置仍无新增内容才自动保存。
         // 从一开始就不滚的页面仍提示检查，不能假报到底。
         if (self.count > 1) {
@@ -315,11 +307,6 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
             [self mtExport];
         } else [self mtStop:@"页面未滚动\n点完成或继续" terminal:NO];
         return;
-    }
-    if (self.mode == MTLongShotModeSampling) {
-        self.nextSample = CACurrentMediaTime() + (self.duplicates ? self.task.configSnapshot.longShotOptions.idleInterval :
-                                                                 self.task.configSnapshot.longShotOptions.sampleInterval);
-        self.hud.statusText = @"请缓慢上滑页面\n点完成结束"; return;
     }
     [self mtScroll];
 }
@@ -335,10 +322,10 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         [s mtSetPhase:MTLongShotPhaseReady];
         if (s.memoryStopped || s.terminalPause) { if (s.finishRequested) [s mtExport]; return; }
         if (!completed) { [s mtStop:@"短滑失败\n点完成保存" terminal:YES]; return; }
-        [s mtSettleThenCapture:s.mode == MTLongShotModeAutomatic || s.finishRequested];
+        [s mtSettleThenCapture];
     }];
 }
-- (void)mtSettleThenCapture:(BOOL)capture {
+- (void)mtSettleThenCapture {
     [self mtSetPhase:MTLongShotPhaseSettling]; self.hud.statusText = @"等待画面稳定";
     NSUInteger token = self.generation;
     __weak MTLongShotSession *weak = self;
@@ -348,9 +335,9 @@ static void MTLongShotScheduleEndMemoryLogs(NSString *taskID, NSUInteger generat
         if (![s mtLive] || s.generation != token) return;
         [s mtSetPhase:MTLongShotPhaseReady];
         if (s.memoryStopped || s.terminalPause) { if (s.finishRequested) [s mtExport]; return; }
-        if (s.finishRequested || (capture && s.running)) { [s mtCapture]; return; }
+        if (s.finishRequested || s.running) { [s mtCapture]; return; }
         s.running = NO;
-        [s mtShowReady:s.mode == MTLongShotModeSmart ? @"点截取下一段\n或点完成收尾" : @"已暂停\n点继续或完成"];
+        [s mtShowReady:@"已暂停\n点继续或完成"];
     });
 }
 - (void)longShotHUDDidTapFinish:(UIView *)hud {

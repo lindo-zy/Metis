@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)selectionViewDidRequestEditor:(MTSelectionView *)view displayRect:(CGRect)displayRect;
 /// 工具栏“悬浮”按钮：把选区裁剪结果以可拖动悬浮窗常驻屏幕（不执行输出动作）。
 - (void)selectionViewDidRequestFloat:(MTSelectionView *)view displayRect:(CGRect)displayRect;
-/// 工具栏“滚动截图”按钮（仅区域模式出现）：以当前选区为采集裁片进入自动滚动会话。
+/// 工具栏“滚动截图”按钮（仅区域模式出现）：有选区时采集选区，无选区时默认全屏。
 - (void)selectionViewDidRequestLong:(MTSelectionView *)view displayRect:(CGRect)displayRect;
 /// 工具栏 SHELLX 按钮：把流程外调给 SHELLX（通知发送由协调器负责，本视图不感知可用性）。
 - (void)selectionViewDidRequestShellXAction:(MTSelectionView *)view action:(MTShellXAction)action;

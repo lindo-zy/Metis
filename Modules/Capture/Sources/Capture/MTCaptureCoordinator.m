@@ -55,7 +55,7 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) MTCaptureWindow *captureWindow;
 @property (nonatomic, strong, nullable) MTSelectionView *selectionView;
 @property (nonatomic, copy, nullable) NSString *selectionCaptureRequestID; // 实时区域在途抓屏，主线程
-@property (nonatomic, strong, nullable) MTLongShotSession *longShotSession;   // 三模式长截图会话（主线程）
+@property (nonatomic, strong, nullable) MTLongShotSession *longShotSession;   // 自动拼接会话（主线程）
 @property (nonatomic, strong) NSMutableArray<MTFloatingSnap *> *floatingSnaps; // 主线程，多图独立保留
 @property (nonatomic, strong, nullable) MTFloatingSnap *editingFloatingSnap;
 @property (nonatomic, strong, nullable) MTCaptureWindow *editorWindow;
@@ -258,8 +258,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
                     return;
                 }
                 if (![task transitionToState:MTCaptureStatePresenting]) return;
-                [self mtStartLongShotForTask:task mode:task.configSnapshot.longShotOptions.mode
-                                displayRect:task.capturedScreenBounds];
+                [self mtStartLongShotForTask:task displayRect:task.capturedScreenBounds];
             } else if (task.mode == MTCaptureModeFull) {
                 [self mtHandleFullscreenResult:task];
             } else {
@@ -386,14 +385,13 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     }];
 }
 
-#pragma mark - 三模式长截图会话
+#pragma mark - 自动拼接会话
 
-- (void)mtStartLongShotForTask:(MTCaptureTask *)task mode:(MTLongShotMode)mode displayRect:(CGRect)displayRect {
+- (void)mtStartLongShotForTask:(MTCaptureTask *)task displayRect:(CGRect)displayRect {
     if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStatePresenting) return;
     [self mtTeardownLongShotSession];
     [self mtDestroyCaptureWindow];
     self.longShotSession = [MTLongShotSession startWithTask:task
-                                                     mode:mode
                                                  displayRect:displayRect
                                                    delegate:self];
     if (!self.longShotSession) {
@@ -401,12 +399,18 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     }
 }
 
-// 选区工具栏与外部入口采用同一模式配置；选区同时限定采集裁片与短滑视口。
+// 与外部入口共用自动拼接；无选区时直接全屏，有选区时保留区域长截图。
 - (void)selectionViewDidRequestLong:(MTSelectionView *)view displayRect:(CGRect)displayRect {
     MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
     if (!task || task.areaFrameFrozen || view != self.selectionView || !view.userInteractionEnabled) return;
-    [self mtPersistSelectionRect:displayRect config:task.configSnapshot];
-    [self mtStartLongShotForTask:task mode:task.configSnapshot.longShotOptions.mode displayRect:displayRect];
+    CGRect captureRect = MTClampSelectionRect(displayRect, task.capturedScreenBounds.size, MTSelectionMinimumSize);
+    if (CGRectIsEmpty(captureRect)) {
+        captureRect = task.capturedScreenBounds;
+    } else {
+        [self mtPersistSelectionRect:captureRect config:task.configSnapshot];
+    }
+    MTCaptureLogInfo(@"selection long shot requested (task %@ rect=%@)", task.taskID, NSStringFromCGRect(captureRect));
+    [self mtStartLongShotForTask:task displayRect:captureRect];
 }
 
 /// 外部取消/失败路径的会话清理：会话自毁不回调，任务状态由调用方推进。

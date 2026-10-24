@@ -18,7 +18,7 @@ typedef NS_ENUM(NSInteger, MTCaptureMode) {
     MTCaptureModeFreeze = 2,
     MTCaptureModeInstant = 3,
     MTCaptureModeMarkup = 4,
-    /// 全屏滚动截图：用户滚动页面，MTLongShotSession 自动采集拼接。
+    /// 全屏滚动截图：MTLongShotSession 自动滚动、采集和拼接。
     MTCaptureModeLong = 5,
 };
 

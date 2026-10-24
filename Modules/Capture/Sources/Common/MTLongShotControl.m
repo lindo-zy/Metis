@@ -150,10 +150,11 @@ BOOL MTLongShotBuildScrollPlan(CGRect viewport, CGRect screenBounds, CGRect prot
             }
         }
     }
-    CGFloat distance = MIN((CGRectGetHeight(rect) - 20.0) * 0.60, 320.0);
-    // 起滑点居中于滑动带：带底上方 10pt 在全屏模式下落在微信等 App 的 tabBar/输入栏，
-    // 触摸被底栏消费、正文不滚（v1.9.8 逆向结论，ShellX 起滑 0.60·H 手势全程在屏幕
-    // 中部）。居中放置后两端各留 ≥22pt 带内余量，远离上下边栏。
+    // 按可用视口推进约四分之三屏，保留重叠供逐帧对齐；不能用固定 320pt
+    // 限制所有屏幕，否则大屏或全屏长截图每次只能移动一小段。
+    CGFloat distance = (CGRectGetHeight(rect) - 20.0) * 0.75;
+    // 沿用 PixPin 的居中滑动带与 HUD 避让，两端各留八分之一视口以上余量，
+    // 防止起滑落进底栏/输入栏。绝不整屏无重叠地跳过正文。
     CGFloat center = CGRectGetMinY(rect) + CGRectGetHeight(rect) / 2.0;
     plan->start = CGPointMake(CGRectGetMidX(rect), center + distance / 2.0);
     plan->end = CGPointMake(plan->start.x, center - distance / 2.0);

@@ -54,8 +54,7 @@ BOOL MTLongShotCanvasGeometry(NSInteger width, NSInteger totalHeight, NSInteger 
 
 /// 在 viewport∩screenBounds 安全区内规划一条避开 protectedRect 的竖直上滑：
 /// 优先保留正文中线；小窗挡路时移到左右空带，无空带则尝试下方，带高不足 80pt 返回 NO。
-/// 起滑点居中于滑动带：贴带底起滑会落进微信等 App 的 tabBar/输入栏，触摸被底栏
-/// 消费、正文不滚（ShellX 起滑 0.60·H，手势全程在屏幕中部）。
+/// 步长随视口高度变化，推进约四分之三屏并保留拼接重叠；路径居中，避开上下边栏。
 BOOL MTLongShotBuildScrollPlan(CGRect viewport, CGRect screenBounds, CGRect protectedRect,
                               MTLongShotScrollPlan *plan);
 

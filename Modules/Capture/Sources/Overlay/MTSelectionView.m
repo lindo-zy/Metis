@@ -525,7 +525,7 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         return;
     }
     if ([identifier isEqualToString:@"editor"]) {
-        // 与悬浮/滚动/确认同口径：没有合法选区时不进编辑器。
+        // 与悬浮/确认同口径：没有合法选区时不进编辑器。
         if (CGRectIsEmpty(MTClampSelectionRect(self.selectionRect, self.bounds.size, MTSelectionMinimumSize))) {
             return;
         }
@@ -545,10 +545,7 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         return;
     }
     if ([identifier isEqualToString:@"long"]) {
-        // 滚动截图同样要求合法选区：细条/零矩形作为采集裁片与滑动视口无意义。
-        if (CGRectIsEmpty(MTClampSelectionRect(self.selectionRect, self.bounds.size, MTSelectionMinimumSize))) {
-            return;
-        }
+        // 长截图允许直接启动；空选区由协调器用任务的完整屏幕几何补齐。
         if (self.delegate && [self.delegate respondsToSelector:@selector(selectionViewDidRequestLong:displayRect:)]) {
             [self.delegate selectionViewDidRequestLong:self displayRect:self.selectionRect];
         }

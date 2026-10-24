@@ -119,10 +119,6 @@ FOUNDATION_EXPORT NSString * const MTKeySelectionCustomButtons;
 FOUNDATION_EXPORT NSString * const MTKeyAreaRememberLastRect;
 FOUNDATION_EXPORT NSString * const MTKeyAreaLastSelectionRect;
 FOUNDATION_EXPORT NSString * const MTKeyMarkupHandleOrigin;
-FOUNDATION_EXPORT NSString * const MTKeyLongShotMode;
-FOUNDATION_EXPORT NSString * const MTKeyLongShotAutoScroll; // 旧配置迁移
-FOUNDATION_EXPORT NSString * const MTKeyLongShotSampleInterval;
-FOUNDATION_EXPORT NSString * const MTKeyLongShotIdleInterval;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotScrollDuration;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotSettleDuration;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotMaxSlices;

@@ -89,10 +89,6 @@ NSString * const MTKeyAreaRememberLastRect = @"AreaRememberLastRect";
 NSString * const MTKeyAreaLastSelectionRect = @"AreaLastSelectionRect";
 // 全屏标记收起把手位置以 NSStringFromCGPoint 存储；无开关，始终记忆。
 NSString * const MTKeyMarkupHandleOrigin = @"MarkupHandleOrigin";
-NSString * const MTKeyLongShotMode = @"LongShotMode";
-NSString * const MTKeyLongShotAutoScroll = @"LongShotAutoScroll";
-NSString * const MTKeyLongShotSampleInterval = @"LongShotSampleInterval";
-NSString * const MTKeyLongShotIdleInterval = @"LongShotIdleInterval";
 NSString * const MTKeyLongShotScrollDuration = @"LongShotScrollDuration";
 NSString * const MTKeyLongShotSettleDuration = @"LongShotSettleDuration";
 NSString * const MTKeyLongShotMaxSlices = @"LongShotMaxSlices";

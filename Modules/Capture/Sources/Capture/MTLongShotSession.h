@@ -16,12 +16,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)longShotSessionDidFail:(MTLongShotSession *)session message:(NSString *)message;
 @end
 
-/// 三种采集策略共用逐段管线；主线程状态机、串行后台帧存储和导出。
-/// 创建后等待「截取」；智能每次保存当前段后短滑，自动重复同一步骤，采样由用户滚动。
-/// displayRect 在所有模式中都限定采集范围，任务首屏快照不作为稍后截取的第一帧。
+/// 自动拼接：主线程连续滚动与采集、串行后台帧存储和导出。
+/// 创建后等待「截取」，可暂停/继续；displayRect 限定采集范围。
+/// 任务首屏快照不作为稍后截取的第一帧。
 @interface MTLongShotSession : NSObject
 + (instancetype)startWithTask:(MTCaptureTask *)task
-                         mode:(MTLongShotMode)mode
                   displayRect:(CGRect)displayRect
                      delegate:(id<MTLongShotSessionDelegate>)delegate;
 

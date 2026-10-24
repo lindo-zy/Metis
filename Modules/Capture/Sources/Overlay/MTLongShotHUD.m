@@ -42,7 +42,7 @@ const CGFloat MTLongShotHUDPreviewWidthPt = 88.0;
         _status.textColor = [UIColor colorWithWhite:1 alpha:0.8];
         _status.numberOfLines = 2;
         _status.textAlignment = NSTextAlignmentCenter;
-        _status.text = @"请缓慢向上滑动页面";
+        _status.text = @"点「截取」开始";
         [_panel.contentView addSubview:_status];
         _modeLabel = [[UILabel alloc] init];
         _modeLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
