@@ -312,7 +312,7 @@ static inline CGFloat MTFloatingCardAreaFromPreferences(NSDictionary *preference
     return lround(MTFloatingAppClampArea(percent / 100.0) * 20) / 20.0;
 }
 
-// 默认开启点击放大、离开缩小；非法或缺失值保持默认。
+// 默认开启内容滚动放大、离开缩小；非法或缺失值保持默认。
 static inline BOOL MTFloatingCardAutoResizeFromPreferences(NSDictionary *preferences) {
     id value = [preferences isKindOfClass:NSDictionary.class] ? preferences[kFloatingCardAutoResizeKey] : nil;
     return [value isKindOfClass:NSNumber.class] ? [value boolValue] : YES;

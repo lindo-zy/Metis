@@ -846,5 +846,5 @@
 "CTX_DELETE_HINT" = "停止删除 300 ms 后显示；需要输入框支持撤销。";
 "CTX_TYPING_HINT" = "输入框非空时，按内容类型显示动作。";
 
-"FLOATING_APP_AUTO_RESIZE" = "点击放大，离开缩小";
-"FLOATING_APP_AUTO_RESIZE_FOOTER" = "默认开启。点击悬浮 App 后放大到上方预设的占屏面积；点击外部操作底层 App 或桌面后缩至 10%。标题和按钮保持固定尺寸，仍可双指缩放。关闭后仅手动调整大小。";
+"FLOATING_APP_AUTO_RESIZE" = "滚动放大，离开缩小";
+"FLOATING_APP_AUTO_RESIZE_FOOTER" = "默认开启。在悬浮 App 内容中单指滚动时，放大到上方预设的占屏面积；点击、长按和标题栏拖动不会触发放大。点击外部操作底层 App 或桌面后缩至 10%。标题和按钮保持固定尺寸，仍可双指缩放。关闭后仅手动调整大小。";

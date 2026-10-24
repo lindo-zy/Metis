@@ -9,11 +9,11 @@
 // Observes the first touch without recognizing or cancelling any gesture.
 // Hosted content receives touches in its own app process, not SpringBoard.
 @interface MTFloatTouchObserver : UIGestureRecognizer
-@property(nonatomic, copy) void (^observedTouch)(void);
+@property(nonatomic, copy) void (^observedTouch)(UITouch *touch);
 @end
 @implementation MTFloatTouchObserver
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
-    if (self.observedTouch) self.observedTouch();
+    if (self.observedTouch) self.observedTouch(touches.anyObject);
     self.state = UIGestureRecognizerStateFailed;
 }
 @end
@@ -32,6 +32,7 @@
 @property(nonatomic) BOOL floatingTarget;
 @property(nonatomic, strong) NSMapTable<UIWindow *, UIPinchGestureRecognizer *> *gestures;
 @property(nonatomic, strong) NSMapTable<UIWindow *, MTFloatTouchObserver *> *touchObservers;
+@property(nonatomic, strong) NSMapTable<UIPanGestureRecognizer *, UIWindow *> *scrollGestures;
 - (void)refresh;
 @end
 
@@ -41,11 +42,13 @@
         _sessionToken = _baseToken = _focusToken = _activityToken = _inputToken = _sceneToken = NOTIFY_TOKEN_INVALID;
         _gestures = [NSMapTable weakToStrongObjectsMapTable];
         _touchObservers = [NSMapTable weakToStrongObjectsMapTable];
+        _scrollGestures = [NSMapTable weakToWeakObjectsMapTable];
     }
     return self;
 }
 - (void)dealloc {
     [NSNotificationCenter.defaultCenter removeObserver:self];
+    [self clearContentScrollObservers];
     for (NSNumber *token in @[@(_sessionToken), @(_baseToken), @(_focusToken), @(_activityToken), @(_inputToken), @(_sceneToken)])
         if (token.intValue != NOTIFY_TOKEN_INVALID) notify_cancel(token.intValue);
 }
@@ -95,8 +98,37 @@
         NSLog(@"[MetisKeyboard][FloatingApp] input focus role=%@", self.floatingTarget ? @"floating" : @"base");
     }
 }
+- (void)observeContentScrollForTouch:(UITouch *)touch {
+    if (!self.floatingTarget || ![self isCurrent] || ![self matchesWindow:touch.window]) return;
+    // Observe the app's existing scroll recognizer; never add a competing pan.
+    // Long-press dragging wins or cancels it through the app's normal arbitration.
+    for (UIView *view = touch.view; view; view = view.superview) {
+        if (![view isKindOfClass:UIScrollView.class] || !((UIScrollView *)view).scrollEnabled) continue;
+        UIPanGestureRecognizer *pan = ((UIScrollView *)view).panGestureRecognizer;
+        if ([self.scrollGestures objectForKey:pan]) continue;
+        [pan addTarget:self action:@selector(contentScrolled:)];
+        [self.scrollGestures setObject:touch.window forKey:pan];
+    }
+}
+- (void)contentScrolled:(UIPanGestureRecognizer *)gesture {
+    UIWindow *window = [self.scrollGestures objectForKey:gesture];
+    if (!self.floatingTarget || gesture.state != UIGestureRecognizerStateBegan || gesture.numberOfTouches != 1 ||
+        !window || gesture.view.window != window) return;
+    [self publishTouchActivityInWindow:window];
+}
+- (void)observedTouch:(UITouch *)touch {
+    [self observedTouchInWindow:touch.window];
+    if (self.floatingTarget) [self observeContentScrollForTouch:touch];
+    else [self publishTouchActivityInWindow:touch.window];
+}
+- (void)clearContentScrollObservers {
+    for (UIPanGestureRecognizer *pan in self.scrollGestures.keyEnumerator.allObjects)
+        [pan removeTarget:self action:@selector(contentScrolled:)];
+    [self.scrollGestures removeAllObjects];
+}
 - (void)clearLocalSession {
     self.nonce = 0; self.gestureNonce = 0; self.sceneHash = 0;
+    [self clearContentScrollObservers];
     for (UIWindow *window in self.gestures.keyEnumerator) [window removeGestureRecognizer:[self.gestures objectForKey:window]];
     for (UIWindow *window in self.touchObservers.keyEnumerator) [window removeGestureRecognizer:[self.touchObservers objectForKey:window]];
     [self.gestures removeAllObjects]; [self.touchObservers removeAllObjects];
@@ -128,11 +160,7 @@
                 MTFloatTouchObserver *observer = [MTFloatTouchObserver new];
                 observer.cancelsTouchesInView = NO; observer.delaysTouchesBegan = NO; observer.delaysTouchesEnded = NO;
                 __weak typeof(self) weakSelf = self;
-                __weak UIWindow *weakWindow = window;
-                observer.observedTouch = ^{
-                    [weakSelf observedTouchInWindow:weakWindow];
-                    [weakSelf publishTouchActivityInWindow:weakWindow];
-                };
+                observer.observedTouch = ^(UITouch *touch) { [weakSelf observedTouch:touch]; };
                 [window addGestureRecognizer:observer]; [self.touchObservers setObject:observer forKey:window];
                 installed++;
             }

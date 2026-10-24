@@ -157,7 +157,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     return nil;
 }
 
-// Observe native title-bar and SpringBoard/Home Screen touches without consuming them.
+// Observe SpringBoard/Home Screen touches without consuming them.
 @interface MTFloatingAppNativeTouchObserver : UIGestureRecognizer
 @property(nonatomic, copy) void (^observedTouch)(UITouch *touch);
 @end
@@ -274,6 +274,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 - (void)receivePinchWord:(uint64_t)word nonce:(uint32_t)nonce;
 - (void)stopInputRelay;
 - (void)receiveActivityWord:(uint64_t)word nonce:(uint32_t)nonce;
+- (void)receiveNativeTouch:(UITouch *)touch;
 - (void)installNativeTouchObservers;
 - (void)nativeWindowVisible:(NSNotification *)notification;
 - (BOOL)protectsScene:(id)scene;
@@ -630,6 +631,13 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         !MTFloatInputActivityMatches(word, nonce, (uint32_t)self.processPID, (uint32_t)self.baseInputPID)) return;
     [self.controller applyInteractionActive:(uint32_t)word == (uint32_t)self.processPID];
 }
+- (void)receiveNativeTouch:(UITouch *)touch {
+    if (!touch || !self.window || self.window.hidden || self.session.state == MTFloatingAppIdle ||
+        ![MTGlobalPanel deviceUnlocked] || touch.window == self.window) return;
+    // A native outside touch supersedes any queued content-scroll notification.
+    if (self.inputActivityToken != NOTIFY_TOKEN_INVALID) notify_set_state(self.inputActivityToken, 0);
+    [self.controller applyInteractionActive:NO];
+}
 - (void)installNativeTouchObservers {
     if (!self.inputNonce || !self.window) return;
     if (!self.nativeTouchObservers) self.nativeTouchObservers = [NSMapTable weakToStrongObjectsMapTable];
@@ -644,13 +652,7 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
             MTFloatingAppCoordinator *host = weakSelf;
             if (!touch || ![host.session isCurrent:generation] || host.inputNonce != nonce || !host.window ||
                 host.window.hidden || ![MTGlobalPanel deviceUnlocked]) return;
-            BOOL active = touch.window == host.window;
-            if (active) {
-                // Minimize/close retain their original actions without an expansion first.
-                for (UIView *view = touch.view; view; view = view.superview)
-                    if ([view isKindOfClass:UIControl.class]) return;
-            }
-            [host.controller applyInteractionActive:active];
+            [host receiveNativeTouch:touch];
         };
         [window addGestureRecognizer:observer];
         [self.nativeTouchObservers setObject:observer forKey:window];
