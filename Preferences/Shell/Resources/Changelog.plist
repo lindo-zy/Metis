@@ -4,6 +4,64 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.3</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>补齐悬浮小窗缩放、自动调整大小和滚动触发的更新说明</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.10.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>悬浮应用改为单指滚动内容时按预设比例放大，点击、长按和拖动标题栏不再触发放大</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.10.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>悬浮应用支持点击后按预设比例放大、点击外部缩至 10%，设置中可关闭自动调整大小</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
+		<string>0.10.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>悬浮小窗放大时，顶部标题和按钮保持固定大小，避免跟随内容过度放大</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>悬浮小窗支持在 10%–80% 的占屏面积范围内双指连续缩放</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.9.10</string>
 		<key>items</key>
 		<array>
@@ -18,76 +76,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>测试分组新增「编辑剪贴板图片」入口</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.9.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复悬浮小窗内点击输入框无法弹出键盘、点击后小窗异常缩小的问题</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.9.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>悬浮应用保持显示时，可直接操作底层应用，无需先收起小窗</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>悬浮小窗默认约占屏幕五分之一，支持拖动、缩放和键盘避让</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>切换两个应用输入时自动交接键盘，收起与关闭由小窗按钮控制</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复状态栏手势组件重复加载导致的同名类冲突，并增加构建检查防止再次出现</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.9.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>底栏预览的场景分段改用短标签，iPhone 上不再显示为「输入…」</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.9.0</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>设置首页右上角新增「更新说明」入口，收纳最近 5 个版本</string>
 			</dict>
 		</array>
 	</dict>
