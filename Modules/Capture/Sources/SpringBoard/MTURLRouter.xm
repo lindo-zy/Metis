@@ -135,7 +135,7 @@ static void MTSpringBoardOpenNotify(id self, SEL cmd, NSURL *url, id app, BOOL a
 // 不再发起完整启动事务，只走 trusted 入口，systemService 入口收不到。
 // 参数序与 PullOver-X 实测实现一致：(application, options, activationSettings,
 // origin, result)，URL 解析口径与普通请求相同。
-static void (*MTOriginalWorkspaceTrustedOpen)(id, SEL, id, id, id, id, id, MTOpenCompletion);
+static void (*MTOriginalWorkspaceTrustedOpen)(id, SEL, id, id, id, id, MTOpenCompletion);
 static void MTWorkspaceTrustedOpen(id self, SEL cmd, id application, id options,
                                    id activationSettings, id origin, MTOpenCompletion result) {
     if (MTConsumeRouteURL(MTURLFromOpenOptions(options), result)) return;
