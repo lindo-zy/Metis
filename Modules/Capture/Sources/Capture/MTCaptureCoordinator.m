@@ -4,6 +4,8 @@
 #import "MTCaptureProvider.h"
 #import "MTPhotoImportSession.h"
 #import "MTLongShotSession.h"
+#import "../LongCapture/MTShellXRecordingSession.h"
+#import "../LongCapture/MTShellXStitchSession.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Common/MTCapturePreferences.h"
@@ -55,7 +57,7 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) MTCaptureWindow *captureWindow;
 @property (nonatomic, strong, nullable) MTSelectionView *selectionView;
 @property (nonatomic, copy, nullable) NSString *selectionCaptureRequestID; // 实时区域在途抓屏，主线程
-@property (nonatomic, strong, nullable) MTLongShotSession *longShotSession;   // 自动拼接会话（主线程）
+@property (nonatomic, strong, nullable) id<MTLongShotSessionControl> longShotSession;   // 长截图会话（算法由配置选择，主线程）
 @property (nonatomic, strong) NSMutableArray<MTFloatingSnap *> *floatingSnaps; // 主线程，多图独立保留
 @property (nonatomic, strong, nullable) MTFloatingSnap *editingFloatingSnap;
 @property (nonatomic, strong, nullable) MTCaptureWindow *editorWindow;
@@ -391,11 +393,32 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStatePresenting) return;
     [self mtTeardownLongShotSession];
     [self mtDestroyCaptureWindow];
-    self.longShotSession = [MTLongShotSession startWithTask:task
-                                                 displayRect:displayRect
-                                                   delegate:self];
+    MTLongShotAlgorithm algorithm = task.configSnapshot.longShotOptions.algorithm;
+    switch (algorithm) {
+        case MTLongShotAlgorithmShellXRecording:
+            self.longShotSession = [MTShellXRecordingSession startWithTask:task
+                                                               displayRect:displayRect
+                                                                  delegate:self];
+            break;
+        case MTLongShotAlgorithmShellXManualStitch:
+        case MTLongShotAlgorithmShellXAutoStitch:
+            self.longShotSession = [MTShellXStitchSession startWithTask:task
+                                                            displayRect:displayRect
+                                                               delegate:self
+                                                                   auto:algorithm == MTLongShotAlgorithmShellXAutoStitch];
+            break;
+        case MTLongShotAlgorithmMetis:
+        default:
+            self.longShotSession = [MTLongShotSession startWithTask:task
+                                                        displayRect:displayRect
+                                                           delegate:self];
+            break;
+    }
     if (!self.longShotSession) {
         [self mtFailTask:task code:@"longshot" message:@"长截图会话创建失败"];
+    } else {
+        MTCaptureLogInfo(@"long shot session started (task %@ algorithm=%ld)",
+                  task.taskID, (long)algorithm);
     }
 }
 
@@ -420,7 +443,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     self.longShotSession = nil;
 }
 
-- (void)longShotSessionDidFinish:(MTLongShotSession *)session resultImage:(UIImage *)image {
+- (void)longShotSessionDidFinish:(id)session resultImage:(UIImage *)image {
     MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
     if (self.longShotSession == session) self.longShotSession = nil;
     if (!task || !image) return;
@@ -444,12 +467,12 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtExecuteOutput:action forTask:task presentingWindow:nil];
 }
 
-- (void)longShotSessionDidCancel:(MTLongShotSession *)session {
+- (void)longShotSessionDidCancel:(id)session {
     if (self.longShotSession == session) self.longShotSession = nil;
     [self mtCancelCurrentTaskClosingFloatingSnaps:NO];
 }
 
-- (void)longShotSessionDidFail:(MTLongShotSession *)session message:(NSString *)message {
+- (void)longShotSessionDidFail:(id)session message:(NSString *)message {
     MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
     if (self.longShotSession == session) self.longShotSession = nil;
     if (!task) return;

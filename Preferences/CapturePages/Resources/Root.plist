@@ -27,6 +27,49 @@
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>长截图算法</string>
+			<key>footerText</key>
+			<string>Metis：自动滚动自适应拼接（推荐）。SHELLX 录制式：手动滚动定时连拍；SHELLX 手动/自动拼接：整屏取样行签名重拼，自动模式到底自停。</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>key</key>
+			<string>LongShotAlgorithm</string>
+			<key>label</key>
+			<string>长截图算法</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>titles</key>
+			<array>
+				<string>Metis 自适应滚动（默认）</string>
+				<string>SHELLX 录制式</string>
+				<string>SHELLX 手动拼接</string>
+				<string>SHELLX 自动拼接</string>
+			</array>
+			<key>values</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+			<key>shortTitles</key>
+			<array>
+				<string>Metis</string>
+				<string>录制式</string>
+				<string>手动拼接</string>
+				<string>自动拼接</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
 			<key>footerText</key>
 			<string>区域/冻结/即时截图拖动或调整选框时，选框边缘距屏幕边缘不超过该值即自动对齐屏幕边缘，方便精确框选全宽全高；调到 0 关闭吸附。</string>
 			<key>label</key>
@@ -38,7 +81,7 @@
 			<key>cell</key>
 			<string>PSSliderCell</string>
 			<key>default</key>
-			<real>12</real>
+			<real>12.0</real>
 			<key>defaults</key>
 			<string>com.lindo.metis.capture</string>
 			<key>key</key>
@@ -46,7 +89,7 @@
 			<key>label</key>
 			<string>选框吸附距离</string>
 			<key>max</key>
-			<real>60</real>
+			<real>60.0</real>
 			<key>min</key>
 			<real>0.0</real>
 			<key>showCancelButton</key>

@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>长截图新增 SHELLX 三种算法：录制式、手动拼接与自动拼接，可在截图设置中切换，默认仍为自适应滚动方案</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.9</string>
 		<key>items</key>
 		<array>
@@ -57,25 +70,6 @@
 				<string>调整</string>
 				<key>text</key>
 				<string>截图测试分组移除「启动（区域截图）」与独立「图片编辑」条目，将「编辑剪贴板图片」改名为「图片编辑」</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.5</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>截图测试条目统一通过系统通知启动对应功能，修复仅首项能够生效的问题</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>重构测试条目显示与动作映射，点击和页面刷新后持续保留标题及 URL，避免界面状态翻转</string>
 			</dict>
 		</array>
 	</dict>

@@ -95,6 +95,7 @@ NSString * const MTKeyLongShotMaxSlices = @"LongShotMaxSlices";
 NSString * const MTKeyLongShotMaxCanvasHeight = @"LongShotMaxCanvasHeight";
 NSString * const MTKeyLongShotSliceQuality = @"LongShotSliceQuality";
 NSString * const MTKeyLongShotOutputQuality = @"LongShotOutputQuality";
+NSString * const MTKeyLongShotAlgorithm = @"LongShotAlgorithm";
 
 const NSInteger MTDefaultResultAction = 0;
 const CGFloat MTDefaultEditorLineWidth = 4.0;
