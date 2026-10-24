@@ -1,13 +1,8 @@
 #import "MTCaptureRootListController.h"
 #import "MTCaptureTestCell.h"
-#import "MTStandaloneEditorController.h"
 #import <UIKit/UIKit.h>
 #import "../../Modules/Capture/Sources/Common/MTCaptureAction.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
-
-@interface MTCaptureRootListController ()
-@property (nonatomic, strong) MTStandaloneEditorController *standaloneEditor;
-@end
 
 @implementation MTCaptureRootListController
 
@@ -25,9 +20,6 @@
             [_specifiers insertObject:[self mtTestSpecifierWithTitle:action.title identifier:action.identifier]
                              atIndex:insertIndex++];
         }
-        PSSpecifier *editor = [self mtTestSpecifierWithTitle:@"图片编辑" identifier:@"capture.test.editor"];
-        [editor setProperty:@YES forKey:@"mtStandaloneEditor"];
-        [_specifiers insertObject:editor atIndex:insertIndex];
     }
     return _specifiers;
 }
@@ -41,8 +33,7 @@
 }
 
 - (BOOL)mtIsTestSpecifier:(PSSpecifier *)specifier {
-    return MTCaptureActionForIdentifier(specifier.identifier) != nil ||
-        [[specifier propertyForKey:@"mtStandaloneEditor"] boolValue];
+    return MTCaptureActionForIdentifier(specifier.identifier) != nil;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -68,25 +59,13 @@
         return;
     }
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    BOOL sent = YES;
     MTCaptureAction *action = MTCaptureActionForIdentifier(specifier.identifier);
-    if (action) {
-        // Preferences 向自身 openURL 并不保证经过 SpringBoard 的启动事务。
-        // 所有本地测试直接使用已注册的跨进程入口；外部 URL 仍由路由器处理同一目录。
-        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-            (__bridge CFStringRef)action.notificationName, NULL, NULL, YES);
-        MTCaptureLogInfo(@"prefs capture action requested: %@", action.identifier);
-    } else {
-        if (!self.standaloneEditor) {
-            self.standaloneEditor = [[MTStandaloneEditorController alloc] initWithHostViewController:self];
-        }
-        sent = [self.standaloneEditor start];
-    }
-    if (sent) {
-        [[[UISelectionFeedbackGenerator alloc] init] selectionChanged];
-    } else {
-        [[[UINotificationFeedbackGenerator alloc] init] notificationOccurred:UINotificationFeedbackTypeError];
-    }
+    // Preferences 向自身 openURL 并不保证经过 SpringBoard 的启动事务。
+    // 所有本地测试直接使用已注册的跨进程入口；外部 URL 仍由路由器处理同一目录。
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+        (__bridge CFStringRef)action.notificationName, NULL, NULL, YES);
+    MTCaptureLogInfo(@"prefs capture action requested: %@", action.identifier);
+    [[[UISelectionFeedbackGenerator alloc] init] selectionChanged];
     // 反馈不改 specifier、标题或路由，不安排延迟刷新，也不把「已发送」误报为截图成功。
 }
 

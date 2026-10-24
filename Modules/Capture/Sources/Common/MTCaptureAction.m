@@ -21,8 +21,6 @@ NSArray<MTCaptureAction *> *MTCaptureActions(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         actions = @[
-            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.activate" title:@"启动（区域截图）"
-                notification:MTDarwinActivate URLRoute:NULL],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.full" title:@"全屏截图"
                 notification:MTDarwinCaptureFull URLRoute:MTURLRouteFull],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.area" title:@"区域截图"
@@ -31,7 +29,7 @@ NSArray<MTCaptureAction *> *MTCaptureActions(void) {
                 notification:MTDarwinCaptureMarkup URLRoute:MTURLRouteMarkup],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.long" title:@"滚动截图"
                 notification:MTDarwinCaptureLong URLRoute:MTURLRouteLong],
-            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.edit" title:@"编辑剪贴板图片"
+            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.edit" title:@"图片编辑"
                 notification:MTDarwinEditClipboard URLRoute:MTURLRouteEditClipboard],
         ];
     });

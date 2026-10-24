@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.6</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>调整</string>
+				<key>text</key>
+				<string>截图测试分组移除「启动（区域截图）」与独立「图片编辑」条目，将「编辑剪贴板图片」改名为「图片编辑」</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.5</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>悬浮应用改为单指滚动内容时按预设比例放大，点击、长按和拖动标题栏不再触发放大</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.1</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>悬浮应用支持点击后按预设比例放大、点击外部缩至 10%，设置中可关闭自动调整大小</string>
 			</dict>
 		</array>
 	</dict>
