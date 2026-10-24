@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>0.10.4</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复设置「测试」分组点击全屏截图、区域截图等入口无法触发截图的问题</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>「测试」分组各 URL 入口下方直接显示对应的 URL scheme</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>0.10.3</string>
 		<key>items</key>
 		<array>
@@ -57,25 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>悬浮小窗支持在 10%–80% 的占屏面积范围内双指连续缩放</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.9.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>截图设置「测试」分组的入口改为按外部 URL 路由触发，点击即启动对应截图，并移除单独的「外部 URL 调用」页</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>测试分组新增「编辑剪贴板图片」入口</string>
 			</dict>
 		</array>
 	</dict>

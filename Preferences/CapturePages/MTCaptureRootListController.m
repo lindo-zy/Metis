@@ -119,6 +119,35 @@
     [super tableView:tableView didSelectRowAtIndexPath:indexPath];
 }
 
+// 带 URL 路由的行在标题下追加一行路由串（次行次要色小字），让每个入口的
+// scheme 直接可见。反馈 flash 期间 specifier.name 已被替换为提示文案
+// （不等于 mtTitle），此时不接管渲染，保持系统默认的单行提示。
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
+    if (![self respondsToSelector:@selector(specifierAtIndexPath:)]) return cell;
+    PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
+    NSString *route = [specifier propertyForKey:@"mtCaptureURLRoute"];
+    NSString *title = [specifier propertyForKey:@"mtTitle"];
+    if (route.length == 0 || title.length == 0) return cell;
+    if (![specifier.name isEqualToString:title]) return cell;
+    UILabel *label = cell.textLabel;
+    if (!label) {
+        MTCaptureLogWarn(@"prefs test cell has no textLabel for route: %@", route);
+        return cell;
+    }
+    label.numberOfLines = 0;
+    NSMutableAttributedString *content =
+        [[NSMutableAttributedString alloc] initWithString:[title stringByAppendingString:@"\n"]
+                                               attributes:@{NSFontAttributeName: label.font,
+                                                            NSForegroundColorAttributeName: label.textColor}];
+    [content appendAttributedString:
+        [[NSAttributedString alloc] initWithString:route
+                                        attributes:@{NSFontAttributeName: [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
+                                                     NSForegroundColorAttributeName: UIColor.secondaryLabelColor}]];
+    label.attributedText = content;
+    return cell;
+}
+
 - (void)mtTriggerCaptureTest:(PSSpecifier *)specifier {
     NSString *notificationName = [specifier propertyForKey:@"mtCaptureNotification"];
     NSString *route = [specifier propertyForKey:@"mtCaptureURLRoute"];
