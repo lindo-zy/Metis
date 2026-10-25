@@ -22,6 +22,8 @@ typedef struct {
     NSInteger bodyBottom;
     BOOL boundsValid;
     BOOL chromeChanged;      // Duplicate：正文静止但顶/底工具栏变化（大标题折叠、地址栏收起）
+    NSInteger diagBestLen;       // 诊断：静态正文分类找到的最大静止窗口行数（未找到为 -1）
+    NSInteger diagChangedOutside; // 诊断：该窗口之外的变化行数（未评估为 -1）
 } MTShellXAutoMatchResult;
 
 /// priorTop/priorBottom 为上一确认帧的正文边界（绝对行号；<0 表示无先验）。

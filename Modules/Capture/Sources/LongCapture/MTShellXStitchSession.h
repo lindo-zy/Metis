@@ -3,16 +3,14 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// SHELLX 拼接式长截图（LongCaptureMethod=1/2 的移植）：
-/// 每次截取保存一整屏原图（full_%d.jpg），仅保留最近帧的下采样签名；auto=YES 时
-/// 截完一屏由 HID 滑动接管（滚动 → 等待稳定 → 再截），行签名连续两次
-/// 相同判定到底后自动收尾；结束时逐帧重算行签名，把原图重新拼接成片，
-/// 无可靠重叠时暂停而不跳过内容。displayRect 限定采集与滑动区域。
+/// SHELLX 自动拼接长截图：截取一整屏原图后由 HID 滑动接管（滚动 → 等待
+/// 画面稳定 → 抓帧配对），配对以正文区域对齐、按确认位移与正文边界入账；
+/// 标题折叠等工具栏动画吸收拖动时自动再滚；有限恢复失败才暂停保留已截
+/// 内容；导出只按入账记录裁带合并。displayRect 限定采集与滑动区域。
 @interface MTShellXStitchSession : NSObject <MTLongShotSessionControl>
 + (instancetype)startWithTask:(MTCaptureTask *)task
                   displayRect:(CGRect)displayRect
-                     delegate:(id<MTLongShotSessionDelegate>)delegate
-                        auto:(BOOL)automatic;
+                     delegate:(id<MTLongShotSessionDelegate>)delegate;
 
 - (void)teardownForExternalCancel;
 

@@ -20,12 +20,7 @@ NSData * _Nullable MTShellXFastHash(UIImage *image);
 NSData * _Nullable MTShellXRowSignature(UIImage *image, NSInteger * _Nullable outRows,
                                         NSInteger * _Nullable outStripWidth, NSInteger * _Nullable outBytesPerRow);
 
-/// 滚动匹配：在 prev 下部寻找 cur 正文出现的行偏移 S
-/// （内容上移 S 行），多个正文窗口验证方向和唯一性。返回 S（行），无可靠
-/// 重叠返回 -1；两帧正文几乎相同返回 0。
-/// 静止判定独立于移动匹配，拒绝倒退和无可靠重叠的画面。
-NSInteger MTShellXMatchScroll(const uint8_t *prev, const uint8_t *cur, NSInteger bytesPerRow,
-                              NSInteger rows, NSInteger winRows, NSInteger comparePixels);
+
 
 /// 多片顺序合并为一张长图并写出 jpg：逐片绘制（高 +0.5pt 消缝）、
 /// y 按片高步进；使用像素坐标，画布受 maxCanvasHeight 与 8MP/进程预算约束。

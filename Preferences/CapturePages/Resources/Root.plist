@@ -30,7 +30,7 @@
 			<key>label</key>
 			<string>长截图算法</string>
 			<key>footerText</key>
-			<string>Metis：自动滚动自适应拼接（推荐）。SHELLX 录制式：手动滚动定时连拍；SHELLX 手动/自动拼接：整屏取样行签名重拼，自动模式到底自停。</string>
+			<string>Metis：自动滚动自适应拼接。SHELLX 自动拼接：整屏取样正文对齐重拼，到底自停。</string>
 		</dict>
 		<dict>
 			<key>cell</key>

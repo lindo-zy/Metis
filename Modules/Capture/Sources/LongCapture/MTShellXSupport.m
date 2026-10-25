@@ -74,16 +74,6 @@ NSData * _Nullable MTShellXRowSignature(UIImage *image, NSInteger *outRows,
     return signature;
 }
 
-NSInteger MTShellXMatchScroll(const uint8_t *prev, const uint8_t *cur, NSInteger bytesPerRow,
-                              NSInteger rows, NSInteger winRows, NSInteger comparePixels) {
-    if (!prev || !cur || rows < 128 || winRows < 8 || winRows > rows ||
-        bytesPerRow != MTLongShotSigWidth || comparePixels != MTLongShotSigWidth) return -1;
-    // 前进时 prev[y+shift] 对 cur[y]，不能反向搜索，也不能把正位移下的
-    // 低误差当成静止帧。复用多正文窗口对齐排除固定栏、空白和周期多解。
-    MTLongShotFrameMatch match = MTLongShotMatchFrames(prev, cur, rows, -1, -1);
-    if (match.kind == MTLongShotMatchDuplicate) return 0;
-    return match.kind == MTLongShotMatchForward ? match.shiftRows : -1;
-}
 
 UIImage * _Nullable MTShellXComposeSlices(NSArray<NSString *> *slicePaths, NSString *outputPath,
                                           NSInteger maxCanvasHeight, double quality,

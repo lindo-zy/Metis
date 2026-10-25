@@ -4,7 +4,6 @@
 #import "MTCaptureProvider.h"
 #import "MTPhotoImportSession.h"
 #import "MTLongShotSession.h"
-#import "../LongCapture/MTShellXRecordingSession.h"
 #import "../LongCapture/MTShellXStitchSession.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
@@ -395,17 +394,10 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtDestroyCaptureWindow];
     MTLongShotAlgorithm algorithm = task.configSnapshot.longShotOptions.algorithm;
     switch (algorithm) {
-        case MTLongShotAlgorithmShellXRecording:
-            self.longShotSession = [MTShellXRecordingSession startWithTask:task
-                                                               displayRect:displayRect
-                                                                  delegate:self];
-            break;
-        case MTLongShotAlgorithmShellXManualStitch:
         case MTLongShotAlgorithmShellXAutoStitch:
             self.longShotSession = [MTShellXStitchSession startWithTask:task
                                                             displayRect:displayRect
-                                                               delegate:self
-                                                                   auto:algorithm == MTLongShotAlgorithmShellXAutoStitch];
+                                                               delegate:self];
             break;
         case MTLongShotAlgorithmMetis:
         default:

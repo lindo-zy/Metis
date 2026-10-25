@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>长截图移除 SHELLX 录制式与手动拼接两种算法，仅保留 Metis 自适应滚动与 SHELLX 自动拼接；原有录制式/手动拼接配置自动切换为自动拼接</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.6</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复自动与手动拼接停止后不保存、切片未合并和滚动匹配错误；录制式后台串行处理图片，长图导出限制内存并支持取消</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复截图设置中长截图算法无法选择的问题，支持切换 Metis 与 SHELLX 三种方案，并修复默认结果动作的选择入口</string>
 			</dict>
 		</array>
 	</dict>

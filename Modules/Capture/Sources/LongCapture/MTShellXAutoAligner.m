@@ -122,7 +122,7 @@ static const NSInteger MTShellXAutoChromeClusterGap = 12;
 
 static MTShellXAutoMatchResult MTShellXAutoClassifyStaticBody(const uint8_t *prev, const uint8_t *cur,
                                                               NSInteger rows) {
-    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO};
+    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO, -1, -1};
     uint8_t *changed = malloc((size_t)rows);
     NSInteger *prefix = malloc((size_t)(rows + 1) * sizeof(NSInteger));
     if (!changed || !prefix) { free(changed); free(prefix); return out; }
@@ -176,6 +176,8 @@ static MTShellXAutoMatchResult MTShellXAutoClassifyStaticBody(const uint8_t *pre
         t = clusterEnd;
     }
     NSInteger changedOutside = (prefix[rows] - prefix[bestBottom]) + prefix[bestTop];
+    out.diagBestLen = bestTop >= 0 ? bestLen : -1;
+    out.diagChangedOutside = bestTop >= 0 ? changedOutside : -1;
     free(changed); free(prefix);
     if (bestTop < 0 || bestLen < MTShellXAutoMinBodyRows) return out;
     if (changedOutside < 8) return out;
@@ -191,7 +193,7 @@ static MTShellXAutoMatchResult MTShellXAutoClassifyStaticBody(const uint8_t *pre
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,
                                                 const uint8_t *cur, NSInteger curRows,
                                                 NSInteger priorTop, NSInteger priorBottom) {
-    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO};
+    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO, -1, -1};
     if (!prev || !cur) return out;
     if (prevRows != curRows || prevRows < MTShellXAutoMinBodyRows) {
         out.kind = MTShellXAutoMatchSizeMismatch;
