@@ -4,6 +4,37 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.1.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复长截图悬浮窗每次滚动采集时闪烁一次的问题，悬浮窗全程保持可见且不会被截进长图</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>快速滚动截图滚动到页面底部时自动保存长截图，无需手动点保存</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>快速滚动截图自动避开吸顶吸底栏与固定悬浮元素落接缝，接缝优先落在正文空白带，并擦除右缘滚动条</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>快速滚动截图旋转屏幕后转回即可继续，滚太快会提前提醒减速，小图输出无损 PNG、大图自动压缩</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.10</string>
 		<key>items</key>
 		<array>
@@ -69,19 +100,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>长截图移除 SHELLX 录制式与手动拼接两种算法，仅保留 Metis 自适应滚动与 SHELLX 自动拼接；原有录制式/手动拼接配置自动切换为自动拼接</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复自动拼接长截图在大标题页面首次滚动被标题折叠吸收、内容未滚动时误报「画面重叠不足」并提前停止的问题，现在会自动继续滚动完成拼接</string>
 			</dict>
 		</array>
 	</dict>

@@ -24,12 +24,14 @@ typedef NS_ENUM(NSInteger, MTCaptureError) {
 
 /// 最近一次抓屏实际使用的策略（主线程更新）。
 @property (nonatomic, copy, readonly, nullable) NSString *lastCaptureMethod;
-/// 内存保护降级开关（主线程读写）：跳过窗口排除 API，尝试整屏私有抓屏。
-/// 窗口排除接口不可用时，先短暂隐藏自有窗口，再使用整屏私有抓屏。
+/// 内存保护降级开关（主线程读写）：跳过窗口排除快照 API，优先整屏私有抓屏。
+/// 图层捕获排除标记不属于外部接口调用，降级时仍然保持。
 @property (nonatomic, assign) BOOL fallbackOnlyCapture;
-/// 长截图浮窗优先保持可见：先尝试只排除本次快照中的窗口，不影响系统录屏。
-/// 接口不可用时仅在抓帧期间短暂隐藏窗口，随后立即恢复。
-/// 默认 NO，不改变其他截图调用方。
+/// 长截图浮窗优先保持可见：对传入窗口建立会话级图层捕获排除标记，
+/// 服务端合成抓屏（_UICreateScreenUIImage/UIGetScreenImage）自动跳过标记图层，
+/// 窗口全程可见、无逐帧隐藏闪烁；标记期间系统录屏同样看不到这些自有浮窗。
+/// 排除标记不可用时回退 _snapshotExcludingWindows:withRect:；仍失败则明确报错，
+/// 由会话暂停，绝不隐藏窗口或把悬浮窗截进画面。默认 NO，不改变其他截图调用方。
 @property (nonatomic, assign) BOOL keepsExcludedWindowsVisible;
 /// 连续采集专用：把抓屏表面绘制为独立 RGBA 位图，在回调前释放源图和临时对象。
 @property (nonatomic, assign) BOOL detachesCapturedImage;
@@ -42,12 +44,15 @@ typedef NS_ENUM(NSInteger, MTCaptureError) {
                                         NSString *captureMethod,
                                         NSError *error))completion;
 
-/// 长截图专用：优先运行期检查 _snapshotExcludingWindows:withRect:；
-/// 默认先隐藏传入窗口并等两帧；keepsExcludedWindowsVisible 为 YES 时优先直接排除窗口。
-/// 不使用会影响录屏的图层禁止捕获标记；回退抓屏前隐藏窗口，归一化前恢复。
+/// 长截图专用：keepsExcludedWindowsVisible 为 YES 时建立/复用会话级图层捕获排除，
+/// 窗口保持可见；否则先隐藏传入窗口并等两帧。归一化在后台完成，回调永远在主线程。
 - (void)captureExcludingWindows:(NSArray<UIWindow *> *)windows
                     completion:(void (^)(UIImage *image, BOOL isPartial,
                                           NSString *captureMethod, NSError *error))completion;
+
+/// 会话收尾时结束图层捕获排除并恢复图层标记（主线程）；
+/// keepsExcludedWindowsVisible 会话必须在窗口销毁前调用。
+- (void)endVisibleWindowExclusion;
 @end
 
 NS_ASSUME_NONNULL_END
