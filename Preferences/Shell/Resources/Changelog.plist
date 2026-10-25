@@ -79,24 +79,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>顶部与底部键盘按钮默认显示文字，可在各按钮中独立选择图标；移除整栏和左右段统一显示方式开关</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复浏览器重定向关闭操作未保存的问题，保持默认关闭，并同步保存启动回退配置，避免更新或重启后恢复旧的开启状态</string>
-			</dict>
-		</array>
-	</dict>
 </array>
 </plist>
