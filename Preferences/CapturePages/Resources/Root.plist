@@ -34,7 +34,9 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSMultiValueSpecifier</string>
+			<string>PSLinkListCell</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
@@ -45,14 +47,14 @@
 			<string>长截图算法</string>
 			<key>PostNotification</key>
 			<string>com.lindo.metis.capture/preferences/reload</string>
-			<key>titles</key>
+			<key>validTitles</key>
 			<array>
 				<string>Metis 自适应滚动（默认）</string>
 				<string>SHELLX 录制式</string>
 				<string>SHELLX 手动拼接</string>
 				<string>SHELLX 自动拼接</string>
 			</array>
-			<key>values</key>
+			<key>validValues</key>
 			<array>
 				<integer>0</integer>
 				<integer>1</integer>
@@ -107,7 +109,9 @@
 			<key>PostNotification</key>
 			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>
-			<string>PSMultiValueSpecifier</string>
+			<string>PSLinkListCell</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
 			<key>default</key>
 			<integer>0</integer>
 			<key>defaults</key>
@@ -116,13 +120,13 @@
 			<string>DefaultResultAction</string>
 			<key>label</key>
 			<string>默认结果动作</string>
-			<key>titles</key>
+			<key>validTitles</key>
 			<array>
 				<string>保存到相册</string>
 				<string>复制到剪贴板</string>
 				<string>保存并复制</string>
 			</array>
-			<key>values</key>
+			<key>validValues</key>
 			<array>
 				<integer>0</integer>
 				<integer>1</integer>

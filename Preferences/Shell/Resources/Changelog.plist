@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复截图设置中长截图算法无法选择的问题，支持切换 Metis 与 SHELLX 三种方案，并修复默认结果动作的选择入口</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.1</string>
 		<key>items</key>
 		<array>
@@ -57,19 +70,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>「图片编辑」在剪贴板没有图片时，可从相册选择一张图片再进入编辑</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>调整</string>
-				<key>text</key>
-				<string>截图测试分组移除「启动（区域截图）」与独立「图片编辑」条目，将「编辑剪贴板图片」改名为「图片编辑」</string>
 			</dict>
 		</array>
 	</dict>
