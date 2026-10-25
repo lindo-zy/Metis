@@ -30,7 +30,7 @@
 			<key>label</key>
 			<string>长截图算法</string>
 			<key>footerText</key>
-			<string>Metis：自动滚动自适应拼接。SHELLX 自动拼接：正文对齐，到底自停。快速滚动截图：直接连续滑动页面，右上角实时预览，点复制或蓝色保存键完成。</string>
+			<string>Metis：自动滚动自适应拼接。SHELLX 自动拼接：正文对齐，到底自停。快速滚动截图：直接连续滑动页面，右上角实时预览，滚到底自动保存，也可随时点复制或蓝色保存键完成。</string>
 		</dict>
 		<dict>
 			<key>cell</key>

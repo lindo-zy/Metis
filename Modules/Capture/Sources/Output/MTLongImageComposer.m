@@ -36,15 +36,18 @@ static NSError *MTLongShotError(NSString *message) {
                            userInfo:@{NSLocalizedDescriptionKey: message}];
 }
 
-static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
+static BOOL MTLongShotWriteEncoded(CGImageRef image, NSURL *url, CFStringRef uti, CGFloat quality) {
     CGImageDestinationRef destination = CGImageDestinationCreateWithURL(
-        (__bridge CFURLRef)url, CFSTR("public.jpeg"), 1, NULL);
+        (__bridge CFURLRef)url, uti, 1, NULL);
     if (!destination) return NO;
     CGImageDestinationAddImage(destination, image,
-                               (__bridge CFDictionaryRef)@{(__bridge NSString *)kCGImageDestinationLossyCompressionQuality: @(quality)});
+        (__bridge CFDictionaryRef)@{(__bridge NSString *)kCGImageDestinationLossyCompressionQuality: @(quality)});
     BOOL ok = CGImageDestinationFinalize(destination);
     CFRelease(destination);
     return ok;
+}
+static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
+    return MTLongShotWriteEncoded(image, url, CFSTR("public.jpeg"), quality);
 }
 
 @implementation MTLongImageComposer
@@ -61,6 +64,14 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
 + (nullable MTLongShotSlice *)sliceFromScreenImage:(UIImage *)screenImage
                                          pixelRect:(CGRect)pixelRect filePath:(NSString *)filePath
                                            options:(MTLongShotOptions *)options
+                                      cancellation:(MTLongShotCancellation *)cancellation error:(NSError **)error {
+    return [self sliceFromScreenImage:screenImage pixelRect:pixelRect filePath:filePath options:options
+                      scrubRightColumns:0 cancellation:cancellation error:error];
+}
++ (nullable MTLongShotSlice *)sliceFromScreenImage:(UIImage *)screenImage
+                                         pixelRect:(CGRect)pixelRect filePath:(NSString *)filePath
+                                           options:(MTLongShotOptions *)options
+                                 scrubRightColumns:(NSInteger)scrubRightColumns
                                       cancellation:(MTLongShotCancellation *)cancellation error:(NSError **)error {
     if (cancellation.cancelled || !screenImage.CGImage || filePath.length == 0) return nil;
     CGImageRef source = screenImage.CGImage;
@@ -88,6 +99,22 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
     CGContextClipToRect(context, CGRectMake(0, 0, w, h));
     CGContextTranslateCTM(context, -rect.origin.x, h - srcH + rect.origin.y);
     CGContextDrawImage(context, CGRectMake(0, 0, srcW, srcH), source);
+
+    // 滚动条擦除：右缘窄带用左邻列克隆覆盖，仅影响本分片位图与签名采样。
+    if (scrubRightColumns > 0 && scrubRightColumns < w / 4) {
+        uint8_t *base = (uint8_t *)CGBitmapContextGetData(context);
+        NSInteger bytesPerRow = (NSInteger)CGBitmapContextGetBytesPerRow(context);
+        if (base) {
+            for (NSInteger y = 0; y < h; y++) {
+                uint8_t *row = base + y * bytesPerRow;
+                const uint8_t *donor = row + (w - scrubRightColumns - 1) * 4;
+                for (NSInteger x = w - scrubRightColumns; x < w; x++) {
+                    uint8_t *pixel = row + x * 4;
+                    pixel[0] = donor[0]; pixel[1] = donor[1]; pixel[2] = donor[2]; pixel[3] = 255;
+                }
+            }
+        }
+    }
 
     // 签名在释放位图前从缓冲直接采样，避免再做一次降采样解码。
     NSInteger bytesPerRow = (NSInteger)CGBitmapContextGetBytesPerRow(context);
@@ -144,7 +171,21 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
                                  cancellation:(MTLongShotCancellation *)cancellation
                                 progressBlock:(nullable void (^)(NSInteger done, NSInteger total))progressBlock
                                  outPixelSize:(CGSize *)outPixelSize error:(NSError **)error {
+    return [self composedImageWithSlices:slices screenScale:screenScale outputURL:outputURL maxPixels:maxPixels
+                              outputUTI:@"public.jpeg" outputQuality:options.outputQuality
+                            maxCanvasHeight:options.maxCanvasHeight cancellation:cancellation
+                            progressBlock:progressBlock outPixelSize:outPixelSize error:error];
+}
++ (nullable UIImage *)composedImageWithSlices:(NSArray<MTLongShotSlice *> *)slices
+                                  screenScale:(CGFloat)screenScale outputURL:(NSURL *)outputURL
+                                    maxPixels:(NSInteger)maxPixels
+                                   outputUTI:(NSString *)outputUTI outputQuality:(CGFloat)outputQuality
+                             maxCanvasHeight:(NSInteger)maxCanvasHeight
+                                 cancellation:(MTLongShotCancellation *)cancellation
+                                progressBlock:(nullable void (^)(NSInteger done, NSInteger total))progressBlock
+                                 outPixelSize:(CGSize *)outPixelSize error:(NSError **)error {
     if (cancellation.cancelled) return nil;
+    if (![outputUTI isKindOfClass:NSString.class] || !outputUTI.length) outputUTI = @"public.jpeg";
     if (slices.count == 0) {
         if (error) *error = MTLongShotError(@"没有可拼接的分片");
         return nil;
@@ -182,7 +223,7 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
     CGFloat scale = 1.0;
     // 分配失败时按半量预算重试；不追加重复分片，也不丢弃图尾。
     while (!cancellation.cancelled) {
-        if (!MTLongShotCanvasGeometry(slices[0].pixelWidth, totalHeight, options.maxCanvasHeight,
+        if (!MTLongShotCanvasGeometry(slices[0].pixelWidth, totalHeight, maxCanvasHeight,
                                       pixelBudget, &canvasSize, &scale)) break;
         canvas = CGBitmapContextCreate(NULL, (NSUInteger)canvasSize.width, (NSUInteger)canvasSize.height, 8, 0,
                                       colorSpace, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
@@ -241,7 +282,7 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
     }
 
     if (cancellation.cancelled) { CGImageRelease(composed); return nil; }
-    BOOL written = MTLongShotWriteJPEG(composed, outputURL, options.outputQuality);
+    BOOL written = MTLongShotWriteEncoded(composed, outputURL, (__bridge CFStringRef)outputUTI, outputQuality);
     if (outPixelSize) *outPixelSize = CGSizeMake(canvasW, canvasH);
     CGImageRelease(composed);
     if (!written) {

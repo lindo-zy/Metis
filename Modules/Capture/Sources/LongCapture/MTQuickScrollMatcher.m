@@ -3,8 +3,48 @@
 #include <math.h>
 #include <limits.h>
 
+// 纯 C 编译单元（host 测试按 -x c 编译）：不依赖 ObjC 运行时宏。
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 enum { MTQuickTemplateCount = 12, MTQuickTemplateHeight = 160, MTQuickTemplateWidth = 40 };
 typedef struct { int delta, y; float error; } MTQuickVote;
+
+// Effective body window: patch placement keeps the conservative fixed fractions
+// (large shifts need patches at every depth to gather votes); sticky chrome and
+// fixed-overlay rows only ever REMOVE sampling rows, they never re-anchor bands.
+typedef struct {
+    int top, bottom;                  // Conservative patch band [top, bottom).
+    int stickyTop, stickyBottom;      // Measured sticky chrome; 0 = none.
+    const uint8_t *fixedRows;
+    int fixedThreshold;
+} MTQuickWindow;
+
+static MTQuickWindow MTQuickMakeWindow(int rows, const MTQuickScrollLimits *limits) {
+    MTQuickWindow window = { rows / 5, rows - rows / 7, 0, 0, NULL, 0 };
+    if (limits) {
+        window.stickyTop = limits->stickyTop;
+        window.stickyBottom = limits->stickyBottom > 0 ? MIN(limits->stickyBottom, rows) : 0;
+        window.fixedRows = limits->fixedRows;
+        window.fixedThreshold = limits->fixedThreshold;
+    }
+    window.top = MAX(2, MIN(window.top, rows - MTQuickTemplateHeight - 2));
+    window.bottom = MAX(window.top + MTQuickTemplateHeight, MIN(window.bottom, rows));
+    // 粘性区覆盖不了有效补丁带时按未测定处理，避免整窗采样被清空。
+    if (window.stickyTop >= window.bottom - MTQuickTemplateHeight) window.stickyTop = 0;
+    if (window.stickyBottom > 0 && window.stickyBottom <= window.top + MTQuickTemplateHeight) window.stickyBottom = 0;
+    return window;
+}
+static int MTQuickRowFixed(const MTQuickWindow *window, int row) {
+    if (window->stickyTop > 0 && row < window->stickyTop) return 1;
+    if (window->stickyBottom > 0 && row >= window->stickyBottom) return 1;
+    return window->fixedRows && window->fixedThreshold > 0 &&
+           window->fixedRows[row] >= window->fixedThreshold;
+}
 
 static float MTQuickPatchCost(const uint8_t *a, const uint8_t *b, int x, int y, int delta, int stride) {
     unsigned sum = 0, count = 0;
@@ -29,6 +69,17 @@ static int MTQuickPatchHasTexture(const uint8_t *a, int x, int y) {
     return gradient * 4 > count * 3;
 }
 
+// Fixed overlays never translate: a patch overlapping them cannot vote any shift.
+// Sticky chrome bands are skipped the same way.
+static int MTQuickPatchTouchesFixed(const MTQuickWindow *window, int y) {
+    if (!window->fixedRows || window->fixedThreshold <= 0) {
+        if (window->stickyTop <= 0 && window->stickyBottom <= 0) return 0;
+    }
+    for (int r = y; r < y + MTQuickTemplateHeight; r += 4)
+        if (MTQuickRowFixed(window, r)) return 1;
+    return 0;
+}
+
 static int MTQuickStaticEdge(const uint8_t *a, const uint8_t *b, int rows, int bottom) {
     int limit = bottom ? rows / 4 : rows / 3, run = 0;
     for (int r = 0; r < limit; r++) {
@@ -42,13 +93,16 @@ static int MTQuickStaticEdge(const uint8_t *a, const uint8_t *b, int rows, int b
     return limit;
 }
 
-static float MTQuickVerifyMotion(const uint8_t *a, const uint8_t *b, int rows, int delta) {
-    int start = rows / 5, end = rows - rows / 7;
+static float MTQuickVerifyMotion(const uint8_t *a, const uint8_t *b, int delta,
+                                 const MTQuickWindow *window) {
+    int start = window->top, end = window->bottom;
     int supported = 0, informative = 0, bands = 0;
     double total = 0, weights = 0;
+    if (end - start < 64) return 255;
     for (int y = start; y < end; y += 3) {
         int currentY = y - delta;
         if (currentY < start || currentY >= end) continue;
+        if (MTQuickRowFixed(window, y)) continue;
         const uint8_t *p = a + y * MTQuickScrollSignatureWidth;
         const uint8_t *q = b + currentY * MTQuickScrollSignatureWidth;
         unsigned rowError = 0, rowWeight = 0;
@@ -73,17 +127,21 @@ static float MTQuickVerifyMotion(const uint8_t *a, const uint8_t *b, int rows, i
     return (float)(total / weights);
 }
 
-MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, int rows, int predicted) {
+MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, int rows, int predicted,
+                                            const MTQuickScrollLimits *limits) {
     MTQuickScrollMatch out = {MTQuickScrollUncertain, 0, 0, 0, rows, 255};
     if (!a || !b || rows < 160 || rows > 16384) return out;
+    MTQuickWindow window = MTQuickMakeWindow(rows, limits);
     MTQuickVote votes[MTQuickTemplateCount]; int count = 0, textured = 0, still = 0;
-    // All patches avoid the fixed top/bottom chrome and the outer scrollbar columns.
-    int top = rows / 5, bottom = rows - rows / 7 - MTQuickTemplateHeight;
+    // All patches avoid the sticky chrome bands, fixed overlays and the outer scrollbar columns.
+    int top = window.top, bottom = window.bottom - MTQuickTemplateHeight;
     int maximum = rows * 3 / 5;
     predicted = predicted < -maximum ? -maximum : predicted > maximum ? maximum : predicted;
     for (int band = 0; band < 4; band++) for (int column = 0; column < 3; column++) {
         int y = top + (bottom - top) * band / 3;
         int x = 4 + column * 40;
+        if (y < top || y > bottom) continue;
+        if (MTQuickPatchTouchesFixed(&window, y)) continue;
         if (!MTQuickPatchHasTexture(a, x, y)) continue;
         textured++;
         if (MTQuickPatchCost(a, b, x, y, 0, 1) <= 1.25f) still++;
@@ -118,7 +176,7 @@ MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, 
         }
         if (supporters < 3) continue;
         int candidate = (int)lroundf((float)sum / supporters);
-        float error = MTQuickVerifyMotion(a, b, rows, candidate);
+        float error = MTQuickVerifyMotion(a, b, candidate, &window);
         if (error < winningError) {
             if (abs(candidate - winningDelta) > 3) competingError = winningError;
             winningCount = supporters; winningDelta = candidate; winningError = error;
@@ -141,12 +199,12 @@ MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, 
         if (high > maximum) high = maximum;
         float best = 255; int candidate = 0;
         for (int d = low; d <= high; d++) {
-            float cost = MTQuickVerifyMotion(a, b, rows, d);
+            float cost = MTQuickVerifyMotion(a, b, d, &window);
             if (cost < best) { best = cost; candidate = d; }
         }
         float second = 255;
         for (int d = low; d <= high; d++) if (abs(d - candidate) > 3) {
-            float cost = MTQuickVerifyMotion(a, b, rows, d);
+            float cost = MTQuickVerifyMotion(a, b, d, &window);
             if (cost < second) second = cost;
         }
         if (best > 16 || second - best < fmaxf(1, best * 0.12f)) return out;
@@ -173,4 +231,91 @@ int MTQuickScrollAdvance(MTQuickScrollCoverage *coverage, int delta, int bodyRow
     if (advance < minimumAppend || !commit) return 0;
     coverage->frontier = next;
     return (int)advance;
+}
+
+unsigned MTQuickScrollRowDifference(const uint8_t *previous, const uint8_t *current,
+                                    int rows, int row) {
+    if (!previous || !current || row < 0 || row >= rows) return 255;
+    const uint8_t *a = previous + row * MTQuickScrollSignatureWidth;
+    const uint8_t *b = current + row * MTQuickScrollSignatureWidth;
+    unsigned sum = 0;
+    for (int x = 4; x < MTQuickScrollSignatureWidth - 4; x++)
+        sum += (unsigned)abs((int)a[x] - b[x]);
+    return sum / (MTQuickScrollSignatureWidth - 8);
+}
+
+int MTQuickScrollSeamRow(const uint8_t *previous, const uint8_t *current, int rows, int delta,
+                         int preferred, int low, int high, const MTQuickScrollLimits *limits) {
+    if (!previous || !current || rows < 8) return preferred;
+    low = MAX(2, low); high = MIN(rows - 3, high);
+    if (low > high) return preferred;
+    MTQuickWindow window = MTQuickMakeWindow(rows, limits);
+    int best = MIN(MAX(preferred, low), high);
+    float bestCost = HUGE_VALF;
+    for (int y = low; y <= high; y++) {
+        unsigned amplitude = 0, agreement = 0, columns = 0;
+        int fixedHits = 0;
+        for (int r = y - 2; r <= y + 2; r++) {
+            const uint8_t *row = current + r * MTQuickScrollSignatureWidth;
+            uint8_t lowValue = 255, highValue = 0;
+            for (int x = 4; x < MTQuickScrollSignatureWidth - 4; x += 2) {
+                if (row[x] < lowValue) lowValue = row[x];
+                if (row[x] > highValue) highValue = row[x];
+            }
+            amplitude += highValue - lowValue;
+            if (MTQuickRowFixed(&window, r)) fixedHits++;
+            // Agreement needs the same content in the reference: current row r
+            // was at reference row r + delta. New bottom content has no sample.
+            int source = r + delta;
+            if (source >= 0 && source < rows) {
+                const uint8_t *reference = previous + source * MTQuickScrollSignatureWidth;
+                for (int x = 4; x < MTQuickScrollSignatureWidth - 4; x += 2) {
+                    agreement += (unsigned)abs((int)row[x] - reference[x]); columns++;
+                }
+            }
+        }
+        float cost = (float)amplitude * 0.30f;
+        if (columns) cost += (float)agreement / columns * 4.0f;
+        cost += fixedHits * 60.0f + fabsf((float)(y - preferred)) * 0.05f;
+        if (cost < bestCost) { bestCost = cost; best = y; }
+    }
+    return best;
+}
+
+int MTQuickScrollTrailingQuietRows(const uint8_t *signature, int rows, int from, int to) {
+    if (!signature || rows < 1) return 0;
+    from = MAX(0, from); to = MIN(rows, to);
+    int run = 0;
+    for (int r = to - 1; r >= from; r--) {
+        const uint8_t *row = signature + r * MTQuickScrollSignatureWidth;
+        uint8_t lowValue = 255, highValue = 0;
+        for (int x = 6; x < MTQuickScrollSignatureWidth - 6; x++) {
+            if (row[x] < lowValue) lowValue = row[x];
+            if (row[x] > highValue) highValue = row[x];
+        }
+        if (highValue - lowValue > 8) break;
+        run++;
+    }
+    return run;
+}
+
+int MTQuickScrollIndicatorVisible(const uint8_t *previous, const uint8_t *current,
+                                  int rows, int delta, int bodyTop, int bodyBottom) {
+    if (!previous || !current || rows < 8) return 0;
+    bodyTop = MAX(0, bodyTop); bodyBottom = MIN(rows, bodyBottom);
+    if (bodyBottom - bodyTop < 64) return 0;
+    unsigned interior = 0, edge = 0, samples = 0;
+    int interiorColumn = MTQuickScrollSignatureWidth - 8, edgeColumn = MTQuickScrollSignatureWidth - 2;
+    for (int r = bodyTop; r < bodyBottom; r += 4) {
+        int source = r + delta;
+        if (source < bodyTop || source >= bodyBottom) continue;
+        const uint8_t *row = current + r * MTQuickScrollSignatureWidth;
+        const uint8_t *reference = previous + source * MTQuickScrollSignatureWidth;
+        interior += (unsigned)abs((int)row[interiorColumn] - reference[interiorColumn]);
+        edge += (unsigned)abs((int)row[edgeColumn] - reference[edgeColumn]);
+        samples++;
+    }
+    if (samples < 16) return 0;
+    unsigned interiorError = interior / samples, edgeError = edge / samples;
+    return interiorError <= 6 && edgeError >= 14;
 }

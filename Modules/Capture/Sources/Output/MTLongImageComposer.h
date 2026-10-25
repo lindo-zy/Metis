@@ -55,6 +55,21 @@ FOUNDATION_EXPORT const NSInteger MTLongShotCopyMaxPixelHeight;
                                  cancellation:(MTLongShotCancellation *)cancellation
                                 progressBlock:(nullable void (^)(NSInteger done, NSInteger total))progressBlock
                                  outPixelSize:(nullable CGSize *)outPixelSize error:(NSError **)error;
+/// scrubRightColumns > 0 时把分片右缘该列数用左邻列克隆覆盖（滚动条指示条擦除）。
++ (nullable MTLongShotSlice *)sliceFromScreenImage:(UIImage *)screenImage
+                                         pixelRect:(CGRect)pixelRect filePath:(NSString *)filePath
+                                           options:(MTLongShotOptions *)options
+                                 scrubRightColumns:(NSInteger)scrubRightColumns
+                                      cancellation:(MTLongShotCancellation *)cancellation error:(NSError **)error;
+/// outputUTI 指定编码（public.png / public.jpeg）；JPEG 使用 outputQuality，PNG 无损。
++ (nullable UIImage *)composedImageWithSlices:(NSArray<MTLongShotSlice *> *)slices
+                                  screenScale:(CGFloat)screenScale outputURL:(NSURL *)outputURL
+                                    maxPixels:(NSInteger)maxPixels
+                                   outputUTI:(NSString *)outputUTI outputQuality:(CGFloat)outputQuality
+                              maxCanvasHeight:(NSInteger)maxCanvasHeight
+                                 cancellation:(MTLongShotCancellation *)cancellation
+                                progressBlock:(nullable void (^)(NSInteger done, NSInteger total))progressBlock
+                                 outPixelSize:(nullable CGSize *)outPixelSize error:(NSError **)error;
 
 /// 从整屏抓图裁出 pixelRect（顶部原点像素坐标）写入 JPEG 文件并计算行签名。
 /// 后台队列调用；抓图结果按 IOSurface 惰性子图处理，必须先解码成独立位图。

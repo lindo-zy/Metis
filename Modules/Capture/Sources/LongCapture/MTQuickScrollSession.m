@@ -34,7 +34,7 @@ static dispatch_queue_t MTQuickScrollQueue(void) {
 @property (nonatomic, strong) id memoryObserver;
 @property (nonatomic, copy) NSString *target;
 @property (nonatomic) CGRect displayRect;
-@property (nonatomic) BOOL busy, paused, finishRequested, skipFinal, exporting, finished;
+@property (nonatomic) BOOL busy, paused, finishRequested, skipFinal, exporting, finished, geometryPaused;
 @property (nonatomic) NSUInteger generation;
 @property (nonatomic) NSInteger count, totalHeight;
 @property (nonatomic) CFTimeInterval lastCapture, lastMemoryCheck, uncertainSince;
@@ -192,14 +192,33 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     } else {
         self.count = result.count; self.totalHeight = result.totalHeight;
         if (result.preview) [self.hud setPreviewImage:result.preview];
-        if (result.match.kind == MTQuickScrollUncertain) {
+        if (result.geometryMismatch) {
+            // 旋转/几何变化：不暂停采集，转回原方向自动恢复；已确认内容不受影响。
+            self.uncertainSince = 0; self.geometryPaused = YES;
+            if (!self.paused && !self.finishRequested)
+                [self.hud setStatus:@"屏幕方向已变化，转回后自动继续" paused:NO];
+        } else if (result.match.kind == MTQuickScrollUncertain) {
             if (!self.uncertainSince) self.uncertainSince = CACurrentMediaTime();
-            [self.hud setStatus:@"匹配中，请慢滑或稍微回滑" paused:self.paused];
-            if (CACurrentMediaTime() - self.uncertainSince >= 0.8)
+            CFTimeInterval elapsed = CACurrentMediaTime() - self.uncertainSince;
+            if (elapsed >= 0.8) {
                 [self mtPause:@"未找到重叠，稍回滑后点继续"];
+            } else if (!self.paused && !self.finishRequested) {
+                // 先给出可行动的减速提示，再升级为暂停（Prism 黄灯提示的对等实现）。
+                [self.hud setStatus:elapsed >= 0.35 ? @"滚动过快，请稍慢或稍微回滑"
+                                                   : @"匹配中，请慢滑或稍微回滑"
+                                                  paused:self.paused];
+            }
             if (final) MTCaptureLogWarn(@"quick scroll unconfirmed tail omitted (task %@)", self.task.taskID);
         } else {
             self.uncertainSince = 0;
+            if (self.geometryPaused) self.geometryPaused = NO;
+            if (result.bottomReached && !self.finishRequested) {
+                // 触底（回弹后静止）自动收尾：与自动拼装的到底自停同口径。
+                MTCaptureLogInfo(@"quick scroll bottom reached, auto finishing (task %@)", self.task.taskID);
+                [self.hud setStatus:@"已到底部，自动保存长截图" paused:NO];
+                [self mtRequestFinish:self.task.configSnapshot.defaultResultAction];
+                return;
+            }
             if (!self.paused && !self.finishRequested) {
                 NSString *text = self.count > 1 ? [NSString stringWithFormat:@"已截 %.1f 屏 · 蓝键保存",
                     (double)self.totalHeight / MAX(1, self.displayRect.size.height * self.task.capturedScreenScale)]
@@ -254,7 +273,9 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     if (!self.count) { [self mtFail:@"尚未取得有效画面"]; return; }
     self.exporting = YES;
     [self.displayLink invalidate]; self.displayLink = nil; [self.hud setFinishing];
-    NSString *path = [[self.task ensureTemporaryDirectory] stringByAppendingPathComponent:@"longshot.jpg"];
+    // 智能输出格式：小图无损 PNG，大图分级 JPEG（规避超大 PNG 分享失败）。
+    NSString *path = [[self.task ensureTemporaryDirectory]
+        stringByAppendingPathComponent:[self.store smartOutputName]];
     MTQuickScrollStore *store = self.store;
     MTLongShotCancellation *cancel = self.cancellation;
     NSUInteger token = ++self.generation;
@@ -299,6 +320,8 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     if (self.finished) return;
     self.finished = YES; self.generation++; self.cancellation.cancelled = YES;
     [self.displayLink invalidate]; self.displayLink = nil;
+    // 窗口销毁前结束图层捕获排除，恢复图层标记。
+    [self.provider endVisibleWindowExclusion];
     if (self.memoryObserver) [NSNotificationCenter.defaultCenter removeObserver:self.memoryObserver];
     self.memoryObserver = nil;
     if (MTQuickScrollLockSession == self) {

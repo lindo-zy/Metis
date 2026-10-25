@@ -692,6 +692,8 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     _finished = YES; self.generation++; self.loopRunning = NO; self.cancellation.cancelled = YES;
     [self.tickTimer invalidate]; self.tickTimer = nil;
     [self.scroller cancel]; self.scroller = nil;
+    // 窗口销毁前结束图层捕获排除，恢复图层标记。
+    [self.provider endVisibleWindowExclusion]; self.provider = nil;
     if (self.memoryObserver) [NSNotificationCenter.defaultCenter removeObserver:self.memoryObserver];
     self.memoryObserver = nil;
     if (MTShellXStitchLockSession == self) {
