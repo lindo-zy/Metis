@@ -21,6 +21,56 @@ static const CGFloat MTAppIconSide = 24.0;
 + (UIImage *)_applicationIconImageForBundleIdentifier:(NSString *)bundleIdentifier format:(NSInteger)format;
 @end
 
+// Multicolor SF Symbols lose their palette when UIButton's default templating
+// flattens Automatic-mode images into the tint color. Detection has no public
+// API, so probe: render the symbol once into a small bitmap and look for
+// chromatic pixels. Results are cached per symbol name — the probe runs only
+// once per icon over the process lifetime.
+static NSMutableDictionary<NSString *, NSNumber *> *MTMulticolorSymbolCache;
+
+static BOOL MTSymbolHasChromaticPixels(UIImage *symbol) {
+#define MT_MULTICOLOR_PROBE_SIDE 32
+    unsigned char pixels[MT_MULTICOLOR_PROBE_SIDE * MT_MULTICOLOR_PROBE_SIDE * 4];
+    const int side = MT_MULTICOLOR_PROBE_SIDE;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(pixels, side, side, 8, side * 4, space,
+                                             kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(space);
+    if (!ctx) return NO;
+    UIGraphicsPushContext(ctx);
+    [[symbol imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal]
+        drawInRect:CGRectMake(0, 0, side, side)];
+    UIGraphicsPopContext();
+    CGContextRelease(ctx);
+    for (int i = 0; i < side * side; i++) {
+        if (pixels[i * 4 + 3] < 16) continue; // 透明像素不参与判定
+        unsigned char r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2];
+        int maxChannel = MAX(r, MAX(g, b));
+        int minChannel = MIN(r, MIN(g, b));
+        // 预乘 alpha 会压低半透明边缘的通道差，阈值放宽到 12 仍能稳定区分
+        if (maxChannel - minChannel > 12) return YES;
+    }
+    return NO;
+}
+
+// Returns AlwaysOriginal for multicolor symbols so buttons keep their palette;
+// monochrome symbols stay Automatic/template and remain tintable.
+static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) {
+    if (!image.isSymbolImage || cacheKey.length == 0) return image;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{ MTMulticolorSymbolCache = [NSMutableDictionary dictionary]; });
+    @synchronized(MTMulticolorSymbolCache) {
+        NSNumber *cached = MTMulticolorSymbolCache[cacheKey];
+        if (!cached) {
+            cached = @(MTSymbolHasChromaticPixels(image));
+            MTMulticolorSymbolCache[cacheKey] = cached;
+        }
+        return cached.boolValue
+            ? [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal]
+            : image;
+    }
+}
+
 @implementation MTHelper
 
 +(UIImage *)imageForTypeXWithPlaceholder:(BOOL)placeholder{
@@ -89,6 +139,9 @@ static const CGFloat MTAppIconSide = 24.0;
             }
         }else{
             image = [UIImage systemImageNamed:imageName];
+            // 多色 Symbol 保留原始配色：单色仍走 Automatic/template 供 tint 染色，
+            // 多色切 AlwaysOriginal，避免 UIButton 模板渲染压成单色剪影。
+            if (image) image = MTImagePreservingMulticolor(image, imageName);
         }
     }else{
         if (isCustomImagePath){
