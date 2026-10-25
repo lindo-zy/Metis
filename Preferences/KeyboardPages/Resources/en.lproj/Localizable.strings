@@ -848,3 +848,30 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FLOATING_APP_AUTO_RESIZE_FOOTER" = "On by default. Scroll the floating app content with one finger to expand to the window area preset above. Tapping, long pressing, and dragging the title bar do not trigger expansion. Touch the underlying app or Home Screen to shrink to 10%. The title and buttons stay the same size, and pinch resizing remains available. Turn off for manual sizing only.";
 
 "BUTTON_DISPLAY_HINT" = "Changes only this button. Text is the default; icon mode uses this button’s configured icon.";
+
+// AI script generation
+"JS_AI_GENERATE" = "Generate script with AI";
+"JS_AI_SUBTITLE" = "Describe a task · Script-only replies · Debug directly";
+"JS_AI_CHAT_TITLE" = "Generate script with AI";
+"JS_AI_ENGINE_CARD" = "Current engine: %@";
+"JS_AI_ENGINE_DETAIL" = "Model %@ · From Settings → AI Chat";
+"JS_AI_NO_KEY" = "Configure an API key in Settings → AI Chat first";
+"JS_AI_NO_MODEL" = "Select a model for this engine in Settings → AI Chat first";
+"JS_AI_ADOPT" = "Use and replace source";
+"JS_AI_DEBUG" = "Debug directly";
+"JS_AI_STOP" = "Stop";
+"JS_AI_RETRY" = "Retry";
+"JS_AI_REGEN" = "Another version";
+"JS_AI_CLEAR" = "Clear";
+"JS_AI_CLEAR_CONFIRM" = "Clear this conversation and all versions? This cannot be undone.";
+"JS_AI_ROLLBACK" = "Revert to this version";
+"JS_AI_DEBUG_TARGET" = "Debugging version %ld · Editor source unchanged";
+"JS_AI_INPUT_HINT" = "Describe what you need…";
+"JS_AI_MODIFY_HINT" = "Describe the next change…";
+"JS_AI_EMPTY_RESULT" = "No valid script returned. Rephrase your request or retry.";
+"JS_AI_PRECHECK_FAILED" = "Script precheck failed: %@";
+"JS_AI_SEND" = "Send";
+"JS_AI_GENERATING" = "Generating script…";
+"JS_AI_VERSION_ACTIVE" = "Version %ld · Current · Script-only reply";
+"JS_AI_VERSION" = "Version %ld";
+"JS_AI_UNCONFIGURED" = "Not configured";

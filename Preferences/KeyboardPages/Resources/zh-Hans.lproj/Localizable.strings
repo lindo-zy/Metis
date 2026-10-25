@@ -847,3 +847,30 @@
 "FLOATING_APP_AUTO_RESIZE_FOOTER" = "默认开启。在悬浮 App 内容中单指滚动时，放大到上方预设的占屏面积；点击、长按和标题栏拖动不会触发放大。点击外部操作底层 App 或桌面后缩至 10%。标题和按钮保持固定尺寸，仍可双指缩放。关闭后仅手动调整大小。";
 
 "BUTTON_DISPLAY_HINT" = "仅修改当前按钮，默认显示文字；选择图标后使用该按钮配置的图标。";
+
+// AI script generation
+"JS_AI_GENERATE" = "AI 生成脚本";
+"JS_AI_SUBTITLE" = "描述需求 · 纯脚本回复 · 可直接调试";
+"JS_AI_CHAT_TITLE" = "AI 生成脚本";
+"JS_AI_ENGINE_CARD" = "当前引擎：%@";
+"JS_AI_ENGINE_DETAIL" = "模型 %@ · 来自 设置 → AI问答";
+"JS_AI_NO_KEY" = "请先在 设置 → AI问答 中配置 API Key";
+"JS_AI_NO_MODEL" = "请先在 设置 → AI问答 中为当前引擎配置模型";
+"JS_AI_ADOPT" = "采用并替换源码";
+"JS_AI_DEBUG" = "直接调试";
+"JS_AI_STOP" = "停止";
+"JS_AI_RETRY" = "重试";
+"JS_AI_REGEN" = "换一版";
+"JS_AI_CLEAR" = "清空";
+"JS_AI_CLEAR_CONFIRM" = "清空后本段对话与所有版本不可恢复。";
+"JS_AI_ROLLBACK" = "回退到此版";
+"JS_AI_DEBUG_TARGET" = "调试对象：第 %ld 版脚本 · 未写入编辑器";
+"JS_AI_INPUT_HINT" = "描述想要的功能…";
+"JS_AI_MODIFY_HINT" = "继续描述修改…";
+"JS_AI_EMPTY_RESULT" = "未获得有效脚本，请重述需求或重试。";
+"JS_AI_PRECHECK_FAILED" = "脚本预检未通过：%@";
+"JS_AI_SEND" = "发送";
+"JS_AI_GENERATING" = "正在生成脚本…";
+"JS_AI_VERSION_ACTIVE" = "第 %ld 版 · 当前版本 · 回复即脚本";
+"JS_AI_VERSION" = "第 %ld 版";
+"JS_AI_UNCONFIGURED" = "未设置";

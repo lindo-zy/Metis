@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.1.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>自定义 JS 动作支持 AI 生成脚本：回复即脚本、可直接调试，可多轮对话修改并回退版本</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.10</string>
 		<key>items</key>
 		<array>
@@ -69,19 +82,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>长截图移除 SHELLX 录制式与手动拼接两种算法，仅保留 Metis 自适应滚动与 SHELLX 自动拼接；原有录制式/手动拼接配置自动切换为自动拼接</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复自动拼接长截图在大标题页面首次滚动被标题折叠吸收、内容未滚动时误报「画面重叠不足」并提前停止的问题，现在会自动继续滚动完成拼接</string>
 			</dict>
 		</array>
 	</dict>

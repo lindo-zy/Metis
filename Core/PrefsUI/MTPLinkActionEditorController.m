@@ -11,6 +11,7 @@
 #import "MTSystemActionCatalog.h"
 #import "MTFloatingAppSession.h"
 #import "MTPJavaScriptTestController.h"
+#import "MTPAIScriptChatController.h"
 #import "MTHelper.h"
 #import "MTAIEngine.h"
 #import "common.h"
@@ -421,6 +422,7 @@ static NSInteger const MTLegacyRowLink = 2;
     if (self.isAIEntry) return section == 0 ? MTActionRowPayload : 2;
     if (self.isTextEntry) return section == 0 ? MTActionRowPayload : self.textRecords.count + 1;
     if (self.isJavaScriptEntry && section == 2) return 3;
+    if (self.isJavaScriptEntry && section == 1) return 2;
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme] && section == 2) return 1;
     if (![self usesLargePayloadBox]) return [self rowCount];
     // Box layout: section 0 holds the shared rows (类型/名称/图标), section 1
@@ -493,7 +495,7 @@ static NSInteger const MTLegacyRowLink = 2;
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (indexPath.section == self.payloadSectionCount) return 44;
     if (self.isTextEntry && indexPath.section == 1) return indexPath.row < (NSInteger)self.textRecords.count ? 76 : 44;
-    if (self.isJavaScriptEntry && indexPath.section == 1) return 260;
+    if (self.isJavaScriptEntry && indexPath.section == 1) return indexPath.row == 0 ? 260 : UITableViewAutomaticDimension;
     if ([self usesLargePayloadBox] && indexPath.section == 1 && indexPath.row == 0) return 120.0;
     return UITableViewAutomaticDimension;
 }
@@ -610,6 +612,22 @@ static NSInteger const MTLegacyRowLink = 2;
         return cell;
     }
 
+    if (self.isJavaScriptEntry && indexPath.section == 1 && indexPath.row == 1) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+        cell.textLabel.text = LOCALIZED(@"JS_AI_GENERATE");
+        cell.textLabel.textColor = UIColor.systemIndigoColor;
+        cell.imageView.image = [UIImage systemImageNamed:@"sparkles"];
+        cell.imageView.tintColor = UIColor.systemIndigoColor;
+        cell.detailTextLabel.numberOfLines = 0;
+        MTAIEngineInfo *engine = [MTAIEngine currentEngine];
+        NSString *model = [MTAIEngine selectedModelForEngine:engine];
+        BOOL configured = [MTAIEngine apiKeyForEngine:engine].length && model.length;
+        cell.detailTextLabel.text = [NSString stringWithFormat:@"%@\n%@ · %@", LOCALIZED(@"JS_AI_SUBTITLE"),
+            engine.displayName ?: @"—", model.length ? model : LOCALIZED(@"JS_AI_UNCONFIGURED")];
+        cell.detailTextLabel.textColor = configured ? UIColor.secondaryLabelColor : UIColor.systemRedColor;
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        return cell;
+    }
     if ([self usesLargePayloadBox] && indexPath.section == 1) {
         return [self payloadBoxCellForRowAtIndexPath:indexPath];
     }
@@ -734,6 +752,23 @@ static NSInteger const MTLegacyRowLink = 2;
         return;
     }
 
+    if (self.isJavaScriptEntry && indexPath.section == 1 && indexPath.row == 1) {
+        [self.view endEditing:YES];
+        if ([self.navigationController.topViewController isKindOfClass:MTPAIScriptChatController.class]) return;
+        MTPAIScriptChatController *chat = [MTPAIScriptChatController new];
+        chat.currentScript = [self payloadCurrentValue];
+        __weak typeof(self) weakSelf = self;
+        chat.completion = ^(NSString *script) {
+            typeof(self) owner = weakSelf; if (!owner) return;
+            // Keep the existing Save transaction as the only persistent write.
+            // Materialize the source cell even if it has scrolled off screen.
+            if (!owner.payloadBoxCell) [owner payloadBoxCellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
+            owner.payloadBoxCell.textView.text = script;
+            owner.payloadBoxCell.placeholderLabel.hidden = script.length > 0;
+        };
+        [self.navigationController pushViewController:chat animated:YES];
+        return;
+    }
     // The payload box row handles its own taps (the text view takes focus).
     if ([self usesLargePayloadBox] && indexPath.section == 1) return;
     if (self.isSystemEntry && indexPath.row == MTActionRowPayload) {
