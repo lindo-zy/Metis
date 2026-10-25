@@ -21,6 +21,7 @@ typedef struct {
     NSInteger bodyTop;       // 本次匹配使用的正文边界（绝对行号，含头不含尾）
     NSInteger bodyBottom;
     BOOL boundsValid;
+    BOOL chromeChanged;      // Duplicate：正文静止但顶/底工具栏变化（大标题折叠、地址栏收起）
 } MTShellXAutoMatchResult;
 
 /// priorTop/priorBottom 为上一确认帧的正文边界（绝对行号；<0 表示无先验）。

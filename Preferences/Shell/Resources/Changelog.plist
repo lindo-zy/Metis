@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.6</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复自动拼接长截图在大标题页面首次滚动被标题折叠吸收、内容未滚动时误报「画面重叠不足」并提前停止的问题，现在会自动继续滚动完成拼接</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.5</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复截图设置中长截图算法无法选择的问题，支持切换 Metis 与 SHELLX 三种方案，并修复默认结果动作的选择入口</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.1</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>长截图新增 SHELLX 三种算法：录制式、手动拼接与自动拼接，可在截图设置中切换，默认仍为自适应滚动方案</string>
 			</dict>
 		</array>
 	</dict>

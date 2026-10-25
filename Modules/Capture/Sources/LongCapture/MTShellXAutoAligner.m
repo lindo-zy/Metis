@@ -107,10 +107,91 @@ static void MTShellXAutoFillFromMatch(MTShellXAutoMatchResult *out, MTLongShotFr
     out->confidence = err <= 3.0 ? 1.0 : (err <= 8.0 ? 0.6 : 0.3);
 }
 
+// 管线判不确定后的专项分类：大标题折叠、地址栏收起这类工具栏动画会改变
+// 顶部（或底部）一条带，而正文完全静止——真机 Files 列表实测首次拖动即
+// 如此（内容位移 0，仅标题区变化）。此时应报告"正文重复 + 工具栏变化"，
+// 会话据此直接再滚一次（标题已折叠，下次拖动能真正滚动），而不是原地
+// 重抓或回滑后误停。
+// 实现：按行差把行标记为变化/静止（阈值高于边界识别，容忍 JPEG 噪声），
+// 在"顶部变化行都落在前 1/3、底部变化行都落在后 1/4"的约束下找最大的
+// 静止窗口作为正文；窗口内变化行 ≤5%（容忍列表内稀疏动图/角标），窗口外
+// 变化行 ≥8（确有工具栏变化，而非整体静止）。状态栏的零星变化行与标题
+// 折叠带同属窗口外，不影响正文。
+static const CGFloat MTShellXAutoChromeDiffThreshold = 4.0;
+static const NSInteger MTShellXAutoChromeClusterGap = 12;
+
+static MTShellXAutoMatchResult MTShellXAutoClassifyStaticBody(const uint8_t *prev, const uint8_t *cur,
+                                                              NSInteger rows) {
+    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO};
+    uint8_t *changed = malloc((size_t)rows);
+    NSInteger *prefix = malloc((size_t)(rows + 1) * sizeof(NSInteger));
+    if (!changed || !prefix) { free(changed); free(prefix); return out; }
+    for (NSInteger r = 0; r < rows; r++) {
+        CGFloat total = 0;
+        NSInteger n = 0;
+        for (NSInteger j = -1; j <= 1; j++) {
+            NSInteger y = r + j;
+            if (y < 0 || y >= rows) continue;
+            total += MTLongShotRowDifference(prev + y * MTLongShotSigWidth, cur + y * MTLongShotSigWidth);
+            n++;
+        }
+        changed[r] = (total / n) > MTShellXAutoChromeDiffThreshold;
+    }
+    prefix[0] = 0;
+    for (NSInteger r = 0; r < rows; r++) prefix[r + 1] = prefix[r] + changed[r];
+
+    NSInteger guard = rows - rows / 4;   // 底部变化行只允许出现在 [guard, rows)
+
+    // 候选正文起点 = 每个静态段的起点（0 与每个变化簇的簇尾+1，
+    // 簇间隙 ≤12 行合并）。同一段内所有起点给出同一窗口终点，
+    // 段首起点窗口最长，故只需按段评估，取全局最大窗口。
+    NSInteger bestTop = -1, bestBottom = -1, bestLen = 0;
+    NSInteger t = 0;
+    while (t <= rows / 3) {
+        // 最大静止窗口：prefix[b]-prefix[t] ≤ 0.05(b-t)。该条件对 b 不单调
+        //（变化行升、静止行降），从右向左线性找首个同时满足窗口预算与
+        // 底部约束的 b。
+        CGFloat qt = (CGFloat)prefix[t] - 0.05 * (CGFloat)t;
+        NSInteger lo = t;
+        for (NSInteger b = rows; b > t; b--) {
+            if ((CGFloat)prefix[b] - 0.05 * (CGFloat)b <= qt && prefix[guard] == prefix[b]) { lo = b; break; }
+        }
+        if (lo - t > bestLen && lo - t >= MTShellXAutoMinBodyRows) {
+            bestLen = lo - t; bestTop = t; bestBottom = lo;
+        }
+        // 推进到下一个静态段起点：跳过当前段（到 lo）、其后一个变化簇
+        // （簇间隙 ≤12 行合并）。
+        NSInteger y = lo;
+        while (y < rows && changed[y]) y++;          // 若窗口因 5% 预算提前停，越过剩余变化行
+        NSInteger clusterEnd = y;
+        while (y < rows) {
+            while (y < rows && !changed[y]) y++;
+            if (y >= rows) break;
+            NSInteger z = y;
+            while (z < rows && changed[z]) z++;
+            if (z - y > MTShellXAutoChromeClusterGap) break;   // 间隙过大：新簇
+            clusterEnd = z; y = z;
+        }
+        if (clusterEnd <= t) break;
+        t = clusterEnd;
+    }
+    NSInteger changedOutside = (prefix[rows] - prefix[bestBottom]) + prefix[bestTop];
+    free(changed); free(prefix);
+    if (bestTop < 0 || bestLen < MTShellXAutoMinBodyRows) return out;
+    if (changedOutside < 8) return out;
+    out.kind = MTShellXAutoMatchDuplicate;
+    out.chromeChanged = YES;
+    out.confidence = 1.0;
+    out.bodyTop = bestTop;
+    out.bodyBottom = bestBottom;
+    out.boundsValid = YES;
+    return out;
+}
+
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,
                                                 const uint8_t *cur, NSInteger curRows,
                                                 NSInteger priorTop, NSInteger priorBottom) {
-    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO};
+    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO};
     if (!prev || !cur) return out;
     if (prevRows != curRows || prevRows < MTShellXAutoMinBodyRows) {
         out.kind = MTShellXAutoMatchSizeMismatch;
@@ -153,7 +234,12 @@ MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger p
             match = MTLongShotMatchFrames(prev, cur, rows, detectedTop, detectedBottom);
         }
     }
-    if (match.kind == MTLongShotMatchUncertain) return out;
+    if (match.kind == MTLongShotMatchUncertain)
+        return MTShellXAutoClassifyStaticBody(prev, cur, rows);
     MTShellXAutoFillFromMatch(&out, match, rows, prev, cur);
+    // 管线给出虚假 Forward 被密集复验降级为 Uncertain 时，同样要尝试
+    // "正文静止、工具栏变化"分类——大标题折叠页的典型形态。
+    if (out.kind == MTShellXAutoMatchUncertain)
+        return MTShellXAutoClassifyStaticBody(prev, cur, rows);
     return out;
 }

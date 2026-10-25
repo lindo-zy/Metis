@@ -32,6 +32,7 @@ static const NSTimeInterval MTShellXAutoRecaptureDelay = 0.5;
 static const CGFloat MTShellXAutoShiftBodyCap = 0.85;
 static const CGFloat MTShellXAutoStepShrinkRatio = 0.25;   // 推进比超过此值收缩步长
 static const CGFloat MTShellXAutoStepGrowRatio = 0.08;     // 推进比低于此值放大步长
+static const NSInteger MTShellXChromeRetryMax = 3;         // 工具栏吸收拖动的连续重试上限
 
 static dispatch_queue_t MTShellXStitchQueue(void) {
     static dispatch_queue_t queue;
@@ -80,6 +81,7 @@ static dispatch_queue_t MTShellXStitchQueue(void) {
 @property (nonatomic, strong, nullable) NSData *lastProbeHash;
 @property (nonatomic) NSInteger probeRound;
 @property (nonatomic) NSInteger recoveryAttempts;
+@property (nonatomic) NSInteger chromeRetries;
 @property (nonatomic) CGFloat stepFraction;
 @property (nonatomic) MTLongShotScrollPlan forwardPlan;
 @property (nonatomic) BOOL scrolling, settling, terminalPause;
@@ -384,7 +386,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         if (cancel.cancelled) return;
         NSInteger rows = 0, w = 0, bpr = 0;
         NSData *signature = frame ? MTShellXRowSignature(frame, &rows, &w, &bpr) : nil;
-        MTShellXAutoMatchResult match = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO};
+        MTShellXAutoMatchResult match = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO, NO};
         if (!first && previous)
             match = MTShellXAutoMatchFrames(previous.bytes, previousRows, signature.bytes, rows, priorTop, priorBottom);
         NSInteger fullHeight = frame.CGImage ? CGImageGetHeight(frame.CGImage) : 0;
@@ -446,7 +448,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
             [self.records addObject:record];
             self.lastSignature = signature; self.sigRows = rows;
             self.autoBodyTop = match.bodyTop; self.autoBodyBottom = match.bodyBottom;
-            self.sameCount = 0; self.recoveryAttempts = 0;
+            self.sameCount = 0; self.recoveryAttempts = 0; self.chromeRetries = 0;
             [self mtAdaptStep:(CGFloat)match.shiftRows / (CGFloat)bodyRows];
             [self.hud setSliceCount:self.records.count];
             [self.hud setPreviewImage:thumb usedPixelHeight:thumb ? CGImageGetHeight(thumb.CGImage) : 0];
@@ -457,6 +459,23 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
             return;
         }
         case MTShellXAutoMatchDuplicate:
+            if (match.boundsValid) {
+                // 重复帧同样确认正文边界，回填参照帧供后续导出链使用。
+                self.records.lastObject.bodyTop = match.bodyTop;
+                self.records.lastObject.bodyBottom = match.bodyBottom;
+            }
+            if (match.chromeChanged && self.chromeRetries < MTShellXChromeRetryMax) {
+                // 正文静止、仅标题/地址栏等工具栏变化：本次拖动被工具栏动画吸收，
+                // 没有内容位移。参照帧保持不变，直接再滚一次（标题折叠后下一次
+                // 拖动会真正滚动内容）；不计入到底判定，有限重试防死循环。
+                self.chromeRetries++;
+                self.recoveryAttempts = 0;
+                self.hud.statusText = @"页面标题折叠中，继续滚动";
+                MTCaptureLogInfo(@"shellx auto chrome absorbed scroll (task %@ retry=%ld body=[%ld,%ld))",
+                          self.taskID, (long)self.chromeRetries, (long)match.bodyTop, (long)match.bodyBottom);
+                [self mtAfterCapturedAutoKeepCount];
+                return;
+            }
             if (self.recoveryAttempts > 0) {
                 // 回到参照锚点不是到底：缩步重新前进；恢复链未断，再失败即暂停。
                 self.sameCount = 0;
@@ -497,6 +516,14 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         [self mtRequestFinish];
         return;
     }
+    if (self.loopRunning) [self mtScrollAuto];
+}
+
+// 工具栏吸收拖动后的继续滚动：不计入到底判定（sameCount 不变），
+// 其余收尾条件与常规路径一致。
+- (void)mtAfterCapturedAutoKeepCount {
+    NSInteger cap = MIN(65, self.task.configSnapshot.longShotOptions.maxSlices);
+    if (self.finishRequested || self.records.count >= cap) { [self mtRequestFinish]; return; }
     if (self.loopRunning) [self mtScrollAuto];
 }
 
