@@ -79,24 +79,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复自动拼接长截图在带固定顶栏或底栏的页面误报「画面重叠不足」提前中断的问题，长图保存不再因个别帧匹配失败而整体作废</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>自动拼接改用原版节奏的中部短滑并按页面实际推进自动调整步长，画面未稳定时先等待再截取，匹配失败自动重试或回滑恢复</string>
-			</dict>
-		</array>
-	</dict>
 </array>
 </plist>

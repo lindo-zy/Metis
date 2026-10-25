@@ -275,7 +275,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         MTCaptureLogWarn(@"shellx auto probe still unstable, pausing (task %@ rounds=%ld)",
                   self.taskID, (long)self.probeRound);
         self.busy = NO; self.lastProbeSignature = nil;
-        if (self.finishRequested) [self mtExport];
+        if (self.finishRequested) [self mtPauseForUnconfirmedTail];
         else [self mtPauseAutoTerminal];
         return;
     }
@@ -523,7 +523,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
 }
 
 - (void)mtRecoverAuto {
-    if (self.finishRequested) { [self mtRequestFinish]; return; }
+    if (self.finishRequested) { [self mtPauseForUnconfirmedTail]; return; }
     if (self.recoveryAttempts <= 0) {
         // 第一次失败多为动画未稳/瞬时遮挡：停 0.5s 原地重抓，仍对上一确认帧匹配。
         self.recoveryAttempts = 1;
@@ -560,6 +560,14 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         }
     }
     [self mtPauseAutoTerminal];
+}
+
+- (void)mtPauseForUnconfirmedTail {
+    // 用户点完成时，未匹配的末屏不能被悄悄丢掉并报告完整成功。
+    self.finishRequested = NO;
+    [self.hud setFinishing:NO];
+    [self mtPauseAutoTerminal];
+    self.hud.statusText = @"末段未能可靠拼接，点完成保存已确认内容";
 }
 
 - (void)mtPauseAutoTerminal {
