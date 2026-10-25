@@ -23,14 +23,10 @@ UIImage *MTShellXThumbnail(UIImage *image, NSInteger maxDimension) {
     return result;
 }
 
-NSData * _Nullable MTShellXFastHash(UIImage *image) {
-    UIImage *thumb = MTShellXThumbnail(image, 20);
-    return thumb ? UIImageJPEGRepresentation(thumb, 0.1) : nil;
-}
-
 BOOL MTShellXWriteSlice(UIImage *image, NSInteger top, NSInteger height, NSString *path) {
     CGImageRef cg = image.CGImage;
-    if (!cg || !path.length || top < 0 || height < 1 || top + height > (NSInteger)CGImageGetHeight(cg)) return NO;
+    if (!cg || !path.length || top < 0 || height < 1 || top > (NSInteger)CGImageGetHeight(cg) ||
+        height > (NSInteger)CGImageGetHeight(cg) - top) return NO;
     CGImageRef piece = CGImageCreateWithImageInRect(cg, CGRectMake(0, top, CGImageGetWidth(cg), height));
     if (!piece) return NO;
     CGImageDestinationRef dest = CGImageDestinationCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:path], CFSTR("public.jpeg"), 1, NULL);
@@ -52,7 +48,7 @@ NSData * _Nullable MTShellXRowSignature(UIImage *image, NSInteger *outRows,
     CGImageRef cg = image.CGImage;
     if (!cg) return nil;
     NSInteger width = CGImageGetWidth(cg), rows = CGImageGetHeight(cg);
-    if (width < 16 || rows < 128) return nil;
+    if (width < 16 || width > 8192 || rows < 128 || rows > 16384 || width > 24000000 / rows) return nil;
     CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
     CGContextRef context = CGBitmapContextCreate(NULL, width, rows, 8, 0, space,
         (CGBitmapInfo)kCGImageAlphaPremultipliedLast);

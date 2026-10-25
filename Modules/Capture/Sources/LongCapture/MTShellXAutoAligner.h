@@ -15,9 +15,9 @@ typedef NS_ENUM(NSInteger, MTShellXAutoMatchKind) {
 
 typedef struct {
     MTShellXAutoMatchKind kind;
-    NSInteger shiftRows;     // Forward：cur 正文行 c 与 prev 正文行 c+shiftRows 对齐（正文相对坐标）
-    CGFloat confidence;      // 参考值，不作为前进接受的门槛：中位行差 ≤3.0 为 1.0、≤8.0 为 0.6、≤12.0 为 0.3；Duplicate 恒为 1.0
-    CGFloat denseError;      // 密集复验的中位行差（诊断用）；-1 表示未评估
+    NSInteger shiftRows;     // Forward：cur 行 y 与 prev 行 y+shiftRows 对齐（原图像素坐标）
+    CGFloat confidence;      // 有结构像素的匹配置信度；Duplicate 为 1.0
+    CGFloat denseError;      // 有结构像素的加权误差；-1 表示未评估
     NSInteger bodyTop;       // 本次匹配使用的正文边界（绝对行号，含头不含尾）
     NSInteger bodyBottom;
     BOOL boundsValid;
@@ -26,12 +26,14 @@ typedef struct {
     NSInteger diagChangedOutside; // 诊断：该窗口之外的变化行数（未评估为 -1）
 } MTShellXAutoMatchResult;
 
-/// priorTop/priorBottom 为上一确认帧的正文边界（绝对行号；<0 表示无先验）。
-/// 固定栏在相邻帧之间不动，先验边界直接进入"仅比较正文"的显式匹配；
-/// 与容错识别结果相差 ≤8 行时跟随缓慢漂移，分歧过大时信先验。
-/// 无先验时先做容错边界识别，仍不确定再回退全帧识别管线。
+/// 原生行签名的正文静止判断，排除状态栏与固定工具栏的异动。
+BOOL MTShellXAutoSignaturesAreStable(const uint8_t *prev, NSInteger prevRows,
+                                    const uint8_t *cur, NSInteger curRows);
+
+/// 按文字/图标结构匹配，不让白底投票；候选必须通过独立次峰与分区密集校验。
+/// priorTop/priorBottom 仅用于维持已经确认的裁带接缝，不限制运动搜索。
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,
-                                                const uint8_t *cur, NSInteger curRows,
-                                                NSInteger priorTop, NSInteger priorBottom);
+                                              const uint8_t *cur, NSInteger curRows,
+                                              NSInteger priorTop, NSInteger priorBottom);
 
 NS_ASSUME_NONNULL_END

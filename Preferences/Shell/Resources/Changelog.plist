@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>重构 SHELLX 自动长截图匹配，使用文字和图标结构识别真实滚动位移，解决白底与重复文件列表滚动数次后误报重叠不足的问题</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>自动滚动按实际推进距离调整步长，正文稳定后才拼接，并固定已确认分片的裁切边界，避免漏段与重复内容</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复匹配失败时的数组越界及恢复重试循环，增加触摸释放、导出超时与逐帧内存保护，完善停止、取消和末段保存</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.8</string>
 		<key>items</key>
 		<array>

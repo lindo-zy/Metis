@@ -4,16 +4,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// 保留 SHELLX 的录制/逐屏采集模型和 JPEG 切片；对齐采用项目已验证的
-// 多正文窗口校验，合并采用受预算约束的逐片解码。所有图像原语在后台调用。
+// 逐屏保存 JPEG 切片，使用原生行签名确认滚动位移；合并受内存预算约束，
+// 每次只解码一个切片。所有图像原语在后台调用。
 // 行序与 MTLongImageComposer 一致，正位移表示页面内容上移。
 
 UIImage * _Nullable MTShellXThumbnail(UIImage *image, NSInteger maxDimension);
 BOOL MTShellXWriteSlice(UIImage *image, NSInteger top, NSInteger height, NSString *path);
-
-/// fastHash：最长边 20px（scale=1）JPEG(0.1) 压缩指纹；等值比较用 isEqualToData。
-/// SHELLX 用它做帧静止检测，O(1) 且对渲染噪声不敏感。
-NSData * _Nullable MTShellXFastHash(UIImage *image);
 
 /// 原生行精度、每行 64 字节的亮度签名，与已验证的 Metis 像素对齐契约一致。
 /// 只保存最近成功帧的签名；返回行数/每行采样数/行距，失败返回 nil。

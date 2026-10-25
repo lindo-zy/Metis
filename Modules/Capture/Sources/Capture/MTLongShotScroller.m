@@ -23,6 +23,7 @@ static MTLongShotHIDFunctions MTHIDFunctions;
 @property (nonatomic, assign) CFTimeInterval startedAt;
 @property (nonatomic, assign) NSTimeInterval duration;
 @property (nonatomic, assign) BOOL fingerDown;
+@property (nonatomic, assign) NSUInteger generation;
 @end
 
 @implementation MTLongShotScroller
@@ -103,6 +104,13 @@ static MTLongShotHIDFunctions MTHIDFunctions;
     }
     self.fingerDown = YES;
     self.startedAt = CACurrentMediaTime();
+    NSUInteger generation = ++self.generation;
+    __weak MTLongShotScroller *weak = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((duration + 1.0) * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        MTLongShotScroller *s = weak;
+        if (s.fingerDown && s.generation == generation) [s mtFinish:NO];
+    });
     self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mtTick:)];
     self.displayLink.preferredFramesPerSecond = 60;
     [self.displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -120,6 +128,7 @@ static MTLongShotHIDFunctions MTHIDFunctions;
 }
 
 - (void)mtFinish:(BOOL)completed {
+    self.generation++;
     [self.displayLink invalidate];
     self.displayLink = nil;
     if (self.fingerDown) {
