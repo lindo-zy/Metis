@@ -41,7 +41,7 @@ BOOL MTLongShotSignaturesAreDuplicate(const uint8_t *prevSigs, NSInteger prevRow
 
 
 // 中部列用于运动估计，减小边缘时钟、滚动条和视频角标的干扰。
-static CGFloat MTRowDifference(const uint8_t *a, const uint8_t *b) {
+CGFloat MTLongShotRowDifference(const uint8_t *a, const uint8_t *b) {
     NSUInteger sum = 0;
     for (NSInteger c = 8; c < 56; c++) sum += abs((int)a[c] - (int)b[c]);
     return (CGFloat)sum / 48.0;
@@ -73,7 +73,7 @@ static NSInteger MTFindShift(const uint8_t *prev, const uint8_t *cur, NSInteger 
         CGFloat sum = 0;
         NSInteger overlap = rows - d, count = (overlap + 3) / 4;
         for (NSInteger r = 0; r < overlap; r += 4) {
-            sum += MTRowDifference(prev + (r + d) * MTLongShotSigWidth,
+            sum += MTLongShotRowDifference(prev + (r + d) * MTLongShotSigWidth,
                                    cur + r * MTLongShotSigWidth);
             if (sum > 8.0 * count) break;
         }
@@ -101,13 +101,13 @@ static NSInteger MTStableEdge(const uint8_t *prev, const uint8_t *cur, NSInteger
         CGFloat cost = 0;
         for (NSInteger j = 0; j < 8; j++) {
             NSInteger y = bottom ? rows - 1 - r - j : r + j;
-            cost += MTRowDifference(prev + y * MTLongShotSigWidth, cur + y * MTLongShotSigWidth);
+            cost += MTLongShotRowDifference(prev + y * MTLongShotSigWidth, cur + y * MTLongShotSigWidth);
         }
         if (cost / 8 > 5.0) {
             // 窗口前瞻找到边界后逐行精化，避免每一段残留 7 行固定页脚。
             while (r < limit) {
                 NSInteger y = bottom ? rows - 1 - r : r;
-                if (MTRowDifference(prev + y * MTLongShotSigWidth, cur + y * MTLongShotSigWidth) > 5.0) break;
+                if (MTLongShotRowDifference(prev + y * MTLongShotSigWidth, cur + y * MTLongShotSigWidth) > 5.0) break;
                 r++;
             }
             return r;
@@ -128,10 +128,10 @@ static MTLongShotFrameMatch MTMatchWithBounds(const uint8_t *prev, const uint8_t
             return result;
         }
         if (fixedTop < 0)
-            while (top < rows / 3 && MTRowDifference(prev + top * 64, cur + top * 64) <= 2.0) top++;
+            while (top < rows / 3 && MTLongShotRowDifference(prev + top * 64, cur + top * 64) <= 2.0) top++;
         if (fixedBottom < 0)
             while (bottom < rows / 4 &&
-                   MTRowDifference(prev + (rows - bottom - 1) * 64, cur + (rows - bottom - 1) * 64) <= 2.0) bottom++;
+                   MTLongShotRowDifference(prev + (rows - bottom - 1) * 64, cur + (rows - bottom - 1) * 64) <= 2.0) bottom++;
     }
     if (top > rows / 3 || bottom > rows / 4 || rows - top - bottom < 128) return result;
     result.fixedTopRows = top;

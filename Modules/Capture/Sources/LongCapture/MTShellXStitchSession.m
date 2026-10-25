@@ -1,5 +1,6 @@
 #import "MTShellXStitchSession.h"
 #import "MTShellXSupport.h"
+#import "MTShellXAutoAligner.h"
 #import "../Capture/MTCaptureTask.h"
 #import "../Capture/MTCaptureProvider.h"
 #import "../Capture/MTLongShotScroller.h"
@@ -13,9 +14,24 @@
 #import <stdatomic.h>
 #import <math.h>
 
-// SHELLX 拼接式节奏常量：滑动后 0.7s 稳定再截；到底判定为相邻两屏
-// 行签名逐字节相同 ×2；收尾间隔 0.18s；原图/切片 JPEG 质量 0.92。
+// 手动拼接：相邻两屏行签名逐字节相同 ×2 判到底；原图/切片 JPEG 质量 0.92。
 static const NSInteger MTShellXBottomSameThreshold = 2;
+// 自动拼接节奏（对齐 SHELLX 原包）：屏幕 60% 处起滑、步长初始 15% 屏高并在
+// 0.10–0.20 间按实测推进比自适应，0.3s 滑动；抬指后 settleDuration（默认 0.7s）
+// 再双采样确认画面静止；失败先原地重抓、再有限回滑半步各一次；连续 2 次
+// 高置信重复才判到底。导出只按采集时确认的位移与正文边界裁带。
+static const NSTimeInterval MTShellXAutoScrollDuration = 0.3;
+static const CGFloat MTShellXAutoStepInitial = 0.15;
+static const CGFloat MTShellXAutoStepMin = 0.10;
+static const CGFloat MTShellXAutoStepMax = 0.20;
+static const CGFloat MTShellXAutoStartFraction = 0.60;
+static const NSTimeInterval MTShellXAutoProbeFirstGap = 0.3;
+static const NSTimeInterval MTShellXAutoProbeDeferGap = 0.5;
+static const NSInteger MTShellXAutoProbeMaxDeferrals = 2;
+static const NSTimeInterval MTShellXAutoRecaptureDelay = 0.5;
+static const CGFloat MTShellXAutoShiftBodyCap = 0.85;
+static const CGFloat MTShellXAutoStepShrinkRatio = 0.25;   // 推进比超过此值收缩步长
+static const CGFloat MTShellXAutoStepGrowRatio = 0.08;     // 推进比低于此值放大步长
 
 static dispatch_queue_t MTShellXStitchQueue(void) {
     static dispatch_queue_t queue;
@@ -23,6 +39,18 @@ static dispatch_queue_t MTShellXStitchQueue(void) {
     dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.metis.capture.shellx.stitch", DISPATCH_QUEUE_SERIAL); });
     return queue;
 }
+
+/// 自动拼接入账记录：位移与正文边界以采集时的配对匹配为准，导出只按记录
+/// 裁带合并，不再从 JPEG 重新猜位移（采集通过、导出失败的一票否决即源于此）。
+@interface MTShellXStitchRecord : NSObject
+@property (nonatomic, copy) NSString *filePath;
+@property (nonatomic) NSInteger rows;        // 整屏帧像素高（行签名行数）
+@property (nonatomic) NSInteger bodyTop;     // 正文边界（绝对行，含头不含尾）；首帧配对确认前为 -1
+@property (nonatomic) NSInteger bodyBottom;
+@property (nonatomic) NSInteger shiftRows;   // 与前一记录的确认位移；首帧 0
+@end
+@implementation MTShellXStitchRecord
+@end
 
 @interface MTShellXStitchSession () <MTLongShotHUDDelegate>
 @property (nonatomic, strong) MTCaptureTask *task;
@@ -44,9 +72,16 @@ static dispatch_queue_t MTShellXStitchQueue(void) {
 @property (nonatomic, assign, getter=isFinished) BOOL finished;
 @property (nonatomic) NSUInteger generation;
 @property (nonatomic) NSInteger sameCount;
-@property (nonatomic) NSMutableArray<NSString *> *fullPaths;   // objc_sync 保护
+@property (nonatomic, strong) NSMutableArray<NSString *> *fullPaths;   // 手动模式，主线程
+@property (nonatomic, strong) NSMutableArray<MTShellXStitchRecord *> *records;   // 自动模式，主线程
 @property (nonatomic, strong) NSData *lastSignature;
 @property (nonatomic) NSInteger sigRows, sigBytesPerRow;
+@property (nonatomic) NSInteger autoBodyTop, autoBodyBottom;   // 参照帧正文边界（-1 未确认）
+@property (nonatomic, strong, nullable) NSData *lastProbeHash;
+@property (nonatomic) NSInteger probeRound;
+@property (nonatomic) NSInteger recoveryAttempts;
+@property (nonatomic) CGFloat stepFraction;
+@property (nonatomic) MTLongShotScrollPlan forwardPlan;
 @property (nonatomic) BOOL scrolling, settling, terminalPause;
 @property (nonatomic, copy) NSString *workDirectory;
 @property (nonatomic, copy) NSString *target;
@@ -80,6 +115,9 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     s.cancellation = [MTLongShotCancellation new];
     task.baseImage = nil;
     s.fullPaths = [NSMutableArray array];
+    s.records = [NSMutableArray array];
+    s.autoBodyTop = -1; s.autoBodyBottom = -1;
+    s.stepFraction = MTShellXAutoStepInitial;
     s.window = [MTCaptureWindow mtCaptureWindow];
     UIEdgeInsets safe = s.window.windowScene.keyWindow.safeAreaInsets;
     CGRect screen = task.capturedScreenBounds;
@@ -122,7 +160,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     size_t available = MTLongShotAvailableMemoryBytes();
     return !available || available >= MTLongShotMemoryFloorBytes();
 }
-- (NSInteger)mtFullCount { return self.fullPaths.count; } // 仅主线程访问
+- (NSInteger)mtFullCount { return self.automatic ? self.records.count : self.fullPaths.count; } // 仅主线程访问
 
 - (void)mtTick {
     if (![self mtLive] || self.exporting) return;
@@ -155,10 +193,13 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     }
     self.loopRunning = self.automatic;
     [self.hud setCaptureTitle:self.automatic ? @"停止" : @"截取" enabled:self.automatic];
+    if (self.automatic) { [self mtProbeThenCaptureAuto]; return; }
     [self mtCapture];
 }
 - (void)longShotHUDDidTapFinish:(UIView *)hud { [self mtRequestFinish]; }
 - (void)longShotHUDDidTapCancel:(UIView *)hud { [self mtCancel]; }
+
+#pragma mark - 手动拼接
 
 - (void)mtCapture {
     if (![self mtLive] || self.busy || self.exporting) return;
@@ -244,34 +285,264 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     }});
 }
 - (void)mtAfterCaptured {
-    if (self.finishRequested || (self.automatic && self.sameCount >= MTShellXBottomSameThreshold) ||
+    if (self.finishRequested ||
         [self mtFullCount] >= MIN(65, self.task.configSnapshot.longShotOptions.maxSlices)) { [self mtRequestFinish]; return; }
-    if (self.automatic && self.loopRunning) { [self mtScroll]; return; }
     [self.hud setCaptureTitle:@"截取" enabled:YES];
     self.hud.statusText = @"滑动后继续截取，或点完成保存";
 }
-- (void)mtScroll {
+
+#pragma mark - 自动拼接：稳定抓帧
+
+- (void)mtProbeThenCaptureAuto {
+    if (![self mtLive] || self.exporting || self.busy) return;
+    if (!self.loopRunning && !self.finishRequested) return;
+    self.busy = YES;
+    self.probeRound = 0;
+    self.lastProbeHash = nil;
+    NSUInteger token = ++self.generation;
+    self.hud.statusText = @"正在截取当前屏";
+    __weak MTShellXStitchSession *weak = self;
+    // 整个探测+配对阶段共用一个 8s 看门狗：无回调或后台卡住也不会永远停在 busy。
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 8 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        MTShellXStitchSession *s = weak;
+        if (![s mtLive] || s.generation != token || !s.busy) return;
+        s.generation++; s.busy = NO;
+        MTCaptureLogWarn(@"shellx auto probe timed out (task %@)", s.taskID);
+        [s mtRequestFinish];
+    });
+    [self mtProbeSample:token];
+}
+
+- (void)mtProbeSample:(NSUInteger)token {
+    CGSize screen = self.task.capturedScreenBounds.size;
+    __weak MTShellXStitchSession *weak = self;
+    @try {
+        [self.provider captureExcludingWindows:@[self.window] completion:^(UIImage *image, BOOL partial, NSString *method, NSError *error) {
+            MTShellXStitchSession *s = weak;
+            if (![s mtLive] || s.generation != token) return;
+            if (![s mtTargetCurrent]) { s.busy = NO; [s mtRequestFinish]; return; }
+            if (!image.CGImage || partial) {
+                s.busy = NO;
+                MTCaptureLogWarn(@"shellx auto probe capture failed (task %@ method=%@ error=%@)", s.taskID, method, error.localizedDescription);
+                [s mtRequestFinish]; return;
+            }
+            CGRect pixelRect = CGRectIntegral(MTConvertDisplayRectToPixel(s.displayRect, screen,
+                CGSizeMake(CGImageGetWidth(image.CGImage), CGImageGetHeight(image.CGImage))));
+            dispatch_async(MTShellXStitchQueue(), ^{ @autoreleasepool {
+                CGImageRef cg = CGImageCreateWithImageInRect(image.CGImage, pixelRect);
+                UIImage *frame = cg ? [UIImage imageWithCGImage:cg scale:image.scale orientation:UIImageOrientationUp] : nil;
+                if (cg) CGImageRelease(cg);
+                NSData *hash = frame ? MTShellXFastHash(frame) : nil;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    MTShellXStitchSession *s2 = weak;
+                    if (![s2 mtLive] || s2.generation != token) return;
+                    [s2 mtProbeDidSample:hash frame:frame token:token];
+                });
+            }});
+        }];
+    } @catch (NSException *exception) {
+        self.busy = NO;
+        MTCaptureLogWarn(@"shellx auto probe exception (task %@ name=%@)", self.taskID, exception.name);
+        [self mtRequestFinish];
+    }
+}
+
+- (void)mtProbeDidSample:(NSData *)hash frame:(UIImage *)frame token:(NSUInteger)token {
+    // 抬指后画面未必立即静止：间隔采样比较快哈希，相同才进入配对；
+    // 到限仍不同则按最新帧继续，由两级恢复兜底。
+    if (hash && self.lastProbeHash && [hash isEqualToData:self.lastProbeHash]) {
+        [self mtProcessAutoFrame:frame token:token];
+        return;
+    }
+    self.lastProbeHash = hash;
+    if (!hash || !frame.CGImage) { self.busy = NO; [self mtFail:@"抓屏帧无效"]; return; }
+    if (self.probeRound > MTShellXAutoProbeMaxDeferrals) { [self mtProcessAutoFrame:frame token:token]; return; }
+    NSTimeInterval gap = self.probeRound == 0 ? MTShellXAutoProbeFirstGap : MTShellXAutoProbeDeferGap;
+    self.probeRound++;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(gap * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (![self mtLive] || self.generation != token || !self.busy) return;
+        [self mtProbeSample:token];
+    });
+}
+
+- (void)mtProcessAutoFrame:(UIImage *)frame token:(NSUInteger)token {
+    // 探测确认静止后才配对：签名、正文匹配与原图落盘全部在串行后台完成。
+    NSString *path = [self.workDirectory stringByAppendingPathComponent:
+        [NSString stringWithFormat:@"full_%ld.jpg", (long)self.records.count]];
+    NSData *previous = self.lastSignature;
+    NSInteger previousRows = self.sigRows;
+    NSInteger priorTop = self.autoBodyTop, priorBottom = self.autoBodyBottom;
+    BOOL first = self.records.count == 0;
+    MTLongShotCancellation *cancel = self.cancellation;
+    __weak MTShellXStitchSession *weak = self;
+    dispatch_async(MTShellXStitchQueue(), ^{ @autoreleasepool {
+        if (cancel.cancelled) return;
+        NSInteger rows = 0, w = 0, bpr = 0;
+        NSData *signature = frame ? MTShellXRowSignature(frame, &rows, &w, &bpr) : nil;
+        MTShellXAutoMatchResult match = {MTShellXAutoMatchUncertain, 0, 0, 0, 0, NO};
+        if (!first && previous)
+            match = MTShellXAutoMatchFrames(previous.bytes, previousRows, signature.bytes, rows, priorTop, priorBottom);
+        NSInteger fullHeight = frame.CGImage ? CGImageGetHeight(frame.CGImage) : 0;
+        BOOL written = NO;
+        UIImage *thumb = nil;
+        if ((first || match.kind == MTShellXAutoMatchForward) && !cancel.cancelled &&
+            MTShellXWriteSlice(frame, 0, fullHeight, path)) {
+            written = YES;
+            thumb = MTShellXThumbnail(frame, 240);
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            MTShellXStitchSession *s = weak;
+            if (![s mtLive] || s.generation != token) return;
+            s.busy = NO;
+            [s mtAcceptAuto:match signature:signature rows:rows path:path written:written thumb:thumb];
+        });
+    }});
+}
+
+- (void)mtAcceptAuto:(MTShellXAutoMatchResult)match
+           signature:(NSData *)signature
+                rows:(NSInteger)rows
+                path:(NSString *)path
+             written:(BOOL)written
+                thumb:(UIImage *)thumb {
+    if (self.records.count == 0) {
+        // 首帧：无参照可配对，直接入库；正文边界待首次配对确认后回填。
+        if (!signature || !written) { [self mtFail:@"首帧处理或写盘失败"]; return; }
+        MTShellXStitchRecord *record = [MTShellXStitchRecord new];
+        record.filePath = path; record.rows = rows;
+        record.bodyTop = -1; record.bodyBottom = -1; record.shiftRows = 0;
+        [self.records addObject:record];
+        self.lastSignature = signature; self.sigRows = rows;
+        [self.hud setSliceCount:self.records.count];
+        [self.hud setPreviewImage:thumb usedPixelHeight:CGImageGetHeight(thumb.CGImage)];
+        MTCaptureLogInfo(@"shellx auto first frame (task %@ rows=%ld)", self.taskID, (long)rows);
+        [self mtAfterCapturedAuto];
+        return;
+    }
+    switch (match.kind) {
+        case MTShellXAutoMatchForward: {
+            NSInteger bodyRows = match.bodyBottom - match.bodyTop;
+            if (!signature || !written || bodyRows <= 0 || match.shiftRows <= 0 ||
+                (CGFloat)match.shiftRows > (CGFloat)bodyRows * MTShellXAutoShiftBodyCap) {
+                // 写盘失败或位移越界（页面跳变）：按不确定处理进恢复，不直接失败。
+                MTCaptureLogWarn(@"shellx auto forward rejected (task %@ shift=%ld body=%ld written=%d)",
+                          self.taskID, (long)match.shiftRows, (long)bodyRows, written);
+                self.sameCount = 0;
+                [self mtRecoverAuto];
+                return;
+            }
+            // 配对同时确认两帧的正文边界；参照帧与步长随每次确认刷新。
+            self.records.lastObject.bodyTop = match.bodyTop;
+            self.records.lastObject.bodyBottom = match.bodyBottom;
+            MTShellXStitchRecord *record = [MTShellXStitchRecord new];
+            record.filePath = path; record.rows = rows;
+            record.bodyTop = match.bodyTop; record.bodyBottom = match.bodyBottom;
+            record.shiftRows = match.shiftRows;
+            [self.records addObject:record];
+            self.lastSignature = signature; self.sigRows = rows;
+            self.autoBodyTop = match.bodyTop; self.autoBodyBottom = match.bodyBottom;
+            self.sameCount = 0; self.recoveryAttempts = 0;
+            [self mtAdaptStep:(CGFloat)match.shiftRows / (CGFloat)bodyRows];
+            [self.hud setSliceCount:self.records.count];
+            [self.hud setPreviewImage:thumb usedPixelHeight:thumb ? CGImageGetHeight(thumb.CGImage) : 0];
+            MTCaptureLogInfo(@"shellx auto frame (task %@ count=%ld shift=%ld body=[%ld,%ld) conf=%.2f)",
+                      self.taskID, (long)self.records.count, (long)match.shiftRows,
+                      (long)match.bodyTop, (long)match.bodyBottom, match.confidence);
+            [self mtAfterCapturedAuto];
+            return;
+        }
+        case MTShellXAutoMatchDuplicate:
+            if (self.recoveryAttempts > 0) {
+                // 回到参照锚点不是到底：缩步重新前进；恢复链未断，再失败即暂停。
+                self.sameCount = 0;
+                self.stepFraction = MIN(self.stepFraction, MTShellXAutoStepMin);
+                MTCaptureLogInfo(@"shellx auto duplicate at anchor, reforward (task %@)", self.taskID);
+                [self mtAfterCapturedAuto];
+                return;
+            }
+            self.sameCount++;
+            MTCaptureLogInfo(@"shellx auto duplicate (task %@ same=%ld)", self.taskID, (long)self.sameCount);
+            [self mtAfterCapturedAuto];
+            return;
+        default:
+            // Uncertain/Reverse/SizeMismatch：失败帧不替换参照帧，进两级恢复。
+            MTCaptureLogInfo(@"shellx auto match kind=%ld (task %@ recovery=%ld)",
+                      (long)match.kind, self.taskID, (long)self.recoveryAttempts);
+            self.sameCount = 0;
+            [self mtRecoverAuto];
+            return;
+    }
+}
+
+- (void)mtAdaptStep:(CGFloat)ratio {
+    // 手指步长不等于页面推进：按实测推进比在 [0.10, 0.20] 内自适应，
+    // 重叠收缩时收步、推进过慢时放大，保留充分正文重叠。
+    if (ratio > MTShellXAutoStepShrinkRatio)
+        self.stepFraction = MAX(MTShellXAutoStepMin, self.stepFraction * 0.85);
+    else if (ratio < MTShellXAutoStepGrowRatio)
+        self.stepFraction = MIN(MTShellXAutoStepMax, self.stepFraction * 1.2);
+}
+
+- (void)mtAfterCapturedAuto {
+    NSInteger cap = MIN(65, self.task.configSnapshot.longShotOptions.maxSlices);
+    if (self.finishRequested || self.records.count >= cap || self.sameCount >= MTShellXBottomSameThreshold) {
+        if (self.sameCount >= MTShellXBottomSameThreshold && !self.finishRequested)
+            MTCaptureLogInfo(@"shellx auto bottom reached (task %@ count=%ld)", self.taskID, (long)self.records.count);
+        [self mtRequestFinish];
+        return;
+    }
+    if (self.loopRunning) [self mtScrollAuto];
+}
+
+#pragma mark - 自动拼接：滑动与恢复
+
+- (BOOL)mtBuildAutoScrollPlan:(MTLongShotScrollPlan *)plan {
+    // SHELLX 原包节奏：屏幕 60% 处起滑、步长自适应（初始 15%），终点落在 40–50%，
+    // 避开底部 Tab 栏与折叠标题；与右上 HUD 相交（小屏/区域长截图）时退回
+    // 通用避让计划并按当前步长收紧。
+    CGRect rect = self.displayRect;
+    if (CGRectIsEmpty(rect) || rect.size.height < 100 || !plan) return NO;
+    CGFloat midX = CGRectGetMidX(rect);
+    CGFloat startY = CGRectGetMinY(rect) + rect.size.height * MTShellXAutoStartFraction;
+    CGFloat step = rect.size.height * self.stepFraction;
+    CGFloat endY = startY - step;
+    CGRect band = CGRectMake(midX - 40.0, endY - 20.0, 80.0, (startY - endY) + 40.0);
+    CGRect protectedRect = [self.hud convertRect:self.hud.panelFrame
+                        toCoordinateSpace:self.window.screen.coordinateSpace];
+    if (CGRectIsEmpty(protectedRect) || !CGRectIntersectsRect(band, protectedRect)) {
+        plan->start = CGPointMake(midX, startY);
+        plan->end = CGPointMake(midX, endY);
+        return YES;
+    }
+    MTLongShotScrollPlan fallback;
+    if (!MTLongShotBuildScrollPlan(self.displayRect, self.task.capturedScreenBounds, protectedRect, &fallback)) return NO;
+    CGFloat distance = MIN(fallback.start.y - fallback.end.y, step);
+    fallback.end.y = fallback.start.y - distance;
+    *plan = fallback;
+    return YES;
+}
+
+- (void)mtScrollAuto {
     if (![self mtLive] || self.exporting) return;
     if (self.finishRequested) { [self mtExport]; return; }
-    MTLongShotScrollPlan plan;
-    CGRect protected = [self.hud convertRect:self.hud.panelFrame toCoordinateSpace:self.window.screen.coordinateSpace];
-    if (!MTLongShotBuildScrollPlan(self.displayRect, self.task.capturedScreenBounds, protected, &plan)) { [self mtRequestFinish]; return; }
-    // SHELLX 原包短滑 0.60→0.42/0.47，保留充分重叠，防止折叠标题栏吞掉整屏交集。
-    CGFloat distance = MIN(plan.start.y - plan.end.y, self.displayRect.size.height * 0.18);
-    plan.end.y = plan.start.y - distance;
+    if (!self.loopRunning) return;
+    MTLongShotScrollPlan plan = {0};
+    if (![self mtBuildAutoScrollPlan:&plan]) { [self mtRequestFinish]; return; }
+    self.forwardPlan = plan;
     self.scrolling = YES;
     NSUInteger token = self.generation;
     self.hud.statusText = @"正在滚动";
     __weak MTShellXStitchSession *weak = self;
-    [self.scroller scrollWithPlan:plan duration:self.task.configSnapshot.longShotOptions.scrollDuration completion:^(BOOL completed) {
+    [self.scroller scrollWithPlan:plan duration:MTShellXAutoScrollDuration completion:^(BOOL completed) {
         MTShellXStitchSession *s = weak;
         if (![s mtLive] || s.generation != token || s.exporting) return;
         s.scrolling = NO;
         if (!completed || ![s mtTargetCurrent]) { [s mtRequestFinish]; return; }
-        [s mtSettleThenCapture];
+        [s mtSettleThenProbe];
     }];
 }
-- (void)mtSettleThenCapture {
+
+- (void)mtSettleThenProbe {
     if (![self mtLive] || self.exporting) return;
     self.settling = YES;
     self.hud.statusText = @"等待画面稳定";
@@ -281,9 +552,62 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         MTShellXStitchSession *s = weak;
         if (![s mtLive] || s.generation != token || !s.settling || s.exporting) return;
         s.settling = NO;
-        [s mtCapture]; // 即使已点完成，也收齐滑动后的最后一屏。
+        [s mtProbeThenCaptureAuto]; // 即使已点完成，也收齐滑动后的最后一屏。
     });
 }
+
+- (void)mtRecoverAuto {
+    if (self.finishRequested) { [self mtRequestFinish]; return; }
+    if (self.recoveryAttempts <= 0) {
+        // 第一次失败多为动画未稳/瞬时遮挡：停 0.5s 原地重抓，仍对上一确认帧匹配。
+        self.recoveryAttempts = 1;
+        self.hud.statusText = @"重新识别画面";
+        NSUInteger token = self.generation;
+        __weak MTShellXStitchSession *weak = self;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(MTShellXAutoRecaptureDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            MTShellXStitchSession *s = weak;
+            if (![s mtLive] || s.generation != token || s.exporting || s.busy ||
+                s.scrolling || s.settling) return;
+            if (s.finishRequested) { [s mtRequestFinish]; return; }
+            [s mtProbeThenCaptureAuto];
+        });
+        return;
+    }
+    if (self.recoveryAttempts == 1) {
+        // 第二次失败：有限回滑半步回到上一确认内容附近；回到锚点后缩步重新前进。
+        MTLongShotScrollPlan rollback;
+        if (MTLongShotBuildCorrectiveScrollPlan(self.forwardPlan, 0.5, &rollback)) {
+            self.recoveryAttempts = 2;
+            self.stepFraction = MIN(self.stepFraction, MTShellXAutoStepMin);
+            self.scrolling = YES;
+            NSUInteger token = self.generation;
+            self.hud.statusText = @"正在恢复拼接重叠";
+            __weak MTShellXStitchSession *weak = self;
+            [self.scroller scrollWithPlan:rollback duration:MTShellXAutoScrollDuration completion:^(BOOL completed) {
+                MTShellXStitchSession *s = weak;
+                if (![s mtLive] || s.generation != token || s.exporting) return;
+                s.scrolling = NO;
+                if (!completed || ![s mtTargetCurrent]) { [s mtRequestFinish]; return; }
+                [s mtSettleThenProbe];
+            }];
+            return;
+        }
+    }
+    [self mtPauseAutoTerminal];
+}
+
+- (void)mtPauseAutoTerminal {
+    // 两次恢复仍无法确认重叠才停在这里；已截内容保留，点完成即可保存。
+    self.loopRunning = NO;
+    self.terminalPause = YES;
+    self.hud.statusText = @"画面重叠不足，点完成保存已截内容";
+    [self.hud setCaptureTitle:@"截取" enabled:NO];
+    MTCaptureLogWarn(@"shellx auto terminal pause (task %@ count=%ld)", self.taskID, (long)self.records.count);
+    if (self.finishRequested) [self mtExport];
+}
+
+#pragma mark - 收尾
+
 - (void)mtRequestFinish {
     if (![self mtLive] || self.exporting) return;
     self.finishRequested = YES; self.loopRunning = NO;
@@ -299,6 +623,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     [self.hud setCaptureTitle:@"截取" enabled:NO]; [self.hud setFinishing:YES];
     [self.hud setPreviewImage:nil usedPixelHeight:0]; self.lastSignature = nil;
     self.hud.statusText = @"正在拼接长图";
+    if (self.automatic) { [self mtExportAutomatic]; return; }
     NSArray<NSString *> *fulls = [self.fullPaths copy];
     NSString *directory = self.workDirectory;
     MTLongShotOptions *options = self.task.configSnapshot.longShotOptions;
@@ -344,6 +669,69 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         });
     }});
 }
+
+- (void)mtExportAutomatic {
+    // 只按采集时确认的位移与正文边界裁带：cur 行 y 显示 prev 行
+    // y - bodyTop_i + bodyTop_{i-1} + shift 的内容，新增内容自 prev 正文
+    // 末行对应位置起；顶栏只在首帧保留，底栏只在末帧补齐。
+    NSArray<MTShellXStitchRecord *> *records = [self.records copy];
+    NSString *directory = self.workDirectory;
+    MTLongShotOptions *options = self.task.configSnapshot.longShotOptions;
+    MTLongShotCancellation *cancel = self.cancellation;
+    __weak MTShellXStitchSession *weak = self;
+    dispatch_async(MTShellXStitchQueue(), ^{ @autoreleasepool {
+        NSMutableArray<NSString *> *slices = [NSMutableArray array];
+        BOOL valid = YES;
+        NSString *failure = nil;
+        for (NSUInteger i = 0; i < records.count && !cancel.cancelled; i++) { @autoreleasepool {
+            MTShellXStitchRecord *rec = records[i];
+            MTShellXStitchRecord *prev = i > 0 ? records[i - 1] : nil;
+            UIImage *full = [UIImage imageWithContentsOfFile:rec.filePath];
+            NSInteger h = full.CGImage ? CGImageGetHeight(full.CGImage) : 0;
+            if (!full.CGImage || h != rec.rows) { valid = NO; failure = @"原图读取失败"; break; }
+            NSInteger bodyBottom = rec.bodyBottom;
+            NSInteger sliceTop, sliceBottom;
+            if (!prev) {
+                bodyBottom = (rec.bodyBottom > 0 && rec.bodyBottom <= h) ? rec.bodyBottom : h;
+                sliceTop = 0;
+                sliceBottom = bodyBottom;
+            } else {
+                if (rec.bodyTop < 0 || rec.bodyBottom <= rec.bodyTop ||
+                    prev.bodyTop < 0 || prev.bodyBottom <= prev.bodyTop ||
+                    prev.bodyBottom > h || rec.bodyBottom > h) {
+                    valid = NO; failure = @"正文边界记录缺失"; break;
+                }
+                NSInteger yNew = rec.bodyTop + (prev.bodyBottom - prev.bodyTop) - rec.shiftRows;
+                if (yNew < 0 || yNew >= rec.bodyBottom) { valid = NO; failure = @"切片边界记录异常"; break; }
+                sliceTop = yNew;
+                sliceBottom = rec.bodyBottom;
+            }
+            if (sliceBottom > sliceTop) {
+                NSString *path = [directory stringByAppendingPathComponent:[NSString stringWithFormat:@"slice_%lu.jpg", (unsigned long)slices.count]];
+                if (!MTShellXWriteSlice(full, sliceTop, sliceBottom - sliceTop, path)) { valid = NO; failure = @"切片写盘失败"; break; }
+                [slices addObject:path];
+            }
+            if (i == records.count - 1 && bodyBottom < h) {
+                NSString *path = [directory stringByAppendingPathComponent:[NSString stringWithFormat:@"slice_%lu.jpg", (unsigned long)slices.count]];
+                if (!MTShellXWriteSlice(full, bodyBottom, h - bodyBottom, path)) { valid = NO; failure = @"切片写盘失败"; break; }
+                [slices addObject:path];
+            }
+        }}
+        CGSize size = CGSizeZero; NSError *error = nil;
+        UIImage *result = valid && slices.count && !cancel.cancelled
+            ? MTShellXComposeSlices(slices, [directory stringByAppendingPathComponent:@"longshot.jpg"], options.maxCanvasHeight, options.outputQuality, cancel, &size, &error)
+            : nil;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            MTShellXStitchSession *s = weak;
+            if (![s mtLive]) return;
+            if (!result) { [s mtFail:error.localizedDescription ?: (failure ?: @"自动拼接切片生成失败")]; return; }
+            MTCaptureLogInfo(@"shellx auto exported (task %@ frames=%lu slices=%lu size=%@)",
+                      s.taskID, (unsigned long)records.count, (unsigned long)slices.count, NSStringFromCGSize(size));
+            id<MTLongShotSessionDelegate> delegate = s.delegate;
+            [s mtTeardown:NO]; [delegate longShotSessionDidFinish:s resultImage:result];
+        });
+    }});
+}
 - (void)mtCancel {
     if (_finished) return;
     id<MTLongShotSessionDelegate> delegate = self.delegate;
@@ -372,7 +760,8 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     }
     self.hud.delegate = nil; [self.window hideAndDestroyWithCompletion:nil];
     self.window = nil; self.hud = nil; self.task = nil; self.delegate = nil;
-    self.lastSignature = nil; [self.fullPaths removeAllObjects];
+    self.lastSignature = nil; self.lastProbeHash = nil;
+    [self.fullPaths removeAllObjects]; [self.records removeAllObjects];
     if (remove) {
         NSString *taskID = self.taskID;
         dispatch_async(MTShellXStitchQueue(), ^{ [MTTemporaryFileStore removeTaskDirectory:taskID]; });

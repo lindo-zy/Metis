@@ -7,6 +7,8 @@ void MTLongShotComputeRowSignature(const uint8_t *buffer, NSInteger pixelWidth,
                                   NSInteger bytesPerRow, NSInteger row, uint8_t *outSig);
 BOOL MTLongShotSignaturesAreDuplicate(const uint8_t *prev, NSInteger prevRows,
                                      const uint8_t *cur, NSInteger curRows);
+/// 中部 48 列亮度均值差（0~255）：运动估计、正文边界识别与密集复验共用。
+CGFloat MTLongShotRowDifference(const uint8_t *a, const uint8_t *b);
 
 typedef NS_ENUM(NSInteger, MTLongShotMatchKind) {
     MTLongShotMatchUncertain, MTLongShotMatchDuplicate, MTLongShotMatchForward, MTLongShotMatchReverse
