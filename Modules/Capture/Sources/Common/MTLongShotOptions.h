@@ -4,11 +4,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 长截图算法（MTKeyLongShotAlgorithm）：
 /// 0 = Metis 自适应滚动（MTLongShotSession，默认）；
 /// 3 = SHELLX 自动拼接（正文对齐 + 稳定抓帧 + 有限恢复 + 记录制导出）。
-/// 1/2 = 已移除的录制式与手动拼接，枚举值仅为旧配置迁移保留（读入时归到 3）。
+/// 录制式与手动拼接已移除，原始值 1/2 读入时归到 3。
 typedef NS_ENUM(NSInteger, MTLongShotAlgorithm) {
     MTLongShotAlgorithmMetis = 0,
-    MTLongShotAlgorithmShellXRecording = 1,
-    MTLongShotAlgorithmShellXManualStitch = 2,
     MTLongShotAlgorithmShellXAutoStitch = 3,
 };
 

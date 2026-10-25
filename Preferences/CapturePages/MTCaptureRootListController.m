@@ -3,11 +3,13 @@
 #import <UIKit/UIKit.h>
 #import "../../Modules/Capture/Sources/Common/MTCaptureAction.h"
 #import "../../Modules/Capture/Sources/Common/MTCaptureLog.h"
+#import "../../Modules/Capture/Sources/Common/MTConstants.h"
 
 @implementation MTCaptureRootListController
 
 - (NSArray *)specifiers {
     if (!_specifiers) {
+        [self mtMigrateRemovedLongShotAlgorithms];
         _specifiers = [[self loadSpecifiersFromPlistName:@"Root" target:self] mutableCopy];
         NSUInteger insertIndex = _specifiers.count;
         for (PSSpecifier *specifier in _specifiers) {
@@ -22,6 +24,16 @@
         }
     }
     return _specifiers;
+}
+
+// 录制式与手动拼接选项已移除：旧配置的 1/2 先归到自动拼接，
+// 否则列表取不到当前值会显示空白，与运行时的迁移规则保持一致。
+- (void)mtMigrateRemovedLongShotAlgorithms {
+    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:MTCapturePreferencesDomain];
+    NSInteger raw = [defaults integerForKey:MTKeyLongShotAlgorithm];
+    if (raw != 1 && raw != 2) return;
+    [defaults setInteger:3 forKey:MTKeyLongShotAlgorithm];
+    MTCaptureLogInfo(@"prefs long shot algorithm migrated: %ld -> 3", (long)raw);
 }
 
 - (PSSpecifier *)mtTestSpecifierWithTitle:(NSString *)title identifier:(NSString *)identifier {

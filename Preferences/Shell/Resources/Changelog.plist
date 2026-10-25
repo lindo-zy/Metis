@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>截图设置的「长截图算法」不再显示已废弃的 SHELLX 录制式与手动拼接选项，此前选择过这两种算法的配置会自动切换为 SHELLX 自动拼接</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.7</string>
 		<key>items</key>
 		<array>
@@ -57,25 +70,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>自动拼接改用原版节奏的中部短滑并按页面实际推进自动调整步长，画面未稳定时先等待再截取，匹配失败自动重试或回滑恢复</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复 SHELLX 长截图小窗出现后无法操作、导致系统桌面超时重启的问题</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复自动与手动拼接停止后不保存、切片未合并和滚动匹配错误；录制式后台串行处理图片，长图导出限制内存并支持取消</string>
 			</dict>
 		</array>
 	</dict>

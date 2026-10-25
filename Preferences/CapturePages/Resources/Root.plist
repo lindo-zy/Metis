@@ -50,22 +50,16 @@
 			<key>validTitles</key>
 			<array>
 				<string>Metis 自适应滚动（默认）</string>
-				<string>SHELLX 录制式</string>
-				<string>SHELLX 手动拼接</string>
 				<string>SHELLX 自动拼接</string>
 			</array>
 			<key>validValues</key>
 			<array>
 				<integer>0</integer>
-				<integer>1</integer>
-				<integer>2</integer>
 				<integer>3</integer>
 			</array>
 			<key>shortTitles</key>
 			<array>
 				<string>Metis</string>
-				<string>录制式</string>
-				<string>手动拼接</string>
 				<string>自动拼接</string>
 			</array>
 		</dict>
