@@ -30,6 +30,9 @@ typedef struct {
 BOOL MTShellXAutoSignaturesAreStable(const uint8_t *prev, NSInteger prevRows,
                                     const uint8_t *cur, NSInteger curRows);
 
+/// 优先在正文底部附近的空白带落接缝，避免亚像素滚动的取整切过文字。
+NSInteger MTShellXAutoSeamRow(const uint8_t *signature, NSInteger rows, NSInteger preferred);
+
 /// 按文字/图标结构匹配，不让白底投票；候选必须通过独立次峰与分区密集校验。
 /// priorTop/priorBottom 仅用于维持已经确认的裁带接缝，不限制运动搜索。
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,

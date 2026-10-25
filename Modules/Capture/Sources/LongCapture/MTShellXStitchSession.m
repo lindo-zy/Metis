@@ -365,13 +365,15 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
             // 否则导航栏/底栏变化会使先前确认的内容重复或消失。
             MTShellXStitchRecord *previous = self.records.lastObject;
             if (previous.bodyBottom < 0) {
-                previous.bodyTop = match.bodyTop; previous.bodyBottom = match.bodyBottom;
+                previous.bodyTop = match.bodyTop;
+                previous.bodyBottom = MTShellXAutoSeamRow(self.lastSignature.bytes, self.sigRows, match.bodyBottom);
             }
             NSInteger sliceTop = previous.bodyBottom - match.shiftRows;
-            if (sliceTop < match.bodyTop || sliceTop >= match.bodyBottom) { [self mtRecoverAuto]; return; }
+            NSInteger sliceBottom = MTShellXAutoSeamRow(signature.bytes, rows, match.bodyBottom);
+            if (sliceTop < match.bodyTop || sliceTop >= sliceBottom) { [self mtRecoverAuto]; return; }
             MTShellXStitchRecord *record = [MTShellXStitchRecord new];
             record.filePath = path; record.rows = rows;
-            record.bodyTop = match.bodyTop; record.bodyBottom = match.bodyBottom;
+            record.bodyTop = match.bodyTop; record.bodyBottom = sliceBottom;
             record.shiftRows = match.shiftRows;
             record.sliceTop = sliceTop;
             [self.records addObject:record];

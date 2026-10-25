@@ -75,6 +75,23 @@ BOOL MTShellXAutoSignaturesAreStable(const uint8_t *prev, NSInteger prevRows,
                                            cur + top * MTLongShotSigWidth, bottom - top);
 }
 
+NSInteger MTShellXAutoSeamRow(const uint8_t *signature, NSInteger rows, NSInteger preferred) {
+    if (!signature || rows < 128 || rows > MTSignatureRowLimit || preferred < 3 || preferred > rows - 3)
+        return preferred;
+    NSInteger limit = MAX(3, preferred - MIN(160, rows / 8));
+    for (NSInteger y = preferred; y >= limit; y--) {
+        uint8_t low = 255, high = 0;
+        for (NSInteger r = y - 2; r <= y + 2; r++) {
+            for (NSInteger c = 4; c < MTLongShotSigWidth - 4; c++) {
+                uint8_t value = signature[r * MTLongShotSigWidth + c];
+                low = MIN(low, value); high = MAX(high, value);
+            }
+        }
+        if (high - low <= 8) return y;
+    }
+    return preferred;
+}
+
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,
                                               const uint8_t *cur, NSInteger curRows,
                                               NSInteger priorTop, NSInteger priorBottom) {
