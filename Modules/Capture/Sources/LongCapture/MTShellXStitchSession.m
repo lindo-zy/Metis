@@ -356,7 +356,12 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     }
     self.lastProbeHash = hash;
     if (!hash || !frame.CGImage) { self.busy = NO; [self mtFail:@"抓屏帧无效"]; return; }
-    if (self.probeRound > MTShellXAutoProbeMaxDeferrals) { [self mtProcessAutoFrame:frame token:token]; return; }
+    if (self.probeRound > MTShellXAutoProbeMaxDeferrals) {
+        MTCaptureLogWarn(@"shellx auto probe still unstable, proceeding (task %@ rounds=%ld)",
+                  self.taskID, (long)self.probeRound);
+        [self mtProcessAutoFrame:frame token:token];
+        return;
+    }
     NSTimeInterval gap = self.probeRound == 0 ? MTShellXAutoProbeFirstGap : MTShellXAutoProbeDeferGap;
     self.probeRound++;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(gap * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -379,7 +384,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
         if (cancel.cancelled) return;
         NSInteger rows = 0, w = 0, bpr = 0;
         NSData *signature = frame ? MTShellXRowSignature(frame, &rows, &w, &bpr) : nil;
-        MTShellXAutoMatchResult match = {MTShellXAutoMatchUncertain, 0, 0, 0, 0, NO};
+        MTShellXAutoMatchResult match = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO};
         if (!first && previous)
             match = MTShellXAutoMatchFrames(previous.bytes, previousRows, signature.bytes, rows, priorTop, priorBottom);
         NSInteger fullHeight = frame.CGImage ? CGImageGetHeight(frame.CGImage) : 0;
@@ -445,9 +450,9 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
             [self mtAdaptStep:(CGFloat)match.shiftRows / (CGFloat)bodyRows];
             [self.hud setSliceCount:self.records.count];
             [self.hud setPreviewImage:thumb usedPixelHeight:thumb ? CGImageGetHeight(thumb.CGImage) : 0];
-            MTCaptureLogInfo(@"shellx auto frame (task %@ count=%ld shift=%ld body=[%ld,%ld) conf=%.2f)",
+            MTCaptureLogInfo(@"shellx auto frame (task %@ count=%ld shift=%ld body=[%ld,%ld) conf=%.2f dense=%.1f)",
                       self.taskID, (long)self.records.count, (long)match.shiftRows,
-                      (long)match.bodyTop, (long)match.bodyBottom, match.confidence);
+                      (long)match.bodyTop, (long)match.bodyBottom, match.confidence, match.denseError);
             [self mtAfterCapturedAuto];
             return;
         }
@@ -466,8 +471,9 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
             return;
         default:
             // Uncertain/Reverse/SizeMismatch：失败帧不替换参照帧，进两级恢复。
-            MTCaptureLogInfo(@"shellx auto match kind=%ld (task %@ recovery=%ld)",
-                      (long)match.kind, self.taskID, (long)self.recoveryAttempts);
+            MTCaptureLogInfo(@"shellx auto match kind=%ld (task %@ recovery=%ld conf=%.2f dense=%.1f bounds=%d)",
+                      (long)match.kind, self.taskID, (long)self.recoveryAttempts,
+                      match.confidence, match.denseError, match.boundsValid);
             self.sameCount = 0;
             [self mtRecoverAuto];
             return;

@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.5</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复自动拼接长截图在带折叠标题、动态导航栏或半透明底栏的页面上，因少数区域变化被误判为匹配失败而提前停止的问题</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.4</string>
 		<key>items</key>
 		<array>

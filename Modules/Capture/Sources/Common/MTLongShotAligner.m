@@ -41,24 +41,46 @@ BOOL MTLongShotSignaturesAreDuplicate(const uint8_t *prevSigs, NSInteger prevRow
 
 
 // 中部列用于运动估计，减小边缘时钟、滚动条和视频角标的干扰。
+// 密集验证每 4 行取一采样；主流设备签名行数 ≤2900，容量 768 足够覆盖，
+// 超出时按容量截断采样（仅极端分辨率下降低采样密度，不影响正确性）。
+#define MTLongShotDenseSampleCap 768
+static int MTLongShotFloatCompare(const void *a, const void *b) {
+    CGFloat x = *(const CGFloat *)a, y = *(const CGFloat *)b;
+    return x < y ? -1 : (x > y ? 1 : 0);
+}
+
 CGFloat MTLongShotRowDifference(const uint8_t *a, const uint8_t *b) {
     NSUInteger sum = 0;
     for (NSInteger c = 8; c < 56; c++) sum += abs((int)a[c] - (int)b[c]);
     return (CGFloat)sum / 48.0;
 }
 
+// 截尾均值：丢弃最差 25% 样本后取均值。折叠标题、半透明底栏下滚动的内容、
+// 局部动画只污染少数行，朴素均值会被它们拖过 8.0 门槛把正确位移判成失败；
+// 截尾后少数脏行不再影响判分，整体错位（半数以上行不同）仍被拒绝。
+static CGFloat MTTrimmedMean(CGFloat *samples, NSInteger count) {
+    if (count <= 0) return CGFLOAT_MAX;
+    qsort(samples, (size_t)count, sizeof(CGFloat), MTLongShotFloatCompare);
+    NSInteger keep = count - count / 4;
+    CGFloat total = 0;
+    for (NSInteger i = 0; i < keep; i++) total += samples[i];
+    return total / (CGFloat)keep;
+}
+
 static CGFloat MTShiftCost(const uint8_t *prev, const uint8_t *cur, NSInteger rows, NSInteger delta) {
     NSInteger overlap = rows - delta;
     if (overlap < 64) return CGFLOAT_MAX;
-    uint64_t total = 0;
+    CGFloat samples[32];
     // 全重叠带分布采样，不能仅拿固定页头或顶部白底作为锚点。
     for (NSInteger s = 0; s < 32; s++) {
         NSInteger r = (2 * s + 1) * overlap / 64;
         const uint8_t *a = prev + (r + delta) * MTLongShotSigWidth;
         const uint8_t *b = cur + r * MTLongShotSigWidth;
-        for (NSInteger c = 8; c < 56; c += 3) total += abs((int)a[c] - (int)b[c]);
+        NSUInteger sum = 0;
+        for (NSInteger c = 8; c < 56; c += 3) sum += abs((int)a[c] - (int)b[c]);
+        samples[s] = (CGFloat)sum / 16.0;
     }
-    return (CGFloat)total / (32.0 * 16.0);
+    return MTTrimmedMean(samples, 32);
 }
 
 static NSInteger MTFindShift(const uint8_t *prev, const uint8_t *cur, NSInteger rows, CGFloat *cost) {
@@ -70,14 +92,14 @@ static NSInteger MTFindShift(const uint8_t *prev, const uint8_t *cur, NSInteger 
         costs[d] = CGFLOAT_MAX;
         if (MTShiftCost(prev, cur, rows, d) > 8.0) continue;
         // 稀疏页上多个粗候选可能全部落在白底；先密集验证每个候选，再比较独立匹配峰。
-        CGFloat sum = 0;
-        NSInteger overlap = rows - d, count = (overlap + 3) / 4;
-        for (NSInteger r = 0; r < overlap; r += 4) {
-            sum += MTLongShotRowDifference(prev + (r + d) * MTLongShotSigWidth,
-                                   cur + r * MTLongShotSigWidth);
-            if (sum > 8.0 * count) break;
-        }
-        CGFloat v = sum / count;
+        NSInteger overlap = rows - d;
+        NSInteger count = MIN(MAX((overlap + 3) / 4, 1), MTLongShotDenseSampleCap);
+        CGFloat samples[MTLongShotDenseSampleCap];
+        NSInteger n = 0;
+        for (NSInteger r = 0; r < overlap && n < count; r += 4)
+            samples[n++] = MTLongShotRowDifference(prev + (r + d) * MTLongShotSigWidth,
+                                                   cur + r * MTLongShotSigWidth);
+        CGFloat v = MTTrimmedMean(samples, n);
         if (v > 8.0) continue;
         costs[d] = v;
         if (v < best) { best = v; bestDelta = d; }
@@ -127,11 +149,11 @@ static MTLongShotFrameMatch MTMatchWithBounds(const uint8_t *prev, const uint8_t
             result.kind = MTLongShotMatchDuplicate;
             return result;
         }
-        if (fixedTop < 0)
-            while (top < rows / 3 && MTLongShotRowDifference(prev + top * 64, cur + top * 64) <= 2.0) top++;
-        if (fixedBottom < 0)
-            while (bottom < rows / 4 &&
-                   MTLongShotRowDifference(prev + (rows - bottom - 1) * 64, cur + (rows - bottom - 1) * 64) <= 2.0) bottom++;
+        // 边界识别直接用容错版（8 行均值 + 逐行精化）：严格单行版会把含时钟/
+        // 动态图标的导航栏提前截进正文，截尾均值能容忍这些行但报告的正文
+        // 范围会偏大，步长与切片边界都跟着失真。
+        if (fixedTop < 0) top = MTStableEdge(prev, cur, rows, NO);
+        if (fixedBottom < 0) bottom = MTStableEdge(prev, cur, rows, YES);
     }
     if (top > rows / 3 || bottom > rows / 4 || rows - top - bottom < 128) return result;
     result.fixedTopRows = top;
@@ -164,21 +186,41 @@ static MTLongShotFrameMatch MTMatchWithBounds(const uint8_t *prev, const uint8_t
 MTLongShotFrameMatch MTLongShotMatchFrames(const uint8_t *prev, const uint8_t *cur,
                                           NSInteger rows, NSInteger fixedTop, NSInteger fixedBottom) {
     MTLongShotFrameMatch result = MTMatchWithBounds(prev, cur, rows, fixedTop, fixedBottom);
-    if (!prev || !cur || rows < 128 || result.kind != MTLongShotMatchUncertain || fixedTop >= 0) return result;
+    if (!prev || !cur || rows < 128 || fixedTop >= 0) return result;
 
-    // 大标题折叠、搜索栏收起及状态栏数字变化会让逐行静止检测在屏幕顶部提前结束。
-    // 在多个正文起点独立验证同一位移，至少两处一致才接纳；不放宽像素匹配/次峰阈值。
-    // 无重叠、空白或周期列表仍须返回 Uncertain，交由会话缩步恢复，不能盲目追加。
+    // 多正文起点独立验证，两种用途：
+    // 1) 主结果不确定（大标题折叠、搜索栏收起、状态栏数字变化让静止检测
+    //    在顶部提前结束）：至少两个起点给出同一位移才接纳，不放宽像素匹配
+    //    与次峰阈值；无重叠、空白或周期列表仍返回 Uncertain 交由会话恢复。
+    // 2) 主结果已确认（截尾均值容忍了少数脏行）：把与位移一致的更大固定
+    //    条带并入报告范围——含时钟的导航栏、内容在其下滚动的半透明底栏
+    //    不能留在正文里，否则步长估计与到底判定都被这些行污染。
     const NSInteger divisors[] = {12, 8, 6, 4, 3};
     MTLongShotFrameMatch candidate = result;
+    BOOL confirmed = (result.kind == MTLongShotMatchForward || result.kind == MTLongShotMatchReverse);
     NSInteger bottom = fixedBottom >= 0 ? fixedBottom : result.fixedBottomRows;
     for (NSUInteger i = 0; i < sizeof(divisors) / sizeof(divisors[0]); i++) {
-        NSInteger top = rows / divisors[i];
-        MTLongShotFrameMatch match = MTMatchWithBounds(prev, cur, rows, top, bottom);
+        MTLongShotFrameMatch match = MTMatchWithBounds(prev, cur, rows, rows / divisors[i], bottom);
         if (match.kind != MTLongShotMatchForward && match.kind != MTLongShotMatchReverse) continue;
-        if (candidate.kind == match.kind && labs(candidate.shiftRows - match.shiftRows) <= 1)
-            return candidate;
+        if (candidate.kind == match.kind && labs(candidate.shiftRows - match.shiftRows) <= 1) {
+            if (!confirmed) {
+                result = candidate;
+                confirmed = YES;
+            } else if (result.kind == match.kind && labs(result.shiftRows - match.shiftRows) <= 1) {
+                result.fixedTopRows = MAX(result.fixedTopRows, match.fixedTopRows);
+                result.fixedBottomRows = MAX(result.fixedBottomRows, match.fixedBottomRows);
+            }
+            continue;
+        }
         candidate = match;
+    }
+    if (!confirmed || fixedBottom >= 0) return result;
+    for (NSUInteger i = 0; i < 4; i++) {
+        // 底栏同样按一致性扩大排除（rows/3 超出底栏上限，最大取 rows/4）。
+        MTLongShotFrameMatch match = MTMatchWithBounds(prev, cur, rows, result.fixedTopRows, rows / divisors[i]);
+        if ((match.kind == MTLongShotMatchForward || match.kind == MTLongShotMatchReverse) &&
+            match.kind == result.kind && labs(match.shiftRows - result.shiftRows) <= 1)
+            result.fixedBottomRows = MAX(result.fixedBottomRows, match.fixedBottomRows);
     }
     return result;
 }

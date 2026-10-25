@@ -16,7 +16,8 @@ typedef NS_ENUM(NSInteger, MTShellXAutoMatchKind) {
 typedef struct {
     MTShellXAutoMatchKind kind;
     NSInteger shiftRows;     // Forward：cur 正文行 c 与 prev 正文行 c+shiftRows 对齐（正文相对坐标）
-    CGFloat confidence;      // 密集复验均值差 ≤3.0 为 1.0、≤5.0 为 0.6；Duplicate 恒为 1.0
+    CGFloat confidence;      // 参考值，不作为前进接受的门槛：中位行差 ≤3.0 为 1.0、≤8.0 为 0.6、≤12.0 为 0.3；Duplicate 恒为 1.0
+    CGFloat denseError;      // 密集复验的中位行差（诊断用）；-1 表示未评估
     NSInteger bodyTop;       // 本次匹配使用的正文边界（绝对行号，含头不含尾）
     NSInteger bodyBottom;
     BOOL boundsValid;

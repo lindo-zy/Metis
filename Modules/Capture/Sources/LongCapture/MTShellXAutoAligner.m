@@ -8,6 +8,9 @@ static const CGFloat MTShellXAutoStillThreshold = 2.0;
 static const NSInteger MTShellXAutoEdgeStableRows = 8;
 static const NSInteger MTShellXAutoPriorDriftRows = 8;
 static const NSInteger MTShellXAutoMinBodyRows = 128;
+// 中位行差超过此值说明位移整体没有对上（粗大错位兜底），远宽于底层匹配器
+// 自身的接受门槛，正常内容不会触到。
+static const CGFloat MTShellXAutoGrossErrorCap = 12.0;
 
 static CGFloat MTShellXAutoSmoothedDifference(const uint8_t *prev, const uint8_t *cur,
                                               NSInteger rows, NSInteger r, BOOL bottom) {
@@ -48,22 +51,32 @@ static BOOL MTShellXAutoBoundsUsable(NSInteger fixedTop, NSInteger fixedBottom, 
         rows - fixedTop - fixedBottom >= MTShellXAutoMinBodyRows;
 }
 
-// 正文重叠带每 4 行密集复验，返回平均行差；主峰通过了粗匹配仍可能整体偏移，
-// 这里用密集采样把"低误差静止帧"和"错误位移"拦下来。
+static int MTShellXAutoFloatCompare(const void *a, const void *b) {
+    CGFloat x = *(const CGFloat *)a, y = *(const CGFloat *)b;
+    return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+// 正文重叠带每 4 行密集复验，返回行差中位数。必须用中位数而不是均值：
+// 折叠标题、半透明底栏下滚动的内容、局部动画只污染少数行，均值会被它们
+// 拖进 5~8 区间把正确位移判成失败（1.0.4 真机提前停止的根因）；中位数
+// 只要有半数行对齐就稳定。
 static CGFloat MTShellXAutoDenseVerify(const uint8_t *x, const uint8_t *y, NSInteger rows,
                                        NSInteger fixedTop, NSInteger fixedBottom, NSInteger shift) {
     NSInteger overlap = (rows - fixedTop - fixedBottom) - shift;
     if (shift <= 0 || overlap < 64) return CGFLOAT_MAX;
+    NSInteger count = (overlap + 3) / 4;
+    CGFloat *diffs = malloc((size_t)count * sizeof(CGFloat));
+    if (!diffs) return CGFLOAT_MAX;
     const uint8_t *a = x + fixedTop * MTLongShotSigWidth;
     const uint8_t *b = y + fixedTop * MTLongShotSigWidth;
-    CGFloat total = 0;
-    NSInteger count = 0;
-    for (NSInteger r = 0; r < overlap; r += 4) {
-        total += MTLongShotRowDifference(a + (r + shift) * MTLongShotSigWidth,
-                                         b + r * MTLongShotSigWidth);
-        count++;
-    }
-    return count ? total / count : CGFLOAT_MAX;
+    NSInteger n = 0;
+    for (NSInteger r = 0; r < overlap && n < count; r += 4)
+        diffs[n++] = MTLongShotRowDifference(a + (r + shift) * MTLongShotSigWidth,
+                                             b + r * MTLongShotSigWidth);
+    qsort(diffs, (size_t)n, sizeof(CGFloat), MTShellXAutoFloatCompare);
+    CGFloat result = n ? diffs[n / 2] : CGFLOAT_MAX;
+    free(diffs);
+    return result;
 }
 
 static void MTShellXAutoFillFromMatch(MTShellXAutoMatchResult *out, MTLongShotFrameMatch match,
@@ -82,17 +95,22 @@ static void MTShellXAutoFillFromMatch(MTShellXAutoMatchResult *out, MTLongShotFr
     const uint8_t *y = match.kind == MTLongShotMatchForward ? cur : prev;
     CGFloat err = MTShellXAutoDenseVerify(x, y, rows, match.fixedTopRows, match.fixedBottomRows, match.shiftRows);
     out->kind = (match.kind == MTLongShotMatchForward) ? MTShellXAutoMatchForward : MTShellXAutoMatchReverse;
-    out->confidence = err <= 3.0 ? 1.0 : (err <= 5.0 ? 0.6 : 0.0);
-    if (out->confidence == 0.0) {
-        out->kind = MTShellXAutoMatchUncertain;   // 密集复验不过：位移不可信，交由会话恢复
+    out->denseError = err == CGFLOAT_MAX ? -1.0 : err;
+    // 接受门槛交给底层匹配器（行差 ≤8.0 + 独立次峰约束）；这里的置信度只是
+    // 参考值。唯一保留的否决是中位行差 >12 的粗大错位——那种位移整体没对上。
+    if (err > MTShellXAutoGrossErrorCap) {
+        out->kind = MTShellXAutoMatchUncertain;
+        out->confidence = 0.0;
         out->boundsValid = NO;
+        return;
     }
+    out->confidence = err <= 3.0 ? 1.0 : (err <= 8.0 ? 0.6 : 0.3);
 }
 
 MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger prevRows,
                                                 const uint8_t *cur, NSInteger curRows,
                                                 NSInteger priorTop, NSInteger priorBottom) {
-    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, 0, 0, NO};
+    MTShellXAutoMatchResult out = {MTShellXAutoMatchUncertain, 0, 0, -1.0, 0, 0, NO};
     if (!prev || !cur) return out;
     if (prevRows != curRows || prevRows < MTShellXAutoMinBodyRows) {
         out.kind = MTShellXAutoMatchSizeMismatch;
@@ -121,16 +139,19 @@ MTShellXAutoMatchResult MTShellXAutoMatchFrames(const uint8_t *prev, NSInteger p
         fixedBottom = detectedBottom;
     }
 
-    MTLongShotFrameMatch match = MTLongShotMatchFrames(prev, cur, rows, fixedTop, fixedBottom);
-    if (match.kind == MTLongShotMatchUncertain && havePrior &&
-        (fixedTop != detectedTop || fixedBottom != detectedBottom) &&
-        MTShellXAutoBoundsUsable(detectedTop, detectedBottom, rows)) {
-        // 先验信不过（栏高突变/遮挡）：换容错识别结果重试一次
-        match = MTLongShotMatchFrames(prev, cur, rows, detectedTop, detectedBottom);
-    }
-    if (match.kind == MTLongShotMatchUncertain && !havePrior) {
-        // 首次配对无先验：回退全帧识别管线（含多正文起点交叉验证）
+    MTLongShotFrameMatch match;
+    if (!havePrior) {
+        // 首次配对直接走全帧识别管线：容错边界 → 截尾匹配 → 多起点一致性
+        // 确认与固定条带扩大，含时钟的导航栏/毛玻璃底栏不会漏进正文范围。
         match = MTLongShotMatchFrames(prev, cur, rows, -1, -1);
+    } else {
+        match = MTLongShotMatchFrames(prev, cur, rows, fixedTop, fixedBottom);
+        if (match.kind == MTLongShotMatchUncertain &&
+            (fixedTop != detectedTop || fixedBottom != detectedBottom) &&
+            MTShellXAutoBoundsUsable(detectedTop, detectedBottom, rows)) {
+            // 先验信不过（栏高突变/遮挡）：换容错识别结果重试一次
+            match = MTLongShotMatchFrames(prev, cur, rows, detectedTop, detectedBottom);
+        }
     }
     if (match.kind == MTLongShotMatchUncertain) return out;
     MTShellXAutoFillFromMatch(&out, match, rows, prev, cur);
