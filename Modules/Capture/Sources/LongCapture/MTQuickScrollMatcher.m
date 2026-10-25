@@ -246,11 +246,11 @@ unsigned MTQuickScrollRowDifference(const uint8_t *previous, const uint8_t *curr
 
 int MTQuickScrollSeamRow(const uint8_t *previous, const uint8_t *current, int rows, int delta,
                          int preferred, int low, int high, const MTQuickScrollLimits *limits) {
-    if (!previous || !current || rows < 8) return preferred;
+    if (!previous || !current || rows < 160 || rows > 16384 || delta <= -rows || delta >= rows) return -1;
     low = MAX(2, low); high = MIN(rows - 3, high);
-    if (low > high) return preferred;
+    if (low > high) return -1;
     MTQuickWindow window = MTQuickMakeWindow(rows, limits);
-    int best = MIN(MAX(preferred, low), high);
+    int best = -1;
     float bestCost = HUGE_VALF;
     for (int y = low; y <= high; y++) {
         unsigned amplitude = 0, agreement = 0, columns = 0;
@@ -274,9 +274,95 @@ int MTQuickScrollSeamRow(const uint8_t *previous, const uint8_t *current, int ro
                 }
             }
         }
+        // A fixed overlay or non-overlapping row is not a valid seam at any cost.
+        if (fixedHits || y - 2 + delta < 0 || y + 2 + delta >= rows) continue;
         float cost = (float)amplitude * 0.30f;
         if (columns) cost += (float)agreement / columns * 4.0f;
         cost += fixedHits * 60.0f + fabsf((float)(y - preferred)) * 0.05f;
+        if (cost < bestCost) { bestCost = cost; best = y; }
+    }
+    return best;
+}
+
+int MTQuickScrollVerifyNative(const uint8_t *a, const uint8_t *b, int width, int rows,
+                              int delta, int top, int bottom,
+                              const MTQuickScrollLimits *limits, float *error) {
+    if (error) *error = 255;
+    if (!a || !b || width < 32 || width > 16384 || rows < 160 || rows > 16384 ||
+        delta <= -rows || delta >= rows) return 0;
+    top = MAX(MAX(top, 2), 2 - delta);
+    bottom = MIN(MIN(bottom, rows - 2), rows - 2 - delta);
+    if (bottom - top < 64) return 0;
+    MTQuickWindow window = MTQuickMakeWindow(rows, limits);
+    int informative = 0, supported = 0, bands = 0;
+    double total = 0, weights = 0;
+    for (int band = 0; band < 4; band++) for (int column = 0; column < 3; column++) {
+        int y0 = top + (bottom - top) * band / 4, y1 = top + (bottom - top) * (band + 1) / 4;
+        int x0 = width / 20 + width * 3 * column / 10;
+        int x1 = MIN(width - width / 20, x0 + width * 3 / 10);
+        double difference = 0, weightSum = 0, stationary = 0;
+        // Full native pixel columns and rows; no resized-image verification.
+        for (int y = y0; y < y1; y++) {
+            if (MTQuickRowFixed(&window, y) || MTQuickRowFixed(&window, y + delta)) continue;
+            const uint8_t *p = a + (size_t)(y + delta) * width;
+            const uint8_t *q = b + (size_t)y * width;
+            const uint8_t *s = a + (size_t)y * width;
+            for (int x = x0; x < x1; x++) {
+                int weight = MAX(abs(p[x] - p[x - 1]), abs(q[x] - q[x - 1])) - 4;
+                if (weight <= 0) continue;
+                difference += weight * abs(p[x] - q[x]);
+                stationary += weight * abs(s[x] - q[x]);
+                weightSum += weight;
+            }
+        }
+        if (weightSum < 120) continue;
+        informative++;
+        if (difference / weightSum <= 20 && (abs(delta) <= 1 || stationary > difference + weightSum)) {
+            supported++; bands |= 1 << band;
+            total += difference; weights += weightSum;
+        }
+    }
+    int bandCount = 0;
+    for (int v = bands; v; v >>= 1) bandCount += v & 1;
+    if (error && weights) *error = (float)(total / weights);
+    return informative >= 3 && supported >= 3 && supported * 5 >= informative * 3 && bandCount >= 2;
+}
+
+int MTQuickScrollNativeSeamRow(const uint8_t *a, const uint8_t *b, int width, int rows,
+                               int delta, int preferred, int low, int high,
+                               const MTQuickScrollLimits *limits) {
+    if (!a || !b || width < 32 || width > 16384 || rows < 160 || rows > 16384 ||
+        delta <= -rows || delta >= rows) return -1;
+    low = MAX(MAX(low, 2), 2 - delta);
+    high = MIN(MIN(high, rows - 3), rows - 3 - delta);
+    MTQuickWindow window = MTQuickMakeWindow(rows, limits);
+    float bestCost = HUGE_VALF;
+    int best = -1;
+    for (int y = low; y <= high; y++) {
+        unsigned amplitude = 0, disagreement = 0, samples = 0;
+        int valid = 1;
+        for (int r = y - 2; r <= y + 2 && valid; r++) {
+            if (MTQuickRowFixed(&window, r) || MTQuickRowFixed(&window, r + delta)) { valid = 0; break; }
+            const uint8_t *p = a + (size_t)(r + delta) * width;
+            const uint8_t *q = b + (size_t)r * width;
+            for (int tile = 0; tile < 3; tile++) {
+                int x0 = width / 20 + width * 3 * tile / 10;
+                int x1 = MIN(width - width / 20, x0 + width * 3 / 10);
+                unsigned difference = 0;
+                uint8_t minValue = 255, maxValue = 0;
+                for (int x = x0; x < x1; x++) {
+                    difference += (unsigned)abs(p[x] - q[x]);
+                    minValue = MIN(minValue, q[x]); maxValue = MAX(maxValue, q[x]);
+                }
+                // No seam through a dynamic tile, even if other tiles agree.
+                if (difference > (unsigned)(x1 - x0) * 16) { valid = 0; break; }
+                disagreement += difference; samples += x1 - x0;
+                amplitude += maxValue - minValue;
+            }
+        }
+        if (!valid || !samples) continue;
+        float cost = amplitude * 0.10f + (float)disagreement / samples * 4.0f +
+                     fabsf((float)y - preferred) * 0.05f;
         if (cost < bestCost) { bestCost = cost; best = y; }
     }
     return best;

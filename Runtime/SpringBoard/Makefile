@@ -19,7 +19,7 @@ MetisSpringBoard_CFLAGS = -fobjc-arc
 MetisSpringBoard_CFLAGS += -I../../Core -I../../Core/SharedResources
 MetisSpringBoard_CFLAGS += -I../../Modules/Capture/Sources/Common
 MetisSpringBoard_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
-MetisSpringBoard_FRAMEWORKS = UIKit CoreGraphics QuartzCore CoreText Photos ImageIO
+MetisSpringBoard_FRAMEWORKS = UIKit CoreGraphics QuartzCore CoreText Photos ImageIO IOSurface
 
 # Keyboard（MetisKeyboard）SpringBoard 侧：服务/全局手势/悬浮托管/SMS/浏览器重定向
 MetisSpringBoard_FILES += MTKeyboardSpringBoardEntry.xm \

@@ -4,7 +4,7 @@
 #import <math.h>
 #import <stdlib.h>
 
-// Prism 对齐的接缝/触底/擦除阈值：像素坐标按 3x 全屏（~2556 行）标定。
+// Native-row thresholds; matching is validated before motion or output state advances.
 enum {
     MTQuickFixedStreakThreshold = 3,      // 连续 N 个运动帧同位置静止 → 固定元素
     MTQuickStickyWarmupFrames = 4,        // 累积期沿用保守边界（顶 1/5、底 1/7）
@@ -19,7 +19,8 @@ static const CFTimeInterval MTQuickBottomMotionWindow = 1.5;
 
 @interface MTQuickScrollStore () {
     int64_t _position;        // 纯位移累计（诊断与回滚判定）
-    int64_t _committedEnd;    // 承诺锚点 A = 帧位移 + 接缝行（内容坐标）
+    int64_t _committedEnd;    // Confirmed content coordinate at the output seam.
+    int64_t _outputPosition; // Position of the output reference, separate from tracking.
 }
 @property (nonatomic, copy) NSString *directory;
 @property (nonatomic, strong) MTLongShotOptions *options;
@@ -27,9 +28,16 @@ static const CFTimeInterval MTQuickBottomMotionWindow = 1.5;
 @property (nonatomic, strong) NSMutableArray<MTLongShotSlice *> *slices;
 @property (nonatomic, strong) MTLongShotSlice *tail;
 @property (nonatomic, strong) NSData *signature;
+@property (nonatomic, strong) NSData *nativeLuma;
+@property (nonatomic, strong) NSData *outputSignature;
+@property (nonatomic, strong) NSData *outputLuma;
+@property (nonatomic, strong) UIImage *outputFrame;
+@property (nonatomic) CGRect outputRect;
+@property (nonatomic) NSInteger outputBottom;
+@property (nonatomic, strong) dispatch_queue_t spoolQueue;
 @property (nonatomic, strong) NSMutableData *fixedStreak;   // 每行同位置静止 streak
 @property (nonatomic, strong) NSData *tailSignature;        // 当前尾部对应帧的整帧签名
-@property (nonatomic) NSInteger width, rows, seam, bodyTop, tailSeam;
+@property (nonatomic) NSInteger width, rows, seam, tailSeam;
 @property (nonatomic) NSInteger stickyTop, stickyBottom;    // 0 = 未测定（用保守默认）
 @property (nonatomic) NSInteger movedFrames, stillStreak;
 @property (nonatomic) CFTimeInterval referenceTime, referenceInterval, previewTime;
@@ -45,8 +53,8 @@ static void MTQuickStoreError(NSError **error, NSString *message) {
 }
 
 // Small grayscale working buffer; vertical rows retain native pixel precision.
-static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
-    size_t width = MTQuickScrollSignatureWidth, height = (size_t)rect.size.height;
+static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect, size_t width) {
+    size_t height = (size_t)rect.size.height;
     CGColorSpaceRef gray = CGColorSpaceCreateDeviceGray();
     CGContextRef context = CGBitmapContextCreate(NULL, width, height, 8, width, gray, (CGBitmapInfo)kCGImageAlphaNone);
     CGColorSpaceRelease(gray);
@@ -66,6 +74,7 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
     if ((self = [super init])) {
         _directory = [directory copy]; _options = options; _cancellation = cancellation;
         _scale = MAX(1, scale); _slices = [NSMutableArray array]; _seam = -1;
+        _spoolQueue = dispatch_queue_create("com.lindo.metis.quick.spool", DISPATCH_QUEUE_SERIAL);
         _weakUpFlickTime = -MTQuickBounceWindow; _bounceTime = -MTQuickBottomMotionWindow;
         _lastMotionTime = -MTQuickBottomMotionWindow;
     }
@@ -74,10 +83,16 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
 
 - (MTLongShotSlice *)mtSlice:(UIImage *)image rect:(CGRect)rect name:(NSString *)name
               scrubRightColumns:(NSInteger)scrubColumns error:(NSError **)error {
-    MTLongShotSlice *slice = [MTLongImageComposer sliceFromScreenImage:image pixelRect:rect
-        filePath:[self.directory stringByAppendingPathComponent:name] options:self.options
-        scrubRightColumns:scrubColumns cancellation:self.cancellation error:error];
-    [slice discardAlignmentSignature];
+    // Spool owns image encoding and disk writes; only completed files become output.
+    __block MTLongShotSlice *slice = nil;
+    __block NSError *failure = nil;
+    dispatch_sync(self.spoolQueue, ^{ @autoreleasepool {
+        slice = [MTLongImageComposer sliceFromScreenImage:image pixelRect:rect
+            filePath:[self.directory stringByAppendingPathComponent:name] options:self.options
+            scrubRightColumns:scrubColumns cancellation:self.cancellation error:&failure];
+        [slice discardAlignmentSignature];
+    }});
+    if (failure && error) *error = failure;
     return slice;
 }
 
@@ -152,14 +167,17 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
         return paused;
     }
     self.geometryMismatch = NO;
-    NSData *signature = MTQuickGrayImage(image.CGImage, rect);
-    if (!signature) { MTQuickStoreError(error, @"画面分析缓冲区创建失败"); return nil; }
+    NSData *signature = MTQuickGrayImage(image.CGImage, rect, MTQuickScrollSignatureWidth);
+    NSData *native = MTQuickGrayImage(image.CGImage, rect, (size_t)rect.size.width);
+    if (!signature || !native) { MTQuickStoreError(error, @"画面分析缓冲区创建失败"); return nil; }
     MTQuickScrollResult *result = [MTQuickScrollResult new];
     if (!self.signature) {
-        MTLongShotSlice *first = [self mtSlice:image rect:rect name:@"quick_first.jpg" scrubRightColumns:0 error:error];
+        MTLongShotSlice *first = [self mtSlice:image rect:rect name:@"quick_first.png" scrubRightColumns:0 error:error];
         if (!first) return nil;
         self.width = rect.size.width; self.rows = rect.size.height;
-        self.signature = signature; self.referenceTime = timestamp;
+        self.signature = signature; self.nativeLuma = native; self.referenceTime = timestamp;
+        self.outputSignature = signature; self.outputLuma = native; self.outputFrame = image; self.outputRect = rect;
+        self.outputBottom = self.rows;
         self.fixedStreak = [NSMutableData dataWithLength:(NSUInteger)self.rows];
         [self.slices addObject:first];
         result.match = (MTQuickScrollMatch){MTQuickScrollStill, 0, 0, 0, (int)self.rows, 0};
@@ -171,45 +189,52 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
         [self mtLimits:&limits];
         MTQuickScrollMatch match = MTQuickScrollMatchFrames(self.signature.bytes, signature.bytes,
                                                             (int)self.rows, predicted, &limits);
+        if (match.kind == MTQuickScrollMoved &&
+            !MTQuickScrollVerifyNative(self.nativeLuma.bytes, native.bytes, (int)self.width,
+                (int)self.rows, match.delta, match.bodyTop, match.bodyBottom, &limits, NULL))
+            match.kind = MTQuickScrollUncertain;
         result.match = match;
         if (match.kind != MTQuickScrollUncertain) {
-            // 触底形态：微弱上滑后小幅回弹（橡皮筋），随后画面静止。
-            if (match.kind == MTQuickScrollMoved && labs(match.delta) >= 8) {
-                self.movedFrames++; self.stillStreak = 0;
-                self.lastMotionTime = timestamp;
-                if (match.delta > 0 && match.delta <= self.rows / 20) {
-                    self.weakUpFlickTime = timestamp;
-                } else if (match.delta < 0 && -match.delta <= self.rows / 20 &&
-                           timestamp - self.weakUpFlickTime < MTQuickBounceWindow) {
-                    self.bounceTime = timestamp;
-                } else if (labs(match.delta) > self.rows / 20) {
-                    self.weakUpFlickTime = -MTQuickBounceWindow;
-                }
-            } else {
-                self.stillStreak++;
-            }
-            if (!self.bottomConfirmed && self.bounceTime > 0 && self.stillStreak >= MTQuickBottomStillFrames &&
-                timestamp - self.bounceTime < MTQuickBottomMotionWindow &&
-                timestamp - self.lastMotionTime < MTQuickBottomMotionWindow) {
-                self.bottomConfirmed = YES;
-                result.bottomReached = YES;
-            }
             // 右缘滚动条检测：对齐后内部列一致而最右列异常 → 条带擦除。
             self.indicatorVisible = match.kind == MTQuickScrollMoved &&
                 MTQuickScrollIndicatorVisible(self.signature.bytes, signature.bytes, (int)self.rows,
                                               match.delta, match.bodyTop, match.bodyBottom);
-            NSInteger seam = [self mtAdvanceWithMatch:&match signature:signature image:image
+            NSInteger seam = [self mtAdvanceWithMatch:&match signature:signature native:native image:image
                                                  rect:rect timestamp:timestamp final:final error:error];
             if (seam < 0) {
+                if (error && *error) return nil;
                 match.kind = MTQuickScrollUncertain; result.match = match;
             } else if (seam > 0) {
                 // seam > 0：本次已入账新条带与可替换尾部。
                 self.tailSignature = signature; self.tailSeam = seam;
             }
+            if (match.kind != MTQuickScrollUncertain) {
+                // 触底形态：微弱上滑后小幅回弹（橡皮筋），随后画面静止。
+                if (match.kind == MTQuickScrollMoved && labs(match.delta) >= 8) {
+                    self.movedFrames++; self.stillStreak = 0;
+                    self.lastMotionTime = timestamp;
+                    if (match.delta > 0 && match.delta <= self.rows / 20) {
+                        self.weakUpFlickTime = timestamp;
+                    } else if (match.delta < 0 && -match.delta <= self.rows / 20 &&
+                               timestamp - self.weakUpFlickTime < MTQuickBounceWindow) {
+                        self.bounceTime = timestamp;
+                    } else if (labs(match.delta) > self.rows / 20) {
+                        self.weakUpFlickTime = -MTQuickBounceWindow;
+                    }
+                } else {
+                    self.stillStreak++;
+                }
+                if (!self.bottomConfirmed && self.bounceTime > 0 && self.stillStreak >= MTQuickBottomStillFrames &&
+                    timestamp - self.bounceTime < MTQuickBottomMotionWindow &&
+                    timestamp - self.lastMotionTime < MTQuickBottomMotionWindow) {
+                    self.bottomConfirmed = YES;
+                    result.bottomReached = YES;
+                }
+            }
             if (match.kind == MTQuickScrollMoved) {
                 // Still 帧不替换参考：亚像素/单像素慢滚必须累积到可测量。
                 [self mtUpdateFixedRowsWithPrevious:self.signature.bytes current:signature.bytes delta:match.delta];
-                self.signature = signature;
+                self.signature = signature; self.nativeLuma = native;
                 self.lastDelta = match.delta;
                 self.referenceInterval = elapsed; self.referenceTime = timestamp;
             }
@@ -221,61 +246,66 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
     return result;
 }
 
-/// 返回值：-1 = 匹配退化（调用方转 Uncertain）；0 = 无新增；> 0 = 本帧入账后的接缝行。
-/// 记账模型：承诺锚点 A = 帧位移 + 接缝行（内容坐标）。条带高度 = A_k - A_{k-1}，
-/// 于是「首帧 + 条带 + 末帧尾」恒等于「末帧位移 + 屏高」，与接缝如何移动无关。
-- (NSInteger)mtAdvanceWithMatch:(MTQuickScrollMatch *)match signature:(NSData *)signature image:(UIImage *)image
+/// Position and output reference are separate (Prism rememberPositionFrame/outputEnd).
+/// All validation and disk writes complete before any output anchor is committed.
+- (NSInteger)mtAdvanceWithMatch:(MTQuickScrollMatch *)match signature:(NSData *)signature native:(NSData *)native image:(UIImage *)image
                            rect:(CGRect)rect timestamp:(CFTimeInterval)timestamp final:(BOOL)final error:(NSError **)error {
+    int64_t nextPosition = _position + match->delta;
+    int64_t displacement = nextPosition - _outputPosition;
+    if (displacement <= 0) { _position = nextPosition; return 0; }
+    NSInteger minimum = final ? 1 : MAX(24, self.rows / 20);
+    if (displacement < minimum) { _position = nextPosition; return 0; }
+    if (displacement >= self.rows) return -1;
     MTQuickScrollLimits limits;
     [self mtLimits:&limits];
-    NSInteger chromeFloor = match->bodyBottom > 0 ? MIN(match->bodyBottom, self.rows) : self.rows;
-    if (self.stickyBottom > 0) chromeFloor = MIN(chromeFloor, self.stickyBottom);
-    NSInteger bodyTop = self.seam >= 0 ? self.bodyTop : MAX(match->bodyTop, self.stickyTop);
-    _position += match->delta;   // 纯位移累计（含 Still 的 0 与回滚的负值）
-    if (match->kind == MTQuickScrollStill && self.seam < 0) return 0;
-    // 承诺内容只进不退：上帧接缝内容在当前帧的落点。回滚（含位置滞后的回滚）
-    // 会把它推到帧底以下——该帧没有可裁的新正文，只累计位移。
-    NSInteger committedFloor = MAX(bodyTop + 1, self.seam >= 0 ? self.seam - match->delta : bodyTop + 1);
-    if (self.seam >= 0 && committedFloor > chromeFloor - 1) return 0;
-    // 接缝锚定正文底界（与自动拼接同口径）：每帧在底界上方的安静带内落刀。
-    NSInteger preferred = chromeFloor - MIN(12, self.rows / 120);
-    NSInteger low = MAX(committedFloor, preferred - 240);
-    NSInteger high = MIN(chromeFloor - 1, preferred + 60);
-    if (low > high) {
-        NSInteger mid = MIN(MAX(preferred, committedFloor), chromeFloor - 1);
-        low = mid; high = mid;
+    NSInteger bodyTop = MAX(match->bodyTop, self.stickyTop);
+    NSInteger bottom = MIN(self.rows, match->bodyBottom);
+    if (self.stickyBottom > 0) bottom = MIN(bottom, self.stickyBottom);
+    NSInteger oldBottom = self.seam < 0 ? bottom : self.outputBottom;
+    NSInteger oldStart = self.seam < 0 ? 0 : self.seam;
+    // Both sides of the cut must lie in the same, observed overlap. In particular,
+    // slow frames and rollback cannot apply the last frame's delta to an older seam.
+    NSInteger low = MAX(bodyTop + 3, oldStart - displacement + 1);
+    NSInteger high = MIN(bottom - 3, oldBottom - displacement - 3);
+    if (low > high) return -1;
+    if (!MTQuickScrollVerifyNative(self.outputLuma.bytes, native.bytes, (int)self.width,
+        (int)self.rows, (int)displacement, (int)bodyTop, (int)bottom, &limits, NULL)) return -1;
+    NSInteger preferred = MIN(high, MAX(low, bottom - self.rows / 4));
+    NSInteger coarseSeam = MTQuickScrollSeamRow(self.outputSignature.bytes, signature.bytes,
+        (int)self.rows, (int)displacement, (int)preferred, (int)low, (int)high, &limits);
+    if (coarseSeam < low || coarseSeam > high) return -1;
+    NSInteger seam = MTQuickScrollNativeSeamRow(self.outputLuma.bytes, native.bytes,
+        (int)self.width, (int)self.rows, (int)displacement, (int)coarseSeam, (int)low, (int)high, &limits);
+    if (seam < low || seam > high) return -1;
+    NSInteger previousSeam = seam + displacement;
+    int64_t anchor = nextPosition + seam;
+    if (self.seam >= 0 && anchor <= _committedEnd) { _position = nextPosition; return 0; }
+    NSInteger scrub = self.indicatorVisible ? MAX(8, MIN(24, lround(self.width * 0.012))) : 0;
+    MTLongShotSlice *strip = nil;
+    NSString *stripPath = nil;
+    if (self.seam >= 0) {
+        CGRect stripRect = CGRectMake(self.outputRect.origin.x, self.outputRect.origin.y + oldStart,
+                                     self.width, previousSeam - oldStart);
+        NSString *name = [NSString stringWithFormat:@"quick_%05lu.png", (unsigned long)self.slices.count];
+        strip = [self mtSlice:self.outputFrame rect:stripRect name:name scrubRightColumns:scrub error:error];
+        if (!strip) return -1;
+        stripPath = strip.filePath;
     }
-    NSInteger seam = MTQuickScrollSeamRow(self.signature.bytes, signature.bytes, (int)self.rows, match->delta,
-                                          (int)MIN(MAX(preferred, low), high), (int)low, (int)high, &limits);
-    if (seam < committedFloor || seam > chromeFloor - 1) return -1;
-    int64_t anchor = _position + seam;
-    if (self.seam < 0) _committedEnd = seam;   // 首帧入账前先裁掉底部，锚点=首接缝
-    int64_t height = anchor - _committedEnd;
-    int minimum = final || self.seam < 0 ? 1 : (int)MAX(24, self.rows / 5);
-    if (height <= 0 || height < minimum) return 0;
-    if (seam - height < bodyTop) return -1;    // 条带越出正文上界：真实丢重叠
-    NSInteger scrub = self.indicatorVisible ? (NSInteger)MAX(8, MIN(24, lround(self.width * 0.012))) : 0;
-    // Persist only the new strip, plus a replaceable current footer. Recorded
-    // pixels above the seam never move; the seam itself tracks quiet bands.
-    CGRect stripRect = CGRectMake(rect.origin.x, rect.origin.y + seam - height, self.width, height);
-    NSString *name = [NSString stringWithFormat:@"quick_%05lu.jpg", (unsigned long)self.slices.count];
-    MTLongShotSlice *strip = [self mtSlice:image rect:stripRect name:name scrubRightColumns:scrub error:error];
-    if (!strip) return -1;
-    MTLongShotSlice *tail = nil;
-    if (seam < self.rows) {
-        CGRect tailRect = CGRectMake(rect.origin.x, rect.origin.y + seam, self.width, self.rows - seam);
-        NSString *tailName = [NSString stringWithFormat:@"quick_tail_%05lu.jpg", (unsigned long)self.slices.count];
-        tail = [self mtSlice:image rect:tailRect name:tailName scrubRightColumns:scrub error:error];
-        if (!tail) return -1;
+    CGRect tailRect = CGRectMake(rect.origin.x, rect.origin.y + seam, self.width, self.rows - seam);
+    NSString *tailName = [NSString stringWithFormat:@"quick_tail_%@.png", NSUUID.UUID.UUIDString];
+    MTLongShotSlice *tail = [self mtSlice:image rect:tailRect name:tailName scrubRightColumns:scrub error:error];
+    if (!tail || self.cancellation.cancelled) {
+        if (stripPath) [NSFileManager.defaultManager removeItemAtPath:stripPath error:nil];
+        return -1;
     }
-    if (self.seam < 0) {
-        self.bodyTop = bodyTop;
-        self.slices.firstObject.cropBottomRows = self.rows - seam;
-    }
+    if (self.seam < 0) self.slices.firstObject.cropBottomRows = self.rows - previousSeam;
+    else [self.slices addObject:strip];
     NSString *oldTail = self.tail.filePath;
     self.tail = tail; self.seam = seam; _committedEnd = anchor;
-    [self.slices addObject:strip];
-    if (oldTail) [NSFileManager.defaultManager removeItemAtPath:oldTail error:nil];
+    self.outputFrame = image; self.outputRect = rect; self.outputSignature = signature; self.outputLuma = native;
+    self.outputBottom = bottom; _outputPosition = nextPosition; _position = nextPosition;
+    if (oldTail && ![oldTail isEqualToString:tail.filePath])
+        [NSFileManager.defaultManager removeItemAtPath:oldTail error:nil];
     return seam;
 }
 
@@ -313,12 +343,13 @@ static NSData *MTQuickGrayImage(CGImageRef image, CGRect rect) {
 }
 
 - (UIImage *)exportToURL:(NSURL *)url error:(NSError **)error {
-    self.signature = nil;
+    self.signature = nil; self.nativeLuma = nil;
+    self.outputSignature = nil; self.outputLuma = nil; self.outputFrame = nil;
     NSMutableArray *slices = [self.slices mutableCopy];
     if (self.tail) {
         // 空白尾部自动裁剪：尾部底缘连续安静行（页面内容早于视口结束且无底栏）裁掉。
         MTLongShotSlice *tail = self.tail;
-        if (self.tailSignature.length == (NSUInteger)self.rows * MTQuickScrollSignatureWidth && tail) {
+        if (self.bottomConfirmed && self.tailSignature.length == (NSUInteger)self.rows * MTQuickScrollSignatureWidth && tail) {
             NSInteger run = MTQuickScrollTrailingQuietRows((const uint8_t *)self.tailSignature.bytes,
                                                            (int)self.rows, (int)self.tailSeam, (int)self.rows);
             NSInteger crop = run >= MTQuickBlankTailMinimumRows ? run - 8 : 0;

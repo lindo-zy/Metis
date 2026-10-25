@@ -135,8 +135,9 @@ static BOOL MTLongShotWriteJPEG(CGImageRef image, NSURL *url, CGFloat quality) {
     }
 
     if (cancellation.cancelled) { CGImageRelease(cropped); return nil; }
-    BOOL written = MTLongShotWriteJPEG(cropped, [NSURL fileURLWithPath:filePath],
-                                       options.sliceQuality);
+    BOOL written = [filePath.pathExtension.lowercaseString isEqualToString:@"png"]
+        ? MTLongShotWriteEncoded(cropped, [NSURL fileURLWithPath:filePath], CFSTR("public.png"), 1)
+        : MTLongShotWriteJPEG(cropped, [NSURL fileURLWithPath:filePath], options.sliceQuality);
     CGImageRelease(cropped);
     if (!written) {
         if (error) *error = MTLongShotError(@"分片写入磁盘失败");

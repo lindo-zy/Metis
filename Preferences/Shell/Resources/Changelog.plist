@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.1.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>快速滚动截图改用按帧排除浮窗的采集方式，采集期间浮窗持续显示并保留操作响应</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复慢滑、回滑和中断恢复后接缝位置不准确的问题，丢失重叠后回滑即可继续</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>快速滚动截图增加原始分辨率校验与无损分片，减少文字接缝和重复压缩损失</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.1.1</string>
 		<key>items</key>
 		<array>
@@ -87,19 +112,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复匹配失败时的数组越界及恢复重试循环，增加触摸释放、导出超时与逐帧内存保护，完善停止、取消和末段保存</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>截图设置的「长截图算法」不再显示已废弃的 SHELLX 录制式与手动拼接选项，此前选择过这两种算法的配置会自动切换为 SHELLX 自动拼接</string>
 			</dict>
 		</array>
 	</dict>

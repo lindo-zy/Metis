@@ -47,3 +47,12 @@ int MTQuickScrollTrailingQuietRows(const uint8_t *signature, int rows, int from,
 /// 右缘滚动条可见性：对齐后内部列一致而最右列异常变化即视为指示条入画。
 int MTQuickScrollIndicatorVisible(const uint8_t *previous, const uint8_t *current,
                                   int rows, int delta, int bodyTop, int bodyBottom);
+
+/// Native-resolution luma validation after template consensus. Dynamic tiles cannot
+/// outvote stable content. Buffers are top-origin, width bytes per row.
+int MTQuickScrollVerifyNative(const uint8_t *previous, const uint8_t *current,
+                              int width, int rows, int delta, int top, int bottom,
+                              const MTQuickScrollLimits *limits, float *error);
+int MTQuickScrollNativeSeamRow(const uint8_t *previous, const uint8_t *current,
+                               int width, int rows, int delta, int preferred, int low, int high,
+                               const MTQuickScrollLimits *limits);

@@ -14,7 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BOOL geometryMismatch;
 @end
 
-/// Single background queue only. One tracking signature; confirmed strips on disk.
+/// Serial normalization/analysis queue, with a separate serial spool queue.
+/// Tracking and output references advance independently; confirmed strips are lossless.
 @interface MTQuickScrollStore : NSObject
 - (instancetype)initWithDirectory:(NSString *)directory options:(MTLongShotOptions *)options
                      cancellation:(MTLongShotCancellation *)cancellation scale:(CGFloat)scale;

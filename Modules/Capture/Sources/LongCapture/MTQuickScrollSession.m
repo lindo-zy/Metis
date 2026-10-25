@@ -1,7 +1,7 @@
 #import "MTQuickScrollSession.h"
 #import "MTQuickScrollStore.h"
 #import "../Capture/MTCaptureTask.h"
-#import "../Capture/MTCaptureProvider.h"
+#import "../Capture/MTContextSnapshotSource.h"
 #import "../Capture/MTLongShotTarget.h"
 #import "../Overlay/MTCaptureWindow.h"
 #import "../Overlay/MTQuickScrollHUD.h"
@@ -9,10 +9,11 @@
 #import "../Output/MTTemporaryFileStore.h"
 #import <QuartzCore/QuartzCore.h>
 #import <stdatomic.h>
+#import <math.h>
 
 static dispatch_queue_t MTQuickScrollQueue(void) {
     static dispatch_queue_t queue; static dispatch_once_t once;
-    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.metis.capture.quick", DISPATCH_QUEUE_SERIAL); });
+    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.lindo.metis.quick.normalize", DISPATCH_QUEUE_SERIAL); });
     return queue;
 }
 
@@ -25,7 +26,7 @@ static dispatch_queue_t MTQuickScrollQueue(void) {
 @interface MTQuickScrollSession () <MTQuickScrollHUDDelegate>
 @property (nonatomic, strong) MTCaptureTask *task;
 @property (nonatomic, weak) id<MTLongShotSessionDelegate> delegate;
-@property (nonatomic, strong) MTCaptureProvider *provider;
+@property (nonatomic, strong) MTContextSnapshotSource *provider;
 @property (nonatomic, strong) MTLongShotCancellation *cancellation;
 @property (nonatomic, strong) MTQuickScrollStore *store;
 @property (nonatomic, strong) MTCaptureWindow *window;
@@ -36,7 +37,8 @@ static dispatch_queue_t MTQuickScrollQueue(void) {
 @property (nonatomic) CGRect displayRect;
 @property (nonatomic) BOOL busy, paused, finishRequested, skipFinal, exporting, finished, geometryPaused;
 @property (nonatomic) NSUInteger generation;
-@property (nonatomic) NSInteger count, totalHeight;
+@property (nonatomic) NSInteger count, totalHeight, captureFailureStreak;
+@property (nonatomic) UIInterfaceOrientation orientation;
 @property (nonatomic) CFTimeInterval lastCapture, lastMemoryCheck, uncertainSince;
 @property (nonatomic) MTOutputAction outputAction;
 - (void)mtTick:(CADisplayLink *)link;
@@ -69,9 +71,7 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     s.task = task; s.delegate = delegate; s.displayRect = displayRect;
     s.target = MTLongShotFrontmostIdentifier(UIApplication.sharedApplication);
     s.cancellation = [MTLongShotCancellation new];
-    s.provider = [MTCaptureProvider new];
-    s.provider.keepsExcludedWindowsVisible = YES;
-    s.provider.detachesCapturedImage = YES;
+    s.provider = [MTContextSnapshotSource new];
     s.store = [[MTQuickScrollStore alloc] initWithDirectory:directory options:task.configSnapshot.longShotOptions
         cancellation:s.cancellation scale:task.capturedScreenScale];
     task.baseImage = nil;
@@ -83,6 +83,7 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     CGFloat height = MIN(screen.size.height - safe.top - safe.bottom - 20, (width - 36) * aspect + 105);
     s.window.frame = CGRectMake(CGRectGetMaxX(screen) - safe.right - width - 4,
                                 CGRectGetMinY(screen) + safe.top + 8, width, MAX(180, height));
+    s.orientation = s.window.windowScene.interfaceOrientation;
     s.window.windowLevel = UIWindowLevelStatusBar;
     s.window.passesTouchesOutsideHostedContent = YES;
     s.hud = [[MTQuickScrollHUD alloc] initWithFrame:s.window.bounds]; s.hud.delegate = s;
@@ -91,7 +92,7 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     [s.window showAnimated:NO becomeKey:NO];
     MTQuickScrollDisplayTarget *proxy = [MTQuickScrollDisplayTarget new]; proxy.session = s;
     s.displayLink = [CADisplayLink displayLinkWithTarget:proxy selector:@selector(tick:)];
-    s.displayLink.preferredFramesPerSecond = 30;
+    s.displayLink.preferredFramesPerSecond = 0;
     [s.displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
     __weak MTQuickScrollSession *weak = s;
     s.memoryObserver = [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidReceiveMemoryWarningNotification
@@ -104,7 +105,7 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     atomic_fetch_add(&MTQuickScrollLockGeneration, 1); MTQuickScrollLockSession = s;
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, MTQuickScrollLockCallback,
         CFSTR("com.apple.springboard.lockstate"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-    MTCaptureLogInfo(@"quick scroll ready (task %@ rect=%@)", task.taskID, NSStringFromCGRect(displayRect));
+    MTCaptureLogInfo(@"quick scroll ready (task %@ rect=%@ source=request-local-context-exclusion systemCaptureVisible=1)", task.taskID, NSStringFromCGRect(displayRect));
     return s;
 }
 - (BOOL)isFinished { return _finished; }
@@ -114,12 +115,24 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
 - (BOOL)mtTargetCurrent {
     return MTLongShotTargetIsCurrent(UIApplication.sharedApplication, MTLongShotLockManager(), self.target);
 }
+- (BOOL)mtGeometryCurrent {
+    CGSize current = UIScreen.mainScreen.bounds.size;
+    CGSize baseline = self.task.capturedScreenBounds.size;
+    UIInterfaceOrientation orientation = self.window.windowScene.interfaceOrientation;
+    return fabs(current.width - baseline.width) < 0.5 && fabs(current.height - baseline.height) < 0.5 &&
+        (self.orientation == UIInterfaceOrientationUnknown || orientation == self.orientation);
+}
 - (void)mtTick:(CADisplayLink *)link {
     if (![self mtLive] || self.exporting || self.finishRequested) return;
     if (![self mtTargetCurrent]) {
         [self mtPause:@"已离开原 App，可保存已截内容"]; return;
     }
     if (self.paused) return;
+    if (![self mtGeometryCurrent]) {
+        self.geometryPaused = YES;
+        [self.hud setStatus:@"屏幕方向已变化，转回后自动继续" paused:NO];
+        return;
+    }
     CFTimeInterval now = link.timestamp;
     if (now - self.lastMemoryCheck > 0.5) {
         self.lastMemoryCheck = now;
@@ -151,12 +164,21 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
         [self.provider captureExcludingWindows:@[self.window] completion:^(UIImage *image, BOOL partial, NSString *method, NSError *error) {
             MTQuickScrollSession *s = weak;
             if (![s mtLive] || s.generation != token) return;
-            if (!image || partial || ![s mtTargetCurrent]) {
-                s.busy = NO;
-                [s mtPause:error.localizedDescription ?: @"画面不可用，可保存已截内容"];
+            if (![s mtGeometryCurrent]) {
+                s.busy = NO; s.geometryPaused = YES;
                 if (s.finishRequested) [s mtExport];
                 return;
             }
+            if (!image || partial || ![s mtTargetCurrent]) {
+                s.busy = NO;
+                s.captureFailureStreak++;
+                if (!s.count && s.captureFailureStreak < 5 && !s.finishRequested)
+                    [s.hud setStatus:@"正在准备页面采集…" paused:NO];
+                else [s mtPause:error.localizedDescription ?: @"画面不可用，可保存已截内容"];
+                if (s.finishRequested) [s mtExport];
+                return;
+            }
+            s.captureFailureStreak = 0;
             BOOL finalFrame = final || s.finishRequested;
             CGRect rect = MTConvertDisplayRectToPixel(s.displayRect, s.task.capturedScreenBounds.size,
                 CGSizeMake(CGImageGetWidth(image.CGImage), CGImageGetHeight(image.CGImage)));
@@ -201,9 +223,11 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
             if (!self.uncertainSince) self.uncertainSince = CACurrentMediaTime();
             CFTimeInterval elapsed = CACurrentMediaTime() - self.uncertainSince;
             if (elapsed >= 0.8) {
-                [self mtPause:@"未找到重叠，稍回滑后点继续"];
+                // Continuity loss keeps observing the page. Rolling back into the
+                // last reliable reference recovers without an extra resume tap.
+                [self.hud setStatus:@"未找到重叠，请稍回滑以继续" paused:NO];
             } else if (!self.paused && !self.finishRequested) {
-                // 先给出可行动的减速提示，再升级为暂停（Prism 黄灯提示的对等实现）。
+                // Keep observing while showing a continuity warning, allowing rollback recovery.
                 [self.hud setStatus:elapsed >= 0.35 ? @"滚动过快，请稍慢或稍微回滑"
                                                    : @"匹配中，请慢滑或稍微回滑"
                                                   paused:self.paused];
@@ -227,7 +251,8 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
             }
         }
     }
-    if (self.count >= self.task.configSnapshot.longShotOptions.maxSlices && !self.finishRequested) {
+    if ((self.count >= self.task.configSnapshot.longShotOptions.maxSlices ||
+         self.totalHeight >= self.task.configSnapshot.longShotOptions.maxCanvasHeight) && !self.finishRequested) {
         self.skipFinal = YES; [self mtRequestFinish:MTOutputActionSave]; return;
     }
     if (self.finishRequested) {
@@ -320,8 +345,8 @@ static void MTQuickScrollLockCallback(CFNotificationCenterRef center, void *obse
     if (self.finished) return;
     self.finished = YES; self.generation++; self.cancellation.cancelled = YES;
     [self.displayLink invalidate]; self.displayLink = nil;
-    // 窗口销毁前结束图层捕获排除，恢复图层标记。
-    [self.provider endVisibleWindowExclusion];
+    // Cancel pending request-local snapshots before destroying the control window.
+    [self.provider invalidate];
     if (self.memoryObserver) [NSNotificationCenter.defaultCenter removeObserver:self.memoryObserver];
     self.memoryObserver = nil;
     if (MTQuickScrollLockSession == self) {
