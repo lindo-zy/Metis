@@ -2,53 +2,46 @@
 #import "../Common/MTLongShotControl.h"
 #import <math.h>
 #import <stdlib.h>
+#import <ImageIO/ImageIO.h>
+#import "../Common/MTLongShotAligner.h"
+
+UIImage *MTShellXThumbnail(UIImage *image, NSInteger maxDimension) {
+    CGImageRef source = image.CGImage;
+    if (!source || maxDimension < 1) return nil;
+    CGFloat factor = MIN(1.0, (CGFloat)maxDimension / MAX(CGImageGetWidth(source), CGImageGetHeight(source)));
+    size_t w = MAX(1, (size_t)(CGImageGetWidth(source) * factor));
+    size_t h = MAX(1, (size_t)(CGImageGetHeight(source) * factor));
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(NULL, w, h, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(space);
+    if (!context) return nil;
+    CGContextDrawImage(context, CGRectMake(0, 0, w, h), source);
+    CGImageRef cg = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    UIImage *result = cg ? [UIImage imageWithCGImage:cg scale:1 orientation:UIImageOrientationUp] : nil;
+    if (cg) CGImageRelease(cg);
+    return result;
+}
 
 NSData * _Nullable MTShellXFastHash(UIImage *image) {
-    if (!image || image.size.width < 1 || image.size.height < 1) return nil;
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
-    format.scale = 1;
-    format.opaque = YES;
-    UIGraphicsImageRenderer *renderer =
-        [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(20, 20) format:format];
-    UIImage *thumb = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
-        [image drawInRect:CGRectMake(0, 0, 20, 20)];
-    }];
-    return UIImageJPEGRepresentation(thumb, 0.1);
+    UIImage *thumb = MTShellXThumbnail(image, 20);
+    return thumb ? UIImageJPEGRepresentation(thumb, 0.1) : nil;
 }
 
-uint8_t * _Nullable MTShellXCreateStrip(UIImage *image, NSInteger sw, NSInteger sh) {
-    if (!image || sw < 1 || sh < 1) return NULL;
+BOOL MTShellXWriteSlice(UIImage *image, NSInteger top, NSInteger height, NSString *path) {
     CGImageRef cg = image.CGImage;
-    if (!cg) return NULL;
-    size_t bytesPerRow = (size_t)sw * 4;
-    uint8_t *buffer = calloc(1, bytesPerRow * (size_t)sh);
-    if (!buffer) return NULL;
-    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-    // 与 SHELLX 相同的位图布局：RGBA8、大端序、预乘 alpha。
-    CGContextRef context = CGBitmapContextCreate(buffer, sw, sh, 8, bytesPerRow, space,
-                                                 kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
-    CGColorSpaceRelease(space);
-    if (!context) { free(buffer); return NULL; }
-    CGContextSetInterpolationQuality(context, kCGInterpolationMedium);
-    CGContextTranslateCTM(context, -(CGFloat)sw * 0.1, 0);
-    CGContextDrawImage(context, CGRectMake(0, 0, sw, sh), cg);
-    CGContextRelease(context);
-    // 位图上下文行 0 是底部；翻回顶部行序，后续偏移按物理方向计算。
-    uint8_t *flipped = malloc(bytesPerRow * (size_t)sh);
-    if (!flipped) { free(buffer); return NULL; }
-    for (NSInteger row = 0; row < sh; row++) {
-        memcpy(flipped + row * bytesPerRow, buffer + (sh - 1 - row) * bytesPerRow, bytesPerRow);
+    if (!cg || !path.length || top < 0 || height < 1 || top + height > (NSInteger)CGImageGetHeight(cg)) return NO;
+    CGImageRef piece = CGImageCreateWithImageInRect(cg, CGRectMake(0, top, CGImageGetWidth(cg), height));
+    if (!piece) return NO;
+    CGImageDestinationRef dest = CGImageDestinationCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:path], CFSTR("public.jpeg"), 1, NULL);
+    BOOL ok = NO;
+    if (dest) {
+        CGImageDestinationAddImage(dest, piece, (__bridge CFDictionaryRef)@{(__bridge NSString *)kCGImageDestinationLossyCompressionQuality:@0.92});
+        ok = CGImageDestinationFinalize(dest);
+        CFRelease(dest);
     }
-    free(buffer);
-    return flipped;
-}
-
-void MTShellXRecordingStripSize(CGFloat pixelWidth, CGFloat pixelHeight,
-                                NSInteger *outWidth, NSInteger *outHeight) {
-    NSInteger sw = (NSInteger)(pixelWidth * 0.25);
-    NSInteger sh = (NSInteger)(pixelHeight * 0.25);
-    *outWidth = MAX(64, sw);
-    *outHeight = MAX(64, sh);
+    CGImageRelease(piece);
+    return ok;
 }
 
 NSData * _Nullable MTShellXRowSignature(UIImage *image, NSInteger *outRows,
@@ -56,122 +49,118 @@ NSData * _Nullable MTShellXRowSignature(UIImage *image, NSInteger *outRows,
     if (outRows) *outRows = 0;
     if (outStripWidth) *outStripWidth = 0;
     if (outBytesPerRow) *outBytesPerRow = 0;
-    if (!image) return nil;
     CGImageRef cg = image.CGImage;
     if (!cg) return nil;
-    CGFloat pixelWidth = CGImageGetWidth(cg), pixelHeight = CGImageGetHeight(cg);
-    if (pixelWidth < 16 || pixelHeight < 16) return nil;
-    NSInteger downW = MAX(64, (NSInteger)(pixelWidth / 4));
-    NSInteger downH = MAX(64, (NSInteger)(pixelHeight / 4));
-    NSInteger stripW = (NSInteger)(downW * 0.8);
-    if (stripW < 16) return nil;
-    uint8_t *strip = MTShellXCreateStrip(image, stripW, downH);
-    if (!strip) return nil;
-    NSData *signature = [NSData dataWithBytes:strip length:(NSUInteger)(stripW * 4 * downH)];
-    free(strip);
-    if (outRows) *outRows = downH;
-    if (outStripWidth) *outStripWidth = stripW;
-    if (outBytesPerRow) *outBytesPerRow = stripW * 4;
+    NSInteger width = CGImageGetWidth(cg), rows = CGImageGetHeight(cg);
+    if (width < 16 || rows < 128) return nil;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(NULL, width, rows, 8, 0, space,
+        (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(space);
+    if (!context) return nil;
+    CGContextDrawImage(context, CGRectMake(0, 0, width, rows), cg);
+    // 与 MTLongImageComposer 的原生像素提取使用同一行序和横向取样，
+    // 不翻转行序、不先把文字缩糊；只留下每行 64 字节，内存与帧数无关。
+    NSMutableData *signature = [NSMutableData dataWithLength:(NSUInteger)rows * MTLongShotSigWidth];
+    const uint8_t *buffer = CGBitmapContextGetData(context);
+    NSInteger bpr = CGBitmapContextGetBytesPerRow(context);
+    for (NSInteger row = 0; row < rows; row++)
+        MTLongShotComputeRowSignature(buffer, width, bpr, row,
+            (uint8_t *)signature.mutableBytes + row * MTLongShotSigWidth);
+    CGContextRelease(context);
+    if (outRows) *outRows = rows;
+    if (outStripWidth) *outStripWidth = MTLongShotSigWidth;
+    if (outBytesPerRow) *outBytesPerRow = MTLongShotSigWidth;
     return signature;
-}
-
-uint64_t MTShellXStripSAD(const uint8_t *prev, const uint8_t *cur, NSInteger bytesPerRow,
-                          NSInteger dy, NSInteger rows, NSInteger comparePixels) {
-    if (!prev || !cur || dy < 0 || rows <= 0) return UINT64_MAX;
-    NSInteger pixels = comparePixels > 0 ? comparePixels : bytesPerRow / 4;
-    if (pixels < 1) return UINT64_MAX;
-    uint64_t total = 0;
-    for (NSInteger row = 0; row < rows; row++) {
-        const uint8_t *a = prev + (size_t)row * bytesPerRow;
-        const uint8_t *b = cur + (size_t)(dy + row) * bytesPerRow;
-        for (NSInteger pixel = 0; pixel < pixels; pixel += 4) {
-            const uint8_t *pa = a + (size_t)pixel * 4;
-            const uint8_t *pb = b + (size_t)pixel * 4;
-            total += abs(pa[0] - pb[0]) + abs(pa[1] - pb[1]) + abs(pa[2] - pb[2]);
-        }
-    }
-    return total;
 }
 
 NSInteger MTShellXMatchScroll(const uint8_t *prev, const uint8_t *cur, NSInteger bytesPerRow,
                               NSInteger rows, NSInteger winRows, NSInteger comparePixels) {
-    if (!prev || !cur || rows < 8 || winRows < 8 || winRows > rows) return -1;
-    NSInteger pixels = comparePixels > 0 ? comparePixels : bytesPerRow / 4;
-    if (pixels < 4) return -1;
-    // 阈值与 SHELLX 同构：单位是「(win/2) 组 × 每组 (pixels/4) 个采样」的放缩。
-    uint64_t similarThreshold = (uint64_t)(winRows / 2) * (uint64_t)(pixels / 4) * 5;
-    uint64_t acceptThreshold = (uint64_t)(winRows / 2) * (uint64_t)(pixels / 4) * 75;
-    NSInteger maxDy = rows - winRows;
-    if (maxDy < 1) return -1;
-    // 粗扫步长 2，记录最优候选；再在候选邻域步长 1 细化。
-    NSInteger bestDy = -1;
-    uint64_t bestCost = UINT64_MAX;
-    for (NSInteger dy = 1; dy <= maxDy; dy += 2) {
-        uint64_t cost = MTShellXStripSAD(prev, cur, bytesPerRow, dy, winRows, pixels);
-        if (cost < bestCost) { bestCost = cost; bestDy = dy; }
-    }
-    if (bestDy < 0) return -1;
-    for (NSInteger dy = MAX(1, bestDy - 2); dy <= MIN(maxDy, bestDy + 2); dy++) {
-        uint64_t cost = MTShellXStripSAD(prev, cur, bytesPerRow, dy, winRows, pixels);
-        if (cost < bestCost) { bestCost = cost; bestDy = dy; }
-    }
-    if (bestCost > acceptThreshold) return -1;
-    if (bestDy == 0 || bestCost < similarThreshold) return 0;
-    return bestDy;
+    if (!prev || !cur || rows < 128 || winRows < 8 || winRows > rows ||
+        bytesPerRow != MTLongShotSigWidth || comparePixels != MTLongShotSigWidth) return -1;
+    // 前进时 prev[y+shift] 对 cur[y]，不能反向搜索，也不能把正位移下的
+    // 低误差当成静止帧。复用多正文窗口对齐排除固定栏、空白和周期多解。
+    MTLongShotFrameMatch match = MTLongShotMatchFrames(prev, cur, rows, -1, -1);
+    if (match.kind == MTLongShotMatchDuplicate) return 0;
+    return match.kind == MTLongShotMatchForward ? match.shiftRows : -1;
 }
 
-UIImage * _Nullable MTShellXComposeSlices(NSArray<NSString *> *slicePaths,
-                                          NSString *outputPath,
-                                          NSInteger maxCanvasHeight,
-                                          double quality,
-                                          CGSize *outSize,
-                                          NSError **error) {
+UIImage * _Nullable MTShellXComposeSlices(NSArray<NSString *> *slicePaths, NSString *outputPath,
+                                          NSInteger maxCanvasHeight, double quality,
+                                          MTLongShotCancellation *cancellation, CGSize *outSize, NSError **error) {
     if (outSize) *outSize = CGSizeZero;
     if (error) *error = nil;
-    NSMutableArray<UIImage *> *slices = [NSMutableArray array];
-    CGFloat width = 0, totalHeight = 0, scale = 0;
+    NSInteger width = 0, totalHeight = 0;
+    NSMutableArray<NSNumber *> *heights = [NSMutableArray array];
+    NSString *failure = nil;
+    // 只读 JPEG 元数据；禁止把全部分片解码后同时保存在数组内。
     for (NSString *path in slicePaths) {
-        UIImage *slice = [UIImage imageWithContentsOfFile:path];
-        if (!slice || slice.size.width < 1 || slice.size.height < 1) continue;
-        if (width == 0) { width = slice.size.width; scale = slice.scale; }
-        if (fabs(slice.size.width - width) > 1) continue; // 宽度不一致的坏片跳过
-        [slices addObject:slice];
-        totalHeight += slice.size.height;
+        if (cancellation.cancelled) return nil;
+        CGImageSourceRef src = CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:path], NULL);
+        NSDictionary *properties = src ? CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(src, 0, NULL)) : nil;
+        if (src) CFRelease(src);
+        NSInteger w = [properties[(__bridge NSString *)kCGImagePropertyPixelWidth] integerValue];
+        NSInteger h = [properties[(__bridge NSString *)kCGImagePropertyPixelHeight] integerValue];
+        if (w < 1 || h < 1 || (width && width != w) || totalHeight > NSIntegerMax - h) { failure = @"分片文件损坏或尺寸不一致"; break; }
+        width = w; totalHeight += h; [heights addObject:@(h)];
     }
-    if (!slices.count || width < 1 || totalHeight < 1) {
-        if (error) *error = [NSError errorWithDomain:@"MTShellXSupport" code:1
-                                          userInfo:@{NSLocalizedDescriptionKey: @"没有可合并的切片"}];
-        return nil;
-    }
-    CGFloat baseScale = scale > 0 ? scale : 1;
-    CGFloat fullHeightPixels = totalHeight * baseScale;
-    NSInteger maxHeightPixels = maxCanvasHeight > 0 ? maxCanvasHeight : 16384;
-    NSInteger budgetPixels = MTLongShotCanvasPixelBudget(MTLongShotAvailableMemoryBytes(),
-                                                         (NSInteger)(width * baseScale * fullHeightPixels));
-    // 先按限高收缩，再按像素预算收缩；两者都只降不升。
-    CGFloat shrink = MIN(1.0, (CGFloat)maxHeightPixels / fullHeightPixels);
-    CGFloat pixels = width * baseScale * fullHeightPixels * shrink;
-    if (pixels > (CGFloat)budgetPixels) shrink *= sqrt((CGFloat)budgetPixels / pixels);
-    shrink = MAX(shrink, 0.05);
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
-    format.scale = baseScale * shrink;
-    format.opaque = YES;
-    UIGraphicsImageRenderer *renderer =
-        [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(width, totalHeight) format:format];
-    UIImage *output = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
-        CGFloat yOffset = 0;
-        for (UIImage *slice in slices) {
-            // 片高 +0.5pt 重叠绘制，消除相邻切片的取整接缝。
-            [slice drawInRect:CGRectMake(0, yOffset, width, slice.size.height + 0.5)];
-            yOffset += slice.size.height;
+    if (!failure && (!heights.count || totalHeight < 1)) failure = @"没有可合并的切片";
+    CGContextRef canvas = NULL;
+    CGSize size = CGSizeZero;
+    CGFloat scale = 1;
+    if (!failure) {
+        NSInteger budget = MTLongShotCanvasPixelBudget(MTLongShotAvailableMemoryBytes(), 8000000);
+        budget = MIN(budget, MTLongShotStitchPixelCap(MTLongShotProcessMemoryLimitBytes(), 8000000));
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        while (!cancellation.cancelled && MTLongShotCanvasGeometry(width, totalHeight, maxCanvasHeight, budget, &size, &scale)) {
+            canvas = CGBitmapContextCreate(NULL, (size_t)size.width, (size_t)size.height, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+            if (canvas || budget <= 256000) break;
+            budget = MAX(256000, budget / 2);
         }
-    }];
-    NSData *data = UIImageJPEGRepresentation(output, MIN(MAX(quality, 0.5), 1.0));
-    if (!data || ![data writeToFile:outputPath atomically:YES]) {
-        if (error) *error = [NSError errorWithDomain:@"MTShellXSupport" code:3
-                                          userInfo:@{NSLocalizedDescriptionKey: @"长图编码失败"}];
+        CGColorSpaceRelease(space);
+        if (!canvas) failure = @"拼接画布创建失败";
+    }
+    if (canvas) {
+        NSInteger offset = 0;
+        for (NSUInteger i = 0; i < slicePaths.count; i++) {
+            if (cancellation.cancelled) break;
+            @autoreleasepool {
+                CGImageSourceRef src = CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:slicePaths[i]], NULL);
+                CGImageRef tile = src ? CGImageSourceCreateThumbnailAtIndex(src, 0, (__bridge CFDictionaryRef)@{
+                    (__bridge NSString *)kCGImageSourceCreateThumbnailFromImageAlways:@YES,
+                    (__bridge NSString *)kCGImageSourceThumbnailMaxPixelSize:@(MAX(1, (NSInteger)ceil(MAX(width, heights[i].integerValue) * scale))),
+                    (__bridge NSString *)kCGImageSourceShouldCacheImmediately:@YES}) : NULL;
+                if (src) CFRelease(src);
+                if (!tile) { failure = @"分片解码失败"; break; }
+                MTLongShotDrawTile(canvas, tile, size.height, offset, width, heights[i].integerValue, 0, 0, scale);
+                CGImageRelease(tile);
+                offset += heights[i].integerValue;
+            }
+        }
+        CGImageRef output = !failure && !cancellation.cancelled ? CGBitmapContextCreateImage(canvas) : NULL;
+        CGContextRelease(canvas);
+        if (output) {
+            CGImageDestinationRef dest = CGImageDestinationCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:outputPath], CFSTR("public.jpeg"), 1, NULL);
+            BOOL written = NO;
+            if (dest) {
+                CGImageDestinationAddImage(dest, output, (__bridge CFDictionaryRef)@{(__bridge NSString *)kCGImageDestinationLossyCompressionQuality:@(MIN(MAX(quality, 0.5), 1.0))});
+                written = CGImageDestinationFinalize(dest); CFRelease(dest);
+            }
+            CGImageRelease(output);
+            if (!written) failure = @"长图编码失败";
+        } else if (!failure) failure = @"长图合成失败";
+    }
+    if (cancellation.cancelled) return nil;
+    if (failure) {
+        if (error) *error = [NSError errorWithDomain:@"MTShellXSupport" code:1 userInfo:@{NSLocalizedDescriptionKey:failure}];
         return nil;
     }
-    if (outSize) *outSize = CGSizeMake(width * baseScale * shrink, totalHeight * baseScale * shrink);
-    return output;
+    CGImageSourceRef src = CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:outputPath], NULL);
+    CGImageRef cg = src ? CGImageSourceCreateImageAtIndex(src, 0, (__bridge CFDictionaryRef)@{(__bridge NSString *)kCGImageSourceShouldCache:@NO}) : NULL;
+    if (src) CFRelease(src);
+    UIImage *result = cg ? [UIImage imageWithCGImage:cg scale:1 orientation:UIImageOrientationUp] : nil;
+    if (cg) CGImageRelease(cg);
+    if (outSize) *outSize = size;
+    if (!result && error) *error = [NSError errorWithDomain:@"MTShellXSupport" code:2 userInfo:@{NSLocalizedDescriptionKey:@"长图回读失败"}];
+    return result;
 }

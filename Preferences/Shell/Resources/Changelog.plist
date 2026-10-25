@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.3</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复 SHELLX 长截图小窗出现后无法操作、导致系统桌面超时重启的问题</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复自动与手动拼接停止后不保存、切片未合并和滚动匹配错误；录制式后台串行处理图片，长图导出限制内存并支持取消</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.2</string>
 		<key>items</key>
 		<array>
@@ -57,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复悬浮小窗收起后位置跳动的问题：点开小窗再点外部收起时，窗口停在拖动到的位置，不再跳到屏幕中间</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>0.10.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>「图片编辑」在剪贴板没有图片时，可从相册选择一张图片再进入编辑</string>
 			</dict>
 		</array>
 	</dict>
