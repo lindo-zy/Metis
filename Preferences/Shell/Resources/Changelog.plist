@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.0.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>长截图新增快速滚动截图，支持手动连续滑动页面并实时预览，点复制或保存即可生成长图</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>快速模式采用连续画面对齐与多区域校验，回滑不重复追加；预览小窗支持拖动、暂停和取消，并限制采集内存占用</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.0.9</string>
 		<key>items</key>
 		<array>
@@ -63,19 +82,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复自动拼接长截图在大标题页面首次滚动被标题折叠吸收、内容未滚动时误报「画面重叠不足」并提前停止的问题，现在会自动继续滚动完成拼接</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.0.5</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复自动拼接长截图在带折叠标题、动态导航栏或半透明底栏的页面上，因少数区域变化被误判为匹配失败而提前停止的问题</string>
 			</dict>
 		</array>
 	</dict>

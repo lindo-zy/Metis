@@ -5,6 +5,7 @@
 #import "MTPhotoImportSession.h"
 #import "MTLongShotSession.h"
 #import "../LongCapture/MTShellXStitchSession.h"
+#import "../LongCapture/MTQuickScrollSession.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Common/MTCapturePreferences.h"
@@ -394,6 +395,9 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtDestroyCaptureWindow];
     MTLongShotAlgorithm algorithm = task.configSnapshot.longShotOptions.algorithm;
     switch (algorithm) {
+        case MTLongShotAlgorithmQuickScroll:
+            self.longShotSession = [MTQuickScrollSession startWithTask:task displayRect:displayRect delegate:self];
+            break;
         case MTLongShotAlgorithmShellXAutoStitch:
             self.longShotSession = [MTShellXStitchSession startWithTask:task
                                                             displayRect:displayRect
@@ -437,6 +441,11 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
 - (void)longShotSessionDidFinish:(id)session resultImage:(UIImage *)image {
     MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
+    [self longShotSessionDidFinish:session resultImage:image outputAction:task.configSnapshot.defaultResultAction];
+}
+
+- (void)longShotSessionDidFinish:(id)session resultImage:(UIImage *)image outputAction:(MTOutputAction)action {
+    MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
     if (self.longShotSession == session) self.longShotSession = nil;
     if (!task || !image) return;
 
@@ -448,7 +457,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         task.resultFilePath = stitchedPath;
     }
     CGFloat pixelHeight = image.size.height * image.scale;
-    MTOutputAction action = task.configSnapshot.defaultResultAction;
     // 巨型长图写入剪贴板会在 SpringBoard 内触发 PNG 编码尖峰，降级为保存（诊断优先）。
     if (pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight &&
         (action == MTOutputActionCopy || action == MTOutputActionSaveAndCopy)) {

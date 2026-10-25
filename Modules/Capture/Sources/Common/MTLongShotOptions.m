@@ -20,12 +20,11 @@ static double MTLongShotNumber(NSDictionary *values, NSString *key, double fallb
 }
 - (instancetype)initWithValues:(NSDictionary<NSString *, id> *)values {
     if ((self = [super init])) {
-        // 仅保留自动拼接。旧 LongShotMode / LongShotAutoScroll / 采样间隔键不再读取，
-        // 避免旧的手动或智能配置让新会话只采一次或等待用户滚动。
-        NSInteger rawAlgorithm = (NSInteger)MTLongShotNumber(values, MTKeyLongShotAlgorithm, 0, 0, 3, YES);
+        // 旧采样间隔/滚动模式不参与新算法配置；4 为独立的连续手动滚动模式。
+        NSInteger rawAlgorithm = (NSInteger)MTLongShotNumber(values, MTKeyLongShotAlgorithm, 0, 0, 4, YES);
         // 录制式与手动拼接已移除：旧配置的原始值 1/2 迁移到自动拼接。
-        _algorithm = (rawAlgorithm == MTLongShotAlgorithmMetis)
-            ? MTLongShotAlgorithmMetis : MTLongShotAlgorithmShellXAutoStitch;
+        _algorithm = rawAlgorithm == MTLongShotAlgorithmQuickScroll ? MTLongShotAlgorithmQuickScroll :
+            (rawAlgorithm == MTLongShotAlgorithmMetis ? MTLongShotAlgorithmMetis : MTLongShotAlgorithmShellXAutoStitch);
         _scrollDuration = MTLongShotNumber(values, MTKeyLongShotScrollDuration, 0.62, 0.25, 2, NO);
         _settleDuration = MTLongShotNumber(values, MTKeyLongShotSettleDuration, 0.7, 0.15, 2, NO); // ShellX 抬指后等 0.7s：指示条淡出+动画稳定
         _maxSlices = (NSInteger)MTLongShotNumber(values, MTKeyLongShotMaxSlices, 200, 2, 500, YES);

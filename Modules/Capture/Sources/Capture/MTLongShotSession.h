@@ -8,7 +8,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class MTLongShotSession;
 
 /// 长截图会话统一出口。session 参数放宽为 id：同一委托同时服务
-/// MTLongShotSession（Metis 自适应滚动）与 SHELLX 三种算法会话。
+/// Metis、SHELLX 自动拼接与快速滚动截图会话。
 @protocol MTLongShotSessionDelegate <NSObject>
 /// 拼接成功。会话自身已开始收尾，协调器接手输出动作。
 - (void)longShotSessionDidFinish:(id)session resultImage:(UIImage *)image;
@@ -16,9 +16,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)longShotSessionDidCancel:(id)session;
 /// 拼接失败，走任务失败路径（记录诊断日志）。
 - (void)longShotSessionDidFail:(id)session message:(NSString *)message;
+@optional
+/// 快速模式的复制/保存按钮显式指定输出动作，其余会话仍使用默认动作。
+- (void)longShotSessionDidFinish:(id)session resultImage:(UIImage *)image outputAction:(MTOutputAction)action;
 @end
 
-/// 协调器持有的会话控制口：两种实现（Metis / SHELLX）都必须响应。
+/// 协调器持有的会话控制口，所有长截图算法都必须响应。
 /// 不继承 MTLongShotSessionDelegate——delegate 是协调器，会话是事件源。
 @protocol MTLongShotSessionControl <NSObject>
 /// 外部取消（Darwin cancel / 失败路径）：只清理自身，不回调 delegate。幂等。
