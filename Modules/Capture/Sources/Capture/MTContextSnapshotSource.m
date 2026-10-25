@@ -1,5 +1,5 @@
 #import "MTContextSnapshotSource.h"
-#import <IOSurface/IOSurface.h>
+#import <IOSurface/IOSurfaceRef.h>
 #import <QuartzCore/QuartzCore.h>
 #import <dlfcn.h>
 #import <stdatomic.h>
