@@ -918,3 +918,24 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "JS_DEBUG_CHOOSE" = "Choose a result";
 
 "SF_ICON_COLOR_DEFAULT" = "Default blue";
+
+"BAR_CONTEXT_APP" = "App";
+"CONTEXT_APP_HINT" = "Switch reserved actions per app; tap to manage groups";
+"CTXAPP_TITLE" = "App action groups";
+"CTXAPP_SECTION_GROUPS" = "Groups";
+"CTXAPP_ADD" = "Add app action group…";
+"CTXAPP_ADD_LIMIT" = "Limit of 20 groups reached";
+"CTXAPP_FOOTER" = "A group binds several apps to one set of actions. An app belongs to a single group; unbound apps keep the existing groups.";
+"CTXAPP_UNNAMED" = "Untitled group";
+"CTXAPP_UNBOUND" = "No apps bound";
+"CTXAPP_SUMMARY" = "%@ · %lu actions";
+"CTXAPP_SECTION_BIND" = "Name and apps";
+"CTXAPP_SECTION_ACTIONS" = "Actions · %lu reserved cells";
+"CTXAPP_ADD_ACTION" = "Add action…";
+"CTXAPP_REPLACE_ACTION" = "Replace action";
+"CTXAPP_BIND_FOOTER" = "An app belongs to one group; picking it here removes it from the previous one.";
+"CTXAPP_ACTION_FOOTER" = "Drag to reorder. Actions beyond the reserved cells are kept but not shown.";
+"CTXAPP_NAME" = "Name";
+"CTXAPP_APPS" = "Apps";
+"CTXAPP_NAME_PROMPT" = "Group name";
+"CANCEL" = "Cancel";

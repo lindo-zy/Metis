@@ -30,7 +30,7 @@ static inline NSDictionary *MTBottomBarEntry(id raw) {
     NSString *kind = raw[@"kind"], *value = raw[@"value"];
     if (![kind isKindOfClass:NSString.class] || ![value isKindOfClass:NSString.class] || !value.length || value.length > 512) return nil;
     if (![@[@"action", @"context", @"app"] containsObject:kind]) return nil;
-    if ([kind isEqual:@"context"] && ![@[@"auto", @"selection", @"clipboard", @"copy", @"paste", @"input", @"typing", @"delete", @"idle"] containsObject:value]) return nil;
+    if ([kind isEqual:@"context"] && ![@[@"auto", @"selection", @"clipboard", @"copy", @"paste", @"input", @"typing", @"delete", @"idle", @"app"] containsObject:value]) return nil;
     if ([kind isEqual:@"app"] && [value rangeOfString:@"^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)+$" options:NSRegularExpressionSearch].location == NSNotFound) return nil;
     if ([value isEqual:@"clipboard"]) value = @"copy";
     if ([value isEqual:@"input"]) value = @"typing";

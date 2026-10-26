@@ -1,5 +1,6 @@
 #import "MTPContextGroupsController.h"
 #import "MTPContextTypesController.h"
+#import "MTPContextAppGroupsController.h"
 #import "MTBottomBarLayout.h"
 #import "MTPGesturePickerController.h"
 #import "MTPOpenAppPickerController.h"
@@ -17,10 +18,10 @@ static NSString *MTCGL(NSString *key) {
     return [[NSBundle bundleWithPath:bundlePath] localizedStringForKey:key value:key table:nil];
 }
 static NSArray *MTCGKeys(void) {
-    return @[kContextDeleteGroupKey, kContextSelectionGroupKey, kContextClipboardGroupKey, kContextPasteGroupKey, kContextInputGroupKey, kContextIdleGroupKey, kFloatingShelfEnabledKey, kContextGroupsEnabledKey];
+    return @[kContextDeleteGroupKey, kContextSelectionGroupKey, kContextClipboardGroupKey, kContextPasteGroupKey, kContextInputGroupKey, kContextIdleGroupKey, kContextAppGroupKey, kFloatingShelfEnabledKey, kContextGroupsEnabledKey];
 }
 static NSArray *MTCGTitles(void) {
-    return @[@"BAR_CONTEXT_DELETE", @"CONTEXT_SELECTION", @"BAR_CONTEXT_COPY", @"CONTEXT_PASTE", @"BAR_CONTEXT_TYPING", @"CONTEXT_IDLE", @"CONTEXT_FLOATING", @"CONTEXT_GROUPS_SWITCH"];
+    return @[@"BAR_CONTEXT_DELETE", @"CONTEXT_SELECTION", @"BAR_CONTEXT_COPY", @"CONTEXT_PASTE", @"BAR_CONTEXT_TYPING", @"CONTEXT_IDLE", @"BAR_CONTEXT_APP", @"CONTEXT_FLOATING", @"CONTEXT_GROUPS_SWITCH"];
 }
 static NSString *MTCGTitle(MTContextGroup group) {
     return MTCGL([@"BAR_CONTEXT_" stringByAppendingString:MTContextGroupKey(group).uppercaseString]);
@@ -176,7 +177,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section < 2) return [self.layout[section ? @"right" : @"left"] count] + 1;
     if (section == 2) return 5;
-    if (section == 3) return 8;
+    if (section == 3) return 9;
     if (section == 4) return 0;
     if (section == 5) return 4;
     return [super tableView:tableView numberOfRowsInSection:section - 5];
@@ -266,10 +267,11 @@ static NSString *MTCGTitle(MTContextGroup group) {
         }
     } else if (path.section == 3) {
         cell.textLabel.text = MTCGL(MTCGTitles()[path.row]);
-        cell.detailTextLabel.text = MTCGL(@[@"CTX_DELETE_HINT", @"CONTEXT_SELECTION_HINT", @"CONTEXT_CLIPBOARD_HINT", @"CONTEXT_PASTE_HINT", @"CTX_TYPING_HINT", @"CONTEXT_IDLE_HINT", @"CONTEXT_FLOATING_HINT", @"CONTEXT_MASTER_HINT"][path.row]);
+        cell.detailTextLabel.text = MTCGL(@[@"CTX_DELETE_HINT", @"CONTEXT_SELECTION_HINT", @"CONTEXT_CLIPBOARD_HINT", @"CONTEXT_PASTE_HINT", @"CTX_TYPING_HINT", @"CONTEXT_IDLE_HINT", @"CONTEXT_APP_HINT", @"CONTEXT_FLOATING_HINT", @"CONTEXT_MASTER_HINT"][path.row]);
         UISwitch *toggle = [UISwitch new]; toggle.tag = path.row;
         id value = self.preferences[MTCGKeys()[path.row]];
-        toggle.on = [value isKindOfClass:NSNumber.class] ? [value boolValue] : (path.row < 5 || path.row == 7);
+        // 应用组与总开关默认开启：没有分组时不产生任何效果，先建组才有意义。
+        toggle.on = [value isKindOfClass:NSNumber.class] ? [value boolValue] : (path.row < 5 || path.row == 6 || path.row == 8);
         [toggle addTarget:self action:@selector(toggleGroup:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
     } else if (path.section == 4) {
         cell.textLabel.text = MTCGTitle(self.priority[path.row].integerValue); cell.showsReorderControl = YES;
@@ -357,9 +359,13 @@ static NSString *MTCGTitle(MTContextGroup group) {
     } else if (path.section == 2 && path.row == 0) {
         [self swapSegments];
     } else if (path.section == 3) {
-        if (path.row == 6 || path.row == 5) { [self openFloatingApps]; return; }
+        if (path.row == 5 || path.row == 7) { [self openFloatingApps]; return; }
+        if (path.row == 6) { [self openAppGroups]; return; }
         if (path.row < 5) [self openContextGroup:@[@"delete",@"selection",@"copy",@"paste",@"typing"][path.row]];
     } else if (path.section == 5) [self chooseBehavior:path.row];
+}
+- (void)openAppGroups {
+    [self pushPage:[MTPContextAppGroupsController new]];
 }
 - (void)openContextGroup:(NSString *)key {
     if ([key isEqual:@"auto"]) {
@@ -408,7 +414,7 @@ static NSString *MTCGTitle(MTContextGroup group) {
 - (void)chooseContextAtPath:(NSIndexPath *)path {
     UIAlertController *menu = [UIAlertController alertControllerWithTitle:MTCGL(@"BAR_KIND_CONTEXT") message:MTCGL(@"BAR_CONTEXT_HINT") preferredStyle:UIAlertControllerStyleActionSheet];
     __weak typeof(self) weakSelf = self;
-    for (NSString *group in @[@"auto",@"delete",@"selection",@"copy",@"paste",@"typing",@"idle"]) {
+    for (NSString *group in @[@"auto",@"delete",@"selection",@"copy",@"paste",@"typing",@"idle",@"app"]) {
         [menu addAction:[UIAlertAction actionWithTitle:MTCGL([@"BAR_CONTEXT_" stringByAppendingString:group.uppercaseString]) style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
             [weakSelf appendEntry:@{@"kind":@"context", @"value":group, @"index":@0, @"fallback":@YES} segment:path.section];
         }]];

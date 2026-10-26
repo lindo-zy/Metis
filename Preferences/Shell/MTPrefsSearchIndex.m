@@ -77,6 +77,15 @@ static NSDictionary *MTSearchActionTypeLabels(void) {
     add(@"动作组", @"键盘", groups);
     for (NSString *name in @[@"按钮文字", @"按钮图标", @"显示方式"]) add(name, @"键盘 · 底栏编排 · 按钮显示", groups);
     for (NSString *name in @[@"删除后", @"选区", @"复制", @"粘贴", @"输入框有文字", @"输入框无文字", @"文本", @"网址", @"图片", @"数字", @"地址", @"JS 规则"]) add(name, @"键盘 · 底栏编排", groups);
+    // 应用动作组：静态词 + 用户自建的分组名（Shell 不链接键盘子包，取不到 App 显示名）。
+    for (NSString *name in @[@"应用动作组", @"按应用", @"应用专属按钮", @"预留区"]) add(name, @"键盘 · 底栏编排 · 应用", groups);
+    CFPropertyListRef rawAppGroups = CFPreferencesCopyAppValue(CFSTR("contextappgroups"), CFSTR("com.lindo.metis.keyboard"));
+    NSArray *appGroups = CFBridgingRelease(rawAppGroups);
+    if ([appGroups isKindOfClass:NSArray.class]) for (id raw in appGroups) {
+        if (![raw isKindOfClass:NSDictionary.class]) continue;
+        NSString *groupName = raw[@"name"];
+        if ([groupName isKindOfClass:NSString.class] && groupName.length) add(groupName, @"键盘 · 底栏编排 · 应用动作组", groups);
+    }
     CFPropertyListRef rawTypes = CFPreferencesCopyAppValue(CFSTR("contextgrouptypes"), CFSTR("com.lindo.metis.keyboard"));
     NSDictionary *types = CFBridgingRelease(rawTypes);
     if ([types isKindOfClass:NSDictionary.class]) for (id raw in types.allValues) {

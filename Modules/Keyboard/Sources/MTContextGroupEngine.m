@@ -94,8 +94,54 @@ BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, 
         case MTContextGroupPaste: return settings.pasteEnabled && s.pastedLength >= settings.pasteMinLength && s.pasteAge >= 0 && s.pasteAge < settings.pasteFreshness;
         case MTContextGroupTyping: return settings.inputEnabled && s.inputLength > 0;
         case MTContextGroupIdle: return settings.idleEnabled && s.inputLength == 0;
+        case MTContextGroupApp: {
+            id appSwitch = config.preferences[kContextAppGroupKey];
+            if ([appSwitch isKindOfClass:NSNumber.class] && ![appSwitch boolValue]) return NO;
+            MTContextAppGroup *group = [MTContextAppGroup groupForBundleID:s.hostBundleID inGroups:config.appGroups];
+            return group.enabled && group.actions.count > 0;
+        }
         default: return NO;
     }
+}
+
+// 选择器 → 可执行动作。URL/AI 这类需要文本的动作在缺文本时留空占位，保证后续
+// 槽位不前移（不拿第 N+1 个动作补第 N 格）。
+static MTContextAction *MTContextActionForSelector(NSString *selector, NSString *text) {
+    if (![selector isKindOfClass:NSString.class] || !selector.length) return nil;
+    if ([selector isEqual:@"url:open"]) {
+        NSURL *url = MTContextURLForText(text);
+        if (!url) return nil;
+        return [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_LINK", @"打开链接")
+                                             symbol:@"link" payloadKind:MTContextPayloadURL payload:url.absoluteString];
+    }
+    if ([selector isEqual:@"url:search"]) {
+        if (!text.length) return nil;
+        return [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索")
+                                             symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL payload:MTContextSearchURLString(text)];
+    }
+    if ([selector isEqual:@"ai:seed"]) {
+        if (!text.length) return nil;
+        return [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI")
+                                             symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text];
+    }
+    return [MTContextAction actionWithIdentifier:[@"configured:" stringByAppendingString:selector] title:selector
+                                         symbol:@"bolt" payloadKind:MTContextPayloadSelector payload:selector];
+}
+
+// 切片发生在前、解析发生在后：第 N 格失败不能由第 N+1 个动作顶上。
+static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selectors, NSString *text,
+                                                               NSUInteger slots, BOOL *usable) {
+    NSMutableArray *actions = [NSMutableArray array];
+    BOOL any = NO;
+    for (NSUInteger index = 0; index < MIN(slots, selectors.count); index++) {
+        MTContextAction *action = MTContextActionForSelector(selectors[index], text);
+        if (action) any = YES;
+        else action = [MTContextAction actionWithIdentifier:[NSString stringWithFormat:@"unavailable:%lu", (unsigned long)index]
+                                                      title:@"" symbol:@"" payloadKind:MTContextPayloadUnavailable payload:@""];
+        [actions addObject:action];
+    }
+    if (usable) *usable = any;
+    return actions;
 }
 
 @implementation MTContextGroupEngine
@@ -130,6 +176,17 @@ BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, 
         NSString *key = MTContextGroupKey(group); NSUInteger slots = [config slotsForGroup:key];
         if (!active || !slots) continue;
         if (group == MTContextGroupIdle) return [MTContextDecision decisionWithGroup:group reason:@"idle-apps" actions:@[] ttl:ttl];
+        if (group == MTContextGroupApp) {
+            // 应用组没有类型/绑定层：组内动作直接按顺序填预留区。
+            MTContextAppGroup *match = [MTContextAppGroup groupForBundleID:snapshot.hostBundleID inGroups:config.appGroups];
+            if (!match.enabled || !match.actions.count) continue;
+            BOOL appUsable = NO;
+            NSArray *appActions = MTContextActionsForSelectors(match.actions, snapshot.inputText, slots, &appUsable);
+            if (!appUsable) continue;
+            return [MTContextDecision decisionWithGroup:group
+                                                reason:[NSString stringWithFormat:@"app-%@", snapshot.hostBundleID]
+                                               actions:appActions ttl:ttl];
+        }
         NSString *text = group == MTContextGroupSelection ? snapshot.selectionText : (group == MTContextGroupCopy ? snapshot.clipboardText : (group == MTContextGroupPaste ? snapshot.pastedText : snapshot.inputText));
         NSDictionary *classification = snapshot.classification[key];
         NSArray *builtin = classification[@"builtin"] ?: MTContextBuiltinMatches(text, snapshot.hasImage && (group == MTContextGroupCopy || group == MTContextGroupPaste));
@@ -143,23 +200,8 @@ BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, 
         }
         chosen = chosen ?: fallback;
         if (!chosen) continue;
-        NSMutableArray *actions = [NSMutableArray array];
         BOOL usable = NO;
-        for (NSUInteger index = 0; index < MIN(slots, chosen.actions.count); index++) {
-            NSString *selector = chosen.actions[index];
-            MTContextAction *action;
-            if ([selector isEqual:@"url:open"]) {
-                NSURL *url = MTContextURLForText(text); if (url) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_OPEN_LINK", @"打开链接") symbol:@"link" payloadKind:MTContextPayloadURL payload:url.absoluteString];
-            } else if ([selector isEqual:@"url:search"]) {
-                if (text.length) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_SEARCH", @"搜索") symbol:@"magnifyingglass" payloadKind:MTContextPayloadURL payload:MTContextSearchURLString(text)];
-            } else if ([selector isEqual:@"ai:seed"]) {
-                if (text.length) action = [MTContextAction actionWithIdentifier:selector title:MTContextLocalized(@"CONTEXT_GROUP_ASK_AI", @"问 AI") symbol:@"sparkles" payloadKind:MTContextPayloadAISeed payload:text];
-            } else action = [MTContextAction actionWithIdentifier:[@"configured:" stringByAppendingString:selector] title:selector symbol:@"bolt" payloadKind:MTContextPayloadSelector payload:selector];
-            // No filling from N+1: slicing happens before payload resolution.
-            if (action) usable = YES;
-            else action = [MTContextAction actionWithIdentifier:[NSString stringWithFormat:@"unavailable:%lu", (unsigned long)index] title:@"" symbol:@"" payloadKind:MTContextPayloadUnavailable payload:@""];
-            [actions addObject:action];
-        }
+        NSArray *actions = MTContextActionsForSelectors(chosen.actions, text, slots, &usable);
         if (!usable) continue;
         NSString *reason = [NSString stringWithFormat:@"%@-%@%@", key, chosen.identifier, [classification[@"pending"] boolValue] ? @"-pending" : @""];
         return [MTContextDecision decisionWithGroup:group reason:reason actions:actions ttl:ttl];

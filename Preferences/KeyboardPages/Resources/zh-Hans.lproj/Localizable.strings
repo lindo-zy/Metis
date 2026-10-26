@@ -917,3 +917,25 @@
 "JS_DEBUG_CHOOSE" = "等待选择";
 
 "SF_ICON_COLOR_DEFAULT" = "默认蓝色";
+
+// 应用动作组（底栏预留区按 App 换动作）
+"BAR_CONTEXT_APP" = "应用";
+"CONTEXT_APP_HINT" = "按当前 App 换预留区动作；点按管理分组";
+"CTXAPP_TITLE" = "应用动作组";
+"CTXAPP_SECTION_GROUPS" = "分组";
+"CTXAPP_ADD" = "添加应用动作组…";
+"CTXAPP_ADD_LIMIT" = "已达 20 组上限";
+"CTXAPP_FOOTER" = "一个组可绑定多个 App，共用同一批动作；同一个 App 只属于一个组。未绑定的 App 沿用原有动作组。";
+"CTXAPP_UNNAMED" = "未命名分组";
+"CTXAPP_UNBOUND" = "未绑定应用";
+"CTXAPP_SUMMARY" = "%@ · %lu 个动作";
+"CTXAPP_SECTION_BIND" = "名称与绑定";
+"CTXAPP_SECTION_ACTIONS" = "动作 · 预留区 %lu 格";
+"CTXAPP_ADD_ACTION" = "添加动作…";
+"CTXAPP_REPLACE_ACTION" = "替换动作";
+"CTXAPP_BIND_FOOTER" = "同一个应用只属于一个组；在这里选中后会从原组移出。";
+"CTXAPP_ACTION_FOOTER" = "拖动排序；超出预留区格数的动作会保留但暂不显示。";
+"CTXAPP_NAME" = "名称";
+"CTXAPP_APPS" = "应用";
+"CTXAPP_NAME_PROMPT" = "分组名称";
+"CANCEL" = "取消";
