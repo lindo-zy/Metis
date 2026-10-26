@@ -649,7 +649,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_TITLE" = "Quick Panel";
 "QUICK_SIDE" = "Quick Launcher Side";
 "QUICK_SIZE" = "Panel Size";
-"QUICK_SETTINGS_FOOTER" = "Quick Panel opens as a vertical strip with four custom action buttons above a scrolling favorites list. Swipe left for two app columns, then left again for a 3×3 app grid and T9 search. Swipe right to step back, or tap the bottom hint to switch. Assign each shortcut from Custom Actions. T9 searches all launchable apps. Scale the whole panel from 80% to 100%; drag the top grabber to place it, or double-tap to restore the default position.";
+"QUICK_SETTINGS_FOOTER" = "Quick Panel opens as a vertical strip with four custom action buttons above a scrolling favorites list (all apps when no favorites are configured). Swipe left for two app columns, then left again for a 3×3 app grid and T9 search. Swipe right to step back, or tap the bottom hint to switch. Assign each shortcut from Custom Actions. T9 searches all launchable apps. Scale the whole panel from 80% to 100%; drag the top grabber to place it, or double-tap to restore the default position.";
 "QUICK_RESET" = "Restore Default Position";
 "QUICK_MOVE" = "Drag to move, double-tap to reset";
 "QUICK_MANAGE" = "Favorites Order & Search Aliases";

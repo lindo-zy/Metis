@@ -135,7 +135,7 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         [self.modeButton addTarget:self action:@selector(advanceMode) forControlEvents:UIControlEventTouchUpInside];
         [self.panelContent addSubview:self.modeButton];
         self.accessibilityCustomActions = @[[[UIAccessibilityCustomAction alloc] initWithName:MTQL(@"QUICK_CLOSE")
-            target:self selector:@selector(accessibilityClose)]];
+            target:self selector:@selector(accessibilityClose:)]];
         NSMutableArray *actions = [NSMutableArray array];
         for (NSUInteger i = 0; i < 4; i++) {
             UIButton *button = [MTQuickPanelActionButton buttonWithType:UIButtonTypeSystem]; button.tag = i;
@@ -218,7 +218,7 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
     if (gesture.state != UIGestureRecognizerStateEnded || !self.active || self.launching) return;
     if (self.resetHandler) self.resetHandler();
 }
-- (BOOL)accessibilityClose { [self closeTapped]; return YES; }
+- (BOOL)accessibilityClose:(__unused UIAccessibilityCustomAction *)action { [self closeTapped]; return YES; }
 - (void)configureQuickActions:(NSArray<NSDictionary *> *)actions {
     self.quickActions = [actions copy];
     self.modeButton.accessibilityCustomActions = self.accessibilityCustomActions;
@@ -349,7 +349,7 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
             MTAppSearchEntry *entry = byID[identifier]; if (!entry) continue;
             MTAppSearchMatch *match = [MTAppSearchMatch new]; match.entry = entry; [results addObject:match];
         }
-        if (self.presentationMode == MTQuickLauncherModeSearch) {
+        if (self.presentationMode == MTQuickLauncherModeSearch || !favorites.count) {
             NSMutableSet *included = [NSMutableSet setWithArray:favorites];
             for (MTAppSearchEntry *entry in entries) {
                 if ([included containsObject:entry.identifier]) continue;
@@ -373,7 +373,7 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 - (void)applyResults:(NSArray *)results {
     self.results = results;
     BOOL searching = MTAppSearchNormalize(self.query).length > 0;
-    self.statusLabel.text = searching ? (results.count ? MTQL(@"QUICK_MATCHES") : MTQL(@"QUICK_NO_MATCHES")) : MTQL(self.presentationMode == MTQuickLauncherModeSearch ? @"QUICK_ALL_APPS" : (results.count ? @"QUICK_FAVORITES" : @"QUICK_EMPTY_FAVORITES"));
+    self.statusLabel.text = searching ? (results.count ? MTQL(@"QUICK_MATCHES") : MTQL(@"QUICK_NO_MATCHES")) : MTQL(self.presentationMode == MTQuickLauncherModeSearch || !self.favorites.count ? @"QUICK_ALL_APPS" : (results.count ? @"QUICK_FAVORITES" : @"QUICK_EMPTY_FAVORITES"));
     if (!self.loaded) self.statusLabel.text = MTQL(@"QUICK_LOADING");
     else if (!self.available) self.statusLabel.text = MTQL(@"QUICK_CATALOG_UNAVAILABLE");
     [self.collection reloadData];
