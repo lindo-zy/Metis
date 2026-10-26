@@ -14,7 +14,7 @@ static inline MTQuickLauncherMode MTQuickLauncherNextMode(MTQuickLauncherMode mo
 }
 
 static inline CGSize MTQuickLauncherModeBaseSize(MTQuickLauncherMode mode, BOOL wide) {
-    if (mode == MTQuickLauncherModeSearch) return wide ? CGSizeMake(620, 340) : CGSizeMake(316, 600);
+    if (mode == MTQuickLauncherModeSearch) return wide ? CGSizeMake(620, 372) : CGSizeMake(316, 600);
     return CGSizeMake(mode == MTQuickLauncherModeStrip ? 76 : 172, wide ? 340 : 480);
 }
 
@@ -143,7 +143,7 @@ static inline MTQuickLauncherContentFrames MTQuickLauncherContentLayout(MTQuickL
         f.query = CGRectMake(8, afterActions + 6, contentWidth, 36);
         f.status = CGRectMake(8, afterActions + 44, contentWidth, 16);
         gridTop = afterActions + 64;
-        if (landscape) f.keys = CGRectMake(width * .47, afterActions + 14, width * .53 - 12, height - afterActions - 26);
+        if (landscape) f.keys = CGRectMake(width * .47, afterActions + 14, width * .53 - 12, height - afterActions - 66);
         else { f.keys = CGRectMake(12, height - 248, width - 24, 204); gridBottom = CGRectGetMinY(f.keys) - 8; }
     } else if (!strip) { f.status = CGRectMake(8, afterActions + 4, contentWidth, 16); gridTop += 16; }
     f.apps = CGRectMake(8, gridTop, contentWidth, MAX(44, gridBottom - gridTop));
