@@ -1141,13 +1141,9 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     NSArray<NSDictionary *> *ruleDictionaries =
         [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
     NSArray<MTCaptureRule *> *rules = [MTCaptureRule rulesFromDictionaries:ruleDictionaries];
-    if (autoOnly) {
-        NSMutableArray<MTCaptureRule *> *autoRules = [NSMutableArray array];
-        for (MTCaptureRule *rule in rules) {
-            if (rule.enabled && rule.autoRun) [autoRules addObject:rule];
-        }
-        rules = autoRules;
-    }
+    // Keep the complete ordered set: the engine filters enabled/auto itself.
+    // Pre-filtering here changes its fingerprint between manual and auto runs,
+    // incorrectly clearing consecutive failure counts without a settings edit.
     if ([rules count] == 0) return;
     NSString *kind = [[item imageName] length] > 0 ? @"image" : @"text";
     NSString *text = [kind isEqualToString:@"text"] ? ([item content] ?: @"") : @"";
@@ -1157,6 +1153,10 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
                                                  kind:kind
                                              autoOnly:autoOnly
                                            completion:^(MTCaptureRule *hit) {
+        // A queued match must not run after the user disables, edits or reorders
+        // rules while evaluation is in flight.
+        NSArray *latest = [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
+        if (![latest isEqual:ruleDictionaries]) return;
         [weakSelf performCaptureRule:hit forItem:item autoOnly:autoOnly];
     }];
 }
