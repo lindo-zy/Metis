@@ -324,6 +324,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     if (self.running) return;
     [self.view endEditing:YES];
     NSString *sample = [self.sampleView.text substringToIndex:MIN(self.sampleView.text.length, (NSUInteger)2000)];
+    if (self.profile.runtime == MTPAIScriptRuntimeClipboard && self.groupControl.selectedSegmentIndex == 1) sample = @"";
     if (!sample.length && self.profile.runtime != MTPAIScriptRuntimeClipboard) {
         self.verdictLabel.attributedText = [self metricText:MTDebugLabel(@"CTX_DEBUG_VERDICT")
             value:MTDebugLabel(@"CTX_DEBUG_EMPTY_SAMPLE") color:UIColor.systemOrangeColor];
@@ -456,12 +457,14 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     UIButtonConfiguration *config = self.runButton.configuration;
     config.title = MTDebugLabel(self.running ? @"CTX_DEBUG_RUNNING" : @"CTX_DEBUG_RUN");
     self.runButton.configuration = config;
-    self.sampleView.editable = !self.running;
+    BOOL image = self.profile.runtime == MTPAIScriptRuntimeClipboard && self.groupControl.selectedSegmentIndex == 1;
+    self.sampleView.editable = !self.running && !image;
     self.groupControl.enabled = !self.running;
     NSString *sample = self.sampleView.text ?: @"";
     self.sampleHint.text = [NSString stringWithFormat:MTDebugLabel(@"CTX_DEBUG_SAMPLE_HINT"),
         (unsigned long)MIN(sample.length, (NSUInteger)2000)];
     if (self.profile.runtime == MTPAIScriptRuntimeClipboard) {
+        if (image) self.sampleHint.text = @"图片模式：meta.kind = image，text 为空；上方样例文本只用于文本模式。";
         self.sampleHint.text = [self.sampleHint.text stringByAppendingString:@"\n只测试匹配条件，不执行绑定动作，不写入配置。图片类型可用空文本测试。"];
     }
 }
