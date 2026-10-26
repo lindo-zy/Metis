@@ -3,6 +3,16 @@
 <plist version="1.0">
 <array>
 	<dict>
+		<key>version</key>
+		<string>1.2.7</string>
+		<key>items</key>
+		<array>
+			<dict><key>tag</key><string>重构</string><key>text</key><string>剪切板规则统一自定义动作的脚本预览和编辑风格，修复名称输入与设置项目重叠；草稿统一保存后生效</string></dict>
+			<dict><key>tag</key><string>新增</string><key>text</key><string>规则支持 AI 编写、多轮修改、版本回退和沙盒调试，可测试文本、图片类型并查看命中结果、耗时和日志</string></dict>
+			<dict><key>tag</key><string>优化</string><key>text</key><string>规则列表支持直接启停、长按拖动和编辑排序，优先级从上到下；修复异步返回误命中和连续失败计数</string></dict>
+		</array>
+	</dict>
+	<dict>
 		<key>items</key>
 		<array>
 			<dict>
