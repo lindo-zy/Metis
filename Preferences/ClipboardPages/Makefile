@@ -11,6 +11,7 @@ MetisClipboardPrefs_FILES = $(wildcard Controllers/*.m) \
 MetisClipboardPrefs_CFLAGS = -fobjc-arc
 MetisClipboardPrefs_CFLAGS += -I. -IControllers -ICells -IUtilities -IModels
 MetisClipboardPrefs_CFLAGS += -I../../Modules/Clipboard/Shared/Tags -I../../Modules/Clipboard/Shared/Actions
+MetisClipboardPrefs_CFLAGS += -I../../Modules/Clipboard/Core/Actions
 # Core/PrefsUI：自定义动作编辑器等跨子包共享的设置 UI（类本体在 MetisCore 单一镜像）。
 MetisClipboardPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources -I../../Core/PrefsUI -I../../Modules/Keyboard/Sources
 MetisClipboardPrefs_INSTALL_PATH = /Library/PreferenceBundles

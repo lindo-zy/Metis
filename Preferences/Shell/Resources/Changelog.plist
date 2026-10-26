@@ -3,8 +3,31 @@
 <plist version="1.0">
 <array>
 	<dict>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>剪切板规则：双击采集气泡时按 JS 条件执行不同动作，图片、链接、快递单号等各走各的</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>支持复制后自动执行规则动作，默认关闭，可在设置中按规则单独开启</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>调整</string>
+				<key>text</key>
+				<string>双击气泡未命中任何规则时不再执行动作；原有的文字/图片动作配置会自动转换为规则</string>
+			</dict>
+		</array>
 		<key>version</key>
-		<string>1.2.2</string>
+		<string>1.2.3</string>
+	</dict>
+	<dict>
 		<key>items</key>
 		<array>
 			<dict>
@@ -20,10 +43,10 @@
 				<string>应用专属动作沿用现有动作目录，复制、粘贴、面板动作、打开链接、搜索、问 AI 都能直接选用；复制和选区等临时动作仍然优先</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.2.2</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.2.1</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -33,10 +56,10 @@
 				<string>修复 QuickPrefs 获取设置路径后无法直达子页面的问题，支持全局条目短路径与完整层级路径</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.2.1</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.2.0</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -46,10 +69,10 @@
 				<string>自定义动作 JS 脚本沿用 JS 规则的预览卡片，点击进入独立编辑器，支持行号、语法高亮、实时检查和符号工具栏</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.2.0</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.1.10</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -65,31 +88,8 @@
 				<string>自定义动作的脚本页卡片内容与分组标题左边缘对不齐</string>
 			</dict>
 		</array>
-	</dict>
-	<dict>
 		<key>version</key>
-		<string>1.1.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>脚本沙盒调试页的剪贴板按钮靠右显示</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>截图完成提示与模式、尺寸气泡统一为紧凑样式</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>顶栏和底栏支持自选 SF 图标颜色，文字随系统明暗变化，应用图标保留原色</string>
-			</dict>
-		</array>
+		<string>1.1.10</string>
 	</dict>
 </array>
 </plist>
