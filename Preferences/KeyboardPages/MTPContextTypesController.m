@@ -153,6 +153,13 @@ static NSDictionary *MTPContextTypeActionDefinition(NSString *selector) {
 - (void)toggleEnabled:(UISwitch *)sender { self.type.enabled = sender.on; [self saveType]; }
 - (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)path { return path.section == [self numberOfSectionsInTableView:tableView] - 1 && path.row < self.type.actions.count; }
 - (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)path { return [self tableView:tableView canMoveRowAtIndexPath:path] ? UITableViewCellEditingStyleDelete : UITableViewCellEditingStyleNone; }
+// 常驻编辑态只是为了给动作行提供拖动/删除入口。编辑态下 UIKit 默认给所有行加
+// 编辑缩进（shouldIndentWhileEditing 缺省 YES），没有编辑控件的行会被整体右移
+// 约 33pt，于是卡片内容比分组标题多缩进一截。只让动作区（唯一有删除控件的区）
+// 保留缩进，其余区域回到卡片的标准左边缘。
+- (BOOL)tableView:(UITableView *)tableView shouldIndentWhileEditingRowAtIndexPath:(NSIndexPath *)path {
+    return path.section == [self numberOfSectionsInTableView:tableView] - 1;
+}
 - (NSIndexPath *)tableView:(UITableView *)tableView targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)source toProposedIndexPath:(NSIndexPath *)destination { return source.section == destination.section && destination.row < self.type.actions.count ? destination : source; }
 - (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)source toIndexPath:(NSIndexPath *)destination {
     NSMutableArray *actions = [self.type.actions mutableCopy]; NSString *item = actions[source.row]; [actions removeObjectAtIndex:source.row]; [actions insertObject:item atIndex:destination.row]; self.type.actions = actions; [self saveType];

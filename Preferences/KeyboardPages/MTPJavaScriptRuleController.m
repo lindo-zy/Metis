@@ -4,6 +4,7 @@
 #import "MTPAIScriptChatController.h"
 #import "MTPAIScriptProfile.h"
 #import "MTPJavaScriptCodeStyle.h"
+#import "MTSettingsStyle.h"
 #import "MTAIEngine.h"
 #import "MTPrefsManager.h"
 
@@ -76,6 +77,15 @@
     return cell;
 }
 
+// 本页三行（脚本预览 / AI 生成 / 沙盒调试）共用一套左边缘：编辑态下 UIKit 用
+// editingAccessoryType 顶替 accessoryType（默认 None 会把展开箭头吞掉），分隔线
+// 起点也会随行内图标位置各走各的。统一成卡片内 16pt 基准，三行才对齐。
+- (void)alignScriptRow:(UITableViewCell *)cell {
+    cell.editingAccessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    CGFloat inset = [MTSettingsStyle contentInset];
+    cell.separatorInset = UIEdgeInsetsMake(0, inset, 0, inset);
+}
+
 - (UITableViewCell *)previewCell {
     [self refreshValidation];
     NSString *source = self.type.source ?: @"";
@@ -98,6 +108,7 @@
     cell.detailTextLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
     cell.detailTextLabel.textColor = broken ? UIColor.systemRedColor : UIColor.secondaryLabelColor;
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    [self alignScriptRow:cell];
     return cell;
 }
 
@@ -116,6 +127,7 @@
         model.length ? model : MTPCTX(@"JS_AI_UNCONFIGURED")];
     cell.detailTextLabel.textColor = configured ? UIColor.secondaryLabelColor : UIColor.systemRedColor;
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    [self alignScriptRow:cell];
     return cell;
 }
 
@@ -127,6 +139,7 @@
     cell.detailTextLabel.numberOfLines = 0;
     cell.detailTextLabel.text = MTPCTX(@"CTX_DEBUG_SUBTITLE");
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    [self alignScriptRow:cell];
     return cell;
 }
 
