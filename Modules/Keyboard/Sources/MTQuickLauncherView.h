@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import "MTQuickLauncherLayout.h"
 
 // 拖动摆放的阶段：宿主按阶段决定是否落盘（只有 Ended 写入，Cancelled 回滚）。
 typedef NS_ENUM(NSInteger, MTQuickLauncherDragPhase) {
@@ -16,6 +17,11 @@ typedef NS_ENUM(NSInteger, MTQuickLauncherDragPhase) {
 // 双击 grabber 复位到默认停靠位。
 @property(nonatomic, copy) void (^resetHandler)(void);
 @property(nonatomic) BOOL launching;
+@property(nonatomic, readonly) MTQuickLauncherMode presentationMode;
+@property(nonatomic) BOOL landscape;
+@property(nonatomic, copy) void (^modeChangeHandler)(void);
+@property(nonatomic, copy) void (^actionHandler)(NSString *selector);
+- (void)configureQuickActions:(NSArray<NSDictionary *> *)actions;
 - (void)beginWithFavorites:(NSArray<NSString *> *)favorites names:(NSDictionary<NSString *, NSString *> *)names
     aliases:(NSDictionary *)aliases usage:(NSDictionary *)usage;
 - (void)endSession;

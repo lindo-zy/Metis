@@ -2,6 +2,7 @@
 #import "MTPPanelSliderCell.h"
 #import "MTPPanelSegmentCell.h"
 #import "MTPLauncherAppsController.h"
+#import "MTPQuickPanelActionsController.h"
 #import "MTHelper.h"
 #import "common.h"
 #import <Preferences/PSSpecifier.h>
@@ -71,8 +72,11 @@ static NSString *MTFloatingLocalized(NSString *key) {
     PSSpecifier *manage = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_MANAGE") target:self
         set:nil get:nil detail:MTPLauncherAppsController.class cell:PSLinkCell edit:nil];
     manage.identifier = @"quick-launcher-apps";
+    PSSpecifier *quickActions = [PSSpecifier preferenceSpecifierNamed:MTFloatingLocalized(@"QUICK_ACTIONS") target:self
+        set:nil get:nil detail:MTPQuickPanelActionsController.class cell:PSLinkCell edit:nil];
+    quickActions.identifier = @"quick-panel-actions";
     _specifiers = [@[group, scale, autoGroup, autoResize, positionGroup, position,
-        quickGroup, launcherSide, launcherScale, launcherReset, manage] mutableCopy];
+        quickGroup, launcherSide, launcherScale, launcherReset, manage, quickActions] mutableCopy];
     return _specifiers;
 }
 

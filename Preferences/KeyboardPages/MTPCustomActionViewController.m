@@ -1,5 +1,6 @@
 #import "MTBottomBarLayout.h"
 #import "MTPCustomActionViewController.h"
+#import "MTQuickPanelActions.h"
 #import "MTPActionGroups.h"
 #import "MTPActionOrganizationController.h"
 #import <objc/runtime.h>
@@ -159,6 +160,7 @@ static NSBundle *mtpLocalBundle;
         }
         preferences[kContextActionsKey] = groups;
     }
+    MTQuickPanelRemoveActionReferences(preferences, selector);
     MTPanelRemoveReferences(preferences, selector);
     MTStatusBarRemoveActionReferences(preferences, selector);
     MTDockGestureRemoveActionReferences(preferences, selector);

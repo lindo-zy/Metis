@@ -7,6 +7,8 @@
 #import "MTQuickPanelHost.h"
 #import "MTQuickLauncherView.h"
 #import "MTQuickLauncherLayout.h"
+#import "MTQuickPanelActions.h"
+#import "MTGlobalActionExecutor.h"
 #import "MTDarwinOpenChannel.h"
 #import "MTSystemOpenBroker.h"
 #import "MTGlobalPanel.h"
@@ -240,7 +242,7 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     self.launcherScale = MTKbdLauncherScaleFromPreferences(preferences);
     // 面板数据源或停靠侧变化时收起旧会话，下次唤出按新配置重开。
     BOOL launcherChanged = NO;
-    for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdLauncherSideKey]) {
+    for (NSString *key in @[kKbdHandleAppsKey, kKbdLauncherOrderKey, kKbdLauncherAliasesKey, kKbdLauncherSideKey, kKbdLauncherActionsKey, kLinkActionskey]) {
         id previous = self.launcherPreferences[key] ?: NSNull.null, current = preferences[key] ?: NSNull.null;
         if (![previous isEqual:current]) launcherChanged = YES;
     }
@@ -248,6 +250,21 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     self.launcherPreferences = [preferences copy] ?: @{};
     self.selectedIdentifiers = MTKbdHandleAppsFromPreferences(preferences);
     if (self.window && !self.window.hidden) [self layoutForBounds:self.window.bounds];
+}
+
+// Resolve against the live store at tap time; deleted or reassigned slots cannot run stale definitions.
+- (void)executeQuickAction:(NSString *)selector {
+    if (!self.panelOpen || self.launchPending || ![MTModuleGate globalEnabled] || ![MTGlobalPanel deviceUnlocked]) return;
+    MTPrefsManager *manager = MTPrefsManager.sharedInstance; [manager reload];
+    NSDictionary *preferences = manager.readPrefs;
+    if (![MTQuickPanelActionSlots(preferences) containsObject:selector]) return;
+    NSDictionary *entry = MTQuickPanelActionDefinition(preferences[kLinkActionskey], selector);
+    if (!MTGlobalCustomActionSupported(entry)) { [self.quickView showOpenFailure]; return; }
+    // Close before invoking an action, including actions that open another panel.
+    [self closePanel:NO];
+    MTExecuteGlobalCustomAction(entry, ^(MTSystemOpenResult result) {
+        NSLog(@"[MetisKeyboard][QuickPanel] action result=%llu", (unsigned long long)result);
+    });
 }
 
 - (void)noteFloated:(NSString *)bundleIdentifier {
@@ -313,6 +330,14 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     self.quickView.dragHandler = ^(MTQuickLauncherDragPhase phase, CGPoint translation) {
         [weakSelf applyLauncherDragPhase:phase translation:translation];
     };
+    self.quickView.modeChangeHandler = ^{
+        MTQuickPanelHost *host = weakSelf;
+        if (!host.panelOpen) return;
+        [UIView animateWithDuration:0.24 delay:0 options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveEaseInOut animations:^{
+            [host layoutForBounds:host.window.bounds]; [host.quickView layoutIfNeeded];
+        } completion:nil];
+    };
+    self.quickView.actionHandler = ^(NSString *selector) { [weakSelf executeQuickAction:selector]; };
     self.quickView.resetHandler = ^{ [weakSelf resetLauncherPlacement]; };
     [window addSubview:self.quickView];
 
@@ -325,18 +350,19 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     UIEdgeInsets safe = self.window.safeAreaInsets;
     if (!CGRectIsEmpty(self.lastLayoutBounds) && !CGRectEqualToRect(bounds, self.lastLayoutBounds) && self.panelOpen) [self closePanel:NO];
     self.lastLayoutBounds = bounds;
+    self.quickView.landscape = bounds.size.width > bounds.size.height;
     CGRect quickFrame;
     // 拖动中即使尚未标记「已摆放」也要跟手，落盘后按摆放位还原。
     if (self.launcherPlaced || self.launcherDragging) {
         // 拖动摆放位：以归一化中心点定位，落点夹在安全区内的可用区里。
         CGRect available = MTQuickLauncherAvailableRect(bounds, safe.top, safe.left, safe.bottom, safe.right);
-        CGSize size = MTQuickLauncherDisplayedSize(bounds, available, self.launcherScale);
+        CGSize size = MTQuickLauncherModeSize(bounds, available, self.launcherScale, self.quickView.presentationMode);
         CGPoint normalized = self.launcherDragging
             ? MTQuickLauncherNormalizedCenter(available, size, self.launcherDragCenter) : self.launcherCenter;
         quickFrame = MTQuickLauncherPlacedFrame(available, size, normalized);
     } else {
         // 停靠侧由设置决定（kbdlauncherside，默认靠右紧贴右缘）。
-        quickFrame = MTQuickLauncherFrame(bounds, safe, self.launcherSide, self.launcherScale);
+        quickFrame = MTQuickLauncherModeFrame(bounds, safe.top, safe.left, safe.bottom, safe.right, self.launcherSide, self.launcherScale, self.quickView.presentationMode);
     }
     self.quickView.frame = quickFrame;
 }
@@ -408,7 +434,7 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     if (self.window && !CGRectIsEmpty(self.window.bounds)) {
         UIEdgeInsets safe = self.window.safeAreaInsets;
         available = MTQuickLauncherAvailableRect(self.window.bounds, safe.top, safe.left, safe.bottom, safe.right);
-        size = MTQuickLauncherDisplayedSize(self.window.bounds, available, self.launcherScale);
+        size = MTQuickLauncherModeSize(self.window.bounds, available, self.launcherScale, self.quickView.presentationMode);
     }
     CGPoint normalized = (placed && size.width > 0 && size.height > 0)
         ? MTQuickLauncherNormalizedCenter(available, size, self.launcherDragCenter) : CGPointMake(0.5, 0.5);
@@ -534,6 +560,7 @@ static NSString *MTQuickPanelDisplayName(NSString *bundleIdentifier) {
     [self.quickView beginWithFavorites:favorites names:names
         aliases:[aliases isKindOfClass:NSDictionary.class] ? aliases : @{}
         usage:[usage isKindOfClass:NSDictionary.class] ? usage : @{}];
+    [self.quickView configureQuickActions:MTQuickPanelResolvedActions(self.launcherPreferences, self.launcherPreferences[kLinkActionskey])];
     self.quickView.launching = self.launchPending;
     self.panelGeneration++; self.panelOpen = YES;
     self.backdrop.hidden = NO; self.backdrop.alpha = 1;

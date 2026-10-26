@@ -12,82 +12,72 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
     return MTQuickLauncherPanelFrame(bounds, safe.top, safe.left, safe.bottom, safe.right, side, scale);
 }
 
-@interface MTLauncherPageCell : UICollectionViewCell
-@property(nonatomic, copy) NSArray<MTAppSearchMatch *> *matches;
-@property(nonatomic, copy) void (^selectHandler)(NSString *);
-@property(nonatomic, strong) NSArray<UIButton *> *buttons;
-@property(nonatomic, strong) NSArray<UIImageView *> *icons;
-@property(nonatomic, strong) NSArray<UILabel *> *names;
-@property(nonatomic, strong) NSArray<UILabel *> *badges;
-@property(nonatomic) BOOL searchOrder;
-@property(nonatomic) NSUInteger slots;
-- (void)bind:(NSArray<MTAppSearchMatch *> *)matches slots:(NSUInteger)slots search:(BOOL)search;
+// A vertical app list must yield horizontal movement to the stage-switch gesture.
+@interface MTLauncherCollection : UICollectionView
+@end
+@implementation MTLauncherCollection
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture {
+    if (gesture == self.panGestureRecognizer) {
+        CGPoint v = [self.panGestureRecognizer velocityInView:self];
+        if (fabs(v.x) > fabs(v.y)) return NO;
+    }
+    return [super gestureRecognizerShouldBegin:gesture];
+}
 @end
 
-@implementation MTLauncherPageCell
+@interface MTLauncherAppCell : UICollectionViewCell
+@property(nonatomic, strong) UIImageView *icon;
+@property(nonatomic, strong) UILabel *name;
+@property(nonatomic, strong) UILabel *badge;
+@property(nonatomic, copy) BOOL (^activationHandler)(void);
+@end
+@implementation MTLauncherAppCell
 - (instancetype)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
-        NSMutableArray *buttons = [NSMutableArray array], *icons = [NSMutableArray array];
-        NSMutableArray *names = [NSMutableArray array], *badges = [NSMutableArray array];
-        for (NSUInteger i = 0; i < 6; i++) {
-            UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom]; button.tag = i;
-            [button addTarget:self action:@selector(selected:) forControlEvents:UIControlEventTouchUpInside];
-            button.layer.cornerRadius = 10;
-            UIImageView *icon = [UIImageView new]; icon.contentMode = UIViewContentModeScaleAspectFit;
-            icon.layer.cornerRadius = 8; icon.clipsToBounds = YES; icon.userInteractionEnabled = NO;
-            UILabel *name = [UILabel new]; name.font = [UIFont systemFontOfSize:11]; name.textColor = UIColor.whiteColor;
-            name.textAlignment = NSTextAlignmentCenter;
-            UILabel *badge = [UILabel new]; badge.font = [UIFont systemFontOfSize:9];
-            badge.textColor = UIColor.systemTealColor; badge.textAlignment = NSTextAlignmentCenter;
-            [button addSubview:icon]; [button addSubview:name]; [button addSubview:badge]; [self.contentView addSubview:button];
-            [buttons addObject:button]; [icons addObject:icon]; [names addObject:name]; [badges addObject:badge];
-        }
-        self.buttons = buttons; self.icons = icons; self.names = names; self.badges = badges;
+        self.icon = [UIImageView new]; self.icon.contentMode = UIViewContentModeScaleAspectFit;
+        self.icon.layer.cornerRadius = 9; self.icon.clipsToBounds = YES;
+        self.name = [UILabel new]; self.name.font = [UIFont systemFontOfSize:10];
+        self.name.textColor = UIColor.labelColor; self.name.textAlignment = NSTextAlignmentCenter;
+        self.badge = [UILabel new]; self.badge.font = [UIFont systemFontOfSize:8];
+        self.badge.textColor = UIColor.systemTealColor; self.badge.textAlignment = NSTextAlignmentCenter;
+        [self.contentView addSubview:self.icon]; [self.contentView addSubview:self.name]; [self.contentView addSubview:self.badge];
+        self.isAccessibilityElement = YES; self.accessibilityTraits = UIAccessibilityTraitButton;
     } return self;
 }
-- (void)bind:(NSArray<MTAppSearchMatch *> *)matches slots:(NSUInteger)slots search:(BOOL)search {
-    self.matches = matches; self.slots = slots; self.searchOrder = search;
-    for (NSUInteger i = 0; i < 6; i++) {
-        UIButton *button = self.buttons[i]; button.hidden = i >= matches.count;
-        if (button.hidden) continue;
-        MTAppSearchMatch *match = matches[i];
-        self.icons[i].image = [MTHelper appIconImageForBundleID:match.entry.identifier] ?: [UIImage systemImageNamed:@"app"];
-        self.names[i].text = match.entry.name;
-        self.badges[i].text = match.quality == 3 ? MTQL(@"QUICK_APPROXIMATE") : @"";
-        button.accessibilityLabel = [NSString stringWithFormat:@"%@ %@", match.entry.name, self.badges[i].text];
-    }
-    [self setNeedsLayout];
-}
+- (BOOL)accessibilityActivate { return self.activationHandler ? self.activationHandler() : NO; }
 - (void)layoutSubviews {
-    [super layoutSubviews];
-    CGFloat width = self.contentView.bounds.size.width / 3, height = self.contentView.bounds.size.height / (self.slots == 3 ? 1 : 2);
-    for (NSUInteger i = 0; i < 6; i++) {
-        NSUInteger column = self.searchOrder ? 2 - i % 3 : i % 3;
-        UIButton *button = self.buttons[i];
-        button.frame = CGRectMake(column * width + 2, (i / 3) * height, width - 4, height - 2);
-        CGFloat icon = MIN(36, MAX(24, height - 28));
-        self.icons[i].frame = CGRectMake((width - 4 - icon) / 2, 2, icon, icon);
-        self.names[i].frame = CGRectMake(1, icon + 3, width - 6, 14);
-        self.badges[i].frame = CGRectMake(1, icon + 17, width - 6, 10);
-    }
-}
-- (void)selected:(UIButton *)button {
-    if (button.tag < 0 || (NSUInteger)button.tag >= self.matches.count) return;
-    NSString *identifier = self.matches[button.tag].entry.identifier;
-    if (identifier.length && self.selectHandler) self.selectHandler(identifier);
+    [super layoutSubviews]; CGFloat w = self.bounds.size.width;
+    CGFloat icon = MIN(38, MAX(16, self.bounds.size.height - 28));
+    self.icon.frame = CGRectMake((w - icon) / 2, 2, icon, icon);
+    self.name.frame = CGRectMake(1, icon + 4, w - 2, 13);
+    self.badge.frame = CGRectMake(1, icon + 17, w - 2, 10);
 }
 @end
 
-// 标题条顶部可拖区域高度（面板基准坐标系）：拖动只在这一条内起手，避开右侧
-// 44pt 关闭按钮，也不与收藏页横向分页、九键按钮抢事件。
-static CGFloat const MTQuickLauncherGrabberZoneHeight = 44.0;
-static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
+@interface MTQuickPanelActionButton : UIButton
+@end
+@implementation MTQuickPanelActionButton
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat width = self.bounds.size.width;
+    self.imageView.contentMode = UIViewContentModeScaleAspectFit;
+    self.imageView.frame = CGRectMake((width - 20) / 2, 3, 20, 20);
+    self.titleLabel.frame = CGRectMake(1, 25, width - 2, 13);
+}
+@end
+
+static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
 
 @interface MTQuickLauncherView () <UICollectionViewDataSource, UICollectionViewDelegate, UIGestureRecognizerDelegate>
 @property(nonatomic, strong) UIVisualEffectView *material;
 @property(nonatomic, strong) UIView *panelContent;
 @property(nonatomic, strong) UIView *grabber;
 @property(nonatomic, strong) UIPanGestureRecognizer *dragPan;
+@property(nonatomic, strong) UIPanGestureRecognizer *modePan;
+@property(nonatomic, readwrite) MTQuickLauncherMode presentationMode;
+@property(nonatomic, strong) NSArray<UIButton *> *actionButtons;
+@property(nonatomic, copy) NSArray<NSDictionary *> *quickActions;
+@property(nonatomic, strong) UIButton *modeButton;
 @property(nonatomic) BOOL dragging;
 @property(nonatomic, strong) UILabel *titleLabel;
 @property(nonatomic, strong) UIButton *closeButton;
@@ -95,7 +85,6 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
 @property(nonatomic, strong) UILabel *queryLabel;
 @property(nonatomic, strong) UIView *queryBackground;
 @property(nonatomic, strong) UILabel *statusLabel;
-@property(nonatomic, strong) UIPageControl *pages;
 @property(nonatomic, strong) UICollectionView *collection;
 @property(nonatomic, strong) UICollectionViewFlowLayout *flow;
 @property(nonatomic, strong) UIView *keys;
@@ -111,7 +100,9 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
 @property(nonatomic, copy) NSString *query;
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) NSUInteger session;
-@property(nonatomic) NSUInteger slots;
+@property(nonatomic) NSUInteger selectionGeneration;
+@property(nonatomic) NSUInteger selectionSession;
+@property(nonatomic, copy) NSString *selectionIdentifier;
 @property(nonatomic) BOOL active;
 @property(nonatomic) BOOL available;
 @property(nonatomic) BOOL loaded;
@@ -121,12 +112,12 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
 - (instancetype)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
         self.layer.cornerRadius = 24; self.clipsToBounds = YES;
-        self.layer.borderWidth = 0.5; self.layer.borderColor = [UIColor.whiteColor colorWithAlphaComponent:0.2].CGColor;
-        self.material = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark]];
+        self.layer.borderWidth = 0.5; self.layer.borderColor = [UIColor.labelColor colorWithAlphaComponent:0.2].CGColor;
+        self.material = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial]];
         self.material.userInteractionEnabled = NO; [self addSubview:self.material];
         self.panelContent = [UIView new]; [self addSubview:self.panelContent];
         self.grabber = [UIView new];
-        self.grabber.backgroundColor = [[UIColor whiteColor] colorWithAlphaComponent:0.38];
+        self.grabber.backgroundColor = [[UIColor secondaryLabelColor] colorWithAlphaComponent:0.38];
         self.grabber.layer.cornerRadius = 2; self.grabber.userInteractionEnabled = YES;
         self.grabber.isAccessibilityElement = YES;
         self.grabber.accessibilityLabel = MTQL(@"QUICK_MOVE");
@@ -135,19 +126,38 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
         self.dragPan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragPanned:)];
         self.dragPan.maximumNumberOfTouches = 1; self.dragPan.delegate = self;
         [self addGestureRecognizer:self.dragPan];
+        self.modePan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(modePanned:)];
+        self.modePan.maximumNumberOfTouches = 1; self.modePan.delegate = self;
+        [self addGestureRecognizer:self.modePan];
+        self.modeButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        self.modeButton.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+        self.modeButton.tintColor = UIColor.secondaryLabelColor;
+        [self.modeButton addTarget:self action:@selector(advanceMode) forControlEvents:UIControlEventTouchUpInside];
+        [self.panelContent addSubview:self.modeButton];
+        self.accessibilityCustomActions = @[[[UIAccessibilityCustomAction alloc] initWithName:MTQL(@"QUICK_CLOSE")
+            target:self selector:@selector(accessibilityClose)]];
+        NSMutableArray *actions = [NSMutableArray array];
+        for (NSUInteger i = 0; i < 4; i++) {
+            UIButton *button = [MTQuickPanelActionButton buttonWithType:UIButtonTypeSystem]; button.tag = i;
+            button.tintColor = UIColor.labelColor; button.titleLabel.font = [UIFont systemFontOfSize:9];
+            button.titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+            [button addTarget:self action:@selector(actionTapped:) forControlEvents:UIControlEventTouchUpInside];
+            [self.panelContent addSubview:button]; [actions addObject:button];
+        }
+        self.actionButtons = actions;
         UITapGestureRecognizer *resetTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(resetTapped:)];
         resetTap.numberOfTapsRequired = 2;
-        [self.grabber addGestureRecognizer:resetTap];
+        resetTap.delegate = self; [self addGestureRecognizer:resetTap];
         self.titleLabel = [UILabel new]; self.titleLabel.text = MTQL(@"QUICK_TITLE");
-        self.titleLabel.font = [UIFont boldSystemFontOfSize:17]; self.titleLabel.textColor = UIColor.whiteColor;
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:17]; self.titleLabel.textColor = UIColor.labelColor;
         [self.panelContent addSubview:self.titleLabel];
         self.closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
         [self.closeButton setImage:[UIImage systemImageNamed:@"xmark"] forState:UIControlStateNormal];
-        self.closeButton.tintColor = UIColor.whiteColor; self.closeButton.accessibilityLabel = MTQL(@"QUICK_CLOSE");
+        self.closeButton.tintColor = UIColor.labelColor; self.closeButton.accessibilityLabel = MTQL(@"QUICK_CLOSE");
         [self.closeButton addTarget:self action:@selector(closeTapped) forControlEvents:UIControlEventTouchUpInside]; [self.panelContent addSubview:self.closeButton];
-        self.queryBackground = [UIView new]; self.queryBackground.backgroundColor = [UIColor.whiteColor colorWithAlphaComponent:0.10];
+        self.queryBackground = [UIView new]; self.queryBackground.backgroundColor = [UIColor.labelColor colorWithAlphaComponent:0.10];
         self.queryBackground.layer.cornerRadius = 12; [self.panelContent addSubview:self.queryBackground];
-        self.queryLabel = [UILabel new]; self.queryLabel.font = [UIFont systemFontOfSize:16]; self.queryLabel.textColor = UIColor.whiteColor;
+        self.queryLabel = [UILabel new]; self.queryLabel.font = [UIFont systemFontOfSize:16]; self.queryLabel.textColor = UIColor.labelColor;
         [self.queryBackground addSubview:self.queryLabel];
         self.clearButton = [UIButton buttonWithType:UIButtonTypeSystem];
         [self.clearButton setImage:[UIImage systemImageNamed:@"xmark.circle.fill"] forState:UIControlStateNormal];
@@ -156,25 +166,24 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
         [self.queryBackground addSubview:self.clearButton];
         self.statusLabel = [UILabel new]; self.statusLabel.textColor = UIColor.lightGrayColor;
         self.statusLabel.font = [UIFont systemFontOfSize:11]; [self.panelContent addSubview:self.statusLabel];
-        self.flow = [UICollectionViewFlowLayout new]; self.flow.scrollDirection = UICollectionViewScrollDirectionHorizontal;
+        self.flow = [UICollectionViewFlowLayout new]; self.flow.scrollDirection = UICollectionViewScrollDirectionVertical;
         self.flow.minimumLineSpacing = 0; self.flow.minimumInteritemSpacing = 0;
-        self.collection = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:self.flow];
-        self.collection.backgroundColor = UIColor.clearColor; self.collection.pagingEnabled = YES;
+        self.collection = [[MTLauncherCollection alloc] initWithFrame:CGRectZero collectionViewLayout:self.flow];
+        self.collection.backgroundColor = UIColor.clearColor; self.collection.pagingEnabled = NO; self.collection.alwaysBounceVertical = YES; self.collection.showsVerticalScrollIndicator = NO;
         self.collection.showsHorizontalScrollIndicator = NO; self.collection.dataSource = self; self.collection.delegate = self;
         self.collection.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-        [self.collection registerClass:MTLauncherPageCell.class forCellWithReuseIdentifier:@"page"]; [self.panelContent addSubview:self.collection];
-        self.pages = [UIPageControl new]; self.pages.userInteractionEnabled = NO;
-        self.pages.hidesForSinglePage = YES; [self.panelContent addSubview:self.pages];
+        [self.collection registerClass:MTLauncherAppCell.class forCellWithReuseIdentifier:@"app"]; [self.panelContent addSubview:self.collection];
         self.keys = [UIView new]; [self.panelContent addSubview:self.keys]; self.keyButtons = [NSMutableArray array];
         self.catalog = [MTAppLauncherCatalog new]; self.searchQueue = dispatch_queue_create("com.lindo.metis.keyboard.launcher.search", DISPATCH_QUEUE_SERIAL);
         __weak typeof(self) weakSelf = self;
         self.catalog.didInvalidate = ^{ if (weakSelf.active) [weakSelf loadCatalog]; };
-        self.query = @""; self.results = @[]; self.entries = @[]; self.slots = 6;
+        self.query = @""; self.results = @[]; self.entries = @[];
         [self buildKeys];
     } return self;
 }
 - (void)beginWithFavorites:(NSArray<NSString *> *)favorites names:(NSDictionary<NSString *, NSString *> *)names
     aliases:(NSDictionary *)aliases usage:(NSDictionary *)usage {
+    self.presentationMode = MTQuickLauncherModeStrip;
     self.active = YES; self.session++; self.generation++; self.query = @""; self.launching = NO;
     self.favorites = [favorites copy]; self.fallbackNames = [names copy]; self.aliases = [aliases copy]; self.usage = [usage copy];
     self.loaded = NO; self.available = NO;
@@ -196,6 +205,7 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
     self.active = NO; self.session++; self.generation++; self.launching = NO;
     // 会话结束视为拖动被打断：宿主可能已先取消，这里只兜底清掉本地追踪态。
     if (self.dragging) { self.dragging = NO; self.dragPan.enabled = NO; self.dragPan.enabled = YES; }
+    self.modePan.enabled = NO; self.modePan.enabled = YES;
     self.query = @""; self.results = @[];
     [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData];
 }
@@ -208,14 +218,54 @@ static CGFloat const MTQuickLauncherGrabberZoneTrailing = 48.0;
     if (gesture.state != UIGestureRecognizerStateEnded || !self.active || self.launching) return;
     if (self.resetHandler) self.resetHandler();
 }
-// 落点限定在标题条内且避开关闭按钮：其余区域照旧归收藏页分页与九键按钮。
+- (BOOL)accessibilityClose { [self closeTapped]; return YES; }
+- (void)configureQuickActions:(NSArray<NSDictionary *> *)actions {
+    self.quickActions = [actions copy];
+    self.modeButton.accessibilityCustomActions = self.accessibilityCustomActions;
+    for (NSUInteger i = 0; i < self.actionButtons.count; i++) {
+        NSDictionary *entry = i < actions.count ? actions[i] : @{};
+        UIButton *button = self.actionButtons[i];
+        NSString *name = [entry[@"name"] isKindOfClass:NSString.class] ? entry[@"name"] : @"";
+        BOOL configured = [entry[@"selector"] length] > 0;
+        [button setImage:configured ? [MTHelper imageForCustomActionEntry:entry] : [UIImage systemImageNamed:@"plus.circle"] forState:UIControlStateNormal];
+        [button setTitle:configured ? name : MTQL(@"QUICK_ACTION_EMPTY") forState:UIControlStateNormal];
+        button.accessibilityLabel = configured ? name : MTQL(@"QUICK_ACTION_EMPTY_HINT");
+        button.enabled = configured;
+    }
+    [self setNeedsLayout];
+}
+- (void)actionTapped:(UIButton *)button {
+    if (!self.active || self.launching || button.tag < 0 || (NSUInteger)button.tag >= self.quickActions.count) return;
+    NSString *selector = self.quickActions[button.tag][@"selector"];
+    if (selector.length && self.actionHandler) self.actionHandler(selector);
+}
+- (void)setMode:(MTQuickLauncherMode)mode {
+    if (!self.active || self.launching || self.dragging || mode == self.presentationMode) return;
+    self.presentationMode = mode;
+    // A previous search must never leak its results into the favorites stages.
+    if (mode != MTQuickLauncherModeSearch) self.query = @"";
+    [self updateResults];
+    [self setNeedsLayout];
+    if (self.modeChangeHandler) self.modeChangeHandler();
+    [self layoutIfNeeded];
+    UIAccessibilityPostNotification(UIAccessibilityLayoutChangedNotification, self.modeButton);
+}
+- (void)advanceMode { [self setMode:(MTQuickLauncherMode)((self.presentationMode + 1) % 3)]; }
+- (void)modePanned:(UIPanGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateEnded) return;
+    CGPoint d = [gesture translationInView:self], v = [gesture velocityInView:self];
+    [self setMode:MTQuickLauncherNextMode(self.presentationMode, d.x, d.y, v.x)];
+}
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture {
-    if (gesture != self.dragPan) return YES;
     if (!self.active || self.launching) return NO;
     CGPoint point = [gesture locationInView:self.panelContent];
-    CGSize base = self.panelContent.bounds.size;
-    return point.y >= 0 && point.y <= MTQuickLauncherGrabberZoneHeight &&
-        point.x >= 0 && point.x <= base.width - MTQuickLauncherGrabberZoneTrailing;
+    if (gesture == self.modePan) {
+        CGPoint v = [self.modePan velocityInView:self];
+        return !self.dragging && point.y > MTQuickLauncherGrabberZoneHeight && fabs(v.x) > fabs(v.y) * 1.2;
+    }
+    if (gesture == self.dragPan || [gesture isKindOfClass:UITapGestureRecognizer.class]) return point.y >= 0 && point.y <= MTQuickLauncherGrabberZoneHeight &&
+        point.x < self.panelContent.bounds.size.width - (self.presentationMode == MTQuickLauncherModeSearch ? 48 : 0);
+    return YES;
 }
 - (void)emitDrag:(MTQuickLauncherDragPhase)phase translation:(CGPoint)translation {
     if (self.dragHandler) self.dragHandler(phase, translation);
@@ -250,10 +300,10 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
         BOOL clear = i == 9;
         UIButton *key = [UIButton buttonWithType:UIButtonTypeCustom]; key.tag = clear ? MTQuickLauncherKeyTagClear : i;
         key.layer.cornerRadius = 10;
-        key.backgroundColor = [UIColor.whiteColor colorWithAlphaComponent:0.12];
+        key.backgroundColor = [UIColor.labelColor colorWithAlphaComponent:0.12];
         NSString *text = clear ? MTQL(@"QUICK_CLEAR_KEY") : titles[i];
         NSMutableAttributedString *title = [[NSMutableAttributedString alloc] initWithString:text attributes:@{
-            NSForegroundColorAttributeName: UIColor.whiteColor, NSFontAttributeName: [UIFont systemFontOfSize:21]}];
+            NSForegroundColorAttributeName: UIColor.labelColor, NSFontAttributeName: [UIFont systemFontOfSize:21]}];
         NSRange newline = [text rangeOfString:@"\n"];
         if (newline.location != NSNotFound) [title addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:9]
             range:NSMakeRange(newline.location + 1, text.length - newline.location - 1)];
@@ -286,10 +336,10 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     NSUInteger generation = ++self.generation, session = self.session;
     NSString *query = self.query; BOOL searching = MTAppSearchNormalize(query).length > 0;
     self.queryLabel.text = query.length ? query : MTQL(@"QUICK_PLACEHOLDER");
-    self.queryLabel.textColor = query.length ? UIColor.whiteColor : UIColor.lightGrayColor;
+    self.queryLabel.textColor = query.length ? UIColor.labelColor : UIColor.lightGrayColor;
     self.clearButton.hidden = !query.length;
     // Old buttons disappear immediately when the query changes, before background matching returns.
-    self.results = @[]; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData]; self.pages.numberOfPages = 0;
+    self.results = @[]; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData];
     NSArray *entries = self.entries, *favorites = self.favorites; NSDictionary *usage = self.usage;
     if (!searching) {
         NSMutableDictionary *byID = [NSMutableDictionary dictionary];
@@ -298,6 +348,14 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
         for (NSString *identifier in favorites) {
             MTAppSearchEntry *entry = byID[identifier]; if (!entry) continue;
             MTAppSearchMatch *match = [MTAppSearchMatch new]; match.entry = entry; [results addObject:match];
+        }
+        if (self.presentationMode == MTQuickLauncherModeSearch) {
+            NSMutableSet *included = [NSMutableSet setWithArray:favorites];
+            for (MTAppSearchEntry *entry in entries) {
+                if ([included containsObject:entry.identifier]) continue;
+                MTAppSearchMatch *match = [MTAppSearchMatch new]; match.entry = entry; [results addObject:match];
+                [included addObject:entry.identifier];
+            }
         }
         [self applyResults:results]; return;
     }
@@ -315,63 +373,81 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 - (void)applyResults:(NSArray *)results {
     self.results = results;
     BOOL searching = MTAppSearchNormalize(self.query).length > 0;
-    self.statusLabel.text = searching ? (results.count ? MTQL(@"QUICK_MATCHES") : MTQL(@"QUICK_NO_MATCHES")) : MTQL(@"QUICK_FAVORITES");
+    self.statusLabel.text = searching ? (results.count ? MTQL(@"QUICK_MATCHES") : MTQL(@"QUICK_NO_MATCHES")) : MTQL(self.presentationMode == MTQuickLauncherModeSearch ? @"QUICK_ALL_APPS" : (results.count ? @"QUICK_FAVORITES" : @"QUICK_EMPTY_FAVORITES"));
     if (!self.loaded) self.statusLabel.text = MTQL(@"QUICK_LOADING");
     else if (!self.available) self.statusLabel.text = MTQL(@"QUICK_CATALOG_UNAVAILABLE");
-    self.pages.numberOfPages = (results.count + self.slots - 1) / self.slots; self.pages.currentPage = 0;
     [self.collection reloadData];
 }
 - (NSInteger)collectionView:(UICollectionView *)collection numberOfItemsInSection:(NSInteger)section {
-    return (self.results.count + self.slots - 1) / self.slots;
+    return self.results.count;
 }
 - (__kindof UICollectionViewCell *)collectionView:(UICollectionView *)collection cellForItemAtIndexPath:(NSIndexPath *)path {
-    MTLauncherPageCell *cell = [collection dequeueReusableCellWithReuseIdentifier:@"page" forIndexPath:path];
-    NSUInteger start = path.item * self.slots;
-    if (start >= self.results.count) return cell;
-    [cell bind:[self.results subarrayWithRange:NSMakeRange(start, MIN(self.slots, self.results.count - start))]
-        slots:self.slots search:MTAppSearchNormalize(self.query).length > 0];
-    NSUInteger session = self.session, generation = self.generation;
+    MTLauncherAppCell *cell = [collection dequeueReusableCellWithReuseIdentifier:@"app" forIndexPath:path];
+    MTAppSearchMatch *match = self.results[path.item];
+    cell.icon.image = [MTHelper appIconImageForBundleID:match.entry.identifier] ?: [UIImage systemImageNamed:@"app"];
+    cell.name.text = match.entry.name;
+    cell.badge.text = match.quality == 3 ? MTQL(@"QUICK_APPROXIMATE") : @"";
+    cell.accessibilityLabel = [NSString stringWithFormat:@"%@ %@", match.entry.name, cell.badge.text];
+    NSUInteger generation = self.generation, session = self.session;
+    NSString *identifier = match.entry.identifier;
     __weak typeof(self) weakSelf = self;
-    cell.selectHandler = ^(NSString *identifier) {
+    cell.activationHandler = ^BOOL {
         MTQuickLauncherView *view = weakSelf;
-        if (!view.active || view.launching || view.session != session || view.generation != generation) return;
-        if (view.selectHandler) view.selectHandler(identifier);
+        if (!view.active || view.launching || view.generation != generation || view.session != session || !view.selectHandler) return NO;
+        view.selectHandler(identifier); return YES;
     };
     return cell;
 }
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    if (scrollView.bounds.size.width > 0) self.pages.currentPage = lround(scrollView.contentOffset.x / scrollView.bounds.size.width);
+- (BOOL)collectionView:(UICollectionView *)collection shouldHighlightItemAtIndexPath:(NSIndexPath *)path {
+    if (!self.active || self.launching || path.item >= self.results.count) return NO;
+    self.selectionGeneration = self.generation; self.selectionSession = self.session;
+    self.selectionIdentifier = self.results[path.item].entry.identifier;
+    return YES;
+}
+- (void)collectionView:(UICollectionView *)collection didSelectItemAtIndexPath:(NSIndexPath *)path {
+    if (!self.active || self.launching || path.item >= self.results.count ||
+        self.selectionGeneration != self.generation || self.selectionSession != self.session ||
+        ![self.selectionIdentifier isEqual:self.results[path.item].entry.identifier]) return;
+    NSString *identifier = self.selectionIdentifier; self.selectionIdentifier = nil;
+    if (self.selectHandler) self.selectHandler(identifier);
 }
 - (void)layoutSubviews {
     [super layoutSubviews]; self.material.frame = self.bounds;
-    BOOL wide = self.bounds.size.width > self.bounds.size.height;
-    CGSize base = MTQuickLauncherBaseSize(wide);
+    BOOL search = self.presentationMode == MTQuickLauncherModeSearch;
+    BOOL strip = self.presentationMode == MTQuickLauncherModeStrip;
+    CGSize base = MTQuickLauncherModeBaseSize(self.presentationMode, self.landscape);
     CGFloat scale = MIN(self.bounds.size.width / base.width, self.bounds.size.height / base.height);
-    // 内部始终按基准尺寸排版，再统一缩放文字、图标、间距及按钮。
-    // 不能只缩外框而保留 254pt 的九键起点，否则 80% 时按键会被压扁。
     self.panelContent.bounds = (CGRect){CGPointZero, base};
     self.panelContent.transform = CGAffineTransformMakeScale(scale, scale);
     self.panelContent.center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-    self.layer.cornerRadius = 24 * scale;
-    CGFloat width = base.width, height = base.height;
-    CGFloat contentWidth = wide ? floor(width * 0.47) - 20 : width - 24;
-    // grabber 居中于「标题起点 ~ 关闭按钮起点」之间，不与标题文字重叠。
-    self.grabber.frame = CGRectMake((width - 36) / 2 - 22, 6, 44, 4);
-    self.titleLabel.frame = CGRectMake(12, 8, contentWidth - 44, 28);
-    self.closeButton.frame = CGRectMake(width - 48, 0, 44, 44);
-    self.queryBackground.frame = CGRectMake(12, 44, contentWidth, 36);
-    self.queryLabel.frame = CGRectMake(10, 0, contentWidth - 48, 36);
-    self.clearButton.frame = CGRectMake(contentWidth - 38, 0, 36, 36);
-    self.statusLabel.frame = CGRectMake(12, 84, contentWidth, 18);
-    CGFloat gridHeight = wide ? height - 128 : 132;
-    self.collection.frame = CGRectMake(12, 104, contentWidth, gridHeight);
-    self.pages.frame = CGRectMake(12, 104 + gridHeight, contentWidth, 12);
-    NSUInteger slots = gridHeight < 110 ? 3 : 6;
-    BOOL changed = self.slots != slots; self.slots = slots;
-    CGSize itemSize = CGSizeMake(contentWidth, gridHeight);
+    self.layer.cornerRadius = (strip ? 28 : 24) * scale;
+    CGFloat width = base.width;
+    self.grabber.frame = CGRectMake((width - 32) / 2, 8, 32, 4);
+    self.titleLabel.hidden = YES; self.closeButton.hidden = !search;
+    self.closeButton.frame = CGRectMake(width - 46, 0, 44, 44);
+    MTQuickLauncherContentFrames frames = MTQuickLauncherContentLayout(self.presentationMode, self.landscape);
+    CGFloat actionWidth = frames.actions.size.width / frames.actionColumns;
+    for (NSUInteger i = 0; i < 4; i++) {
+        self.actionButtons[i].frame = CGRectMake(frames.actions.origin.x + (i % frames.actionColumns) * actionWidth,
+            frames.actions.origin.y + (i / frames.actionColumns) * frames.actionHeight, actionWidth, frames.actionHeight);
+    }
+    self.queryBackground.hidden = self.keys.hidden = !search; self.statusLabel.hidden = strip;
+    self.queryBackground.frame = frames.query;
+    self.queryLabel.frame = CGRectMake(10, 0, MAX(0, frames.query.size.width - 48), 36);
+    self.clearButton.frame = CGRectMake(MAX(0, frames.query.size.width - 38), 0, 36, 36);
+    self.statusLabel.frame = frames.status;
+    self.keys.frame = frames.keys;
+    self.collection.frame = frames.apps;
+    NSUInteger columns = frames.appColumns;
+    CGFloat contentWidth = frames.apps.size.width;
+    CGFloat itemWidth = floor(contentWidth / columns);
+    CGFloat itemHeight = search ? floor(self.collection.bounds.size.height / 3) : 66;
+    CGSize itemSize = CGSizeMake(itemWidth, MAX(44, itemHeight));
     if (!CGSizeEqualToSize(self.flow.itemSize, itemSize)) { self.flow.itemSize = itemSize; [self.flow invalidateLayout]; }
-    self.keys.frame = MTQuickLauncherKeysFrame(base);
-    for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
-    if (changed) { self.pages.numberOfPages = (self.results.count + slots - 1) / slots; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData]; }
+    if (search) for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
+    self.modeButton.frame = frames.footer;
+    NSString *hint = strip ? @"QUICK_STAGE_EXPAND" : (search ? @"QUICK_STAGE_COLLAPSE" : @"QUICK_STAGE_SEARCH");
+    [self.modeButton setTitle:MTQL(hint) forState:UIControlStateNormal];
+    self.modeButton.accessibilityLabel = MTQL(hint);
 }
 @end
