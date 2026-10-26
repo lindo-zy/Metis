@@ -57,6 +57,23 @@ static NSString *MTPProfileErrorMessage(NSString *message) {
     return profile;
 }
 
++ (instancetype)clipboardProfile {
+    static MTPAIScriptProfile *profile;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        profile = [MTPAIScriptProfile new];
+        profile->_runtime = MTPAIScriptRuntimeClipboard;
+        profile->_entrySignature = @"function match(text, meta)";
+        profile->_entrySymbol = @"match";
+        profile->_contractSummary = @"剪切板判定 · text / image · 无网络 · ≤ 8 KB · 50 ms";
+        profile->_generateSubtitle = @"描述匹配条件 · 只输出 match(text, meta) · 可直接调试";
+        profile->_maxBytes = 8192;
+        profile->_maxCharacters = 8192;
+        profile->_sampleTemplate = @"function match(text, meta) {\n  return meta.kind === 'text' && /^https?:\\/\\/\\S+$/i.test(String(text).trim());\n}";
+    });
+    return profile;
+}
+
 #pragma mark - Prompt
 
 - (NSString *)sharedPromptTail {
@@ -140,6 +157,15 @@ static NSString *MTPProfileErrorMessage(NSString *message) {
 }
 
 - (NSString *)systemPrompt {
+    if (self.runtime == MTPAIScriptRuntimeClipboard) {
+        NSString *contract = @"你是 Metis 剪切板规则生成器。只输出同步 function match(text, meta)。\n"
+            @"text 是剪切板文本（截取前 2000 字），可能为空；meta.kind 仅为 text 或 image。图片只提供类型，不提供像素、OCR 或路径。\n"
+            @"返回布尔值决定是否命中；规则按优先级求值，首个命中后执行用户另外绑定的共享动作。脚本只判定，不执行动作。\n"
+            @"沙盒只有标准 ECMAScript 内建对象和 console.log（调试日志上限 4 KB）；Date 和 Math.random 为 null。\n"
+            @"禁止 async/await、Promise、网络、文件、剪切板、原生对象、$http/$url/$app、fetch、浏览器和 Node API、定时器。\n"
+            @"UTF-8 最多 8192 字节，CPU 限时 50 ms；空文本、图片、边界输入应安全返回布尔值。避免死循环、无界递归与灾难性正则。\n";
+        return [contract stringByAppendingString:[self sharedPromptTail]];
+    }
     return self.runtime == MTPAIScriptRuntimeContext ? [self contextSystemPrompt] : [self actionSystemPrompt];
 }
 
@@ -221,6 +247,7 @@ static NSString *MTPProfileErrorMessage(NSString *message) {
     // Function declarations are not the only legal shape for `match`: the runtime
     // only checks typeof match === 'function', so an arrow assignment is valid.
     if (!needAsync) {
+        if (self.runtime == MTPAIScriptRuntimeClipboard) return @"入口必须声明为同步 function match(text, meta)";
         if (sawAsync && !sawSync) return @"match 不能是 async 函数：运行时把 Promise 当作命中";
         NSRegularExpression *assignment = [NSRegularExpression regularExpressionWithPattern:
             [NSString stringWithFormat:@"\\b(?:const|let|var)[ \\t]+%@[ \\t]*=", symbol] options:0 error:nil];
@@ -259,7 +286,7 @@ static NSString *MTPProfileErrorMessage(NSString *message) {
         // Without the anchor a reply like "async function match" would be silently
         // converted into a synchronous entry, which changes the contract.
         NSRegularExpression *declaration = [NSRegularExpression regularExpressionWithPattern:
-            [NSString stringWithFormat:@"(^|[^A-Za-z0-9_$])function[ \\t]+%@[ \\t]*\\(", head] options:0 error:nil];
+            [NSString stringWithFormat:@"(^|[^A-Za-z0-9_$])(?:async[ \\t]+)?function[ \\t]+%@[ \\t]*\\(", head] options:0 error:nil];
         NSTextCheckingResult *match = [declaration firstMatchInString:script options:0 range:NSMakeRange(0, script.length)];
         if (match) start = [match rangeAtIndex:1].length ? NSMakeRange([match rangeAtIndex:1].location + [match rangeAtIndex:1].length,
             script.length - [match rangeAtIndex:1].location - [match rangeAtIndex:1].length) : [match rangeAtIndex:0];

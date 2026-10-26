@@ -2,14 +2,16 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// 两处脚本位的运行契约不同，共用同一套「生成 → 预检 → 采纳」流程时，
+// 各脚本入口的运行契约不同，共用同一套「生成 → 预检 → 采纳」流程时，
 // 差异全部收敛在这个 profile 里：入口签名、沙盒能力、体积上限、提示词与示例。
-// 新增第三处脚本位时只加一个 +profile，不要再复制 chat/debug 页面。
+// 新增脚本入口时扩展 profile，并把调试接到对应的运行引擎。
 typedef NS_ENUM(NSInteger, MTPAIScriptRuntime) {
     // 自定义动作：设置进程内由 MTJavaScriptEngine 执行，可联网、可打开 App。
     MTPAIScriptRuntimeAction = 0,
     // 底栏 JS 规则：键盘进程内由 MTContextClassifier 执行，纯沙盒判定。
     MTPAIScriptRuntimeContext,
+    // 剪切板规则：match(text, meta)，使用采集规则引擎。
+    MTPAIScriptRuntimeClipboard,
 };
 
 @interface MTPAIScriptProfile : NSObject
@@ -31,6 +33,7 @@ typedef NS_ENUM(NSInteger, MTPAIScriptRuntime) {
 
 + (instancetype)actionProfile;
 + (instancetype)contextProfile;
++ (instancetype)clipboardProfile;
 
 - (NSString *)systemPrompt;
 // 语法、入口声明、体积三项静态检查；从不执行脚本。

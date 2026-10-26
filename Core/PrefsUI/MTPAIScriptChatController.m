@@ -125,7 +125,9 @@ static NSString *MTAIScriptLabel(NSString *key) {
 - (void)refreshControls {
     self.input.editable = !self.generating;
     self.inputHint.text = MTAIScriptLabel(self.versions.count ? @"JS_AI_MODIFY_HINT"
-        : (self.profile.runtime == MTPAIScriptRuntimeContext ? @"JS_AI_INPUT_HINT_CONTEXT" : @"JS_AI_INPUT_HINT"));
+        : (self.profile.runtime != MTPAIScriptRuntimeAction ? @"JS_AI_INPUT_HINT_CONTEXT" : @"JS_AI_INPUT_HINT"));
+    if (!self.versions.count && self.profile.runtime == MTPAIScriptRuntimeClipboard)
+        self.inputHint.text = @"描述剪切板匹配条件，例如：只匹配网页链接，或只匹配图片。";
     self.inputHint.hidden = self.input.text.length > 0;
     UIButtonConfiguration *config = self.sendButton.configuration;
     config.title = MTAIScriptLabel(self.generating ? @"JS_AI_STOP" : @"JS_AI_SEND");
@@ -316,12 +318,12 @@ static NSString *MTAIScriptLabel(NSString *key) {
 - (void)debugTapped:(UIButton *)button {
     NSString *script = [self validatedScriptForButton:button]; if (!script) return;
     [self.view endEditing:YES];
-    // 两套运行时不能共用一个调试台：底栏规则走键盘进程的分类器（纯判定、50 ms），
-    // 自定义动作走设置进程的 MTJavaScriptEngine（可联网、可返回动作）。
+    // 纯判定规则共用调试界面，profile 选择各自引擎；动作走 MTJavaScriptEngine。
     UIViewController *test = nil;
-    if (self.profile.runtime == MTPAIScriptRuntimeContext) {
+    if (self.profile.runtime != MTPAIScriptRuntimeAction) {
         MTPContextScriptDebugController *debug = [MTPContextScriptDebugController new];
         debug.source = script;
+        debug.profile = self.profile;
         debug.groupKey = self.groupKey;
         debug.typeID = self.typeID;
         test = debug;

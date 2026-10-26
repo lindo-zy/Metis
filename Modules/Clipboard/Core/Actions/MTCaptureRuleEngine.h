@@ -41,6 +41,10 @@ typedef void (^MTCaptureRuleReply)(MTCaptureRule * _Nullable hit);
              autoOnly:(BOOL)autoOnly
            completion:(MTCaptureRuleReply)completion;
 
+// 调试与运行使用同一沙盒；不累积失败计数，也不执行动作。结果含有界 console 日志。
+- (void)testSource:(NSString *)source text:(nullable NSString *)text kind:(NSString *)kind
+        completion:(void (^)(NSDictionary *result))completion;
+
 // 同步单条求值（宿主测试/调试用），返回 @{@"matched": @BOOL, @"error": NSString, @"ms": @double}。
 - (NSDictionary *)evaluateSource:(NSString *)source
                             text:(nullable NSString *)text

@@ -4,7 +4,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class MTPAIScriptProfile;
 
-// JS 规则与自定义动作共用的全屏编辑器：行号、着色、容量、语法状态、沙盒调试入口。
+// 键盘/剪切板 JS 规则与自定义动作共用的全屏编辑器：行号、着色、容量、语法状态、沙盒调试入口。
 // 保存是显式事务——只有「保存」才回调；校验失败不清空、也不自动停用规则。
 @interface MTPContextScriptEditorController : UIViewController
 

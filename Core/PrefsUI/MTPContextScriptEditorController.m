@@ -365,9 +365,10 @@ static NSString *MTEditorLabel(NSString *key) {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(rehighlight) object:nil];
     NSString *script = self.textView.text ?: @"";
     UIViewController *debug = nil;
-    if (self.profile.runtime == MTPAIScriptRuntimeContext) {
+    if (self.profile.runtime != MTPAIScriptRuntimeAction) {
         MTPContextScriptDebugController *controller = [MTPContextScriptDebugController new];
         controller.source = script;
+        controller.profile = self.profile;
         controller.groupKey = self.groupKey;
         controller.typeID = self.typeID;
         debug = controller;

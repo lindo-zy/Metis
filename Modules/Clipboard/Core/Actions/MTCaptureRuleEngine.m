@@ -86,7 +86,6 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
 
 @interface MTCaptureRuleEngine ()
 @property (nonatomic, strong) dispatch_queue_t queue;
-@property (nonatomic, strong) JSVirtualMachine *vm;
 // key = 规则 id，value = 连续失败次数；规则集指纹变化时清零。
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *failures;
 @property (nonatomic, copy) NSString *failureFingerprint;
@@ -139,6 +138,7 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
                       rule.identifier, result[@"error"], (unsigned long)failures);
                 continue;
             }
+            [self.failures removeObjectForKey:rule.identifier];
             if ([result[@"matched"] boolValue]) {
                 hit = rule;
                 break;
@@ -150,42 +150,66 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
     });
 }
 
-- (NSDictionary *)evaluateSource:(NSString *)source
-                            text:(NSString *)text
-                            kind:(NSString *)kind {
+- (void)testSource:(NSString *)source text:(NSString *)text kind:(NSString *)kind
+        completion:(void (^)(NSDictionary *result))completion {
+    dispatch_async(self.queue, ^{
+        NSDictionary *result = [self evaluateSource:source text:text kind:kind captureLogs:YES];
+        dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(result); });
+    });
+}
+
+- (NSDictionary *)evaluateSource:(NSString *)source text:(NSString *)text kind:(NSString *)kind {
+    return [self evaluateSource:source text:text kind:kind captureLogs:NO];
+}
+
+- (NSDictionary *)evaluateSource:(NSString *)source text:(NSString *)text kind:(NSString *)kind
+                    captureLogs:(BOOL)captureLogs {
     CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
+    if (!source.length || [source lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > MTCaptureRuleSourceLimit) {
+        return @{ @"matched": @NO, @"error": @"CAPTURE_JS_SOURCE_LIMIT", @"ms": @0, @"logs": @[] };
+    }
     MTCaptureLimit limit = (MTCaptureLimit)dlsym(RTLD_DEFAULT, "JSContextGroupSetExecutionTimeLimit");
     MTCaptureClear clear = (MTCaptureClear)dlsym(RTLD_DEFAULT, "JSContextGroupClearExecutionTimeLimit");
-    if (!limit || !clear) return @{ @"matched": @NO, @"error": @"CAPTURE_JS_UNAVAILABLE", @"ms": @0 };
+    if (!limit || !clear) return @{ @"matched": @NO, @"error": @"CAPTURE_JS_UNAVAILABLE", @"ms": @0, @"logs": @[] };
 
-    if (!self.vm) self.vm = [JSVirtualMachine new];
-    // 每次求值独立 realm：规则对全局对象/原型的改动不会泄漏到其他规则，
-    // 结果也不依赖上一次的输入。
-    JSContext *context = [[JSContext alloc] initWithVirtualMachine:self.vm];
+    // A fresh VM also makes synchronous host calls independent of the runtime queue.
+    JSContext *context = [[JSContext alloc] initWithVirtualMachine:[JSVirtualMachine new]];
     [context evaluateScript:
         @"Object.defineProperty(this,'Date',{value:null,writable:false,configurable:false});"
         @"Object.defineProperty(Math,'random',{value:null,writable:false,configurable:false});"];
     __block NSUInteger logBytes = 0;
-    context[@"console"] = @{};
-    context[@"console"][@"log"] = ^(NSString *message) {
-        if (logBytes >= 4096) return;
+    NSMutableArray<NSString *> *logs = [NSMutableArray array];
+    context[@"__captureLog"] = ^(NSString *message) {
+        if (!captureLogs || logBytes >= 4096 || logs.count >= 128) return;
         NSString *line = [message isKindOfClass:NSString.class] ? message : @"[value]";
         line = [line substringToIndex:MIN((NSUInteger)512, line.length)];
+        while ([line lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 4096 - logBytes) {
+            line = [line substringToIndex:line.length - 1];
+        }
         logBytes += [line lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-        NSLog(@"[Metis][CaptureRules] %@", line);
+        [logs addObject:line];
     };
+    [context evaluateScript:
+        @"this.console = Object.freeze({log: (function(write){return function(){"
+         "write(Array.prototype.map.call(arguments,function(v){return String(v);}).join(' '));"
+         "};})(__captureLog)}); delete this.__captureLog;"];
     __block BOOL timedOut = NO;
     JSContextGroupRef group = JSContextGetGroup(context.JSGlobalContextRef);
     limit(group, MTCaptureRuleTimeLimitSeconds, MTCaptureTerminate, &timedOut);
 
     JSValue *function = [context evaluateScript:
         [NSString stringWithFormat:
-            @"(function(){'use strict';\n%@\n;return typeof match === 'function' ? function(text, meta){return !!match(text, meta);} : null;})()",
-            source]];
+            @"(function(){'use strict';\n%@\n;return typeof match === 'function' ? function(text, meta){"
+             "const result = match(text, meta);"
+             "if (result && typeof result.then === 'function') throw new Error('match must be synchronous');"
+             "return !!result;} : null;})()", source]];
     BOOL matched = NO;
     NSString *error = nil;
     if (!context.exception && function && !function.isNull && !function.isUndefined) {
-        JSValue *value = [function callWithArguments:@[ text ?: @"", @{ @"kind": kind ?: @"text" } ]];
+        NSString *safeText = [text isKindOfClass:NSString.class]
+            ? [text substringToIndex:MIN(MTCaptureRuleTextLimit, text.length)] : @"";
+        NSString *safeKind = [kind isEqual:@"image"] ? @"image" : @"text";
+        JSValue *value = [function callWithArguments:@[safeText, @{ @"kind": safeKind }]];
         if (!context.exception && !timedOut) matched = value.toBool;
     } else if (!context.exception) {
         error = @"CAPTURE_JS_NO_MATCH";
@@ -193,7 +217,7 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
     if (timedOut) error = @"CAPTURE_JS_TIMEOUT";
     else if (context.exception) error = @"CAPTURE_JS_ERROR";
     clear(group);
-    return @{ @"matched": @(matched && !error), @"error": error ?: @"",
+    return @{ @"matched": @(matched && !error), @"error": error ?: @"", @"logs": logs.copy,
               @"ms": @((CFAbsoluteTimeGetCurrent() - start) * 1000) };
 }
 

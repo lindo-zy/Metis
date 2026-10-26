@@ -1,25 +1,24 @@
-//
-//  MTCaptureRulesController.m
-//  Mt
-//
-
 #import "MTCaptureRulesController.h"
-
 #import "MTCaptureRuleEngine.h"
 #import "MTClipboardActionReferences.h"
-#import "MTPContextScriptEditorController.h"
 #import "MTSharedResourceStore.h"
+#import "MTPContextScriptEditorController.h"
+#import "MTPContextScriptDebugController.h"
+#import "MTPAIScriptChatController.h"
+#import "MTPAIScriptProfile.h"
+#import "MTPJavaScriptPreviewCell.h"
+#import "MTAIEngine.h"
 
-// 规则顺序即求值顺序，首个命中的规则生效；未命中不执行任何动作。
-// 动作引用共享资源动作库 UUID，执行端（MTQuickAction）在执行时再解析并校验，
-// 删除动作库条目后规则该位自动失效，不需要在这里做悬挂引用清理。
-
-@class MTCaptureRuleEditorController;
-@class MTCaptureRuleActionPickerController;
+static void MTCaptureShowError(UIViewController *owner, NSString *message) {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无法保存规则"
+        message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
+    [owner presentViewController:alert animated:YES completion:nil];
+}
 
 @interface MTCaptureRuleEditorController : UITableViewController
-- (instancetype)initWithRule:(MTCaptureRule *)rule;
-@property (nonatomic, copy, nullable) void (^onSaved)(void);
+- (instancetype)initWithEntry:(NSDictionary *)entry isNew:(BOOL)isNew;
+@property (nonatomic, copy) void (^onSaved)(void);
 @end
 
 @interface MTCaptureRuleActionPickerController : UITableViewController
@@ -27,17 +26,9 @@
                            completion:(void (^)(NSString *uuid))completion;
 @end
 
-#pragma mark - Rule list
+#pragma mark - Priority list
 
-@interface MTCaptureRuleCell : UITableViewCell
-@end
-@implementation MTCaptureRuleCell
-- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
-    return [super initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuseIdentifier];
-}
-@end
-
-@interface MTCaptureRulesController () <UITableViewDelegate, UITableViewDataSource>
+@interface MTCaptureRulesController () <UITableViewDelegate, UITableViewDataSource, UITableViewDragDelegate, UITableViewDropDelegate>
 @end
 
 @implementation MTCaptureRulesController {
@@ -45,14 +36,24 @@
     NSArray<MTCaptureRule *> *_rules;
 }
 
+// PSViewController is a navigation adapter. Own exactly one table instead of
+// placing a second table over the view managed by Preferences.
+- (void)loadView {
+    _table = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.view = _table;
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"剪切板规则";
-    _table = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
-    _table.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     _table.delegate = self;
     _table.dataSource = self;
-    [self.view addSubview:_table];
+    _table.dragDelegate = self;
+    _table.dropDelegate = self;
+    _table.dragInteractionEnabled = YES;
+    _table.rowHeight = UITableViewAutomaticDimension;
+    _table.estimatedRowHeight = 72;
+    _table.allowsSelectionDuringEditing = YES;
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"编辑"
         style:UIBarButtonItemStylePlain target:self action:@selector(toggleEditing)];
     [self reloadRules];
@@ -64,408 +65,413 @@
 }
 
 - (void)toggleEditing {
-    BOOL editing = !_table.editing;
-    [_table setEditing:editing animated:YES];
-    [self.navigationItem.rightBarButtonItem setTitle:editing ? @"完成" : @"编辑"];
+    [_table setEditing:!_table.editing animated:YES];
+    self.navigationItem.rightBarButtonItem.title = _table.editing ? @"完成" : @"编辑";
 }
 
 - (void)reloadRules {
     _rules = [MTCaptureRule rulesFromDictionaries:
         [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]]];
+    self.navigationItem.rightBarButtonItem.enabled = _rules.count > 0;
+    if (!_rules.count && _table.editing) [self toggleEditing];
     [_table reloadData];
 }
 
-// 读-改-写：以最新快照与 revision 提交，替换/插入/删除/重排同一条路径。
-// 提交失败必须让用户看到，不允许静默回退（否则表现为「保存无效」）。
-- (BOOL)commitRulesWithMutation:(NSArray<NSDictionary *> *(^)(NSMutableArray<NSDictionary *> *current))mutation {
-    NSDictionary *current = [MTSharedResourceStore readSnapshot];
-    NSMutableArray<NSDictionary *> *rules =
-        [[MTClipboardActionReferences ruleDictionariesInDocument:current] mutableCopy] ?: [NSMutableArray array];
-    NSArray<NSDictionary *> *next = mutation(rules) ?: rules;
+- (BOOL)commitMutation:(void (^)(NSMutableArray<NSDictionary *> *rules))mutation {
     NSError *error = nil;
-    BOOL saved = [MTSharedResourceStore commitSnapshot:
-        [MTClipboardActionReferences document:current settingRuleDictionaries:next]
-        expectedRevision:[MTSharedResourceStore currentRevision] error:&error];
-    if (!saved) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"保存失败"
-            message:error.localizedDescription ?: @"配置已被其他窗口修改，请返回后重试。"
-            preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:alert animated:YES completion:nil];
+    NSDictionary *document = [MTSharedResourceStore readSnapshotError:&error];
+    if (!document) {
+        MTCaptureShowError(self, error.localizedDescription ?: @"读取配置失败，请重试。");
+        [self reloadRules];
+        return NO;
     }
+    NSMutableArray *rules = [[MTClipboardActionReferences ruleDictionariesInDocument:document] mutableCopy];
+    mutation(rules);
+    BOOL saved = [MTSharedResourceStore commitSnapshot:
+        [MTClipboardActionReferences document:document settingRuleDictionaries:rules]
+        expectedRevision:[document[@"revision"] unsignedLongLongValue] error:&error];
+    if (!saved) MTCaptureShowError(self, error.localizedDescription ?: @"配置已改变，请重试。");
     [self reloadRules];
     return saved;
 }
 
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return (NSInteger)_rules.count + 1;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    MTCaptureRuleCell *cell = [tableView dequeueReusableCellWithIdentifier:@"rule"];
-    if (!cell) cell = [[MTCaptureRuleCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"rule"];
-    NSUInteger index = (NSUInteger)indexPath.row;
-    if (index >= _rules.count) {
-        cell.textLabel.text = @"添加规则";
-        cell.textLabel.textColor = _rules.count < 32 ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
-        cell.detailTextLabel.text = _rules.count < 32 ? @"复制后或双击气泡时，按 JS 条件执行绑定的动作" : nil;
-        cell.accessoryType = _rules.count < 32 ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
-        cell.editingAccessoryType = UITableViewCellAccessoryNone;
-        return cell;
-    }
-    MTCaptureRule *rule = _rules[index];
-    cell.textLabel.text = rule.name.length ? rule.name : [NSString stringWithFormat:@"规则 %lu", (unsigned long)index + 1];
-    cell.textLabel.textColor = rule.enabled ? UIColor.labelColor : UIColor.secondaryLabelColor;
-    NSMutableString *summary = [NSMutableString string];
-    if (rule.autoRun) [summary appendString:@"自动执行 · "];
-    [summary appendFormat:@"%lu 个动作", (unsigned long)rule.actions.count];
-    if (!rule.enabled) [summary appendString:@" · 已停用"];
-    cell.detailTextLabel.text = summary;
-    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    cell.editingAccessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    return cell;
-}
-
-- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
-    return indexPath.row < (NSInteger)_rules.count;
-}
-
-- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath {
-    return indexPath.row < (NSInteger)_rules.count;
-}
-
-- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)sourceIndexPath
-      toIndexPath:(NSIndexPath *)destinationIndexPath {
-    NSString *identifier = _rules[sourceIndexPath.row].identifier;
-    [self commitRulesWithMutation:^NSArray<NSDictionary *> *(NSMutableArray<NSDictionary *> *current) {
-        NSDictionary *entry = nil;
-        for (NSUInteger i = 0; i < current.count; i++) {
-            if ([current[i][@"id"] isEqual:identifier]) {
-                entry = current[i];
-                [current removeObjectAtIndex:i];
-                break;
-            }
-        }
-        if (!entry) return current;
-        NSUInteger target = MIN((NSUInteger)destinationIndexPath.row, current.count);
-        [current insertObject:entry atIndex:target];
-        return current;
-    }];
-}
-
-- (void)tableView:(UITableView *)tableView
-    commitEditingStyle:(UITableViewCellEditingStyle)editingStyle
-     forRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (editingStyle != UITableViewCellEditingStyleDelete || indexPath.row >= (NSInteger)_rules.count) return;
-    NSString *identifier = _rules[indexPath.row].identifier;
-    [self commitRulesWithMutation:^NSArray<NSDictionary *> *(NSMutableArray<NSDictionary *> *current) {
-        for (NSUInteger i = 0; i < current.count; i++) {
-            if ([current[i][@"id"] isEqual:identifier]) {
-                [current removeObjectAtIndex:i--];
-            }
-        }
-        return current;
-    }];
-}
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (indexPath.row >= (NSInteger)_rules.count) {
-        if (_rules.count < 32) [self addRule];
-        return;
-    }
-    MTCaptureRuleEditorController *editor = [[MTCaptureRuleEditorController alloc] initWithRule:_rules[indexPath.row]];
-    editor.onSaved = ^{
-        [self reloadRules];
-    };
-    [self.navigationController pushViewController:editor animated:YES];
-}
-
-- (void)addRule {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"新规则"
-        message:@"规则在双击气泡（及自动执行）时按顺序求值，match(text, meta) 返回真即命中。"
-        preferredStyle:UIAlertControllerStyleAlert];
-    [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
-        field.placeholder = @"规则名称（如：打开链接）";
-    }];
-    __weak typeof(self) weakSelf = self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"创建" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-        NSString *name = [alert.textFields.firstObject.text
-            stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] ?: @"";
-        [weakSelf commitRulesWithMutation:^NSArray<NSDictionary *> *(NSMutableArray<NSDictionary *> *current) {
-            [current addObject:@{ @"id": [NSUUID UUID].UUIDString,
-                                  @"name": name,
-                                  @"enabled": @YES, @"auto": @NO,
-                                  @"source": @"function match(text, meta) {\n  return false;\n}",
-                                  @"actions": @[] }];
-            return current;
-        }];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return @"按顺序求值，首个命中的规则生效；未命中不执行任何动作。双击采集气泡执行，"
-            "「复制后自动执行」需在规则上单独开启。脚本运行在沙盒中：无 Date / Math.random，"
-            "超时 50ms，连续报错 3 次的规则自动停用。";
-}
-
-@end
-
-#pragma mark - Editor
-
-@interface MTCaptureRuleEditorController ()
-@property (nonatomic, copy) NSDictionary *entry;
-@end
-
-@implementation MTCaptureRuleEditorController {
-    NSArray<NSDictionary *> *_libraryActions;
-}
-
-- (instancetype)initWithRule:(MTCaptureRule *)rule {
-    if ((self = [super initWithStyle:UITableViewStyleInsetGrouped])) {
-        _entry = rule.dictionaryRepresentation;
-        self.title = rule.name.length ? rule.name : @"编辑规则";
-    }
-    return self;
-}
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"保存"
-        style:UIBarButtonItemStyleDone target:self action:@selector(commit)];
-    [self reloadLibrary];
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    [self reloadLibrary];
-    [self.tableView reloadData];
-}
-
-// 动作库列表：仅列执行端支持的类型（与槽位选择页同一判据）。
-- (void)reloadLibrary {
-    NSMutableArray *library = [NSMutableArray array];
-    for (NSDictionary *resource in [MTSharedResourceStore readSnapshot][@"actions"]) {
-        if (![resource isKindOfClass:NSDictionary.class]) continue;
-        NSDictionary *entry = [resource[@"entry"] isKindOfClass:NSDictionary.class] ? resource[@"entry"] : @{};
-        if (![MTClipboardActionReferences supportsEntry:entry]) continue;
-        [library addObject:@{ @"id": resource[@"id"] ?: @"",
-                              @"name": entry[@"name"] ?: @"未命名动作",
-                              @"type": entry[@"type"] ?: @"urlscheme" }];
-    }
-    _libraryActions = library;
-}
-
-// 每次编辑都整体替换同 id 条目后提交；与列表页共用一次 CAS 写。
-- (void)commit {
-    NSDictionary *current = [MTSharedResourceStore readSnapshot];
-    NSMutableArray<NSDictionary *> *rules =
-        [[MTClipboardActionReferences ruleDictionariesInDocument:current] mutableCopy] ?: [NSMutableArray array];
-    BOOL replaced = NO;
-    for (NSUInteger i = 0; i < rules.count; i++) {
-        if ([rules[i][@"id"] isEqual:self.entry[@"id"]]) {
-            rules[i] = self.entry;
-            replaced = YES;
+- (void)setRuleID:(NSString *)identifier enabled:(BOOL)enabled {
+    [self commitMutation:^(NSMutableArray<NSDictionary *> *rules) {
+        for (NSUInteger i = 0; i < rules.count; i++) {
+            if (![rules[i][@"id"] isEqual:identifier]) continue;
+            NSMutableDictionary *entry = [rules[i] mutableCopy];
+            entry[@"enabled"] = @(enabled);
+            rules[i] = entry;
             break;
         }
-    }
-    if (!replaced) [rules addObject:self.entry];
-    NSError *error = nil;
-    BOOL saved = [MTSharedResourceStore commitSnapshot:
-        [MTClipboardActionReferences document:current settingRuleDictionaries:rules]
-        expectedRevision:[MTSharedResourceStore currentRevision] error:&error];
-    if (!saved) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"保存失败"
-            message:error.localizedDescription ?: @"配置已被其他窗口修改，请返回后重试。"
-            preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:alert animated:YES completion:nil];
-        return;
-    }
-    if (self.onSaved) self.onSaved();
+    }];
 }
 
-- (void)replaceEntry:(NSDictionary *)entry {
-    self.entry = entry;
-    self.title = [entry[@"name"] length] ? entry[@"name"] : @"编辑规则";
+- (BOOL)moveRuleID:(NSString *)identifier toIndex:(NSUInteger)index {
+    return [self commitMutation:^(NSMutableArray<NSDictionary *> *rules) {
+        NSUInteger source = [rules indexOfObjectPassingTest:^BOOL(NSDictionary *entry, NSUInteger idx, BOOL *stop) {
+            return [entry[@"id"] isEqual:identifier];
+        }];
+        if (source == NSNotFound) return;
+        NSDictionary *entry = rules[source];
+        [rules removeObjectAtIndex:source];
+        [rules insertObject:entry atIndex:MIN(index, rules.count)];
+    }];
 }
 
-- (NSString *)nameForActionUUID:(NSString *)uuid {
-    for (NSDictionary *action in _libraryActions) {
-        if ([action[@"id"] isEqual:uuid]) return action[@"name"];
-    }
-    return nil;
-}
-
-- (void)removeActionAtIndex:(NSUInteger)index {
-    NSMutableArray *actions = [self.entry[@"actions"] mutableCopy];
-    if (index >= actions.count) return;
-    [actions removeObjectAtIndex:index];
-    [self replaceEntry:[@{ @"id": self.entry[@"id"], @"name": self.entry[@"name"] ?: @"",
-                           @"enabled": self.entry[@"enabled"] ?: @YES, @"auto": self.entry[@"auto"] ?: @NO,
-                           @"source": self.entry[@"source"] ?: @"", @"actions": actions } mutableCopy]];
-    [self commit];
-}
-
-- (void)confirmRemoveActionAtIndex:(NSUInteger)index {
-    NSString *name = [self nameForActionUUID:self.entry[@"actions"][index]] ?: @"该动作";
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:name
-        message:@"从规则中移除该动作？动作库条目不受影响。" preferredStyle:UIAlertControllerStyleAlert];
-    __weak typeof(self) weakSelf = self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"移除" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
-        [weakSelf removeActionAtIndex:index];
-    }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-#pragma mark table
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 3; }
-
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    if (section == 0) return 3;                       // 名称 / 启用 / 自动执行
-    if (section == 1) return 1;                       // 匹配脚本
-    return (NSInteger)[self.entry[@"actions"] count] + 1;  // 动作 + 添加
+    return section == 0 ? _rules.count : 1;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    if (section == 1) return @"匹配条件";
-    if (section == 2) return @"命中的动作（按序执行）";
-    return nil;
+    if (section != 0) return nil;
+    NSUInteger enabled = 0;
+    for (MTCaptureRule *rule in _rules) if (rule.enabled) enabled++;
+    return _rules.count ? [NSString stringWithFormat:@"优先级从上到下 · %lu / %lu 已开启",
+        (unsigned long)enabled, (unsigned long)_rules.count] : @"尚未添加规则";
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return @"「复制后自动执行」还需在剪切板设置根页打开总开关（默认关闭）。";
-    if (section == 1) return @"meta.kind 为 \"text\"（文本）或 \"image\"（图片）。";
-    return nil;
+    if (section == 0) return _rules.count ? @"长按规则拖动排序，或点“编辑”使用排序手柄。首个命中的有效规则执行绑定动作；关闭的规则不参与匹配。" : nil;
+    return @"双击采集气泡时按顺序匹配；未命中不执行动作。复制后自动执行需同时打开剪切板总开关和规则内的自动执行开关。";
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"cell"];
-    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"cell"];
-    cell.textLabel.textColor = UIColor.labelColor;
+    // Separate identities keep add-row accessories and rule controls independent.
+    NSString *reuse = indexPath.section == 0 ? @"rule" : @"add";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuse];
+    cell.textLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    cell.textLabel.adjustsFontForContentSizeCategory = YES;
+    cell.textLabel.numberOfLines = 0;
+    cell.detailTextLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
+    cell.detailTextLabel.adjustsFontForContentSizeCategory = YES;
+    cell.detailTextLabel.numberOfLines = 0;
     cell.accessoryView = nil;
     cell.accessoryType = UITableViewCellAccessoryNone;
-    cell.detailTextLabel.text = nil;
-    if (indexPath.section == 0) {
-        if (indexPath.row == 0) {
-            cell.textLabel.text = @"名称";
-            UITextField *field = [cell.contentView viewWithTag:101];
-            if (!field) {
-                field = [[UITextField alloc] initWithFrame:CGRectZero];
-                field.tag = 101;
-                field.placeholder = @"规则名称";
-                field.clearButtonMode = UITextFieldViewModeWhileEditing;
-                field.autocorrectionType = UITextAutocorrectionTypeNo;
-                field.translatesAutoresizingMaskIntoConstraints = NO;
-                [field addTarget:self action:@selector(nameChanged:) forControlEvents:UIControlEventEditingChanged];
-                [cell.contentView addSubview:field];
-                [NSLayoutConstraint activateConstraints:@[
-                    [field.leadingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.leadingAnchor],
-                    [field.trailingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.trailingAnchor],
-                    [field.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor],
-                    [field.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor] ]];
-            }
-            field.text = self.entry[@"name"];
-        } else {
-            // 名称行 cell 可能被复用到开关行，先摘掉残留的输入框。
-            [[cell.contentView viewWithTag:101] removeFromSuperview];
-            BOOL isAuto = indexPath.row == 2;
-            cell.textLabel.text = isAuto ? @"复制后自动执行" : @"启用";
-            UISwitch *toggle = [[UISwitch alloc] initWithFrame:CGRectZero];
-            toggle.on = [self.entry[isAuto ? @"auto" : @"enabled"] boolValue];
-            [toggle addTarget:self action:(isAuto ? @selector(autoChanged:) : @selector(enabledChanged:))
-                     forControlEvents:UIControlEventValueChanged];
-            cell.accessoryView = toggle;
-        }
-        return cell;
-    }
+    cell.editingAccessoryType = UITableViewCellAccessoryDisclosureIndicator;
     if (indexPath.section == 1) {
-        NSString *source = self.entry[@"source"] ?: @"";
-        cell.textLabel.text = @"编辑匹配脚本";
-        cell.detailTextLabel.text = source.length
-            ? [NSString stringWithFormat:@"%lu 行", (unsigned long)[source componentsSeparatedByString:@"\n"].count]
-            : @"未设置";
+        cell.textLabel.text = @"添加规则";
+        cell.textLabel.textColor = _rules.count < 32 ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
+        cell.detailTextLabel.text = _rules.count < 32 ? @"JavaScript 条件 · AI 编写 · 沙盒调试" : @"最多添加 32 条规则";
+        cell.imageView.image = [UIImage systemImageNamed:@"plus.circle.fill"];
+        cell.imageView.tintColor = UIColor.systemBlueColor;
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         return cell;
     }
-    NSArray *actions = self.entry[@"actions"];
-    if (indexPath.row >= (NSInteger)actions.count) {
-        cell.textLabel.text = @"添加动作";
-        cell.textLabel.textColor = actions.count < 8 ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
-        return cell;
-    }
-    NSString *uuid = actions[indexPath.row];
-    NSString *name = [self nameForActionUUID:uuid];
-    cell.textLabel.text = name ?: @"已删除的动作";
-    cell.textLabel.textColor = name ? UIColor.labelColor : UIColor.secondaryLabelColor;
-    cell.accessoryType = UITableViewCellAccessoryDetailButton;
+    MTCaptureRule *rule = _rules[indexPath.row];
+    cell.textLabel.text = [NSString stringWithFormat:@"%ld. %@", (long)indexPath.row + 1, rule.name.length ? rule.name : @"未命名规则"];
+    cell.textLabel.textColor = rule.enabled ? UIColor.labelColor : UIColor.secondaryLabelColor;
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %lu 个动作%@",
+        rule.enabled ? @"已开启" : @"已关闭", (unsigned long)rule.actions.count,
+        rule.autoRun ? @" · 复制后自动执行" : @""];
+    UISwitch *toggle = [UISwitch new];
+    toggle.on = rule.enabled;
+    toggle.accessibilityLabel = [NSString stringWithFormat:@"启用规则：%@", rule.name];
+    __weak typeof(self) weakSelf = self;
+    NSString *identifier = rule.identifier;
+    [toggle addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+        [weakSelf setRuleID:identifier enabled:((UISwitch *)action.sender).on];
+    }] forControlEvents:UIControlEventValueChanged];
+    cell.accessoryView = toggle;
+    cell.showsReorderControl = YES;
     return cell;
 }
 
-- (void)nameChanged:(UITextField *)field {
-    NSString *name = [field.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] ?: @"";
-    [self replaceEntry:[@{ @"id": self.entry[@"id"], @"name": name,
-                           @"enabled": self.entry[@"enabled"] ?: @YES, @"auto": self.entry[@"auto"] ?: @NO,
-                           @"source": self.entry[@"source"] ?: @"", @"actions": self.entry[@"actions"] ?: @[] } mutableCopy]];
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath { return indexPath.section == 0; }
+- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath { return indexPath.section == 0; }
+- (NSIndexPath *)tableView:(UITableView *)tableView targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)source
+     toProposedIndexPath:(NSIndexPath *)destination {
+    NSInteger row = destination.section == 0 ? destination.row : (NSInteger)_rules.count - 1;
+    return [NSIndexPath indexPathForRow:MIN(row, (NSInteger)_rules.count - 1) inSection:0];
+}
+- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)source toIndexPath:(NSIndexPath *)destination {
+    [self moveRuleID:_rules[source.row].identifier toIndex:destination.row];
+}
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (style != UITableViewCellEditingStyleDelete || indexPath.section != 0 || indexPath.row >= _rules.count) return;
+    NSString *identifier = _rules[indexPath.row].identifier;
+    [self commitMutation:^(NSMutableArray<NSDictionary *> *rules) {
+        NSIndexSet *indexes = [rules indexesOfObjectsPassingTest:^BOOL(NSDictionary *entry, NSUInteger idx, BOOL *stop) {
+            return [entry[@"id"] isEqual:identifier];
+        }];
+        [rules removeObjectsAtIndexes:indexes];
+    }];
 }
 
-- (void)enabledChanged:(UISwitch *)toggle {
-    [self replaceEntry:[@{ @"id": self.entry[@"id"], @"name": self.entry[@"name"] ?: @"",
-                           @"enabled": @(toggle.on), @"auto": self.entry[@"auto"] ?: @NO,
-                           @"source": self.entry[@"source"] ?: @"", @"actions": self.entry[@"actions"] ?: @[] } mutableCopy]];
-    [self commit];
+- (NSArray<UIDragItem *> *)tableView:(UITableView *)tableView itemsForBeginningDragSession:(id<UIDragSession>)session
+                       atIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.section != 0 || indexPath.row >= _rules.count) return @[];
+    UIDragItem *item = [[UIDragItem alloc] initWithItemProvider:[NSItemProvider new]];
+    item.localObject = _rules[indexPath.row].identifier;
+    return @[item];
 }
-
-- (void)autoChanged:(UISwitch *)toggle {
-    [self replaceEntry:[@{ @"id": self.entry[@"id"], @"name": self.entry[@"name"] ?: @"",
-                           @"enabled": self.entry[@"enabled"] ?: @YES, @"auto": @(toggle.on),
-                           @"source": self.entry[@"source"] ?: @"", @"actions": self.entry[@"actions"] ?: @[] } mutableCopy]];
-    [self commit];
+- (BOOL)tableView:(UITableView *)tableView dragSessionIsRestrictedToDraggingApplication:(id<UIDragSession>)session { return YES; }
+- (BOOL)tableView:(UITableView *)tableView canHandleDropSession:(id<UIDropSession>)session {
+    return session.localDragSession != nil && [session.items.firstObject.localObject isKindOfClass:NSString.class];
+}
+- (UITableViewDropProposal *)tableView:(UITableView *)tableView dropSessionDidUpdate:(id<UIDropSession>)session
+            withDestinationIndexPath:(NSIndexPath *)indexPath {
+    BOOL allowed = session.localDragSession && indexPath.section == 0 && indexPath != nil;
+    return [[UITableViewDropProposal alloc] initWithDropOperation:allowed ? UIDropOperationMove : UIDropOperationCancel
+        intent:UITableViewDropIntentInsertAtDestinationIndexPath];
+}
+- (void)tableView:(UITableView *)tableView performDropWithCoordinator:(id<UITableViewDropCoordinator>)coordinator {
+    id<UITableViewDropItem> item = coordinator.items.firstObject;
+    NSIndexPath *destination = coordinator.destinationIndexPath;
+    if (!item.sourceIndexPath || !destination || destination.section != 0 || !_rules.count) return;
+    NSUInteger index = MIN((NSUInteger)destination.row, _rules.count - 1);
+    NSString *identifier = item.dragItem.localObject;
+    if (![self moveRuleID:identifier toIndex:index]) return;
+    NSUInteger actual = [_rules indexOfObjectPassingTest:^BOOL(MTCaptureRule *rule, NSUInteger idx, BOOL *stop) {
+        return [rule.identifier isEqual:identifier];
+    }];
+    if (actual != NSNotFound)
+        [coordinator dropItem:item.dragItem toRowAtIndexPath:[NSIndexPath indexPathForRow:actual inSection:0]];
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (indexPath.section == 1) {
-        MTPContextScriptEditorController *editor = [MTPContextScriptEditorController new];
-        editor.source = self.entry[@"source"] ?: @"";
-        __weak typeof(self) weakSelf = self;
-        editor.completion = ^(NSString *source) {
-            [weakSelf replaceEntry:[@{ @"id": weakSelf.entry[@"id"], @"name": weakSelf.entry[@"name"] ?: @"",
-                                       @"enabled": weakSelf.entry[@"enabled"] ?: @YES,
-                                       @"auto": weakSelf.entry[@"auto"] ?: @NO,
-                                       @"source": source ?: @"",
-                                       @"actions": weakSelf.entry[@"actions"] ?: @[] } mutableCopy]];
-            [weakSelf commit];
-        };
-        [self.navigationController pushViewController:editor animated:YES];
+    BOOL isNew = indexPath.section == 1;
+    if (isNew && _rules.count >= 32) return;
+    NSDictionary *entry = isNew ? @{@"id": NSUUID.UUID.UUIDString, @"name": @"新规则", @"enabled": @YES,
+        @"auto": @NO, @"source": [MTPAIScriptProfile clipboardProfile].sampleTemplate, @"actions": @[]}
+        : _rules[indexPath.row].dictionaryRepresentation;
+    MTCaptureRuleEditorController *editor = [[MTCaptureRuleEditorController alloc] initWithEntry:entry isNew:isNew];
+    __weak typeof(self) weakSelf = self;
+    editor.onSaved = ^{ [weakSelf reloadRules]; };
+    [self.navigationController pushViewController:editor animated:YES];
+}
+@end
+
+#pragma mark - Draft editor
+
+@interface MTCaptureRuleEditorController ()
+@property (nonatomic, copy) NSDictionary *entry;
+@property (nonatomic, copy) NSDictionary *originalEntry;
+@property (nonatomic, assign) BOOL isNew;
+@property (nonatomic, copy) NSArray<NSDictionary *> *libraryActions;
+@end
+
+@implementation MTCaptureRuleEditorController
+- (instancetype)initWithEntry:(NSDictionary *)entry isNew:(BOOL)isNew {
+    if ((self = [super initWithStyle:UITableViewStyleInsetGrouped])) {
+        _entry = entry.copy;
+        _originalEntry = entry.copy;
+        _isNew = isNew;
+    }
+    return self;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = self.isNew ? @"添加规则" : @"编辑规则";
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 64;
+    self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"保存"
+        style:UIBarButtonItemStyleDone target:self action:@selector(commit)];
+}
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    NSMutableArray *library = [NSMutableArray array];
+    for (NSDictionary *resource in [MTSharedResourceStore readSnapshot][@"actions"]) {
+        NSDictionary *action = resource[@"entry"];
+        if (![MTClipboardActionReferences supportsEntry:action]) continue;
+        [library addObject:@{@"id": resource[@"id"], @"name": action[@"name"] ?: @"未命名动作"}];
+    }
+    self.libraryActions = library;
+    [self.tableView reloadData];
+}
+- (void)setDraftValue:(id)value forKey:(NSString *)key {
+    NSMutableDictionary *entry = self.entry.mutableCopy;
+    entry[key] = value;
+    self.entry = entry;
+}
+- (void)updateSource:(NSString *)source {
+    [self setDraftValue:source ?: @"" forKey:@"source"];
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:1] withRowAnimation:UITableViewRowAnimationNone];
+}
+- (NSString *)nameForActionUUID:(NSString *)uuid {
+    for (NSDictionary *action in self.libraryActions) if ([action[@"id"] isEqual:uuid]) return action[@"name"];
+    return @"已删除或不支持的动作";
+}
+- (void)commit {
+    [self.view endEditing:YES];
+    NSString *name = [self.entry[@"name"] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    NSString *validation = name.length == 0 || name.length > 128 ? @"请输入 1–128 字的规则名称。"
+        : [[MTPAIScriptProfile clipboardProfile] precheckErrorForScript:self.entry[@"source"]];
+    if (validation.length) { MTCaptureShowError(self, validation); return; }
+    NSError *error = nil;
+    NSDictionary *document = [MTSharedResourceStore readSnapshotError:&error];
+    if (!document) { MTCaptureShowError(self, error.localizedDescription ?: @"读取配置失败。"); return; }
+    NSMutableArray *rules = [[MTClipboardActionReferences ruleDictionariesInDocument:document] mutableCopy];
+    NSUInteger index = [rules indexOfObjectPassingTest:^BOOL(NSDictionary *entry, NSUInteger idx, BOOL *stop) {
+        return [entry[@"id"] isEqual:self.entry[@"id"]];
+    }];
+    if ((self.isNew && (index != NSNotFound || rules.count >= 32)) ||
+        (!self.isNew && (index == NSNotFound ||
+            ![[MTCaptureRule rulesFromDictionaries:@[rules[index]]].firstObject.dictionaryRepresentation isEqual:self.originalEntry]))) {
+        MTCaptureShowError(self, @"这条规则已被修改或删除，或规则数量达到上限。请返回列表后重新编辑。");
         return;
     }
-    if (indexPath.section != 2) return;
-    NSArray *actions = self.entry[@"actions"];
-    if (indexPath.row >= (NSInteger)actions.count) {
-        if (actions.count >= 8) return;
-        __weak typeof(self) weakSelf = self;
-        MTCaptureRuleActionPickerController *picker =
-            [MTCaptureRuleActionPickerController pickerWithExcludedIDs:actions
-                                                            completion:^(NSString *uuid) {
-            NSMutableArray *next = [weakSelf.entry[@"actions"] mutableCopy] ?: [NSMutableArray array];
-            [next addObject:uuid];
-            [weakSelf replaceEntry:[@{ @"id": weakSelf.entry[@"id"], @"name": weakSelf.entry[@"name"] ?: @"",
-                                       @"enabled": weakSelf.entry[@"enabled"] ?: @YES,
-                                       @"auto": weakSelf.entry[@"auto"] ?: @NO,
-                                       @"source": weakSelf.entry[@"source"] ?: @"", @"actions": next } mutableCopy]];
-            [weakSelf commit];
-        }];
-        [self.navigationController pushViewController:picker animated:YES];
-        return;
-    }
-    [self confirmRemoveActionAtIndex:(NSUInteger)indexPath.row];
+    [self setDraftValue:name forKey:@"name"];
+    if (self.isNew) [rules addObject:self.entry]; else rules[index] = self.entry;
+    BOOL saved = [MTSharedResourceStore commitSnapshot:
+        [MTClipboardActionReferences document:document settingRuleDictionaries:rules]
+        expectedRevision:[document[@"revision"] unsignedLongLongValue] error:&error];
+    if (!saved) { MTCaptureShowError(self, error.localizedDescription ?: @"配置已改变，请重试。"); return; }
+    if (self.onSaved) self.onSaved();
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 3; }
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return section == 0 ? 3 : (section == 1 ? 3 : [self.entry[@"actions"] count] + 1);
+}
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    return @[@"基本设置", @"JavaScript 匹配条件", @"命中的动作（按序执行）"][section];
+}
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if (section == 0) return @"复制后自动执行还需打开剪切板设置中的总开关。修改在点“保存”后生效。";
+    if (section == 1) return @"match(text, meta) 返回真值即命中。meta.kind 为 text 或 image。沙盒无网络，最多 8 KB、限时 50 ms；连续失败 3 次会在当前进程暂时跳过，修改规则后重置。";
+    return @"引用共享自定义动作，最多 8 个；未绑定动作的规则不参与匹配。左滑可移除引用，动作库条目不受影响。";
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.section == 1 && indexPath.row == 0) {
+        MTPAIScriptProfile *profile = [MTPAIScriptProfile clipboardProfile];
+        NSString *source = self.entry[@"source"];
+        return [[MTPJavaScriptPreviewCell alloc] initWithSource:source usage:[profile byteUsageTextForScript:source]
+            invalid:[profile precheckErrorForScript:source].length > 0];
+    }
+    // These rows have distinct content trees. Do not recycle a text-field row as
+    // a switch/script/action row; automatic height follows the visible content.
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+    cell.textLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    cell.textLabel.adjustsFontForContentSizeCategory = YES;
+    cell.textLabel.numberOfLines = 0;
+    cell.detailTextLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
+    cell.detailTextLabel.adjustsFontForContentSizeCategory = YES;
+    cell.detailTextLabel.numberOfLines = 0;
+    if (indexPath.section == 0 && indexPath.row == 0) {
+        // Custom stack owns both the label and input, with no overlapping built-in textLabel.
+        UILabel *label = [UILabel new];
+        label.text = @"名称";
+        label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+        label.adjustsFontForContentSizeCategory = YES;
+        UITextField *field = [UITextField new];
+        field.text = self.entry[@"name"];
+        field.placeholder = @"规则名称";
+        field.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+        field.adjustsFontForContentSizeCategory = YES;
+        field.clearButtonMode = UITextFieldViewModeWhileEditing;
+        field.autocorrectionType = UITextAutocorrectionTypeNo;
+        [field addTarget:self action:@selector(nameChanged:) forControlEvents:UIControlEventEditingChanged];
+        UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[label, field]];
+        stack.axis = UILayoutConstraintAxisVertical;
+        stack.spacing = 8;
+        stack.translatesAutoresizingMaskIntoConstraints = NO;
+        [cell.contentView addSubview:stack];
+        [NSLayoutConstraint activateConstraints:@[
+            [stack.leadingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.leadingAnchor],
+            [stack.trailingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.trailingAnchor],
+            [stack.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12],
+            [stack.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12],
+            [field.heightAnchor constraintGreaterThanOrEqualToConstant:32]
+        ]];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        return cell;
+    }
+    if (indexPath.section == 0) {
+        BOOL automatic = indexPath.row == 2;
+        cell.textLabel.text = automatic ? @"复制后自动执行" : @"启用规则";
+        UISwitch *toggle = [UISwitch new];
+        toggle.on = [self.entry[automatic ? @"auto" : @"enabled"] boolValue];
+        toggle.accessibilityLabel = cell.textLabel.text;
+        [toggle addTarget:self action:automatic ? @selector(autoChanged:) : @selector(enabledChanged:)
+            forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = toggle;
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        return cell;
+    }
+    if (indexPath.section == 1) {
+        BOOL ai = indexPath.row == 1;
+        cell.textLabel.text = ai ? @"AI 编写脚本" : @"沙盒调试台";
+        cell.imageView.image = [UIImage systemImageNamed:ai ? @"sparkles" : @"play.circle"];
+        cell.imageView.tintColor = ai ? UIColor.systemIndigoColor : UIColor.systemGreenColor;
+        if (ai) {
+            MTAIEngineInfo *engine = [MTAIEngine currentEngine];
+            NSString *model = [MTAIEngine selectedModelForEngine:engine];
+            BOOL configured = [MTAIEngine apiKeyForEngine:engine].length && model.length;
+            cell.textLabel.textColor = UIColor.systemIndigoColor;
+            cell.detailTextLabel.text = [NSString stringWithFormat:@"描述条件 · 多轮修改 · 版本回退\n%@ · %@",
+                engine.displayName ?: @"—", configured ? model : @"请先配置 AI 引擎和模型"];
+            cell.detailTextLabel.textColor = configured ? UIColor.secondaryLabelColor : UIColor.systemRedColor;
+        } else cell.detailTextLabel.text = @"文本 / 图片样例 · 命中结果 · 耗时 · console 日志";
+        [MTPJavaScriptPreviewCell alignScriptRow:cell];
+        return cell;
+    }
+    NSArray *actions = self.entry[@"actions"];
+    if (indexPath.row == actions.count) {
+        cell.textLabel.text = @"添加动作";
+        cell.textLabel.textColor = actions.count < 8 ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
+        cell.detailTextLabel.text = actions.count < 8 ? @"从共享自定义动作中选择" : @"最多绑定 8 个动作";
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    } else {
+        cell.textLabel.text = [NSString stringWithFormat:@"%ld. %@", (long)indexPath.row + 1, [self nameForActionUUID:actions[indexPath.row]]];
+    }
+    return cell;
+}
+- (void)nameChanged:(UITextField *)field { [self setDraftValue:field.text ?: @"" forKey:@"name"]; }
+- (void)enabledChanged:(UISwitch *)toggle { [self setDraftValue:@(toggle.on) forKey:@"enabled"]; }
+- (void)autoChanged:(UISwitch *)toggle { [self setDraftValue:@(toggle.on) forKey:@"auto"]; }
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    return indexPath.section == 2 && indexPath.row < [self.entry[@"actions"] count];
+}
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (style != UITableViewCellEditingStyleDelete || ![self tableView:tableView canEditRowAtIndexPath:indexPath]) return;
+    NSMutableArray *actions = [self.entry[@"actions"] mutableCopy];
+    [actions removeObjectAtIndex:indexPath.row];
+    [self setDraftValue:actions forKey:@"actions"];
+    [tableView reloadSections:[NSIndexSet indexSetWithIndex:2] withRowAnimation:UITableViewRowAnimationAutomatic];
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    [self.view endEditing:YES];
+    __weak typeof(self) weakSelf = self;
+    if (indexPath.section == 1) {
+        if (indexPath.row == 0) {
+            MTPContextScriptEditorController *editor = [MTPContextScriptEditorController new];
+            editor.title = @"编辑匹配脚本";
+            editor.profile = [MTPAIScriptProfile clipboardProfile];
+            editor.source = self.entry[@"source"];
+            editor.completion = ^(NSString *source) { [weakSelf updateSource:source]; };
+            [self.navigationController pushViewController:editor animated:YES];
+        } else if (indexPath.row == 1) {
+            MTPAIScriptChatController *chat = [MTPAIScriptChatController new];
+            chat.profile = [MTPAIScriptProfile clipboardProfile];
+            chat.currentScript = self.entry[@"source"];
+            chat.completion = ^(NSString *source) { [weakSelf updateSource:source]; };
+            [self.navigationController pushViewController:chat animated:YES];
+        } else {
+            MTPContextScriptDebugController *debug = [MTPContextScriptDebugController new];
+            debug.profile = [MTPAIScriptProfile clipboardProfile];
+            debug.source = self.entry[@"source"];
+            [self.navigationController pushViewController:debug animated:YES];
+        }
+    } else if (indexPath.section == 2 && indexPath.row == [self.entry[@"actions"] count] && [self.entry[@"actions"] count] < 8) {
+        MTCaptureRuleActionPickerController *picker = [MTCaptureRuleActionPickerController pickerWithExcludedIDs:self.entry[@"actions"]
+            completion:^(NSString *uuid) {
+                typeof(self) owner = weakSelf;
+                if (!owner) return;
+                NSMutableArray *actions = [owner.entry[@"actions"] mutableCopy];
+                if (![actions containsObject:uuid] && actions.count < 8) [actions addObject:uuid];
+                [owner setDraftValue:actions forKey:@"actions"];
+                [owner.tableView reloadData];
+            }];
+        [self.navigationController pushViewController:picker animated:YES];
+    }
+}
 @end
 
 #pragma mark - Action picker
@@ -480,7 +486,7 @@
 
 + (instancetype)pickerWithExcludedIDs:(NSArray<NSString *> *)excludedIDs
                            completion:(void (^)(NSString *uuid))completion {
-    MTCaptureRuleActionPickerController *picker = [self new];
+    MTCaptureRuleActionPickerController *picker = [[self alloc] initWithStyle:UITableViewStyleInsetGrouped];
     picker.excludedIDs = excludedIDs;
     picker.completion = completion;
     return picker;

@@ -5,6 +5,7 @@
 #import "MTPrefsManager.h"
 #import "MTPAIScriptProfile.h"
 #import "common.h"
+#import "../../Modules/Clipboard/Core/Actions/MTCaptureRuleEngine.h"
 
 static NSString *MTDebugLabel(NSString *key) {
     return NSLocalizedStringFromTableInBundle(key, nil, [NSBundle bundleWithPath:bundlePath], nil);
@@ -37,6 +38,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    if (!self.profile) self.profile = [MTPAIScriptProfile contextProfile];
     if (!self.title.length) self.title = MTDebugLabel(@"CTX_DEBUG_TITLE");
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.selectedGroup = self.groupKey.length ? self.groupKey : MTDebugContextGroups().firstObject;
@@ -145,7 +147,8 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
 
 - (void)buildContextSection {
     UIView *headerRow = [UIView new];
-    UILabel *header = [self sectionLabel:MTDebugLabel(@"CTX_DEBUG_CONTEXT")];
+    BOOL clipboard = self.profile.runtime == MTPAIScriptRuntimeClipboard;
+    UILabel *header = [self sectionLabel:clipboard ? @"剪切板内容类型（meta.kind）" : MTDebugLabel(@"CTX_DEBUG_CONTEXT")];
     header.translatesAutoresizingMaskIntoConstraints = NO;
     [headerRow addSubview:header];
     [NSLayoutConstraint activateConstraints:@[
@@ -160,6 +163,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     for (NSString *group in MTDebugContextGroups()) {
         [titles addObject:MTDebugLabel([@"CTX_DEBUG_GROUP_" stringByAppendingString:group.uppercaseString])];
     }
+    if (clipboard) titles = [@[@"文本", @"图片"] mutableCopy];
     self.groupControl = [[UISegmentedControl alloc] initWithItems:titles];
     NSUInteger index = [MTDebugContextGroups() indexOfObject:self.selectedGroup];
     self.groupControl.selectedSegmentIndex = index == NSNotFound ? 0 : index;
@@ -295,7 +299,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     [inner addArrangedSubview:self.effectiveLabel];
     [inner addArrangedSubview:self.effectiveHintLabel];
     self.effectiveCard = [self cardWithSubview:inner];
-    self.effectiveCard.hidden = !(self.groupKey.length && self.typeID.length);
+    self.effectiveCard.hidden = self.profile.runtime == MTPAIScriptRuntimeClipboard || !(self.groupKey.length && self.typeID.length);
     [self.stack addArrangedSubview:self.effectiveCard];
 }
 
@@ -320,7 +324,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     if (self.running) return;
     [self.view endEditing:YES];
     NSString *sample = [self.sampleView.text substringToIndex:MIN(self.sampleView.text.length, (NSUInteger)2000)];
-    if (!sample.length) {
+    if (!sample.length && self.profile.runtime != MTPAIScriptRuntimeClipboard) {
         self.verdictLabel.attributedText = [self metricText:MTDebugLabel(@"CTX_DEBUG_VERDICT")
             value:MTDebugLabel(@"CTX_DEBUG_EMPTY_SAMPLE") color:UIColor.systemOrangeColor];
         return;
@@ -331,9 +335,23 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
         value:MTDebugLabel(@"CTX_RUNNING") color:UIColor.systemBlueColor];
     self.logView.text = @"";
     self.logCountLabel.text = @"";
-    MTPAIScriptProfile *profile = [MTPAIScriptProfile contextProfile];
+    MTPAIScriptProfile *profile = self.profile;
     self.sizeLabel.attributedText = [self metricText:MTDebugLabel(@"CTX_DEBUG_SIZE")
         value:[profile byteUsageTextForScript:self.source] color:UIColor.labelColor];
+
+    if (self.profile.runtime == MTPAIScriptRuntimeClipboard) {
+        NSString *kind = self.groupControl.selectedSegmentIndex == 1 ? @"image" : @"text";
+        __weak typeof(self) weakSelf = self;
+        [[MTCaptureRuleEngine sharedEngine] testSource:self.source ?: @"" text:sample kind:kind
+            completion:^(NSDictionary *result) {
+                typeof(self) owner = weakSelf;
+                if (!owner) return;
+                owner.running = NO;
+                [owner applyResult:result sample:sample];
+                [owner refreshControls];
+            }];
+        return;
+    }
 
     // 每次运行都用新的 identifier：调试失败的计数不能累积成「规则已停用」。
     NSString *identifier = [NSUUID.UUID.UUIDString stringByReplacingOccurrencesOfString:@"-" withString:@""];
@@ -353,7 +371,11 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     BOOL matched = [result[@"matched"] boolValue];
     if (error.length) {
         self.verdictLabel.attributedText = [self metricText:MTDebugLabel(@"CTX_DEBUG_VERDICT")
-            value:MTDebugLabel(error) color:UIColor.systemRedColor];
+            value:(self.profile.runtime == MTPAIScriptRuntimeClipboard
+                ? (@{@"CAPTURE_JS_TIMEOUT": @"超时（50 ms）", @"CAPTURE_JS_ERROR": @"脚本运行失败",
+                     @"CAPTURE_JS_NO_MATCH": @"缺少 match 函数", @"CAPTURE_JS_UNAVAILABLE": @"沙盒不可用",
+                     @"CAPTURE_JS_SOURCE_LIMIT": @"脚本为空或超过 8 KB"}[error] ?: error)
+                : MTDebugLabel(error)) color:UIColor.systemRedColor];
     } else {
         self.verdictLabel.attributedText = [self metricText:MTDebugLabel(@"CTX_DEBUG_VERDICT")
             value:MTDebugLabel(matched ? @"CTX_DEBUG_MATCHED" : @"CTX_DEBUG_NOT_MATCHED")
@@ -376,7 +398,7 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
         self.logCountLabel.text = @"";
     }
 
-    if (!(self.groupKey.length && self.typeID.length)) return;
+    if (self.profile.runtime == MTPAIScriptRuntimeClipboard || !(self.groupKey.length && self.typeID.length)) return;
     [self resolveEffectiveForSample:sample error:error];
 }
 
@@ -439,6 +461,9 @@ static NSArray<NSString *> *MTDebugContextGroups(void) {
     NSString *sample = self.sampleView.text ?: @"";
     self.sampleHint.text = [NSString stringWithFormat:MTDebugLabel(@"CTX_DEBUG_SAMPLE_HINT"),
         (unsigned long)MIN(sample.length, (NSUInteger)2000)];
+    if (self.profile.runtime == MTPAIScriptRuntimeClipboard) {
+        self.sampleHint.text = [self.sampleHint.text stringByAppendingString:@"\n只测试匹配条件，不执行绑定动作，不写入配置。图片类型可用空文本测试。"];
+    }
 }
 
 #pragma mark - UITextViewDelegate
