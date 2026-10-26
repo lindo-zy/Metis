@@ -27,6 +27,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 非长截图任务为 nil，输出直接使用内存中的 resultImage。
 @property (nonatomic, copy, nullable) NSString *resultFilePath;
 @property (nonatomic, assign) BOOL isPartialCapture;   // 回退路径仅捕获到 SpringBoard 自身窗口
+/// 覆盖本次任务的默认输出动作（PreviewOnly = 跟随配置默认值）。
+/// 全屏截图快捷键用它强制“保存并复制”，不改写用户偏好，也不影响其他任务。
+@property (nonatomic, assign) MTOutputAction outputActionOverride;
 @property (nonatomic, copy, nullable) NSString *savedAssetIdentifier;  // 相册写入成功后的资产 ID
 /// 最近一次输出实际成功的子动作（主线程）；认领/重复调用不算成功，不触发气泡。
 @property (nonatomic, assign) BOOL lastOutputSaved;

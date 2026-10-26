@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.1.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>截图工具栏新增「全屏截图」按钮：无视当前框选直接整屏截图，并保存到相册＋复制到剪贴板</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>自定义动作的脚本页卡片内容与分组标题左边缘对不齐</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.1.8</string>
 		<key>items</key>
 		<array>

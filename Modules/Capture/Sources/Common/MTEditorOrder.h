@@ -44,7 +44,8 @@ typedef NS_ENUM(NSUInteger, MTSelectionToolbarArrangement) {
 + (NSArray<NSString *> *)fixedActionIdentifiers;
 /// 全部工具按钮 id：画笔/平移/方框/椭圆/箭头/放大镜/直线/马赛克/文字/实心方/实心圆/聚光/荧光/贴纸/序号图章。
 + (NSArray<NSString *> *)defaultToolIdentifiers;
-/// 区域选区工具栏按钮 id：取消/全屏/全屏标记/编辑/悬浮/滚动截图/保存/复制，外加 SHELLX 扩展组。
+/// 区域选区工具栏按钮 id：取消/全屏/全屏截图/全屏标记/编辑/悬浮/滚动截图/保存/复制，外加 SHELLX 扩展组。
+/// 「全屏截图」与「全屏」语义不同：前者无视框选直接整屏抓取并保存＋复制，后者只把选框拉满。
 /// （「完成」已随 2.0.8 移除：默认配置下与保存动作完全重复。）
 + (NSArray<NSString *> *)defaultSelectionIdentifiers;
 /// SHELLX 扩展按钮 id 子集（区域/即时/冻结/套壳/关闭/记录/最近/长图/整屏/标记/编辑/问答/

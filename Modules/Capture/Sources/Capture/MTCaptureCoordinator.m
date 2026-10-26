@@ -160,8 +160,16 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 }
 
 - (void)requestCapture:(MTCaptureMode)mode {
+    [self mtRequestCapture:mode outputAction:MTOutputActionPreviewOnly];
+}
+
+/// 统一请求入口。outputAction 非 PreviewOnly 时覆盖本次任务的默认输出动作
+/// （工具栏「全屏截图」固定“保存并复制”）；其余调用方传 PreviewOnly 跟随配置。
+- (void)mtRequestCapture:(MTCaptureMode)mode outputAction:(MTOutputAction)action {
     if (![NSThread isMainThread]) {
-        dispatch_async(dispatch_get_main_queue(), ^{ [self requestCapture:mode]; });
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self mtRequestCapture:mode outputAction:action];
+        });
         return;
     }
 
@@ -176,6 +184,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         MTCaptureLogWarn(@"request ignored: another task is busy (%@)", MTStringFromCaptureMode(mode));
         return;
     }
+    task.outputActionOverride = action;
 
     MTCaptureLogInfo(@"capture request accepted (mode %@, task %@)", MTStringFromCaptureMode(mode), task.taskID);
     [self mtRunCaptureForTask:task];
@@ -277,7 +286,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 - (void)mtHandleFullscreenResult:(MTCaptureTask *)task {
     task.resultImage = task.baseImage;
     if (![task transitionToState:MTCaptureStatePresenting]) return;
-    MTOutputAction action = task.configSnapshot.defaultResultAction;
+    MTOutputAction action = task.outputActionOverride != MTOutputActionPreviewOnly
+        ? task.outputActionOverride : task.configSnapshot.defaultResultAction;
     [self mtExecuteOutput:action forTask:task presentingWindow:nil];
 }
 
@@ -345,6 +355,14 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self selectionViewDidCancel:view];
     MTCaptureLogInfo(@"selection toolbar requested fullscreen markup");
     [self requestCapture:MTCaptureModeMarkup];
+}
+
+- (void)selectionViewDidRequestFullscreenShot:(MTSelectionView *)view {
+    // 「全屏截图」与「全屏」（selectall）不同：后者只是把选框拉满，仍停在选区界面；
+    // 这里直接按全屏重抓一次并输出“保存并复制”，不进编辑器、不留选区。
+    [self selectionViewDidCancel:view];
+    MTCaptureLogInfo(@"selection toolbar requested fullscreen shot (save+copy)");
+    [self mtRequestCapture:MTCaptureModeFull outputAction:MTOutputActionSaveAndCopy];
 }
 
 - (void)selectionView:(MTSelectionView *)view didRequestCustomURL:(NSURL *)url {

@@ -28,6 +28,7 @@
         _capturedScreenBounds = screenBounds;
         _capturedScreenScale = screenScale;
         _state = MTCaptureStateIdle;
+        _outputActionOverride = MTOutputActionPreviewOnly;   // 缺省不覆盖配置默认动作
         _stateLock = [[NSLock alloc] init];
         _claimSet = [[MTClaimSet alloc] init];
     }

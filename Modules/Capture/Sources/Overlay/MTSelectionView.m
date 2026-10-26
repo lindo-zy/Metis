@@ -551,6 +551,13 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         }
         return;
     }
+    if ([identifier isEqualToString:@"fullshot"]) {
+        // 全屏截图同样无视当前框选，但产出直接“保存并复制”，不再回到选区界面。
+        if (self.delegate && [self.delegate respondsToSelector:@selector(selectionViewDidRequestFullscreenShot:)]) {
+            [self.delegate selectionViewDidRequestFullscreenShot:self];
+        }
+        return;
+    }
     // 自定义 URL 按钮：id 存在于 SelectionCustomButtons 记录时交给协调器打开。
     NSString *customURLString = [MTEditorOrder customURLForSelectionIdentifier:identifier];
     if (customURLString.length > 0) {

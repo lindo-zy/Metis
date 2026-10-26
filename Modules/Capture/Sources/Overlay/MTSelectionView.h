@@ -23,6 +23,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)selectionViewDidRequestShellXAction:(MTSelectionView *)view action:(MTShellXAction)action;
 /// 工具栏“全屏标记”按钮：无视当前框选内容，收掉选区后直接以全屏进入标记面板。
 - (void)selectionViewDidRequestFullscreenMarkup:(MTSelectionView *)view;
+/// 工具栏“全屏截图”按钮：无视当前框选内容，直接全屏抓屏并保存＋复制（不进选区后续流程）。
+- (void)selectionViewDidRequestFullscreenShot:(MTSelectionView *)view;
 /// 自定义 URL 按钮点击：url 来自 SelectionCustomButtons 记录，由协调器收掉选区后打开。
 - (void)selectionView:(MTSelectionView *)view didRequestCustomURL:(NSURL *)url;
 @end
