@@ -119,7 +119,9 @@
     UIImage *image = task.resultImage ?: task.baseImage;
     if (!image) return action;   // 无图时留给保存路径报「没有可保存的结果」
     CGFloat pixelHeight = image.size.height * image.scale;
-    if (pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight) {
+    BOOL fileCopy = task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll &&
+        [task.resultFilePath.pathExtension.lowercaseString isEqualToString:@"png"];
+    if (pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight && !fileCopy) {
         MTCaptureLogInfo(@"save+copy skipped: %.0f px exceeds copy limit", pixelHeight);
         return action;
     }
@@ -236,6 +238,13 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
     if (!MTOutputAllowedForState([task currentState])) {
         [task unclaimOutputAction:MTOutputActionCopy];
         completion(NO, @"任务已取消");
+        return;
+    }
+    if (task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll &&
+        [task.resultFilePath.pathExtension.lowercaseString isEqualToString:@"png"]) {
+        [MTClipboardWriter copyImageFileAsync:task.resultFilePath completion:^(BOOL ok) {
+            completion(ok, ok ? @"已复制到剪贴板" : @"复制失败");
+        }];
         return;
     }
     // PNG 编码放后台队列，最终写入回主线程（写入方内部保证线程切换）。

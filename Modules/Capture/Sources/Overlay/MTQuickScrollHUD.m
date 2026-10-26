@@ -5,7 +5,7 @@
 @property (nonatomic, strong) UIView *phone, *speaker, *separator;
 @property (nonatomic, strong) UIImageView *preview;
 @property (nonatomic, strong) UILabel *status;
-@property (nonatomic, strong) UIButton *clipboardButton, *saveButton, *closeButton, *pauseButton;
+@property (nonatomic, strong) UIButton *clipboardButton, *saveButton;
 @end
 
 @implementation MTQuickScrollHUD
@@ -37,8 +37,6 @@
         _clipboardButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.18].CGColor;
         _saveButton = [self mtButton:@"square.and.arrow.down" label:@"完成并保存长截图" selector:@selector(mtSave)];
         _saveButton.backgroundColor = UIColor.systemBlueColor;
-        _closeButton = [self mtButton:@"xmark" label:@"取消快速滚动截图" selector:@selector(mtClose)];
-        _pauseButton = [self mtButton:@"pause.fill" label:@"暂停快速滚动截图" selector:@selector(mtPause)];
         UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(mtPan:)];
         pan.delegate = self; [_phone addGestureRecognizer:pan];
         self.accessibilityIdentifier = @"capture.quickScroll.preview";
@@ -59,8 +57,6 @@
     self.phone.frame = CGRectInset(self.bounds, 8, 8);
     CGFloat width = self.phone.bounds.size.width, height = self.phone.bounds.size.height;
     self.speaker.frame = CGRectMake((width - 30) / 2, 10, 30, 4);
-    self.closeButton.frame = CGRectMake(5, 0, 30, 25);
-    self.pauseButton.frame = CGRectMake(width - 35, 0, 30, 25);
     self.preview.frame = CGRectMake(10, 25, width - 20, MAX(30, height - 89));
     self.status.frame = CGRectMake(8, height - 62, width - 16, 13);
     self.separator.frame = CGRectMake(10, height - 48, width - 20, 0.5);
@@ -82,16 +78,17 @@
 - (void)setPreviewImage:(UIImage *)image { self.preview.image = image; }
 - (void)setStatus:(NSString *)status paused:(BOOL)paused {
     self.status.text = status;
-    [self.pauseButton setImage:[UIImage systemImageNamed:paused ? @"play.fill" : @"pause.fill"] forState:UIControlStateNormal];
-    self.pauseButton.accessibilityLabel = paused ? @"继续快速滚动截图" : @"暂停快速滚动截图";
 }
 - (void)setFinishing {
     self.status.text = @"正在生成长截图…";
-    self.clipboardButton.enabled = self.saveButton.enabled = self.pauseButton.enabled = NO;
+    self.clipboardButton.enabled = self.saveButton.enabled = NO;
     self.clipboardButton.alpha = self.saveButton.alpha = 0.45;
+}
+- (void)setRetryMessage:(NSString *)message {
+    self.status.text = message;
+    self.clipboardButton.enabled = self.saveButton.enabled = YES;
+    self.clipboardButton.alpha = self.saveButton.alpha = 1;
 }
 - (void)mtCopy { [self.delegate quickScrollDidRequestCopy]; }
 - (void)mtSave { [self.delegate quickScrollDidRequestSave]; }
-- (void)mtClose { [self.delegate quickScrollDidRequestCancel]; }
-- (void)mtPause { [self.delegate quickScrollDidTogglePause]; }
 @end

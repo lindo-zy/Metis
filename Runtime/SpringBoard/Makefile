@@ -62,7 +62,7 @@ MetisSpringBoard_CFLAGS += -I../../Modules/Clipboard/Core \
 	-I../../Preferences/ClipboardPages
 MetisSpringBoard_FRAMEWORKS += AudioToolbox AVFoundation IOKit Security
 MetisSpringBoard_PRIVATE_FRAMEWORKS += CoreServices
-MetisSpringBoard_LIBRARIES += sqlite3 substrate
+MetisSpringBoard_LIBRARIES += sqlite3 substrate z
 ifeq ($(THEOS_PACKAGE_SCHEME),roothide)
 MetisSpringBoard_LIBRARIES += roothide
 endif

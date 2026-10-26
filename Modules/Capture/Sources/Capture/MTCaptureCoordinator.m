@@ -403,11 +403,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
                                                             displayRect:displayRect
                                                                delegate:self];
             break;
-        case MTLongShotAlgorithmMetis:
         default:
-            self.longShotSession = [MTLongShotSession startWithTask:task
-                                                        displayRect:displayRect
-                                                           delegate:self];
+            self.longShotSession = [MTQuickScrollSession startWithTask:task displayRect:displayRect delegate:self];
             break;
     }
     if (!self.longShotSession) {
@@ -451,7 +448,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
     task.resultImage = image;
     // 拼接产物在任务临时目录：登记路径供输出管线读取（此刻目录尚未清理）。
-    // 快速滚动模式按体量智能输出：小图 longshot.png（无损），大图 longshot.jpg。
+    // Quick scroll streams native rows into longshot.png, independent of image length.
     NSString *directory = [task ensureTemporaryDirectory];
     NSString *stitchedPath = nil;
     for (NSString *name in @[@"longshot.png", @"longshot.jpg"]) {
@@ -464,7 +461,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     if (stitchedPath) task.resultFilePath = stitchedPath;
     CGFloat pixelHeight = image.size.height * image.scale;
     // 巨型长图写入剪贴板会在 SpringBoard 内触发 PNG 编码尖峰，降级为保存（诊断优先）。
-    if (pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight &&
+    BOOL fileCopy = task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll && stitchedPath.length > 0;
+    if (!fileCopy && pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight &&
         (action == MTOutputActionCopy || action == MTOutputActionSaveAndCopy)) {
         MTCaptureLogWarn(@"long shot %.0f px exceeds copy limit, downgraded to save (task %@)",
                   pixelHeight, task.taskID);

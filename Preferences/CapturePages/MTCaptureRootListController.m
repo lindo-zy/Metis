@@ -26,14 +26,16 @@
     return _specifiers;
 }
 
-// 录制式与手动拼接选项已移除：旧配置的 1/2 先归到自动拼接，
-// 否则列表取不到当前值会显示空白，与运行时的迁移规则保持一致。
+// Removed adaptive value 0 migrates to quick scroll; legacy 1/2 retain automatic mode.
+// The list and runtime snapshot use the same migration rules.
 - (void)mtMigrateRemovedLongShotAlgorithms {
     NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:MTCapturePreferencesDomain];
     NSInteger raw = [defaults integerForKey:MTKeyLongShotAlgorithm];
-    if (raw != 1 && raw != 2) return;
-    [defaults setInteger:3 forKey:MTKeyLongShotAlgorithm];
-    MTCaptureLogInfo(@"prefs long shot algorithm migrated: %ld -> 3", (long)raw);
+    if (raw != 0 && raw != 1 && raw != 2) return;
+    NSInteger next = raw == 0 ? 4 : 3;
+    [defaults setInteger:next forKey:MTKeyLongShotAlgorithm];
+    [defaults synchronize];
+    MTCaptureLogInfo(@"prefs long shot algorithm migrated: %ld -> %ld", (long)raw, (long)next);
 }
 
 - (PSSpecifier *)mtTestSpecifierWithTitle:(NSString *)title identifier:(NSString *)identifier {

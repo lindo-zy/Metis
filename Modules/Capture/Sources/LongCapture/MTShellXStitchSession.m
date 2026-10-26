@@ -125,7 +125,7 @@ static void MTShellXStitchLockCallback(CFNotificationCenterRef center, void *obs
     s.hud = [[MTLongShotHUD alloc] initWithFrame:s.window.bounds]; s.hud.delegate = s;
     [s.window hostContentView:s.hud];
     s.window.rootViewController.view.frame = s.window.bounds; s.hud.frame = s.window.bounds;
-    [s.hud setModeTitle:@"SHELLX 自动拼接"];
+    [s.hud setModeTitle:@"自动拼接"];
     [s.window showAnimated:NO becomeKey:NO];
     [s.hud setCaptureTitle:@"截取" enabled:YES];
     [s.hud setStatusText:@"点「截取」开始，到底自动保存"];

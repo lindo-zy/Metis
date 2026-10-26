@@ -125,7 +125,7 @@ FOUNDATION_EXPORT NSString * const MTKeyLongShotMaxSlices;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotMaxCanvasHeight;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotSliceQuality;
 FOUNDATION_EXPORT NSString * const MTKeyLongShotOutputQuality;
-/// 长截图算法：0=Metis 自适应滚动（默认），3=SHELLX 自动拼接；录制式与手动拼接已移除，旧值 1/2 读入时归到 3。
+/// 长截图算法：4=快速滚动截图（默认），3=自动拼接；旧值 0 归到 4，旧值 1/2 归到 3。
 FOUNDATION_EXPORT NSString * const MTKeyLongShotAlgorithm;
 
 // MARK: - 默认值

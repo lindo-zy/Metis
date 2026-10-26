@@ -11,7 +11,7 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-enum { MTQuickTemplateCount = 12, MTQuickTemplateHeight = 160, MTQuickTemplateWidth = 40 };
+enum { MTQuickTemplateCount = 12, MTQuickTemplateHeight = 96, MTQuickTemplateWidth = 40 };
 typedef struct { int delta, y; float error; } MTQuickVote;
 
 // Effective body window: patch placement keeps the conservative fixed fractions
@@ -95,13 +95,14 @@ static int MTQuickStaticEdge(const uint8_t *a, const uint8_t *b, int rows, int b
 
 static float MTQuickVerifyMotion(const uint8_t *a, const uint8_t *b, int delta,
                                  const MTQuickWindow *window) {
-    int start = window->top, end = window->bottom;
+    int start = MAX(window->top, window->top + delta);
+    int end = MIN(window->bottom, window->bottom + delta);
     int supported = 0, informative = 0, bands = 0;
     double total = 0, weights = 0;
     if (end - start < 64) return 255;
     for (int y = start; y < end; y += 3) {
         int currentY = y - delta;
-        if (currentY < start || currentY >= end) continue;
+        if (currentY < window->top || currentY >= window->bottom) continue;
         if (MTQuickRowFixed(window, y)) continue;
         const uint8_t *p = a + y * MTQuickScrollSignatureWidth;
         const uint8_t *q = b + currentY * MTQuickScrollSignatureWidth;
@@ -127,15 +128,94 @@ static float MTQuickVerifyMotion(const uint8_t *a, const uint8_t *b, int delta,
     return (float)(total / weights);
 }
 
+// Global row features recover large speed changes and locally repetitive list
+// cells. Coarse candidates cover the entire observed body, then use the same
+// dense, multi-band verifier and an independent competing peak as patch voting.
+static int MTQuickGlobalMotion(const uint8_t *a, const uint8_t *b, int rows,
+                               const MTQuickWindow *window, int expected, int *delta, float *error) {
+    enum { columns = 8, candidates = 16, step = 4 };
+    int maximum = MIN(rows * 4 / 5, window->bottom - window->top - 64);
+    if (maximum < 1) return 0;
+    uint8_t *features = malloc((size_t)rows * columns * 2);
+    int count = maximum * 2 / step + 1;
+    float *costs = malloc((size_t)count * sizeof(float));
+    if (!features || !costs) { free(features); free(costs); return 0; }
+    for (int image = 0; image < 2; image++) for (int y = 0; y < rows; y++) {
+        const uint8_t *row = (image ? b : a) + (size_t)y * MTQuickScrollSignatureWidth;
+        for (int x = 0; x < columns; x++) {
+            unsigned sum = 0;
+            for (int c = 0; c < 16; c++) sum += row[x * 16 + c];
+            features[((size_t)image * rows + y) * columns + x] = sum / 16;
+        }
+    }
+    for (int i = 0; i < count; i++) {
+        int d = -maximum + i * step;
+        int start = MAX(window->top, window->top + d), end = MIN(window->bottom, window->bottom + d);
+        double sum = 0, weightSum = 0;
+        int informative = 0;
+        for (int y = start; y < end; y += 4) {
+            if (MTQuickRowFixed(window, y) || MTQuickRowFixed(window, y - d)) continue;
+            const uint8_t *p = features + y * columns;
+            const uint8_t *q = features + ((size_t)rows + y - d) * columns;
+            int low = 255, high = 0;
+            unsigned difference = 0;
+            for (int x = 0; x < columns; x++) {
+                low = MIN(low, MIN(p[x], q[x])); high = MAX(high, MAX(p[x], q[x]));
+                difference += (unsigned)abs(p[x] - q[x]);
+            }
+            int weight = high - low;
+            if (weight < 3) continue;
+            sum += weight * difference; weightSum += weight * columns; informative++;
+        }
+        costs[i] = informative >= 8 && weightSum ? (float)(sum / weightSum) : 255;
+    }
+    float best = 255, second = 255;
+    int winner = 0;
+    for (int candidate = 0; candidate < candidates; candidate++) {
+        int index = -1;
+        for (int i = 0; i < count; i++) if (costs[i] < 254 &&
+            (index < 0 || costs[i] < costs[index] || (costs[i] == costs[index] &&
+             abs(-maximum + i * step - expected) < abs(-maximum + index * step - expected)))) index = i;
+        if (index < 0) break;
+        int coarse = -maximum + index * step;
+        // Refine all native row phases around the coarse feature peak.
+        for (int d = MAX(-maximum, coarse - 3); d <= MIN(maximum, coarse + 3); d++) {
+            float cost = MTQuickVerifyMotion(a, b, d, window);
+            if (cost < best) {
+                if (abs(d - winner) > 3) second = best;
+                best = cost; winner = d;
+            } else if (abs(d - winner) > 3 && cost < second) second = cost;
+        }
+        for (int i = MAX(0, index - 1); i <= MIN(count - 1, index + 1); i++) costs[i] = 255;
+    }
+    free(features); free(costs);
+    if (best > 16 || second - best < fmaxf(1, best * 0.12f)) return 0;
+    *delta = winner; *error = best; return 1;
+}
+
 MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, int rows, int predicted,
                                             const MTQuickScrollLimits *limits) {
     MTQuickScrollMatch out = {MTQuickScrollUncertain, 0, 0, 0, rows, 255};
-    if (!a || !b || rows < 160 || rows > 16384) return out;
+    if (!a || !b || rows < MTQuickTemplateHeight + 4 || rows > 16384) return out;
     MTQuickWindow window = MTQuickMakeWindow(rows, limits);
     MTQuickVote votes[MTQuickTemplateCount]; int count = 0, textured = 0, still = 0;
     // All patches avoid the sticky chrome bands, fixed overlays and the outer scrollbar columns.
     int top = window.top, bottom = window.bottom - MTQuickTemplateHeight;
-    int maximum = rows * 3 / 5;
+    int maximum = rows * 4 / 5;
+    // A stationary frame needs no displacement search. This is the same texture
+    // consensus used below, evaluated before allocating/searching candidates.
+    int staticTextures = 0, staticVotes = 0;
+    for (int band = 0; band < 4; band++) for (int column = 0; column < 3; column++) {
+        int y = top + (bottom - top) * band / 3, x = 4 + column * 40;
+        if (y < top || y > bottom || MTQuickPatchTouchesFixed(&window, y) || !MTQuickPatchHasTexture(a, x, y)) continue;
+        staticTextures++;
+        if (MTQuickPatchCost(a, b, x, y, 0, 1) <= 1.25f) staticVotes++;
+    }
+    if (staticTextures >= 3 && staticVotes * 5 >= staticTextures * 4) {
+        out.kind = MTQuickScrollStill; out.error = 0; out.votes = staticVotes; return out;
+    }
+    float *costs = malloc((size_t)(2 * maximum + 1) * sizeof(float));
+    if (!costs) return out;
     predicted = predicted < -maximum ? -maximum : predicted > maximum ? maximum : predicted;
     for (int band = 0; band < 4; band++) for (int column = 0; column < 3; column++) {
         int y = top + (bottom - top) * band / 3;
@@ -151,20 +231,22 @@ MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, 
         if (high > maximum) high = maximum;
         float best = 255; int shift = 0;
         for (int d = low; d <= high; d++) {
-            float cost = MTQuickPatchCost(a, b, x, y, d, 3);
+            float cost = MTQuickPatchCost(a, b, x, y, d, 8);
+            costs[d - low] = cost;
             if (cost < best) { best = cost; shift = d; }
         }
         if (best > 16) continue;
         // Repeated rows must have a distinct winner outside the same pixel peak.
         float second = 255;
         for (int d = low; d <= high; d++) if (abs(d - shift) > 3) {
-            float cost = MTQuickPatchCost(a, b, x, y, d, 3);
+            float cost = costs[d - low];
             if (cost < second) second = cost;
         }
         if (second - best < fmaxf(0.65f, best * 0.10f)) continue;
         float dense = MTQuickPatchCost(a, b, x, y, shift, 1);
         if (dense <= 18) votes[count++] = (MTQuickVote){shift, band, dense};
     }
+    free(costs);
     if (textured >= 3 && still * 5 >= textured * 4) {
         out.kind = MTQuickScrollStill; out.error = 0; out.votes = still; return out;
     }
@@ -188,27 +270,10 @@ MTQuickScrollMatch MTQuickScrollMatchFrames(const uint8_t *a, const uint8_t *b, 
     if (winningCount >= 3 && winningError <= 20 &&
         competingError - winningError < fmaxf(1, winningError * 0.12f)) return out;
     if (winningCount < 3 || winningError > 20) {
-        // Sparse/periodic rows can reject every local unique peak. A narrow temporal
-        // prediction is only a search range: every candidate still needs dense SAD
-        // support and a distinct competing peak. Never infer motion from touch alone.
-        if (!predicted) return out;
-        int radius = abs(predicted) / 3 + 16;
-        if (radius < 24) radius = 24;
-        int low = predicted - radius, high = predicted + radius;
-        if (low < -maximum) low = -maximum;
-        if (high > maximum) high = maximum;
-        float best = 255; int candidate = 0;
-        for (int d = low; d <= high; d++) {
-            float cost = MTQuickVerifyMotion(a, b, d, &window);
-            if (cost < best) { best = cost; candidate = d; }
-        }
-        float second = 255;
-        for (int d = low; d <= high; d++) if (abs(d - candidate) > 3) {
-            float cost = MTQuickVerifyMotion(a, b, d, &window);
-            if (cost < second) second = cost;
-        }
-        if (best > 16 || second - best < fmaxf(1, best * 0.12f)) return out;
-        winningDelta = candidate; winningError = best; winningCount = 0;
+        // Expected velocity prioritizes equivalent coarse candidates only. A new
+        // speed is searched globally and still needs an independent dense peak.
+        if (!MTQuickGlobalMotion(a, b, rows, &window, predicted, &winningDelta, &winningError)) return out;
+        winningCount = 0;
     }
     out.kind = abs(winningDelta) <= 1 ? MTQuickScrollStill : MTQuickScrollMoved;
     out.delta = out.kind == MTQuickScrollMoved ? winningDelta : 0;
