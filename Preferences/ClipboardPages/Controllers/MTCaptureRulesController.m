@@ -7,7 +7,7 @@
 
 #import "MTCaptureRuleEngine.h"
 #import "MTClipboardActionReferences.h"
-#import "MTContextScriptEditorController.h"
+#import "MTPContextScriptEditorController.h"
 #import "MTSharedResourceStore.h"
 
 // 规则顺序即求值顺序，首个命中的规则生效；未命中不执行任何动作。
