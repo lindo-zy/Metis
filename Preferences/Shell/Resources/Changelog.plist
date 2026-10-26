@@ -115,30 +115,5 @@
 		<key>version</key>
 		<string>1.1.5</string>
 	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>设置内的动作图标统一显示为系统蓝色，不再出现彩色图标</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>按钮设置新增「图标跟随系统颜色」开关，默认使用系统蓝色图标</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>键盘工具栏与设置内预览的图标颜色保持一致</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.1.4</string>
-	</dict>
 </array>
 </plist>
