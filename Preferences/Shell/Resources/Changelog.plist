@@ -97,36 +97,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>底栏编排的 JS 规则可用 AI 生成脚本，按判定契约输出并逐版预检</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>新增沙盒调试台：样例文本、模拟上下文、命中结果与 console 日志</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>脚本编辑器支持语法高亮、行号、字节预算与语法提示</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>脚本检查未通过时不再自动停用规则</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.1.5</string>
-	</dict>
 </array>
 </plist>
