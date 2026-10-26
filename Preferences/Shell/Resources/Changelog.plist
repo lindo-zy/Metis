@@ -94,24 +94,5 @@
 		<key>version</key>
 		<string>1.2.3</string>
 	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>底栏编排新增「应用动作组」：底栏预留区的按钮可以按当前 App 切换，一个组可绑定多个 App 共用同一批动作</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>应用专属动作沿用现有动作目录，复制、粘贴、面板动作、打开链接、搜索、问 AI 都能直接选用；复制和选区等临时动作仍然优先</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.2</string>
-	</dict>
 </array>
 </plist>
