@@ -171,21 +171,41 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
     if (copy) ttl = settings.clipboardFreshness - snapshot.clipboardAge;
     if (paste) ttl = ttl > 0 ? MIN(ttl, settings.pasteFreshness - snapshot.pasteAge) : settings.pasteFreshness - snapshot.pasteAge;
     if (deletion) ttl = ttl > 0 ? MIN(ttl, 3 - snapshot.deleteAge) : 3 - snapshot.deleteAge;
+    // 应用动作组最高优先：命中宿主即占据预留区前 N 格（N = 组内动作数，上限为槽位数），
+    // 其余格子仍由后续组按优先级补齐；其他组再活跃也不能把已配置的应用按钮挤掉。
+    NSMutableArray *combined = [NSMutableArray array];
+    NSString *appReason = nil;
+    NSUInteger appSlots = [config slotsForGroup:@"app"];
+    if (snapshot.hostBundleID.length && appSlots) {
+        id appSwitch = config.preferences[kContextAppGroupKey];
+        if (![appSwitch isKindOfClass:NSNumber.class] || [appSwitch boolValue]) {
+            MTContextAppGroup *match = [MTContextAppGroup groupForBundleID:snapshot.hostBundleID inGroups:config.appGroups];
+            if (match.enabled && match.actions.count) {
+                BOOL appUsable = NO;
+                NSArray *appActions = MTContextActionsForSelectors(match.actions, snapshot.inputText,
+                                                                   MIN(appSlots, (NSUInteger)match.actions.count), &appUsable);
+                if (appUsable) {
+                    [combined addObjectsFromArray:appActions];
+                    appReason = [NSString stringWithFormat:@"app-%@", snapshot.hostBundleID];
+                }
+            }
+        }
+    }
+    // 预留之后剩下的格数：只在应用组命中时收紧，未命中保持各组的原槽位数（兼容旧语义）。
+    NSUInteger reserved = combined.count;
+    NSUInteger remaining = reserved ? appSlots - reserved : 0;
+
     for (NSNumber *number in MTContextPriority(config.preferences)) {
         MTContextGroup group = number.integerValue; BOOL active = MTContextGroupIsActive(snapshot, config, group);
-        NSString *key = MTContextGroupKey(group); NSUInteger slots = [config slotsForGroup:key];
+        NSString *key = MTContextGroupKey(group);
+        if (group == MTContextGroupApp) continue; // 已在上方预留，不再参与竞争。
+        NSUInteger slots = reserved ? MIN(remaining, [config slotsForGroup:key]) : [config slotsForGroup:key];
         if (!active || !slots) continue;
-        if (group == MTContextGroupIdle) return [MTContextDecision decisionWithGroup:group reason:@"idle-apps" actions:@[] ttl:ttl];
-        if (group == MTContextGroupApp) {
-            // 应用组没有类型/绑定层：组内动作直接按顺序填预留区。
-            MTContextAppGroup *match = [MTContextAppGroup groupForBundleID:snapshot.hostBundleID inGroups:config.appGroups];
-            if (!match.enabled || !match.actions.count) continue;
-            BOOL appUsable = NO;
-            NSArray *appActions = MTContextActionsForSelectors(match.actions, snapshot.inputText, slots, &appUsable);
-            if (!appUsable) continue;
-            return [MTContextDecision decisionWithGroup:group
-                                                reason:[NSString stringWithFormat:@"app-%@", snapshot.hostBundleID]
-                                               actions:appActions ttl:ttl];
+        if (group == MTContextGroupIdle) {
+            // Idle 组不产动作：应用组已预留时返回应用决策（剩余格维持占位），否则按原样兜底。
+            return reserved
+                ? [MTContextDecision decisionWithGroup:MTContextGroupApp reason:appReason actions:combined ttl:ttl]
+                : [MTContextDecision decisionWithGroup:group reason:@"idle-apps" actions:@[] ttl:ttl];
         }
         NSString *text = group == MTContextGroupSelection ? snapshot.selectionText : (group == MTContextGroupCopy ? snapshot.clipboardText : (group == MTContextGroupPaste ? snapshot.pastedText : snapshot.inputText));
         NSDictionary *classification = snapshot.classification[key];
@@ -203,9 +223,16 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
         BOOL usable = NO;
         NSArray *actions = MTContextActionsForSelectors(chosen.actions, text, slots, &usable);
         if (!usable) continue;
+        if (reserved) {
+            [combined addObjectsFromArray:actions];
+            return [MTContextDecision decisionWithGroup:MTContextGroupApp
+                                                reason:[NSString stringWithFormat:@"%@+%@-%@", appReason, key, chosen.identifier]
+                                               actions:combined ttl:ttl];
+        }
         NSString *reason = [NSString stringWithFormat:@"%@-%@%@", key, chosen.identifier, [classification[@"pending"] boolValue] ? @"-pending" : @""];
         return [MTContextDecision decisionWithGroup:group reason:reason actions:actions ttl:ttl];
     }
+    if (reserved) return [MTContextDecision decisionWithGroup:MTContextGroupApp reason:appReason actions:combined ttl:ttl];
     return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"no-signal" actions:@[] ttl:ttl];
 }
 @end

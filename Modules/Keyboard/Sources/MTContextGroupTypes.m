@@ -82,8 +82,8 @@ NSString *MTContextGroupKey(MTContextGroup group) {
 }
 NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferences) {
     // v2 has a stable seven-group priority; legacy integer order must not change semantics.
-    // 应用组放在「输入类型」之后：验证码/网址框仍然先亮，应用专属按钮只在没有
-    // 更具体的输入类型时接管预留区；「无文字」仍旧是最后的兜底。
+    // 应用组在引擎里先行预留（命中宿主即占据预留区前 N 格），这里的顺序只决定
+    // 其余格子由哪个组补齐：输入类型仍然先于「无文字」兜底。
     return @[@(MTContextGroupDelete), @(MTContextGroupSelection), @(MTContextGroupPaste),
              @(MTContextGroupCopy), @(MTContextGroupTyping), @(MTContextGroupApp),
              @(MTContextGroupIdle)];

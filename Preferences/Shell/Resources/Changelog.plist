@@ -7,6 +7,19 @@
 		<array>
 			<dict>
 				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>应用动作组升级为最高优先级：进入绑定的 App 时组内按钮先占据底栏预留区，多余格位继续由复制、选区等其他动作组补齐</string>
+			</dict>
+		</array>
+		<key>version</key>
+		<string>1.2.6</string>
+	</dict>
+	<dict>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
 				<string>新增</string>
 				<key>text</key>
 				<string>剪切板规则：双击采集气泡时按 JS 条件执行不同动作，图片、链接、快递单号等各走各的</string>
@@ -89,19 +102,6 @@
 		</array>
 		<key>version</key>
 		<string>1.2.2</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复 QuickPrefs 获取设置路径后无法直达子页面的问题，支持全局条目短路径与完整层级路径</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.1</string>
 	</dict>
 </array>
 </plist>
