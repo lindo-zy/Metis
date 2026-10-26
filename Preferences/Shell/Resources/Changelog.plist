@@ -3,8 +3,31 @@
 <plist version="1.0">
 <array>
 	<dict>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>剪切板规则：双击采集气泡时按 JS 条件执行不同动作，图片、链接、快递单号等各走各的</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>支持复制后自动执行规则动作，默认关闭，可在设置中按规则单独开启</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>调整</string>
+				<key>text</key>
+				<string>双击气泡未命中任何规则时不再执行动作；原有的文字/图片动作配置会自动转换为规则</string>
+			</dict>
+		</array>
 		<key>version</key>
-		<string>1.2.4</string>
+		<string>1.2.5</string>
+	</dict>
+	<dict>
 		<key>items</key>
 		<array>
 			<dict>
@@ -20,6 +43,8 @@
 				<string>快速面板顶部支持四个独立快捷按钮，可从自定义动作自由选择，动作修改同步生效</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.2.4</string>
 	</dict>
 	<dict>
 		<key>items</key>
@@ -77,19 +102,6 @@
 		</array>
 		<key>version</key>
 		<string>1.2.1</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>自定义动作 JS 脚本沿用 JS 规则的预览卡片，点击进入独立编辑器，支持行号、语法高亮、实时检查和符号工具栏</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.0</string>
 	</dict>
 </array>
 </plist>
