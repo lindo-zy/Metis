@@ -649,7 +649,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_TITLE" = "Quick Panel";
 "QUICK_SIDE" = "Quick Launcher Side";
 "QUICK_SIZE" = "Panel Size";
-"QUICK_SETTINGS_FOOTER" = "Invoke favorites and T9 anytime with the Quick Panel system action (gesture or shortcut); the panel is anchored at the bottom flush against the configured screen edge (right by default). The whole panel scales with Panel Size (80%–100%). Favorites are recommended by launch count, most used first; never-launched apps follow in your manual order. T9 digits search all launchable apps (XHS is 947; 948 is a nearby-key match); the Clear key wipes the query. Drag the grabber at the top of the panel to place it anywhere; it reopens where you left it. Double-tap the grabber or use Restore Default Position below to snap back.";
+"QUICK_SETTINGS_FOOTER" = "Quick Panel opens as a vertical strip with four custom action buttons above a scrolling favorites list (all apps when no favorites are configured). Swipe left for two app columns, then left again for a 3×3 app grid and T9 search. Swipe right to step back, or tap the bottom hint to switch. Assign each shortcut from Custom Actions. T9 searches all launchable apps. Scale the whole panel from 80% to 100%; drag the top grabber to place it, or double-tap to restore the default position.";
 "QUICK_RESET" = "Restore Default Position";
 "QUICK_MOVE" = "Drag to move, double-tap to reset";
 "QUICK_MANAGE" = "Favorites Order & Search Aliases";
@@ -939,3 +939,18 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CTXAPP_APPS" = "Apps";
 "CTXAPP_NAME_PROMPT" = "Group name";
 "CANCEL" = "Cancel";
+
+"QUICK_ACTIONS" = "Quick Panel Shortcuts";
+"QUICK_ACTION_SLOT" = "Shortcut %ld";
+"QUICK_ACTION_CHOOSE" = "Choose Custom Action";
+"QUICK_ACTION_NONE" = "Not configured";
+"QUICK_ACTION_EMPTY" = "Unassigned";
+"QUICK_ACTION_EMPTY_HINT" = "Assign this shortcut in Quick Panel settings";
+"QUICK_ACTIONS_FOOTER" = "Choose a custom action for each of the four slots. The strip runs top to bottom; the expanded panel runs left to right, then top to bottom. Changes to the custom action also update its shortcut.";
+"QUICK_ACTION_PICKER_FOOTER" = "Create actions in Custom Actions, then choose them here. Quick Panel runs actions that do not need an editor. JavaScript requires clipboard input and copy output.";
+"QUICK_ACTION_UNAVAILABLE" = "Requires an editor or does not support global execution";
+"QUICK_STAGE_EXPAND" = "‹ Expand";
+"QUICK_STAGE_SEARCH" = "‹ Search";
+"QUICK_STAGE_COLLAPSE" = "Collapse · Swipe right to return";
+"QUICK_ALL_APPS" = "All apps · T9 search";
+"QUICK_EMPTY_FAVORITES" = "Configure favorite apps first";

@@ -648,7 +648,7 @@
 "QUICK_TITLE" = "快速面板";
 "QUICK_SIDE" = "速启面板停靠边";
 "QUICK_SIZE" = "面板大小";
-"QUICK_SETTINGS_FOOTER" = "通过「快速面板」系统动作（手势或快捷键）随时唤出常用应用与九键，面板按停靠边设置紧贴屏幕边缘停在下方，默认靠右；按钮、图标和文字随面板整体等比缩放，范围 80%~100%。常用应用默认按启动次数推荐排序，用得多的排在前面，没启动过的排在最后并保持手动顺序。九键数字可搜索全部可启动应用（小红书 947，948 支持邻键容错）；末排「清空」一键清除搜索。拖动面板顶部的小横条可自由摆放，下次打开停在上次的位置；双击小横条或用下面的「恢复默认位置」回到贴边默认位。";
+"QUICK_SETTINGS_FOOTER" = "呼出后为贴边竖列：顶部四个快捷动作，中间上下滚动选择常用 App，未配置常用应用时显示全部应用。左滑切换双列，再左滑进入九宫格应用与九键搜索；右滑逐级收回，也可点底部提示切换。快捷按钮从自定义动作中分别选择。九键可搜索全部可启动应用（小红书 947，948 支持邻键容错）。面板支持 80%～100% 等比缩放；拖动顶部横条摆放，双击横条恢复默认位置。";
 "QUICK_RESET" = "恢复默认位置";
 "QUICK_MOVE" = "拖动摆放，双击复位";
 "QUICK_MANAGE" = "常用应用排序与搜索别名";
@@ -939,3 +939,18 @@
 "CTXAPP_APPS" = "应用";
 "CTXAPP_NAME_PROMPT" = "分组名称";
 "CANCEL" = "取消";
+
+"QUICK_ACTIONS" = "快速面板快捷按钮";
+"QUICK_ACTION_SLOT" = "快捷按钮 %ld";
+"QUICK_ACTION_CHOOSE" = "选择自定义动作";
+"QUICK_ACTION_NONE" = "未配置";
+"QUICK_ACTION_EMPTY" = "未配置";
+"QUICK_ACTION_EMPTY_HINT" = "请在快速面板设置中配置快捷按钮";
+"QUICK_ACTIONS_FOOTER" = "四个位置分别从「自定义动作」选择；竖列从上到下排列，双列按从左到右、从上到下排列。动作内容与自定义动作同步更新。";
+"QUICK_ACTION_PICKER_FOOTER" = "先在「自定义动作」创建动作，再在此选择。快速面板可运行不依赖输入框的动作；JavaScript 需使用剪切板输入和复制输出。";
+"QUICK_ACTION_UNAVAILABLE" = "此动作需要输入框，或不支持全局执行";
+"QUICK_STAGE_EXPAND" = "‹ 左滑展开";
+"QUICK_STAGE_SEARCH" = "‹ 左滑搜索";
+"QUICK_STAGE_COLLAPSE" = "收回竖列 · 右滑返回";
+"QUICK_ALL_APPS" = "全部应用 · 九键搜索";
+"QUICK_EMPTY_FAVORITES" = "请先配置常用应用";

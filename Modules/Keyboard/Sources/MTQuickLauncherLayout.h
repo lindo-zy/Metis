@@ -1,4 +1,24 @@
 #import <CoreGraphics/CoreGraphics.h>
+#include <math.h>
+
+typedef enum {
+    MTQuickLauncherModeStrip = 0,
+    MTQuickLauncherModeExpanded = 1,
+    MTQuickLauncherModeSearch = 2
+} MTQuickLauncherMode;
+
+static inline MTQuickLauncherMode MTQuickLauncherNextMode(MTQuickLauncherMode mode, CGFloat dx, CGFloat dy, CGFloat velocity) {
+    if (!isfinite(dx) || !isfinite(dy) || !isfinite(velocity) || fabs(dx) <= fabs(dy) * 1.2) return mode;
+    if (fabs(dx) < 28 && !(fabs(dx) >= 10 && fabs(velocity) >= 450 && dx * velocity > 0)) return mode;
+    return (MTQuickLauncherMode)MIN(2, MAX(0, (int)mode + (dx < 0 ? 1 : -1)));
+}
+
+static inline CGSize MTQuickLauncherModeBaseSize(MTQuickLauncherMode mode, BOOL wide) {
+    if (mode == MTQuickLauncherModeSearch) return wide ? CGSizeMake(620, 340) : CGSizeMake(316, 600);
+    return CGSizeMake(mode == MTQuickLauncherModeStrip ? 76 : 172, wide ? 340 : 480);
+}
+
+static inline CGSize MTQuickLauncherModeSize(CGRect bounds, CGRect available, CGFloat scalePercent, MTQuickLauncherMode mode);
 
 // Pure geometry shared with host checks. Callers supply safe-area distances.
 // Docked side hugs the screen edge (4pt seam); the floating side keeps 8pt.
@@ -81,4 +101,52 @@ static inline CGRect MTQuickLauncherKeysFrame(CGSize size) {
 static inline CGRect MTQuickLauncherDigitFrame(CGSize size, NSUInteger index) {
     return CGRectMake((index % 3) * (size.width + 6) / 3, (index / 3) * (size.height + 6) / 4,
         (size.width - 12) / 3, (size.height - 18) / 4);
+}
+
+// Three presentation stages share the same safe area, docking and saved-position contract.
+static inline CGSize MTQuickLauncherModeSize(CGRect bounds, CGRect available, CGFloat scalePercent, MTQuickLauncherMode mode) {
+    CGSize base = MTQuickLauncherModeBaseSize(mode, bounds.size.width > bounds.size.height);
+    CGFloat factor = MIN(MTQuickLauncherScaleFactor(scalePercent),
+        MIN(MAX(0, available.size.width) / base.width, MAX(0, available.size.height) / base.height));
+    return CGSizeMake(base.width * factor, base.height * factor);
+}
+static inline CGRect MTQuickLauncherModeFrame(CGRect bounds, CGFloat top, CGFloat left, CGFloat bottom, CGFloat right,
+    NSInteger side, CGFloat scalePercent, MTQuickLauncherMode mode) {
+    CGRect available = MTQuickLauncherAvailableRect(bounds, top, left, bottom, right);
+    // Default docking keeps the original 4pt seam.
+    available.origin.x = CGRectGetMinX(bounds) + left + (side == 0 ? 4 : 8);
+    available.size.width = MAX(0, CGRectGetMaxX(bounds) - right - (side == 1 ? 4 : 8) - available.origin.x);
+    CGSize size = MTQuickLauncherModeSize(bounds, available, scalePercent, mode);
+    return CGRectMake(side == 1 ? CGRectGetMaxX(available) - size.width : available.origin.x,
+        CGRectGetMaxY(available) - size.height, size.width, size.height);
+}
+
+typedef struct {
+    CGRect actions, query, status, apps, keys, footer;
+    NSUInteger actionColumns, appColumns;
+    CGFloat actionHeight;
+} MTQuickLauncherContentFrames;
+
+static inline MTQuickLauncherContentFrames MTQuickLauncherContentLayout(MTQuickLauncherMode mode, BOOL landscape) {
+    CGSize size = MTQuickLauncherModeBaseSize(mode, landscape);
+    CGFloat width = size.width, height = size.height;
+    BOOL search = mode == MTQuickLauncherModeSearch, strip = mode == MTQuickLauncherModeStrip;
+    MTQuickLauncherContentFrames f = {0};
+    f.actionColumns = strip ? 1 : (search ? 4 : 2);
+    f.appColumns = strip ? 1 : (search ? 3 : 2);
+    f.actionHeight = search ? 52 : 44;
+    f.actions = CGRectMake(8, search ? 44 : 24, width - 16, ((4 + f.actionColumns - 1) / f.actionColumns) * f.actionHeight);
+    CGFloat afterActions = CGRectGetMaxY(f.actions);
+    CGFloat contentWidth = search && landscape ? floor(width * .47) - 20 : width - 16;
+    CGFloat gridTop = afterActions + 8, gridBottom = height - 44;
+    if (search) {
+        f.query = CGRectMake(8, afterActions + 6, contentWidth, 36);
+        f.status = CGRectMake(8, afterActions + 44, contentWidth, 16);
+        gridTop = afterActions + 64;
+        if (landscape) f.keys = CGRectMake(width * .47, afterActions + 14, width * .53 - 12, height - afterActions - 26);
+        else { f.keys = CGRectMake(12, height - 248, width - 24, 204); gridBottom = CGRectGetMinY(f.keys) - 8; }
+    } else if (!strip) { f.status = CGRectMake(8, afterActions + 4, contentWidth, 16); gridTop += 16; }
+    f.apps = CGRectMake(8, gridTop, contentWidth, MAX(44, gridBottom - gridTop));
+    f.footer = CGRectMake(4, height - 44, width - 8, 44);
+    return f;
 }
