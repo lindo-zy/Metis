@@ -4,9 +4,11 @@
 #import "MTSettingsSpecifierBridge.h"
 #import <Preferences/PSSpecifier.h>
 #import "MTLog.h"
+#import <objc/message.h>
 
 @interface MTSettingsTableController ()
 @property (nonatomic, copy) NSDictionary *mtPendingSettingsURL;
+@property (nonatomic) BOOL mtOwnsSettingsURL;
 @end
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
@@ -45,6 +47,9 @@
 }
 
 - (void)viewWillAppear:(BOOL)animated {
+    // PSListController also keeps its own deferred URL. Clear it before the
+    // superclass gets a chance to replay it when Back reveals this page.
+    if (self.mtOwnsSettingsURL) [self mtClearNativePendingSettingsURL];
     [super viewWillAppear:animated];
     self.navigationController.navigationBar.prefersLargeTitles = YES;
     if (self.pendingFocusIdentifier.length) {
@@ -67,6 +72,17 @@
 - (void)prepareSettingsModel {}
 
 #pragma mark - Preferences URL routing
+
+- (void)mtClearNativePendingSettingsURL {
+    SEL clear = NSSelectorFromString(@"clearPendingURL");
+    if ([self respondsToSelector:clear]) ((void (*)(id, SEL))objc_msgSend)(self, clear);
+    // Explicitly clear both queues as well: framework implementations differ
+    // in which fields clearPendingURL resets. Do not clear the current page ID.
+    for (NSString *name in @[@"setPendingURLResourceDictionary:", @"setSpecifierIDPendingPush:"]) {
+        SEL setter = NSSelectorFromString(name);
+        if ([self respondsToSelector:setter]) ((void (*)(id, SEL, id))objc_msgSend)(self, setter, nil);
+    }
+}
 
 - (NSArray<NSString *> *)settingsPathComponents:(NSArray<NSString *> *)components {
     return components;
@@ -96,6 +112,7 @@
         return;
     }
     self.mtPendingSettingsURL = nil;
+    self.mtOwnsSettingsURL = NO;
     NSDictionary *resources = [self mtSettingsResourcesForURL:url];
     id path = resources[@"path"];
     if (![path isKindOfClass:NSString.class] || ![path length]) {
@@ -110,6 +127,8 @@
         return;
     }
     // Resolve against the persistent model, never search-result specifiers.
+    self.mtOwnsSettingsURL = YES;
+    [self mtClearNativePendingSettingsURL];
     self.overlayModel = nil;
     NSMutableDictionary *pending = [resources mutableCopy];
     pending[@"path"] = [components componentsJoinedByString:@"/"];
@@ -119,6 +138,7 @@
 }
 
 - (void)viewDidAppear:(BOOL)animated {
+    if (self.mtOwnsSettingsURL) [self mtClearNativePendingSettingsURL];
     [super viewDidAppear:animated];
     [self mtOpenPendingSettingsURL];
 }
@@ -127,6 +147,7 @@
     NSDictionary *resources = self.mtPendingSettingsURL;
     if (!resources || self.navigationController.topViewController != self || !self.view.window) return;
     self.mtPendingSettingsURL = nil;
+    [self mtClearNativePendingSettingsURL];
     NSArray<NSString *> *components = [resources[@"path"] componentsSeparatedByString:@"/"];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
     if (!row) return;
