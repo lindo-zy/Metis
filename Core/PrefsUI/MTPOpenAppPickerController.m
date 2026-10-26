@@ -64,6 +64,9 @@ typedef NS_ENUM(NSInteger, MTOpenAppSection) {
     if (self.allowsMultipleSelection) {
         self.pendingBundleIDs = [NSMutableOrderedSet orderedSet];
         self.pendingApps = [NSMutableDictionary dictionary];
+        for (NSString *bundleID in self.preselectedBundleIDs)
+            if ([bundleID isKindOfClass:NSString.class] && bundleID.length) [self.pendingBundleIDs addObject:bundleID];
+        [self seedPendingApps];
         self.title = LOCALIZED(@"BATCH_ADD_APPLICATIONS");
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:LOCALIZED(@"DONE")
                                                                                  style:UIBarButtonItemStyleDone
@@ -86,10 +89,25 @@ typedef NS_ENUM(NSInteger, MTOpenAppSection) {
 - (void)confirmMultiSelection {
     if (self.multiSelectionCompletion) {
         NSMutableArray<MTPAppInfo *> *apps = [NSMutableArray array];
-        for (NSString *bundleID in self.pendingBundleIDs) [apps addObject:self.pendingApps[bundleID]];
+        for (NSString *bundleID in self.pendingBundleIDs) {
+            MTPAppInfo *app = self.pendingApps[bundleID];
+            if (app) [apps addObject:app];
+        }
         self.multiSelectionCompletion(apps);
     }
     [self.navigationController popViewControllerAnimated:YES];
+}
+
+// Every pending id must resolve to a model: 完成 hands the caller whole
+// MTPAppInfo objects, and an uninstalled preselected app has no row to tap.
+- (void)seedPendingApps {
+    for (NSString *bundleID in self.pendingBundleIDs) {
+        if (self.pendingApps[bundleID]) continue;
+        MTPAppInfo *placeholder = [MTPAppInfo new];
+        placeholder.bundleID = bundleID;
+        placeholder.name = [MTPAppInfo displayNameForBundleID:bundleID] ?: bundleID;
+        self.pendingApps[bundleID] = placeholder;
+    }
 }
 
 #pragma mark - Data loading
@@ -196,6 +214,12 @@ typedef NS_ENUM(NSInteger, MTOpenAppSection) {
     self.currentApp = current;
     self.userApps = mutableUser;
     self.systemApps = mutableSystem;
+    if (self.allowsMultipleSelection) {
+        // Upgrade placeholders to the real models so 完成 carries names/icons.
+        for (MTPAppInfo *app in [mutableUser arrayByAddingObjectsFromArray:mutableSystem])
+            if ([self.pendingBundleIDs containsObject:app.bundleID]) self.pendingApps[app.bundleID] = app;
+        [self seedPendingApps];
+    }
 }
 
 #pragma mark - Search

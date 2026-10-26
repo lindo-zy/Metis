@@ -38,8 +38,65 @@ BOOL MTContextActionAllowed(NSString *action, NSDictionary *preferences) {
 }
 @end
 
+@implementation MTContextAppGroup
++ (BOOL)isValidBundleID:(NSString *)bundleID {
+    if (![bundleID isKindOfClass:NSString.class] || !bundleID.length || bundleID.length > 155) return NO;
+    return [bundleID rangeOfString:@"^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)+$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
++ (NSArray<MTContextAppGroup *> *)groupsFromPreferences:(NSDictionary *)preferences {
+    id raw = [preferences isKindOfClass:NSDictionary.class] ? preferences[kContextAppGroupsKey] : nil;
+    if (![raw isKindOfClass:NSArray.class]) return @[];
+    NSMutableArray *result = [NSMutableArray array];
+    NSMutableSet *identifiers = [NSMutableSet set], *bound = [NSMutableSet set];
+    for (id item in raw) {
+        if (result.count >= 20) break;
+        if (![item isKindOfClass:NSDictionary.class]) continue;
+        id identifier = item[@"id"];
+        if (![identifier isKindOfClass:NSString.class] || ![identifier length] || [identifier length] > 64 ||
+            [identifiers containsObject:identifier]) continue;
+        NSMutableArray *bundleIDs = [NSMutableArray array];
+        for (id bundleID in [item[@"apps"] isKindOfClass:NSArray.class] ? item[@"apps"] : @[]) {
+            if (![self isValidBundleID:bundleID]) continue;
+            NSString *key = [bundleID lowercaseString];
+            // 一个 App 只属于第一个声明它的组：读取端就把歧义消掉，设置页不必二次处理。
+            if ([bound containsObject:key] || [bundleIDs containsObject:key]) continue;
+            [bound addObject:key]; [bundleIDs addObject:key];
+            if (bundleIDs.count == 32) break;
+        }
+        NSMutableArray *actions = [NSMutableArray array];
+        for (id rawAction in [item[@"actions"] isKindOfClass:NSArray.class] ? item[@"actions"] : @[]) {
+            if (![rawAction isKindOfClass:NSString.class]) continue;
+            NSString *selector = rawAction;
+            if (!selector.length || selector.length > 128) continue;
+            [actions addObject:selector];
+            if (actions.count == 8) break;
+        }
+        MTContextAppGroup *group = [MTContextAppGroup new];
+        group.identifier = identifier; [identifiers addObject:identifier];
+        NSString *name = [item[@"name"] isKindOfClass:NSString.class] ? item[@"name"] : @"";
+        group.name = name.length > 64 ? [name substringToIndex:64] : name;
+        group.bundleIDs = bundleIDs; group.actions = actions;
+        group.enabled = ![item[@"enabled"] isKindOfClass:NSNumber.class] || [item[@"enabled"] boolValue];
+        [result addObject:group];
+    }
+    return result;
+}
++ (MTContextAppGroup *)groupForBundleID:(NSString *)bundleID inGroups:(NSArray<MTContextAppGroup *> *)groups {
+    if (![bundleID isKindOfClass:NSString.class] || !bundleID.length) return nil;
+    NSString *key = [bundleID lowercaseString];
+    for (MTContextAppGroup *group in groups)
+        if ([group.bundleIDs containsObject:key]) return group;
+    return nil;
+}
+- (NSDictionary *)dictionaryRepresentation {
+    return @{@"id":self.identifier ?: @"", @"name":self.name ?: @"", @"apps":self.bundleIDs ?: @[],
+             @"actions":self.actions ?: @[], @"enabled":@(self.enabled)};
+}
+@end
+
 @interface MTContextGroupConfig ()
 @property(nonatomic, copy, readwrite) NSDictionary *preferences;
+@property(nonatomic, copy, readwrite) NSArray<MTContextAppGroup *> *appGroups;
 @property(nonatomic, copy) NSDictionary<NSString *, NSArray<MTContextType *> *> *groups;
 @end
 static BOOL MTContextSourceHasValidSyntax(NSString *source) {
@@ -99,6 +156,7 @@ static BOOL MTContextSourceHasValidSyntax(NSString *source) {
 + (instancetype)configFromPreferences:(NSDictionary *)preferences {
     MTContextGroupConfig *config = [self new];
     config.preferences = [self migratePreferences:preferences];
+    config.appGroups = [MTContextAppGroup groupsFromPreferences:config.preferences];
     NSDictionary *stored = config.preferences[kContextGroupTypesKey];
     NSMutableDictionary *groups = [NSMutableDictionary dictionary];
     for (NSString *group in MTContextGroupKeys()) {

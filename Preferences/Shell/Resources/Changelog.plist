@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.2.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>底栏编排新增「应用动作组」：底栏预留区的按钮可以按当前 App 切换，一个组可绑定多个 App 共用同一批动作</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>应用专属动作沿用现有动作目录，复制、粘贴、面板动作、打开链接、搜索、问 AI 都能直接选用；复制和选区等临时动作仍然优先</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.2.1</string>
 		<key>items</key>
 		<array>
@@ -69,25 +88,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>顶栏和底栏支持自选 SF 图标颜色，文字随系统明暗变化，应用图标保留原色</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.1.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>自定义动作 JS 脚本编辑和 AI 回复支持与底栏编排一致的语法高亮</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>AI 生成脚本下方新增沙盒调试入口，支持样例文本、运行结果、耗时和 console 日志</string>
 			</dict>
 		</array>
 	</dict>

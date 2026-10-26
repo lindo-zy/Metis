@@ -18,6 +18,8 @@ typedef NS_ENUM(NSInteger, MTContextGroup) {
     MTContextGroupInput,
     MTContextGroupIdle,
     MTContextGroupDelete,
+    // G7 应用：按宿主 App 换预留区动作，优先级排在「输入类型」之后、「无文字」之前。
+    MTContextGroupApp,
     MTContextGroupCopy = MTContextGroupClipboard,
     MTContextGroupTyping = MTContextGroupInput,
 };
@@ -88,6 +90,9 @@ FOUNDATION_EXPORT NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferenc
 @property(nonatomic, assign) BOOL secureInput;
 @property(nonatomic, copy) NSString *contentType;
 @property(nonatomic, assign) NSInteger keyboardType;
+// 宿主 App 的 bundle id（进程内恒定）。键盘在每个 App 进程里运行，空值表示
+// 拿不到宿主（键盘扩展进程），应用动作组据此直接不激活。
+@property(nonatomic, copy) NSString *hostBundleID;
 @end
 
 // 判定参数全部来自偏好，缺省值写在 settingsFromPreferences 里，读写两侧同源。

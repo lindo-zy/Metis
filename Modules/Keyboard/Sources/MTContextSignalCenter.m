@@ -13,6 +13,18 @@ static const NSUInteger MTContextSelectionTextLimit = 2000;
 // 剪贴板内容在内存里的保留上限，超时即丢，避免复制过的密码长期驻留。
 static const NSTimeInterval MTContextClipboardTextRetention = 120;
 
+// 宿主 App 在进程内恒定：键盘 UI 注入在每个 App 进程里，mainBundle 就是宿主。
+// 键盘扩展（appex）拿不到宿主，返回 nil，应用动作组据此直接不激活。
+static NSString *MTHostBundleIdentifier(void) {
+    static NSString *bundleID;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSString *value = [NSBundle.mainBundle.bundleIdentifier lowercaseString];
+        if ([MTContextAppGroup isValidBundleID:value]) bundleID = [value copy];
+    });
+    return bundleID;
+}
+
 @interface MTContextSignalCenter ()
 @property(nonatomic, strong, readwrite) MTContextDecision *currentDecision;
 @property(nonatomic, weak) UIResponder *activeResponder;
@@ -319,6 +331,7 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
 - (MTContextSnapshot *)snapshotNow {
     NSTimeInterval now = MTContextNow();
     MTContextSnapshot *snapshot = [MTContextSnapshot new];
+    snapshot.hostBundleID = MTHostBundleIdentifier();
     UIResponder *responder = self.activeResponder;
     if ([responder isFirstResponder]) {
         if ([responder isKindOfClass:UITextField.class]) {
@@ -379,6 +392,8 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     NSMutableDictionary *results = [NSMutableDictionary dictionary];
     MTContextGroupConfig *config = [self currentConfig];
     for (NSNumber *number in MTContextPriority(config.preferences)) {
+        // 应用组没有内容识别这一层，不参与分类缓存，也不该占一次 classifyText。
+        if (number.integerValue == MTContextGroupApp) continue;
         if (!MTContextGroupIsActive(snapshot, config, number.integerValue)) continue;
         NSString *group = MTContextGroupKey(number.integerValue);
         NSString *text = [group isEqual:@"selection"] ? snapshot.selectionText : ([group isEqual:@"copy"] ? snapshot.clipboardText : ([group isEqual:@"paste"] ? snapshot.pastedText : snapshot.inputText));

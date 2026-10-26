@@ -62,6 +62,7 @@ NSString *MTContextGroupName(MTContextGroup group) {
         case MTContextGroupInput: return @"typing";
         case MTContextGroupIdle: return @"idle";
         case MTContextGroupDelete: return @"delete";
+        case MTContextGroupApp: return @"app";
         case MTContextGroupNone: return @"none";
     }
     return @"unknown";
@@ -75,13 +76,17 @@ NSString *MTContextGroupKey(MTContextGroup group) {
         case MTContextGroupInput: return @"typing";
         case MTContextGroupDelete: return @"delete";
         case MTContextGroupIdle: return @"idle";
+        case MTContextGroupApp: return @"app";
         default: return @"default";
     }
 }
 NSArray<NSNumber *> *MTContextPriority(NSDictionary *preferences) {
-    // v2 has a stable six-group priority; legacy integer order must not change semantics.
+    // v2 has a stable seven-group priority; legacy integer order must not change semantics.
+    // 应用组放在「输入类型」之后：验证码/网址框仍然先亮，应用专属按钮只在没有
+    // 更具体的输入类型时接管预留区；「无文字」仍旧是最后的兜底。
     return @[@(MTContextGroupDelete), @(MTContextGroupSelection), @(MTContextGroupPaste),
-             @(MTContextGroupCopy), @(MTContextGroupTyping), @(MTContextGroupIdle)];
+             @(MTContextGroupCopy), @(MTContextGroupTyping), @(MTContextGroupApp),
+             @(MTContextGroupIdle)];
 }
 
 @implementation MTContextSnapshot

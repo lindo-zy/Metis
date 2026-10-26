@@ -22,5 +22,8 @@
 // Batch mode: rows toggle checkmarks instead of popping, and 完成 hands the
 // picks (MTPAppInfo, in tap order) to the host.
 @property (nonatomic, assign) BOOL allowsMultipleSelection;
+// Whether the batch list opens with a pre-checked selection. 应用动作组 uses it
+// to edit an existing binding; the pick still replaces the whole selection.
+@property (nonatomic, copy) NSArray<NSString *> *preselectedBundleIDs;
 @property (nonatomic, copy) void (^multiSelectionCompletion)(NSArray<MTPAppInfo *> *apps);
 @end

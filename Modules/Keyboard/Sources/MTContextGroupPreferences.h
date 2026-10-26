@@ -21,6 +21,9 @@
 #define kContextGroupTypesKey @"contextgrouptypes"
 #define kContextConfigVersionKey @"contextconfigversion"
 #define kContextDeleteGroupKey @"contextgroupdeleteBOOL"
+// 应用动作组：按宿主 App 换预留区动作。开关 + 组表（上限 20 组）。
+#define kContextAppGroupKey @"contextgroupappBOOL"
+#define kContextAppGroupsKey @"contextappgroups"
 
 static inline double MTContextNumber(NSDictionary *prefs, NSString *key, double fallback, double low, double high) {
     id value = prefs[key];
