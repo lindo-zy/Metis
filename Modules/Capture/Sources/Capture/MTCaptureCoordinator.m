@@ -14,6 +14,7 @@
 #import "../Output/MTLongImageComposer.h"   // MTLongShotCopyMaxPixelHeight 等长图常量
 #import "../Output/MTTemporaryFileStore.h"
 #import "../Overlay/MTCaptureWindow.h"
+#import "../Overlay/MTCaptureCompletionToast.h"
 #import "../Overlay/MTSelectionView.h"
 #import "../Overlay/MTFloatingSnap.h"
 #import "../Editor/MTEditorViewController.h"
@@ -64,6 +65,7 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) MTEditorViewController *editorController;
 @property (nonatomic, strong, nullable) UIImage *preEditImage;   // 进入编辑器前的结果图（取消编辑时恢复）
 @property (nonatomic, strong, nullable) MTPhotoImportSession *photoImportSession;
+@property (nonatomic, strong) MTCaptureCompletionToast *completionToast;
 @end
 
 static MTCaptureCoordinator *_sharedCoordinator = nil;
@@ -84,6 +86,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         _provider = [[MTCaptureProvider alloc] init];
         _pipeline = [[MTOutputPipeline alloc] init];
         _floatingSnaps = [[NSMutableArray alloc] init];
+        _completionToast = [[MTCaptureCompletionToast alloc] init];
 
         // 选区期间设备旋转会使基础快照与屏幕几何错位；直接取消任务保证正确性。
         [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
@@ -184,6 +187,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
 
+    [self.completionToast dismiss];
     [self mtCancelCurrentTaskClosingFloatingSnaps:YES];
 }
 
@@ -725,6 +729,12 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     // 悬浮窗随任务结束恢复展示（抓屏前被 mtHideOwnOverlays 暂时隐藏）。
     self.editingFloatingSnap = nil;
     [self mtRestoreFloatingSnaps];
+    // 混合动作只显示一条；部分失败也仅反馈真正完成的子动作。
+    if (task.lastOutputSaved) {
+        [self.completionToast showSavedAssetIdentifier:task.savedAssetIdentifier];
+    } else if (task.lastOutputCopied) {
+        [self.completionToast showCopied];
+    }
 }
 
 #pragma mark - 悬浮窗
@@ -986,6 +996,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 }
 
 - (void)mtHideOwnOverlays {
+    [self.completionToast dismiss];
     // 悬浮窗是新任务的抓屏对象之一：抓屏前隐藏，任务收尾再恢复。
     for (MTFloatingSnap *snap in self.floatingSnaps) [snap hideForCapture];
 }

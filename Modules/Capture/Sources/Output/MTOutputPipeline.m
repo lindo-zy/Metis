@@ -35,6 +35,8 @@
         completion(NO, @"任务无效");
         return;
     }
+    task.lastOutputSaved = NO;
+    task.lastOutputCopied = NO;
 
     // 「保存同时复制」在唯一入口处升级动作：选区/编辑器/悬浮图的保存按钮、
     // 默认动作保存、长截图降级保存都经此处，一处拦截全部保存路径生效。
@@ -206,6 +208,7 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
                     return;
                 }
                 task.savedAssetIdentifier = identifier;
+                task.lastOutputSaved = YES;
                 MTCaptureLogInfo(@"photo saved: %@ (task %@)", identifier ?: @"(no id)", task.taskID);
                 completion(YES, @"已保存到相册");
             };
@@ -243,12 +246,14 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
     if (task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll &&
         [task.resultFilePath.pathExtension.lowercaseString isEqualToString:@"png"]) {
         [MTClipboardWriter copyImageFileAsync:task.resultFilePath completion:^(BOOL ok) {
+            task.lastOutputCopied = ok;
             completion(ok, ok ? @"已复制到剪贴板" : @"复制失败");
         }];
         return;
     }
     // PNG 编码放后台队列，最终写入回主线程（写入方内部保证线程切换）。
     [MTClipboardWriter copyImageAsync:image completion:^(BOOL ok) {
+        task.lastOutputCopied = ok;
         completion(ok, ok ? @"已复制到剪贴板" : @"复制失败");
     }];
 }

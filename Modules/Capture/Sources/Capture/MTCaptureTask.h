@@ -28,6 +28,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *resultFilePath;
 @property (nonatomic, assign) BOOL isPartialCapture;   // 回退路径仅捕获到 SpringBoard 自身窗口
 @property (nonatomic, copy, nullable) NSString *savedAssetIdentifier;  // 相册写入成功后的资产 ID
+/// 最近一次输出实际成功的子动作（主线程）；认领/重复调用不算成功，不触发气泡。
+@property (nonatomic, assign) BOOL lastOutputSaved;
+@property (nonatomic, assign) BOOL lastOutputCopied;
 @property (nonatomic, assign) BOOL isReedit;                           // 重编辑产生的新任务
 @property (nonatomic, copy, nullable) NSString *errorCode;
 @property (nonatomic, copy, nullable) NSString *errorMessage;
