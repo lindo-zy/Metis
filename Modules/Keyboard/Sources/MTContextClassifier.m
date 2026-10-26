@@ -51,7 +51,7 @@ static bool MTCTXTerminate(JSContextRef context, void *data) { *((BOOL *)data) =
 - (void)invalidate {
     dispatch_async(self.queue, ^{ self.vm = nil; [self.cache removeAllObjects]; [self.lru removeAllObjects]; [self.failures removeAllObjects]; self.generation++; });
 }
-- (NSDictionary *)runSource:(NSString *)source text:(NSString *)text identifier:(NSString *)identifier {
+- (NSDictionary *)runSource:(NSString *)source text:(NSString *)text identifier:(NSString *)identifier captureLogs:(BOOL)captureLogs {
     CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
     MTCTXLimit limit = (MTCTXLimit)dlsym(RTLD_DEFAULT, "JSContextGroupSetExecutionTimeLimit");
     MTCTXClear clear = (MTCTXClear)dlsym(RTLD_DEFAULT, "JSContextGroupClearExecutionTimeLimit");
@@ -59,20 +59,26 @@ static bool MTCTXTerminate(JSContextRef context, void *data) { *((BOOL *)data) =
     if (!limit || !clear) error = @"CTX_JS_UNAVAILABLE";
     else if ([self.failures[identifier] unsignedIntegerValue] >= 3) error = @"CTX_JS_DISABLED";
     else if (![source isKindOfClass:NSString.class] || !source.length || [source lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 8192) error = @"CTX_JS_SIZE";
-    if (error) return @{@"matched":@NO, @"error":error, @"ms":@0};
+    if (error) return captureLogs ? @{@"matched":@NO, @"error":error, @"ms":@0, @"logs":@[]} : @{@"matched":@NO, @"error":error, @"ms":@0};
     if (!self.vm) self.vm = [JSVirtualMachine new];
     // A fresh realm for every uncached call prevents rule globals/prototype edits
     // from leaking into another rule or making results depend on previous text.
     JSContext *context = [[JSContext alloc] initWithVirtualMachine:self.vm];
     [context evaluateScript:@"Object.defineProperty(this,'Date',{value:null,writable:false,configurable:false}); Object.defineProperty(Math,'random',{value:null,writable:false,configurable:false});"];
     __block NSUInteger logBytes = 0;
+    // 调试台会在同一 VM 外反复重跑；条数与字节双限避免一次误写拖垮界面。
+    __block NSMutableArray<NSString *> *capturedLogs = captureLogs ? [NSMutableArray array] : nil;
     context[@"console"] = @{};
     context[@"console"][@"log"] = ^(NSString *message) {
         if (logBytes >= 16384) return;
         NSString *line = [message isKindOfClass:NSString.class] ? message : @"[value]";
         line = [line substringToIndex:MIN(line.length, (NSUInteger)1024)];
         NSUInteger bytes = [line lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-        if (logBytes + bytes <= 16384) NSLog(@"[Metis][ContextJS] %@", line); logBytes += bytes;
+        if (logBytes + bytes <= 16384) {
+            NSLog(@"[Metis][ContextJS] %@", line);
+            if (capturedLogs && capturedLogs.count < 200) [capturedLogs addObject:line];
+        }
+        logBytes += bytes;
     };
     __block BOOL timedOut = NO;
     JSContextGroupRef group = JSContextGetGroup(context.JSGlobalContextRef);
@@ -90,7 +96,10 @@ static bool MTCTXTerminate(JSContextRef context, void *data) { *((BOOL *)data) =
         NSUInteger failures = [self.failures[identifier] unsignedIntegerValue] + 1; self.failures[identifier] = @(failures);
         NSLog(@"[Metis][ContextJS] rule=%@ error=%@ failures=%lu", identifier, error, (unsigned long)failures);
     } else self.failures[identifier] = @0;
-    return @{@"matched":@(matched && !error), @"error":error ?: @"", @"ms":@((CFAbsoluteTimeGetCurrent() - start) * 1000)};
+    NSMutableDictionary *result = [@{@"matched":@(matched && !error), @"error":error ?: @"",
+        @"ms":@((CFAbsoluteTimeGetCurrent() - start) * 1000)} mutableCopy];
+    if (captureLogs) result[@"logs"] = capturedLogs ?: @[];
+    return result;
 }
 - (void)classifyText:(NSString *)text surface:(NSString *)surface flags:(NSDictionary *)flags group:(NSString *)group config:(MTContextGroupConfig *)config completion:(void (^)(NSDictionary *))completion {
     NSString *copy = [text isKindOfClass:NSString.class] ? [text substringToIndex:MIN(text.length, (NSUInteger)2000)] : @"";
@@ -109,7 +118,7 @@ static bool MTCTXTerminate(JSContextRef context, void *data) { *((BOOL *)data) =
             if (![flags[@"secure"] boolValue] && copy.length && ![flags[@"image"] boolValue]) {
                 for (MTContextType *type in [config typesForGroup:group]) if (type.enabled && [type.kind isEqual:@"js"]) {
                     NSString *identifier = [NSString stringWithFormat:@"%@/%@/%lu", group, type.identifier, (unsigned long)type.source.hash];
-                    NSDictionary *test = [self runSource:type.source text:copy identifier:identifier];
+                    NSDictionary *test = [self runSource:type.source text:copy identifier:identifier captureLogs:NO];
                     if ([test[@"matched"] boolValue]) [matches addObject:type.identifier];
                 }
             }
@@ -121,7 +130,15 @@ static bool MTCTXTerminate(JSContextRef context, void *data) { *((BOOL *)data) =
     });
 }
 - (void)testRule:(NSString *)identifier source:(NSString *)source text:(NSString *)text completion:(void (^)(NSDictionary *))completion {
+    [self testRule:identifier source:source text:text captureLogs:NO completion:completion];
+}
+- (void)testRule:(NSString *)identifier source:(NSString *)source text:(NSString *)text
+     captureLogs:(BOOL)captureLogs completion:(void (^)(NSDictionary *))completion {
     NSString *copy = [text isKindOfClass:NSString.class] ? [text substringToIndex:MIN(text.length, (NSUInteger)2000)] : @"";
-    dispatch_async(self.queue, ^{ NSDictionary *result = [self runSource:source text:copy identifier:[@"test/" stringByAppendingString:identifier ?: @"rule"]]; dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(result); }); });
+    dispatch_async(self.queue, ^{
+        NSDictionary *result = [self runSource:source text:copy
+            identifier:[@"test/" stringByAppendingString:identifier ?: @"rule"] captureLogs:captureLogs];
+        dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(result); });
+    });
 }
 @end

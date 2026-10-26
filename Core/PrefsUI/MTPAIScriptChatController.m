@@ -1,6 +1,8 @@
 #import "MTPAIScriptChatController.h"
 #import "MTPAIScriptGenerator.h"
+#import "MTPAIScriptProfile.h"
 #import "MTPJavaScriptTestController.h"
+#import "MTPContextScriptDebugController.h"
 #import "MTAIEngine.h"
 #import "common.h"
 #import <syslog.h>
@@ -44,6 +46,7 @@ static NSString *MTAIScriptLabel(NSString *key) {
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
+    if (!_profile) _profile = [MTPAIScriptProfile actionProfile];
     self.title = MTAIScriptLabel(@"JS_AI_CHAT_TITLE");
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.history = [NSMutableArray array]; self.versions = [NSMutableArray array];
@@ -120,7 +123,8 @@ static NSString *MTAIScriptLabel(NSString *key) {
 }
 - (void)refreshControls {
     self.input.editable = !self.generating;
-    self.inputHint.text = MTAIScriptLabel(self.versions.count ? @"JS_AI_MODIFY_HINT" : @"JS_AI_INPUT_HINT");
+    self.inputHint.text = MTAIScriptLabel(self.versions.count ? @"JS_AI_MODIFY_HINT"
+        : (self.profile.runtime == MTPAIScriptRuntimeContext ? @"JS_AI_INPUT_HINT_CONTEXT" : @"JS_AI_INPUT_HINT"));
     self.inputHint.hidden = self.input.text.length > 0;
     UIButtonConfiguration *config = self.sendButton.configuration;
     config.title = MTAIScriptLabel(self.generating ? @"JS_AI_STOP" : @"JS_AI_SEND");
@@ -153,7 +157,12 @@ static NSString *MTAIScriptLabel(NSString *key) {
         UILabel *detail = [self label:error ?: [NSString stringWithFormat:MTAIScriptLabel(@"JS_AI_ENGINE_DETAIL"),
             [MTAIEngine selectedModelForEngine:engine] ?: @"—"] color:error ? UIColor.systemRedColor : UIColor.secondaryLabelColor];
         detail.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
-        [stack addArrangedSubview:detail]; cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        [stack addArrangedSubview:detail];
+        // 契约先行：先说清楚这一路只会生成哪种脚本，避免用户拿着 match 的规则期望返回值。
+        UILabel *contract = [self label:self.profile.contractSummary color:UIColor.secondaryLabelColor];
+        contract.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+        [stack addArrangedSubview:contract];
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         cell.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", engine.displayName, detail.text];
         return cell;
     }
@@ -242,7 +251,8 @@ static NSString *MTAIScriptLabel(NSString *key) {
             (long)self.selectedVersion + 1, self.versions[self.selectedVersion][@"script"], requirement];
     }
     NSArray *messages = [MTPAIScriptGenerator messagesForHistory:self.history requirement:requestText
-        currentScript:self.history.count == 0 && self.selectedVersion == NSNotFound ? self.currentScript : nil];
+        currentScript:self.history.count == 0 && self.selectedVersion == NSNotFound ? self.currentScript : nil
+        profile:self.profile];
     MTAIEngineInfo *engine = [MTAIEngine currentEngine];
     NSString *model = [MTAIEngine selectedModelForEngine:engine];
     self.pendingRequirement = requirement; self.streamedText = @""; self.requestError = nil;
@@ -276,8 +286,8 @@ static NSString *MTAIScriptLabel(NSString *key) {
                 owner.requestError = error.localizedDescription;
                 syslog(LOG_INFO, "[MetisKeyboard][AIScript] generation failed code=%ld", (long)error.code);
             } else {
-                NSString *script = [MTPAIScriptGenerator scriptFromReply:fullText];
-                NSString *check = script.length ? [MTPAIScriptGenerator precheckErrorForScript:script] : MTAIScriptLabel(@"JS_AI_EMPTY_RESULT");
+                NSString *script = [self.profile scriptFromReply:fullText];
+                NSString *check = script.length ? [self.profile precheckErrorForScript:script] : MTAIScriptLabel(@"JS_AI_EMPTY_RESULT");
                 [owner.versions addObject:@{@"script": script, @"error": check ?: @"", @"requirement": requirement}];
                 owner.selectedVersion = owner.versions.count - 1;
                 [owner.history addObjectsFromArray:@[@{@"role": @"user", @"content": requirement}, @{@"role": @"assistant", @"content": script}]];
@@ -298,12 +308,25 @@ static NSString *MTAIScriptLabel(NSString *key) {
 - (NSString *)validatedScriptForButton:(UIButton *)button {
     if (self.generating || button.tag < 0 || button.tag >= (NSInteger)self.versions.count || button.tag != self.selectedVersion) return nil;
     NSString *script = self.versions[button.tag][@"script"];
-    return [MTPAIScriptGenerator precheckErrorForScript:script] ? nil : script;
+    return [self.profile precheckErrorForScript:script] ? nil : script;
 }
 - (void)debugTapped:(UIButton *)button {
     NSString *script = [self validatedScriptForButton:button]; if (!script) return;
     [self.view endEditing:YES];
-    MTPJavaScriptTestController *test = [MTPJavaScriptTestController new]; test.source = script;
+    // 两套运行时不能共用一个调试台：底栏规则走键盘进程的分类器（纯判定、50 ms），
+    // 自定义动作走设置进程的 MTJavaScriptEngine（可联网、可返回动作）。
+    UIViewController *test = nil;
+    if (self.profile.runtime == MTPAIScriptRuntimeContext) {
+        MTPContextScriptDebugController *debug = [MTPContextScriptDebugController new];
+        debug.source = script;
+        debug.groupKey = self.groupKey;
+        debug.typeID = self.typeID;
+        test = debug;
+    } else {
+        MTPJavaScriptTestController *engineTest = [MTPJavaScriptTestController new];
+        engineTest.source = script;
+        test = engineTest;
+    }
     test.navigationItem.prompt = [NSString stringWithFormat:MTAIScriptLabel(@"JS_AI_DEBUG_TARGET"), (long)button.tag + 1];
     [self.navigationController pushViewController:test animated:YES];
 }
