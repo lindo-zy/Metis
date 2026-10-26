@@ -3,6 +3,7 @@
 #import "MTPAIScriptProfile.h"
 #import "MTPJavaScriptTestController.h"
 #import "MTPContextScriptDebugController.h"
+#import "MTPJavaScriptCodeStyle.h"
 #import "MTAIEngine.h"
 #import "common.h"
 #import <syslog.h>
@@ -193,16 +194,18 @@ static NSString *MTAIScriptLabel(NSString *key) {
     if (error.length) [stack addArrangedSubview:[self label:[NSString stringWithFormat:MTAIScriptLabel(@"JS_AI_PRECHECK_FAILED"), error] color:UIColor.systemRedColor]];
     NSString *script = version[@"script"];
     if (active) {
-        UITextView *code = [UITextView new]; code.text = script; code.editable = NO;
-        code.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightRegular];
-        code.textColor = UIColor.labelColor; code.backgroundColor = UIColor.clearColor;
+        UITextView *code = [UITextView new]; code.editable = NO;
+        code.attributedText = [MTPJavaScriptCodeStyle attributedStringForSource:script];
+        code.backgroundColor = UIColor.clearColor;
         code.textContainerInset = UIEdgeInsetsZero;
         CGFloat width = MAX(160, tableView.bounds.size.width - 80);
         CGFloat height = MIN(360, MAX(100, [code sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)].height));
         [code.heightAnchor constraintEqualToConstant:height].active = YES; [stack addArrangedSubview:code];
     } else {
         UILabel *preview = [self label:script color:UIColor.secondaryLabelColor]; preview.numberOfLines = 3;
-        preview.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular]; [stack addArrangedSubview:preview];
+        NSRange range = [script rangeOfComposedCharacterSequencesForRange:NSMakeRange(0, MIN(script.length, (NSUInteger)1200))];
+        preview.attributedText = [MTPJavaScriptCodeStyle attributedStringForSource:[script substringWithRange:range]];
+        [stack addArrangedSubview:preview];
     }
     if (active) {
         UIStackView *actions = [UIStackView new]; actions.axis = UILayoutConstraintAxisVertical; actions.spacing = 8;

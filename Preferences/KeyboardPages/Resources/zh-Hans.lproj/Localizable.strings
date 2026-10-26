@@ -907,3 +907,11 @@
 "CTX_DEBUG_EMPTY_SAMPLE" = "请先填写样例";
 "JS_AI_SUBTITLE_CONTEXT" = "描述需求 · 只输出 match(text) · 可直接调试";
 "JS_AI_INPUT_HINT_CONTEXT" = "描述什么样的文本应该命中…";
+
+// Custom action JavaScript sandbox
+"JS_DEBUG_SUBTITLE" = "样例文本 · 执行结果 · console 日志";
+"JS_DEBUG_STATUS" = "状态";
+"JS_DEBUG_DONE" = "完成";
+"JS_DEBUG_FAILED" = "失败";
+"JS_DEBUG_STOPPED" = "已停止";
+"JS_DEBUG_CHOOSE" = "等待选择";

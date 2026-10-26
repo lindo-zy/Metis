@@ -908,3 +908,11 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CTX_DEBUG_EMPTY_SAMPLE" = "Enter a sample first";
 "JS_AI_SUBTITLE_CONTEXT" = "Describe it · match(text) only · testable";
 "JS_AI_INPUT_HINT_CONTEXT" = "Describe which text should match…";
+
+// Custom action JavaScript sandbox
+"JS_DEBUG_SUBTITLE" = "Sample text · results · console logs";
+"JS_DEBUG_STATUS" = "Status";
+"JS_DEBUG_DONE" = "Completed";
+"JS_DEBUG_FAILED" = "Failed";
+"JS_DEBUG_STOPPED" = "Stopped";
+"JS_DEBUG_CHOOSE" = "Choose a result";
