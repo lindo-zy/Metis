@@ -24,4 +24,4 @@ extern NSBundle *tweakBundle;
 extern BOOL firstInit;
 
 // 顶栏与底栏共用的 SF 图标颜色：自定义色或默认 systemBlue。文字使用 labelColor。
-extern UIColor *MTToolbarDefaultTintColor(NSDictionary *preferences);
+FOUNDATION_EXPORT UIColor *MTToolbarDefaultTintColor(NSDictionary *preferences);
