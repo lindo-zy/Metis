@@ -37,6 +37,9 @@
 }
 @end
 
+@interface MTCaptureRulesController () <UITableViewDelegate, UITableViewDataSource>
+@end
+
 @implementation MTCaptureRulesController {
     UITableView *_table;
     NSArray<MTCaptureRule *> *_rules;
@@ -187,8 +190,7 @@
     }];
     __weak typeof(self) weakSelf = self;
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"创建" style:UIAlertActionStyleDefault handler:^
-        __unused (UIAlertAction *action) {
+    [alert addAction:[UIAlertAction actionWithTitle:@"创建" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
         NSString *name = [alert.textFields.firstObject.text
             stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] ?: @"";
         [weakSelf commitRulesWithMutation:^NSArray<NSDictionary *> *(NSMutableArray<NSDictionary *> *current) {
@@ -199,7 +201,7 @@
                                   @"actions": @[] }];
             return current;
         }];
-    }];
+    }]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
@@ -312,8 +314,7 @@
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:name
         message:@"从规则中移除该动作？动作库条目不受影响。" preferredStyle:UIAlertControllerStyleAlert];
     __weak typeof(self) weakSelf = self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"移除" style:UIAlertActionStyleDestructive handler:^
-        __unused (UIAlertAction *action) {
+    [alert addAction:[UIAlertAction actionWithTitle:@"移除" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
         [weakSelf removeActionAtIndex:index];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
@@ -327,7 +328,7 @@
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == 0) return 3;                       // 名称 / 启用 / 自动执行
     if (section == 1) return 1;                       // 匹配脚本
-    return (NSInteger)self.entry[@"actions"].count + 1;  // 动作 + 添加
+    return (NSInteger)[self.entry[@"actions"] count] + 1;  // 动作 + 添加
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -447,6 +448,7 @@
     NSArray *actions = self.entry[@"actions"];
     if (indexPath.row >= (NSInteger)actions.count) {
         if (actions.count >= 8) return;
+        __weak typeof(self) weakSelf = self;
         MTCaptureRuleActionPickerController *picker =
             [MTCaptureRuleActionPickerController pickerWithExcludedIDs:actions
                                                             completion:^(NSString *uuid) {
