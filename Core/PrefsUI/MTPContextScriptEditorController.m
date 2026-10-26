@@ -1,12 +1,106 @@
 #import "MTPContextScriptEditorController.h"
 #import "MTPAIScriptProfile.h"
 #import "MTPAIScriptChatController.h"
+#import "MTPContextScriptDebugController.h"
+#import "MTPJavaScriptTestController.h"
 #import "MTPJavaScriptCodeStyle.h"
 #import "common.h"
 
 static NSString *MTEditorLabel(NSString *key) {
     return NSLocalizedStringFromTableInBundle(key, nil, [NSBundle bundleWithPath:bundlePath], nil);
 }
+
+// 底栏只剩一个出口。用 UIControl 而不是 UIButton：命中区域要覆盖整行，
+// 而标题必须贴左、chevron 必须贴右，按钮自带的标题布局帮不上忙。
+@interface MTPScriptDebugEntryView : UIControl
+@property(nonatomic, strong) UILabel *textLabel;
+@end
+
+@implementation MTPScriptDebugEntryView {
+    UIView *_pressedVeil;
+}
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (!self) return nil;
+    self.backgroundColor = UIColor.secondarySystemBackgroundColor;
+
+    UIView *separator = [UIView new];
+    separator.translatesAutoresizingMaskIntoConstraints = NO;
+    separator.backgroundColor = UIColor.separatorColor;
+
+    UIView *tile = [UIView new];
+    tile.translatesAutoresizingMaskIntoConstraints = NO;
+    tile.userInteractionEnabled = NO;
+    tile.backgroundColor = UIColor.systemIndigoColor;
+    tile.layer.cornerRadius = 7;
+    tile.layer.cornerCurve = kCACornerCurveContinuous;
+
+    UIImageView *glyph = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"play.fill"
+        withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:9 weight:UIImageSymbolWeightBlack]]];
+    glyph.translatesAutoresizingMaskIntoConstraints = NO;
+    glyph.userInteractionEnabled = NO;
+    glyph.tintColor = UIColor.whiteColor;
+
+    self.textLabel = [UILabel new];
+    self.textLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.textLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    self.textLabel.textColor = UIColor.labelColor;
+    self.textLabel.adjustsFontSizeToFitWidth = YES;
+    self.textLabel.minimumScaleFactor = 0.8;
+
+    UIImageView *chevron = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.right"
+        withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightSemibold]]];
+    chevron.translatesAutoresizingMaskIntoConstraints = NO;
+    chevron.userInteractionEnabled = NO;
+    chevron.tintColor = UIColor.tertiaryLabelColor;
+
+    _pressedVeil = [UIView new];
+    _pressedVeil.translatesAutoresizingMaskIntoConstraints = NO;
+    _pressedVeil.userInteractionEnabled = NO;
+    _pressedVeil.backgroundColor = [UIColor.labelColor colorWithAlphaComponent:0.06];
+    _pressedVeil.hidden = YES;
+
+    for (UIView *view in @[separator, tile, glyph, self.textLabel, chevron, _pressedVeil]) {
+        [self addSubview:view];
+    }
+    [NSLayoutConstraint activateConstraints:@[
+        [separator.topAnchor constraintEqualToAnchor:self.topAnchor],
+        [separator.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+        [separator.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [separator.heightAnchor constraintEqualToConstant:1.0 / MAX(1.0, UIScreen.mainScreen.scale)],
+
+        [tile.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+        [tile.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+        [tile.widthAnchor constraintEqualToConstant:24],
+        [tile.heightAnchor constraintEqualToConstant:24],
+        [glyph.centerXAnchor constraintEqualToAnchor:tile.centerXAnchor],
+        [glyph.centerYAnchor constraintEqualToAnchor:tile.centerYAnchor],
+
+        [self.textLabel.leadingAnchor constraintEqualToAnchor:tile.trailingAnchor constant:10],
+        [self.textLabel.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+        [self.textLabel.trailingAnchor constraintLessThanOrEqualToAnchor:chevron.leadingAnchor constant:-8],
+
+        [chevron.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+        [chevron.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+
+        [_pressedVeil.topAnchor constraintEqualToAnchor:self.topAnchor],
+        [_pressedVeil.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+        [_pressedVeil.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [_pressedVeil.bottomAnchor constraintEqualToAnchor:self.bottomAnchor]
+    ]];
+
+    self.isAccessibilityElement = YES;
+    self.accessibilityTraits = UIAccessibilityTraitButton;
+    return self;
+}
+
+- (void)setHighlighted:(BOOL)highlighted {
+    [super setHighlighted:highlighted];
+    _pressedVeil.hidden = !highlighted;
+}
+
+@end
 
 @interface MTPContextScriptEditorController () <UITextViewDelegate>
 @property(nonatomic, strong) UITextView *textView;
@@ -50,7 +144,7 @@ static NSString *MTEditorLabel(NSString *key) {
     [root addArrangedSubview:[self buildStatusBar]];
     [root addArrangedSubview:[self buildEditorArea]];
     [root addArrangedSubview:[self buildErrorBar]];
-    [root addArrangedSubview:[self buildToolbar]];
+    [root addArrangedSubview:[self buildDebugEntry]];
 
     // 先给 textStorage 带上字体与段落样式：空脚本时没有属性，输入会退回系统默认字体。
     self.textView.font = [MTPJavaScriptCodeStyle codeFont];
@@ -160,41 +254,16 @@ static NSString *MTEditorLabel(NSString *key) {
     return self.errorBar;
 }
 
-- (UIButton *)toolButton:(NSString *)title action:(SEL)selector {
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-    [button setTitle:title forState:UIControlStateNormal];
-    button.titleLabel.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightRegular];
-    button.backgroundColor = UIColor.secondarySystemFillColor;
-    button.layer.cornerRadius = 6;
-    [button.heightAnchor constraintEqualToConstant:32].active = YES;
-    [button addTarget:self action:selector forControlEvents:UIControlEventTouchUpInside];
-    return button;
-}
-
-- (UIView *)buildToolbar {
-    UIStackView *row = [UIStackView new];
-    row.axis = UILayoutConstraintAxisHorizontal;
-    row.distribution = UIStackViewDistributionFillEqually;
-    row.spacing = 6;
-    [row addArrangedSubview:[self toolButton:@"Tab" action:@selector(insertTab)]];
-    [row addArrangedSubview:[self toolButton:@"{ }" action:@selector(insertBraces)]];
-    [row addArrangedSubview:[self toolButton:@"( )" action:@selector(insertParens)]];
-    [row addArrangedSubview:[self toolButton:@"\" \"" action:@selector(insertQuotes)]];
-    [row addArrangedSubview:[self toolButton:@";" action:@selector(insertSemicolon)]];
-    [row addArrangedSubview:[self toolButton:@"⌫" action:@selector(deleteBackward)]];
-
-    UIView *bar = [UIView new];
-    bar.backgroundColor = UIColor.secondarySystemBackgroundColor;
-    row.translatesAutoresizingMaskIntoConstraints = NO;
-    [bar addSubview:row];
-    [NSLayoutConstraint activateConstraints:@[
-        [bar.heightAnchor constraintEqualToConstant:44],
-        [row.topAnchor constraintEqualToAnchor:bar.topAnchor constant:6],
-        [row.bottomAnchor constraintEqualToAnchor:bar.bottomAnchor constant:-6],
-        [row.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:8],
-        [row.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-8]
-    ]];
-    return bar;
+// 底栏原本是 Tab / 括号 / 引号 / 分号六个补字符按钮，能补字符却验不了脚本；
+// 现在整行只做一件事：拿着当前草稿直接进沙盒调试台。
+- (UIView *)buildDebugEntry {
+    MTPScriptDebugEntryView *entry = [MTPScriptDebugEntryView new];
+    NSString *title = MTEditorLabel(@"CTX_DEBUG_TITLE");
+    entry.textLabel.text = title;
+    entry.accessibilityLabel = title;
+    [entry addTarget:self action:@selector(debugTapped) forControlEvents:UIControlEventTouchUpInside];
+    [entry.heightAnchor constraintEqualToConstant:44].active = YES;
+    return entry;
 }
 
 #pragma mark - Highlight
@@ -286,25 +355,29 @@ static NSString *MTEditorLabel(NSString *key) {
     [self layoutLineNumbers];
 }
 
-#pragma mark - Editing helpers
+#pragma mark - Debug
 
-- (void)insertText:(NSString *)text caretOffset:(NSInteger)offset {
-    UITextRange *range = self.textView.selectedTextRange;
-    if (!range) return;
-    [self.textView replaceRange:range withText:text];
-    if (offset) {
-        UITextPosition *caret = [self.textView positionFromPosition:self.textView.selectedTextRange.start offset:offset];
-        if (caret) self.textView.selectedTextRange = [self.textView textRangeFromPosition:caret toPosition:caret];
+// 两套运行时各有自己的沙箱，不能共用一个调试台：自定义动作走设置进程的
+// MTJavaScriptEngine（可联网、可返回动作），底栏规则走键盘进程的 MTContextClassifier
+// （纯判定、50 ms 限时）。送进调试台的是编辑器里的草稿，不经过「保存」。
+- (void)debugTapped {
+    [self.view endEditing:YES];
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(rehighlight) object:nil];
+    NSString *script = self.textView.text ?: @"";
+    UIViewController *debug = nil;
+    if (self.profile.runtime == MTPAIScriptRuntimeContext) {
+        MTPContextScriptDebugController *controller = [MTPContextScriptDebugController new];
+        controller.source = script;
+        controller.groupKey = self.groupKey;
+        controller.typeID = self.typeID;
+        debug = controller;
+    } else {
+        MTPJavaScriptTestController *controller = [MTPJavaScriptTestController new];
+        controller.source = script;
+        debug = controller;
     }
-    [self textViewDidChange:self.textView];
+    [self.navigationController pushViewController:debug animated:YES];
 }
-
-- (void)insertTab { [self insertText:@"  " caretOffset:0]; }
-- (void)insertBraces { [self insertText:@"{}" caretOffset:-1]; }
-- (void)insertParens { [self insertText:@"()" caretOffset:-1]; }
-- (void)insertQuotes { [self insertText:@"\"\"" caretOffset:-1]; }
-- (void)insertSemicolon { [self insertText:@";" caretOffset:0]; }
-- (void)deleteBackward { [self.textView deleteBackward]; [self textViewDidChange:self.textView]; }
 
 #pragma mark - Navigation
 
