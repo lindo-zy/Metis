@@ -92,8 +92,7 @@
 #define kSubActionskey @"subactions"
 #define kTopSubActionskey @"topsubactions"
 #define kShortcutsTintEnabled @"shortcutstintBOOL"
-// 工具栏图标默认使用 systemBlue；打开此项则跟随系统键盘的 dock 图标颜色（黑/白）。
-#define kShortcutsFollowSystemTint @"shortcutstintfollowsystemBOOL"
+#define kShortcutsSymbolColor @"shortcutstint"
 #define kShortcutsBackgroundTintEnabled @"shortcutsbackgroundtintBOOL"
 #define kPasteAndGoEnabledkey @"pasteandgo"
 #define kHeightOffsetkey @"heightoffset"

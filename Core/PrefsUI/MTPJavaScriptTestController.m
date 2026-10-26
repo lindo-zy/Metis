@@ -91,9 +91,12 @@
     UIStackView *header = [UIStackView new];
     header.axis = UILayoutConstraintAxisHorizontal;
     [header addArrangedSubview:[self labelWithText:[self label:@"CTX_DEBUG_SAMPLE"]]];
+    [header addArrangedSubview:[UIView new]];
     UIButton *paste = [UIButton buttonWithType:UIButtonTypeSystem];
     [paste setTitle:[self label:@"CTX_DEBUG_PASTE"] forState:UIControlStateNormal];
     [paste addTarget:self action:@selector(fillFromClipboard) forControlEvents:UIControlEventTouchUpInside];
+    [paste setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [paste setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
     [header addArrangedSubview:paste];
     [self.stack addArrangedSubview:header];
     self.input = [self textViewWithHeight:84 editable:YES];

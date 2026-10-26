@@ -1,4 +1,5 @@
 #import "MTSelectionView.h"
+#import "MTCaptureBubbleStyle.h"
 #import "../Common/MTEditorOrder.h"
 #import "../Common/MTCapturePreferences.h"
 #import "../Common/MTSelectionToolbar.h"
@@ -108,25 +109,15 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     }
 
     _sizeLabel = [[UILabel alloc] init];
-    _sizeLabel.font = [UIFont monospacedDigitSystemFontOfSize:12 weight:UIFontWeightMedium];
-    _sizeLabel.textColor = [UIColor whiteColor];
-    _sizeLabel.textAlignment = NSTextAlignmentCenter;
-    _sizeLabel.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.6];
-    _sizeLabel.layer.cornerRadius = 6.0;
-    _sizeLabel.clipsToBounds = YES;
+    MTStyleCaptureBubbleLabel(_sizeLabel);
     [self addSubview:_sizeLabel];
 
     _modeLabel = [[UILabel alloc] init];
-    _modeLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    _modeLabel.textColor = [UIColor whiteColor];
-    _modeLabel.textAlignment = NSTextAlignmentCenter;
-    _modeLabel.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.7];
-    _modeLabel.layer.cornerRadius = 9.0;
-    _modeLabel.clipsToBounds = YES;
+    MTStyleCaptureBubbleLabel(_modeLabel);
     switch (self.mode) {
-        case MTCaptureModeFreeze: _modeLabel.text = @"  冻结截图  "; break;
-        case MTCaptureModeInstant: _modeLabel.text = @"  即时区域  "; break;
-        default: _modeLabel.text = @"  区域截图  "; break;
+        case MTCaptureModeFreeze: _modeLabel.text = @"冻结截图"; break;
+        case MTCaptureModeInstant: _modeLabel.text = @"即时区域"; break;
+        default: _modeLabel.text = @"区域截图"; break;
     }
     [_modeLabel sizeToFit];
     [self addSubview:_modeLabel];
@@ -190,7 +181,7 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     self.backgroundImageView.image = image;
     self.backgroundImageView.hidden = NO;
     self.backgroundColor = [UIColor blackColor];
-    self.modeLabel.text = @"  冻结区域  ";
+    self.modeLabel.text = @"冻结区域";
     for (UIButton *button in self.toolbar.buttons) {
         NSString *identifier = button.accessibilityIdentifier;
         if ([identifier isEqualToString:@"freeze"] || [identifier isEqualToString:@"long"]) {
@@ -202,7 +193,7 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
 
 - (void)showFreezeFailure {
     if (self.mode != MTCaptureModeArea || self.areaFrameFrozen) return;
-    self.modeLabel.text = @"  冻结失败，请重试  ";
+    self.modeLabel.text = @"冻结失败，请重试";
     [self setNeedsLayout];
 }
 
@@ -245,11 +236,11 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
     [_sizeLabel sizeToFit];
     _sizeLabel.hidden = CGRectIsEmpty(selection);
     CGRect labelFrame = _sizeLabel.frame;
-    labelFrame.origin.x = selection.origin.x + selection.size.width / 2 - labelFrame.size.width / 2 - 8;
+    labelFrame.size.width += 2.0 * MTCaptureBubbleHorizontalPadding;
+    labelFrame.size.height = MTCaptureBubbleHeight;
+    labelFrame.origin.x = selection.origin.x + selection.size.width / 2 - labelFrame.size.width / 2;
     labelFrame.origin.y = selection.origin.y + selection.size.height + 10;
     if (self.mode == MTCaptureModeArea) {
-        labelFrame.size.width += 16;
-        labelFrame.size.height = fmax(labelFrame.size.height, 20);
         CGFloat labelTopLimit = CGRectGetMaxY(self.modeLabel.frame) + 10.0;
         CGFloat labelBottomLimit = self.bounds.size.height - self.safeAreaInsets.bottom - 10.0;
         BOOL toolbarVisible = !self.toolbar.hidden && !CGRectIsEmpty(self.toolbar.frame);
@@ -277,8 +268,6 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         if (CGRectGetMaxY(labelFrame) > labelBottomLimit) {
             labelFrame.origin.y = selection.origin.y - labelFrame.size.height - 10;
         }
-        labelFrame.size.width += 16;
-        labelFrame.size.height = fmax(labelFrame.size.height, 20);
     }
     _sizeLabel.frame = CGRectIntegral(labelFrame);
 }
@@ -322,12 +311,12 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
 - (void)layoutSubviews {
     [super layoutSubviews];
 
-    CGSize modeTextSize = [_modeLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, 28.0)];
-    CGFloat modeLabelWidth = modeTextSize.width + 16.0;
+    CGSize modeTextSize = [_modeLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, MTCaptureBubbleHeight)];
+    CGFloat modeLabelWidth = modeTextSize.width + 2.0 * MTCaptureBubbleHorizontalPadding;
     _modeLabel.frame = CGRectMake((self.bounds.size.width - modeLabelWidth) / 2.0,
                                   self.safeAreaInsets.top + 10.0,
                                   modeLabelWidth,
-                                  28.0);
+                                  MTCaptureBubbleHeight);
 
     if (!CGRectIsEmpty(self.selectionRect)) {
         CGRect clamped = MTClampSelectionRect(self.selectionRect, self.bounds.size, MTSelectionMinimumSize);

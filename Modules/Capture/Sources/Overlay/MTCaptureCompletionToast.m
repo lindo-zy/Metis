@@ -1,5 +1,6 @@
 #import "MTCaptureCompletionToast.h"
 #import "MTCaptureWindow.h"
+#import "MTCaptureBubbleStyle.h"
 #import "../Common/MTCaptureLog.h"
 
 static const NSTimeInterval MTCompletionToastDuration = 2.0;
@@ -13,14 +14,14 @@ static const NSTimeInterval MTCompletionToastDuration = 2.0;
     [super layoutSubviews];
     CGFloat available = MAX(0.0, self.bounds.size.width - self.safeAreaInsets.left -
                             self.safeAreaInsets.right - 24.0);
-    CGFloat width = MIN(500.0, available);
-    CGSize titleSize = [self.button.titleLabel sizeThatFits:CGSizeMake(MAX(0.0, width - 40.0), CGFLOAT_MAX)];
-    width = MIN(width, ceil(titleSize.width) + 40.0);
-    CGFloat height = MAX(48.0, ceil(titleSize.height) + 24.0);
+    CGFloat padding = 2.0 * MTCaptureBubbleHorizontalPadding;
+    CGSize titleSize = [self.button.titleLabel sizeThatFits:CGSizeMake(MAX(0.0, available - padding), CGFLOAT_MAX)];
+    CGFloat width = MIN(available, ceil(titleSize.width) + padding);
+    CGFloat height = MTCaptureBubbleHeight;
     CGFloat centerX = self.safeAreaInsets.left +
         (self.bounds.size.width - self.safeAreaInsets.left - self.safeAreaInsets.right) / 2.0;
-    self.button.frame = CGRectMake(centerX - width / 2.0, self.safeAreaInsets.top + 8.0, width, height);
-    self.button.layer.cornerRadius = height / 2.0;
+    self.button.frame = CGRectMake(centerX - width / 2.0, self.safeAreaInsets.top + 10.0, width, height);
+    self.button.layer.cornerRadius = MTCaptureBubbleCornerRadius;
 }
 @end
 
@@ -51,10 +52,10 @@ static const NSTimeInterval MTCompletionToastDuration = 2.0;
     window.passesTouchesOutsideHostedContent = YES;
     MTCompletionToastContent *content = [[MTCompletionToastContent alloc] initWithFrame:window.bounds];
     UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
-    button.backgroundColor = [UIColor colorWithWhite:0.20 alpha:0.96];
+    button.backgroundColor = MTCaptureBubbleBackgroundColor();
     [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
     [button setTitle:message forState:UIControlStateNormal];
-    button.titleLabel.font = [UIFont systemFontOfSize:17.0 weight:UIFontWeightMedium];
+    button.titleLabel.font = MTCaptureBubbleFont();
     button.titleLabel.numberOfLines = 1;
     button.titleLabel.adjustsFontSizeToFitWidth = YES;
     button.titleLabel.minimumScaleFactor = 0.75;

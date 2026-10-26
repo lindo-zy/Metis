@@ -10,7 +10,7 @@
 
 static NSBundle *mtpLocalBundle;
 
-@interface MTPManageShortcutsController ()
+@interface MTPManageShortcutsController () <UIColorPickerViewControllerDelegate>
 @property (nonatomic, strong) UIView *toolbarPreviewHeader;
 @property (nonatomic, strong) UILabel *toolbarPreviewCaption;
 @property (nonatomic, strong) UILabel *toolbarPreviewStatus;
@@ -21,6 +21,7 @@ static NSBundle *mtpLocalBundle;
 @property (nonatomic, strong) UIImageView *toolbarPreviewGlobe;
 @property (nonatomic, strong) UIImageView *toolbarPreviewDictation;
 @property (nonatomic, assign) CGFloat toolbarPreviewDockHeight;
+@property (nonatomic, assign) BOOL symbolColorChanged;
 @end
 
 // Height of the section header hosting the test field above the
@@ -40,6 +41,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 @property (nonatomic, copy) NSString *label;
 @property (nonatomic, assign) BOOL isSwitch;
 @property (nonatomic, assign) BOOL isSegment;
+@property (nonatomic, assign) BOOL isColor;
 @property (nonatomic, copy) NSArray<NSString *> *segmentTitles;
 @property (nonatomic, assign) float minValue;
 @property (nonatomic, assign) float maxValue;
@@ -49,6 +51,14 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 @end
 
 @implementation MTPToolbarSettingsRow
++ (MTPToolbarSettingsRow *)colorRowWithKey:(NSString *)key label:(NSString *)label {
+    MTPToolbarSettingsRow *row = [MTPToolbarSettingsRow new];
+    row.key = key;
+    row.label = label;
+    row.isColor = YES;
+    return row;
+}
+
 + (MTPToolbarSettingsRow *)switchRowWithKey:(NSString *)key label:(NSString *)label defaultValue:(BOOL)defaultValue {
     MTPToolbarSettingsRow *row = [[MTPToolbarSettingsRow alloc] init];
     row.key = key;
@@ -144,7 +154,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         return self.topConfiguration ? LOCALIZED(@"FOOTER_TOP_TOOLBAR_BUTTONS")
                                      : LOCALIZED(@"FOOTER_TOOLBAR_BUTTONS");
     if (section == 1) {
-        if (!self.topConfiguration) return LOCALIZED(@"CONTEXT_FIXED_FOOTER");
+        if (!self.topConfiguration) return [NSString stringWithFormat:@"%@\n%@", LOCALIZED(@"CONTEXT_FIXED_FOOTER"), LOCALIZED(@"FOOTER_BUTTON_SETTINGS")];
         return LOCALIZED(@"FOOTER_BUTTON_SETTINGS_TOP");
     }
     if (section == 2) return LOCALIZED(@"FOOTER_PANEL_SETTINGS");
@@ -247,6 +257,17 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    if (indexPath.section > 0 && [self settingsRowForIndexPath:indexPath].isColor) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        UIColorPickerViewController *picker = [UIColorPickerViewController new];
+        picker.title = LOCALIZED(@"SF_ICON_COLOR");
+        picker.supportsAlpha = NO;
+        picker.selectedColor = MTToolbarDefaultTintColor([MTPrefsManager.sharedInstance readPrefs]);
+        self.symbolColorChanged = NO;
+        picker.delegate = self;
+        [self presentViewController:picker animated:YES completion:nil];
+        return;
+    }
     if (indexPath.section != 0) return;
     MTPGesturePickerController *gesturePickerController = [[MTPGesturePickerController alloc] init];
 
@@ -605,9 +626,8 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         : (backgroundTintOn ? cellsHeightDefault + 5 : cellsHeightDefault);
 
     NSMutableArray<MTPToolbarSettingsRow *> *appearanceRows = [@[
-        // 图标颜色是全局开关，顶部与底部工具栏共用一个取值。
-        [MTPToolbarSettingsRow switchRowWithKey:kShortcutsFollowSystemTint
-                                  label:LOCALIZED(@"FOLLOW_SYSTEM_TINT") defaultValue:NO],
+        // SF 图标颜色为全局值，顶部与底部共用；文字与 Bundle 图标不染色。
+        [MTPToolbarSettingsRow colorRowWithKey:kShortcutsSymbolColor label:LOCALIZED(@"SF_ICON_COLOR")],
         [MTPToolbarSettingsRow switchRowWithKey:[self scopedAppearanceKey:kCellBorderEnabledkey]
                                   label:LOCALIZED(@"BORDER_ENABLED") defaultValue:NO],
         [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellBorderWidthkey]
@@ -695,6 +715,18 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 
 - (UITableViewCell *)settingsCellForRowAtIndexPath:(NSIndexPath *)indexPath {
     MTPToolbarSettingsRow *row = [self settingsRowForIndexPath:indexPath];
+    if (row.isColor) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil];
+        cell.textLabel.text = row.label;
+        NSDictionary *snapshot = [MTPrefsManager.sharedInstance readPrefs];
+        id hex = snapshot[kShortcutsSymbolColor];
+        cell.detailTextLabel.text = [snapshot[kShortcutsTintEnabled] boolValue] && [hex isKindOfClass:NSString.class]
+            ? hex : LOCALIZED(@"SF_ICON_COLOR_DEFAULT");
+        cell.imageView.image = [UIImage systemImageNamed:@"circle.fill"];
+        cell.imageView.tintColor = MTToolbarDefaultTintColor(snapshot);
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        return cell;
+    }
     if (row.isSwitch) return [self switchCellForRow:row];
     if (row.isSegment) return [self segmentCellForRow:row indexPath:indexPath];
 
@@ -851,6 +883,34 @@ static NSString *MTFormatSettingsValue(float value, float step, NSString *suffix
 }
 
 #pragma mark - Add button
+
+- (void)persistSymbolColor:(UIColor *)color {
+    CGFloat red = 0, green = 0, blue = 0, alpha = 1;
+    if (![[color resolvedColorWithTraitCollection:self.traitCollection] getRed:&red green:&green blue:&blue alpha:&alpha]) return;
+    red = MIN(1.0, MAX(0.0, red));
+    green = MIN(1.0, MAX(0.0, green));
+    blue = MIN(1.0, MAX(0.0, blue));
+    NSString *hex = [NSString stringWithFormat:@"#%02X%02X%02X",
+        (unsigned int)lround(red * 255), (unsigned int)lround(green * 255), (unsigned int)lround(blue * 255)];
+    MTPrefsManager *manager = MTPrefsManager.sharedInstance;
+    NSMutableDictionary *snapshot = [[manager readPrefs] mutableCopy] ?: [NSMutableDictionary dictionary];
+    if ([snapshot[kShortcutsTintEnabled] boolValue] && [snapshot[kShortcutsSymbolColor] isEqual:hex]) return;
+    snapshot[kShortcutsTintEnabled] = @YES;
+    snapshot[kShortcutsSymbolColor] = hex;
+    [snapshot removeObjectForKey:@"shortcutstintfollowsystemBOOL"];
+    [manager writePrefs:snapshot];
+    [self.tableView reloadData];
+    [self refreshToolbarPreview];
+}
+
+- (void)colorPickerViewController:(UIColorPickerViewController *)picker didSelectColor:(UIColor *)color continuously:(BOOL)continuously {
+    self.symbolColorChanged = YES;
+    if (!continuously) [self persistSymbolColor:color];
+}
+
+- (void)colorPickerViewControllerDidFinish:(UIColorPickerViewController *)picker {
+    if (self.symbolColorChanged) [self persistSymbolColor:picker.selectedColor];
+}
 
 - (void)addButtonTapped{
     MTPGesturePickerController *gesturePickerController = [[MTPGesturePickerController alloc] init];

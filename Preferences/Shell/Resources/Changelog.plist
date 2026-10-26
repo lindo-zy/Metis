@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.1.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>脚本沙盒调试页的剪贴板按钮靠右显示</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>截图完成提示与模式、尺寸气泡统一为紧凑样式</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>顶栏和底栏支持自选 SF 图标颜色，文字随系统明暗变化，应用图标保留原色</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.1.7</string>
 		<key>items</key>
 		<array>
@@ -95,37 +120,6 @@
 		</array>
 		<key>version</key>
 		<string>1.1.4</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>长截图默认使用快速滚动截图，移除自适应滚动选项，自动拼接使用更简洁的名称</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>快速滚动悬浮窗仅保留复制与保存，连续滚动不再因屏数或高度自动结束</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>提升连续取帧和大幅滚动匹配速度，减少滚动较快时需要回滑的情况</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>长截图按原始分辨率持续落盘并流式导出，保存和复制直接使用图像文件</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.1.3</string>
 	</dict>
 </array>
 </plist>

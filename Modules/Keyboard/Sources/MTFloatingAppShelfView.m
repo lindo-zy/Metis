@@ -197,7 +197,9 @@
     button.backgroundColor = UIColor.clearColor;
     button.layer.cornerRadius = 8;
     button.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    [button setImage:icon ?: [UIImage systemImageNamed:@"app"] forState:UIControlStateNormal];
+    UIImage *image = icon ?: [UIImage systemImageNamed:@"app"];
+    image = [image imageWithRenderingMode:image.isSymbolImage ? UIImageRenderingModeAlwaysTemplate : UIImageRenderingModeAlwaysOriginal];
+    [button setImage:image forState:UIControlStateNormal];
     button.accessibilityLabel = text;
     [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
     return button;
@@ -304,13 +306,13 @@
             button.layer.cornerRadius = self.actionTarget.buttonRadius;
             button.layer.borderWidth = showsBorder ? self.actionTarget.borderWidth : 0;
             button.layer.borderColor = UIColor.labelColor.CGColor;
-            UIColor *tint = [preferences[kShortcutsTintEnabled] boolValue] ? MTColorFromHex(preferences[@"shortcutstint"], @"#ff0000") : MTToolbarDefaultTintColor(preferences);
+            UIColor *tint = MTToolbarDefaultTintColor(preferences);
             button.tintColor = tint;
             if ([preferences[kColorEnabledkey] boolValue] && (!preferences[kShortcutsBackgroundTintEnabled] || [preferences[kShortcutsBackgroundTintEnabled] boolValue])) button.backgroundColor = MTColorFromHex(preferences[@"shortcutsbackgroundtint"], @"#5B5B5B");
             button.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
             button.titleLabel.adjustsFontSizeToFitWidth = YES;
             button.titleLabel.minimumScaleFactor = 0.65;
-            [button setTitleColor:tint forState:UIControlStateNormal];
+            [button setTitleColor:UIColor.labelColor forState:UIControlStateNormal];
             if (showsLabel) {
                 NSString *shortTitle = fixed && !MTIsDraftActionSelector(value) ? ([MTHelper customNameForShortcutItem:[self shortcutDefinition:value]] ?: [MTHelper localizedStringForActionNamed:value shortName:YES bundle:[NSBundle bundleWithPath:bundlePath]]) : title;
                 [button setImage:nil forState:UIControlStateNormal];

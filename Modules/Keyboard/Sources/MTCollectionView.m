@@ -313,10 +313,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 - (UIColor *)mtButtonTintColor {
     if (!self.mtPreviewMode) return currentTintColor ?: MTToolbarDefaultTintColor(prefs);
     NSDictionary *snapshot = self.mtPreviewPreferences;
-    // 预览与真机同源：自定义色优先，其次「跟随系统」，默认 systemBlue。
-    return [snapshot[kShortcutsTintEnabled] boolValue]
-        ? MTColorFromHex(snapshot[@"shortcutstint"], @"#ff0000")
-        : MTToolbarDefaultTintColor(snapshot);
+    return MTToolbarDefaultTintColor(snapshot);
 }
 
 - (void)configurePreviewWithPreferences:(NSDictionary *)preferences {
@@ -2874,7 +2871,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
     cell.btn.backgroundColor = [self mtButtonBackgroundTintColor] ?: [UIColor clearColor];
     UIColor *buttonTint = [self mtButtonTintColor];
     cell.btn.tintColor = buttonTint;
-    [cell.btn setTitleColor:buttonTint forState:UIControlStateNormal];
+    [cell.btn setTitleColor:UIColor.labelColor forState:UIControlStateNormal];
     cell.btn.hidden = !self.mtPreviewMode && (isLandscape || isDictating);
     //cell.btn.backgroundColor = [UIColor colorWithWhite:0.5 alpha:0.7];
     return cell;

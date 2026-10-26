@@ -22,7 +22,8 @@ BOOL firstInit = YES;
 MTStudlyCapsType spongebobEntropy = 0;
 
 UIColor *MTToolbarDefaultTintColor(NSDictionary *source) {
-    id followsSystem = source[kShortcutsFollowSystemTint];
-    BOOL enabled = [followsSystem respondsToSelector:@selector(boolValue)] && [followsSystem boolValue];
-    return enabled ? UIColor.labelColor : UIColor.systemBlueColor;
+    id enabled = source[kShortcutsTintEnabled];
+    return [enabled respondsToSelector:@selector(boolValue)] && [enabled boolValue]
+        ? MTColorFromHex(source[kShortcutsSymbolColor], @"#007AFF")
+        : UIColor.systemBlueColor;
 }

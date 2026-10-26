@@ -154,6 +154,8 @@ static UIImage *MTImageApplyingIconPolicy(UIImage *image, MTIconTintPolicy polic
             image = cacheAndLoadImage(customPath, cachedImagePath);
             if (policy == MTIconTintPolicySystemBlue){
                 image = [image imageWithTintColor:systemBlueColor];
+            } else {
+                image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
             }
         }else{
             image = [UIImage systemImageNamed:imageName];

@@ -103,9 +103,9 @@
 "FOOTER_RADIUS" = "按钮圆角半径（开启背景或边框后生效）";
 //Button settings (per toolbar)
 "BUTTON_SETTINGS" = "按钮设置";
-"FOOTER_BUTTON_SETTINGS" = "以下设置仅对当前工具栏生效，顶部与底部工具栏相互独立。图标颜色开关对顶部与底部工具栏同时生效。边框颜色自动适配深浅色模式；按钮大小为按钮宽度占单元格宽度的百分比。";
-"FOOTER_BUTTON_SETTINGS_TOP" = "以下设置仅对当前工具栏生效，顶部与底部工具栏相互独立。图标颜色开关对顶部与底部工具栏同时生效。边框颜色自动适配深浅色模式；按钮大小为按钮宽度占单元格宽度的百分比。顶部工具栏固定按每行个数自动换行，最多两行。";
-"FOLLOW_SYSTEM_TINT" = "图标跟随系统颜色（黑/白）";
+"FOOTER_BUTTON_SETTINGS" = "以下设置仅对当前工具栏生效，顶部与底部工具栏相互独立。SF 图标颜色对顶部与底部同时生效；文字随系统明暗变化，Bundle 图标保留原色。边框颜色自动适配深浅色模式；按钮大小为按钮宽度占单元格宽度的百分比。";
+"FOOTER_BUTTON_SETTINGS_TOP" = "以下设置仅对当前工具栏生效，顶部与底部工具栏相互独立。SF 图标颜色对顶部与底部同时生效；文字随系统明暗变化，Bundle 图标保留原色。边框颜色自动适配深浅色模式；按钮大小为按钮宽度占单元格宽度的百分比。顶部工具栏固定按每行个数自动换行，最多两行。";
+"SF_ICON_COLOR" = "SF 图标颜色";
 "BORDER_ENABLED" = "显示边框";
 "BORDER_WIDTH" = "边框粗细";
 "BUTTON_WIDTH" = "按钮大小";
@@ -915,3 +915,5 @@
 "JS_DEBUG_FAILED" = "失败";
 "JS_DEBUG_STOPPED" = "已停止";
 "JS_DEBUG_CHOOSE" = "等待选择";
+
+"SF_ICON_COLOR_DEFAULT" = "默认蓝色";

@@ -102,9 +102,9 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FOOTER_RADIUS" = "Corner radius (applies when background tint or border is on)";
 //Button settings (per toolbar)
 "BUTTON_SETTINGS" = "Button Settings";
-"FOOTER_BUTTON_SETTINGS" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the icon color switch which applies to both. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills.";
-"FOOTER_BUTTON_SETTINGS_TOP" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the icon color switch which applies to both. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills. The top toolbar always wraps by Buttons per Row, with at most two rows.";
-"FOLLOW_SYSTEM_TINT" = "Icons follow system color (black/white)";
+"FOOTER_BUTTON_SETTINGS" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the SF icon color which applies to both. Text follows system appearance; bundle icons keep their original colors. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills.";
+"FOOTER_BUTTON_SETTINGS_TOP" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the SF icon color which applies to both. Text follows system appearance; bundle icons keep their original colors. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills. The top toolbar always wraps by Buttons per Row, with at most two rows.";
+"SF_ICON_COLOR" = "SF icon color";
 "BORDER_ENABLED" = "Show Border";
 "BORDER_WIDTH" = "Border Thickness";
 "BUTTON_WIDTH" = "Button Size";
@@ -916,3 +916,5 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "JS_DEBUG_FAILED" = "Failed";
 "JS_DEBUG_STOPPED" = "Stopped";
 "JS_DEBUG_CHOOSE" = "Choose a result";
+
+"SF_ICON_COLOR_DEFAULT" = "Default blue";
