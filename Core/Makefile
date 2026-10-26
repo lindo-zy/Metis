@@ -25,6 +25,10 @@ MetisCore_FILES += SharedResources/MTSharedResourceIDs.m \
 	SharedResources/MTSharedResourceMigration.m \
 	SharedResources/MTSharedResourceLegacyBridge.m
 
+# Clipboard rules are used by both SpringBoard and the Preferences bundle.
+# Keep the model and engine in the shared Core image.
+MetisCore_FILES += ../Modules/Clipboard/Core/Actions/MTCaptureRuleEngine.m
+
 # Keyboard（MetisKeyboard）共享层：任一被两个以上镜像引用的 DX 类都在这里。
 KEYBOARD = ../Modules/Keyboard/Sources
 MetisCore_FILES += $(KEYBOARD)/MTGlobals.m \
