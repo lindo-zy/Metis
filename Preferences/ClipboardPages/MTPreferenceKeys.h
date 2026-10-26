@@ -77,6 +77,8 @@ static NSString *const kMTPreferenceKeyFloatingPreviewColor = @"FloatingPreviewC
 static NSString *const kMTPreferenceKeyFloatingPreviewDockedRight = @"FloatingPreviewDockedRight";
 static NSString *const kMTPreferenceKeyFloatingPreviewVerticalPosition = @"FloatingPreviewVerticalPosition";
 static NSString *const kMTPreferenceKeyImageDoubleTapActionURL = @"ImageDoubleTapActionURL";
+// 剪切板规则「复制后自动执行」总开关，默认关闭；还需规则自身的 auto 开启才生效。
+static NSString *const kMTPreferenceKeyCaptureRulesAutoEnabled = @"CaptureRulesAutoEnabled";
 static NSString *const kMTPreferenceKeyGestureRecognizerMode = @"GestureRecognizerMode";
 static NSString *const kMTPreferenceKeyAutomaticallyPaste = @"AutomaticallyPaste";
 static NSString *const kMTPreferenceKeyAutomaticPasteMode = @"AutomaticPasteMode";
@@ -112,6 +114,7 @@ static ActivationMethod const kMTPreferenceKeyActivationMethodDefaultValue =
 static BOOL const kMTPreferenceKeyPrivacyModeDefaultValue = NO;
 static BOOL const kMTPreferenceKeyFloatingPreviewDefaultValue = NO;
 static BOOL const kMTPreferenceKeyFloatingPreviewDoubleTapActionDefaultValue = NO;
+static BOOL const kMTPreferenceKeyCaptureRulesAutoEnabledDefaultValue = NO;
 static BOOL const kMTPreferenceKeyFloatingPreviewCountdownRingDefaultValue = NO;
 static CGFloat const kMTPreferenceKeyFloatingPreviewSizeDefaultValue = 40.0;
 static CGFloat const kMTPreferenceKeyFloatingPreviewSizeMinimumValue = 25.0;

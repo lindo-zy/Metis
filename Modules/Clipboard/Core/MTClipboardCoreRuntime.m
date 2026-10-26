@@ -14,6 +14,10 @@
 #import "MTPasteboardItem.h"
 #import "MTPreferenceKeys.h"
 #import "MTQuickAction.h"
+#import "MTCaptureRuleEngine.h"
+#import "MTClipboardActionReferences.h"
+#import "MTSharedResourceStore.h"
+#import "MTGlobalPanel.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
@@ -26,6 +30,8 @@
 
 static NSTimeInterval const kMTMinimumFeedbackInterval = 0.6;
 static NSTimeInterval const kMTPasteSuppressionExpirationDelay = 1.0;
+// 复制后自动执行的防环路冷却：动作写出内容触发的捕获在该窗口内不再自动执行。
+static NSTimeInterval const kMTCaptureRulesAutoCooldownInterval = 3.0;
 
 static UIColor *MTFloatingPreviewColorFromHex(NSString *hexColor) {
     NSString *value = [hexColor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -609,6 +615,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) BOOL privacyMode;
 @property(nonatomic, assign) BOOL floatingPreview;
 @property(nonatomic, assign) BOOL floatingPreviewDoubleTapAction;
+@property(nonatomic, assign) BOOL captureRulesAutoEnabled;
+@property(nonatomic, assign) CFTimeInterval captureRulesAutoCooldownUntil;
 @property(nonatomic, assign) BOOL floatingPreviewCountdownRing;
 @property(nonatomic, assign) CGFloat floatingPreviewSize;
 @property(nonatomic, assign) CGFloat floatingPreviewDuration;
@@ -683,8 +691,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)handleFloatingPreviewTap;
 - (void)handleFloatingPreviewDoubleTap;
 - (void)presentFloatingPreviewActionsForItem:(MTPasteboardItem *)item;
-- (void)openFloatingPreviewAction:(NSDictionary<NSString *, id> *)action
-                          forItem:(MTPasteboardItem *)item;
 - (void)cancelFloatingPreviewExpiration;
 - (void)applyFloatingPreviewAppearance;
 
@@ -1108,58 +1114,104 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)presentFloatingPreviewActionsForItem:(MTPasteboardItem *)item {
-    BOOL isImageItem = [[item imageName] length] > 0;
-    MTQuickActionKind kind = isImageItem ? MTQuickActionKindImage : MTQuickActionKindText;
-    NSArray<NSDictionary<NSString *, id> *> *actions = [MTQuickAction actionsForKind:kind];
-    if ([actions count] == 0) {
-        return;
-    }
-
     [self cancelFloatingPreviewExpiration];
-    // 悬浮面板已移除：直接执行第一个动作（单动作与多动作行为一致）。
-    [self openFloatingPreviewAction:[actions firstObject] forItem:item];
+    [self hideFloatingPreviewAnimated:NO];
+    // 双击由剪切板规则接管：命中执行绑定动作，未命中不执行任何动作。
+    // 旧槽位绑定由启动期后台迁移转入规则（见 loadPreferences），主路径只读不写。
+    [self dispatchCaptureRulesForItem:item autoOnly:NO];
 }
 
-- (void)openFloatingPreviewAction:(NSDictionary<NSString *, id> *)action
-                          forItem:(MTPasteboardItem *)item {
-    BOOL isImageItem = [[item imageName] length] > 0;
-    if (!isImageItem) {
-        [self hideFloatingPreviewAnimated:NO];
+#pragma mark - Capture Rules
+
+static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uuid) {
+    for (NSDictionary *resource in snapshot[@"actions"]) {
+        if (![resource isKindOfClass:NSDictionary.class] || ![resource[@"id"] isEqual:uuid]) continue;
+        NSDictionary *entry = [resource[@"entry"] isKindOfClass:NSDictionary.class] ? resource[@"entry"] : @{};
+        return [entry[@"type"] isKindOfClass:NSString.class] ? entry[@"type"] : @"";
+    }
+    return nil;
+}
+
+// 双击气泡 / 复制后自动执行的共同入口：规则求值在后台串行队列跑，
+// 命中后回主线程按序执行绑定动作；未命中（含全部禁用/失败）不执行任何动作。
+- (void)dispatchCaptureRulesForItem:(MTPasteboardItem *)item autoOnly:(BOOL)autoOnly {
+    if (!item) return;
+    // 自动执行只在解锁后进行，避免锁屏采集触发一连串注定失败的动作与失败震动。
+    if (autoOnly && ![MTGlobalPanel deviceUnlocked]) return;
+    NSArray<NSDictionary *> *ruleDictionaries =
+        [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
+    NSArray<MTCaptureRule *> *rules = [MTCaptureRule rulesFromDictionaries:ruleDictionaries];
+    if (autoOnly) {
+        NSMutableArray<MTCaptureRule *> *autoRules = [NSMutableArray array];
+        for (MTCaptureRule *rule in rules) {
+            if (rule.enabled && rule.autoRun) [autoRules addObject:rule];
+        }
+        rules = autoRules;
+    }
+    if ([rules count] == 0) return;
+    NSString *kind = [[item imageName] length] > 0 ? @"image" : @"text";
+    NSString *text = [kind isEqualToString:@"text"] ? ([item content] ?: @"") : @"";
+    __weak typeof(self) weakSelf = self;
+    [[MTCaptureRuleEngine sharedEngine] evaluateRules:rules
+                                                 text:text
+                                                 kind:kind
+                                             autoOnly:autoOnly
+                                           completion:^(MTCaptureRule *hit) {
+        [weakSelf performCaptureRule:hit forItem:item autoOnly:autoOnly];
+    }];
+}
+
+- (void)performCaptureRule:(MTCaptureRule *)rule forItem:(MTPasteboardItem *)item autoOnly:(BOOL)autoOnly {
+    if (!rule || [rule.actions count] == 0) return;
+    if (autoOnly) {
+        // 防环路：动作输出写剪切板 → 新捕获 → 再次自动执行。冷却窗口内的
+        // 捕获不再自动执行（气泡预览与手动双击不受影响）；内部写另有
+        // pasteSuppressionState 兜底。
+        CFTimeInterval now = CACurrentMediaTime();
+        if (now < self.captureRulesAutoCooldownUntil) return;
+        self.captureRulesAutoCooldownUntil = now + kMTCaptureRulesAutoCooldownInterval;
+    }
+    // javascript 动作执行时以系统剪切板为输入；捕获与执行之间剪切板可能已被
+    // 覆盖，先把捕获条目写回再执行（图片条目本就要求写回，顺带抑制新预览）。
+    BOOL needsPasteboardRestore = [[item imageName] length] > 0;
+    if (!needsPasteboardRestore) {
+        NSDictionary *snapshot = [MTSharedResourceStore readSnapshot];
+        for (NSString *uuid in rule.actions) {
+            if ([MTCaptureEntryTypeForUUID(snapshot, uuid) isEqual:@"javascript"]) {
+                needsPasteboardRestore = YES;
+                break;
+            }
+        }
+    }
+    if (needsPasteboardRestore) {
         __weak typeof(self) weakSelf = self;
-        [MTQuickAction openAction:action
-                                input:[item content] ?: @""
-                    completionHandler:^(BOOL success) {
-                      if (!success) {
-                          [weakSelf playFailureHapticFeedbackIfNeeded];
-                      }
-                    }];
+        [[MTPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
+                                                                  completion:^(BOOL didUpdate) {
+            if (!didUpdate) {
+                [weakSelf playFailureHapticFeedbackIfNeeded];
+                return;
+            }
+            [weakSelf.pasteSuppressionState beginWithExpirationDelay:kMTPasteSuppressionExpirationDelay];
+            [weakSelf executeCaptureActionIDs:rule.actions index:0 item:item];
+        }];
         return;
     }
+    [self executeCaptureActionIDs:rule.actions index:0 item:item];
+}
 
-    // 图片动作先把条目写回剪贴板（异步，不在主线程等 pasted IPC），成功后
-    // 抑制本次内部写带来的新预览，再执行动作。
+- (void)executeCaptureActionIDs:(NSArray<NSString *> *)actionIDs
+                          index:(NSUInteger)index
+                           item:(MTPasteboardItem *)item {
+    if (index >= [actionIDs count]) return;
+    BOOL isImageItem = [[item imageName] length] > 0;
     __weak typeof(self) weakSelf = self;
-    [[MTPasteboardManager sharedInstance] copyPasteboardItemToPasteboard:item
-                                                                   completion:^(BOOL didUpdate) {
-        typeof(weakSelf) strongSelf = weakSelf;
-        if (!strongSelf) return;
-        if (!didUpdate) {
-            [strongSelf hideFloatingPreviewAnimated:NO];
-            [strongSelf playFailureHapticFeedbackIfNeeded];
-            return;
+    [MTQuickAction openAction:@{ @"id" : actionIDs[index] }
+                            input:isImageItem ? @"" : ([item content] ?: @"")
+                completionHandler:^(BOOL success) {
+        if (!success) {
+            [weakSelf playFailureHapticFeedbackIfNeeded];
         }
-        // The image action intentionally writes the existing item back to the
-        // pasteboard. Do not treat that internal write as a new floating preview.
-        [strongSelf.pasteSuppressionState beginWithExpirationDelay:kMTPasteSuppressionExpirationDelay];
-
-        [strongSelf hideFloatingPreviewAnimated:NO];
-        [MTQuickAction openAction:action
-                                input:@""
-                    completionHandler:^(BOOL success) {
-                      if (!success) {
-                          [weakSelf playFailureHapticFeedbackIfNeeded];
-                      }
-                    }];
+        [weakSelf executeCaptureActionIDs:actionIDs index:index + 1 item:item];
     }];
 }
 
@@ -1431,6 +1483,7 @@ NS_ASSUME_NONNULL_END
         kMTPreferenceKeyPrivacyMode : @(kMTPreferenceKeyPrivacyModeDefaultValue),
         kMTPreferenceKeyFloatingPreview : @(kMTPreferenceKeyFloatingPreviewDefaultValue),
         kMTPreferenceKeyFloatingPreviewDoubleTapAction : @(kMTPreferenceKeyFloatingPreviewDoubleTapActionDefaultValue),
+        kMTPreferenceKeyCaptureRulesAutoEnabled : @(kMTPreferenceKeyCaptureRulesAutoEnabledDefaultValue),
         kMTPreferenceKeyFloatingPreviewCountdownRing : @(kMTPreferenceKeyFloatingPreviewCountdownRingDefaultValue),
         kMTPreferenceKeyFloatingPreviewSize : @(kMTPreferenceKeyFloatingPreviewSizeDefaultValue),
         kMTPreferenceKeyFloatingPreviewDuration : @(kMTPreferenceKeyFloatingPreviewDurationDefaultValue),
@@ -1468,6 +1521,17 @@ NS_ASSUME_NONNULL_END
     self.floatingPreview = [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreview] boolValue];
     self.floatingPreviewDoubleTapAction =
         [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreviewDoubleTapAction] boolValue];
+    self.captureRulesAutoEnabled =
+        [[self.preferences objectForKey:kMTPreferenceKeyCaptureRulesAutoEnabled] boolValue];
+    // 旧槽位绑定 → 规则的一次性迁移：启动/刷新时后台执行，避免在双击主路径上
+    // 做磁盘写。提交走 revision CAS，与设置页并发触发时败者下次重试。
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+      NSError *migrationError = nil;
+      if (![MTClipboardActionReferences migrateLegacySlotRulesIfNeeded:&migrationError]) {
+          NSLog(@"[Metis][CaptureRules] slot migration pending: %@",
+                migrationError.localizedDescription ?: @"conflict");
+      }
+    });
     self.floatingPreviewCountdownRing =
         [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreviewCountdownRing] boolValue];
     self.floatingPreviewSize = [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreviewSize] doubleValue];
@@ -1875,12 +1939,21 @@ NS_ASSUME_NONNULL_END
           return;
       }
 
+      MTPasteboardItem *latestItem = nil;
       if (self.floatingPreview && self.enabled && self.mainViewController &&
           ![self.mainViewController isEditingAnyContent]) {
-          MTPasteboardItem *latestItem = [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
+          latestItem = [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
           if (latestItem) {
               [self showFloatingPreviewForItem:latestItem];
           }
+      }
+
+      // 复制后自动执行：模块启用 + 总开关打开且存在 auto 规则时对本次捕获求值。
+      // 冷却窗口（含动作写出的内容）在 performCaptureRule 内兜底。
+      if (self.enabled && self.captureRulesAutoEnabled) {
+          MTPasteboardItem *autoItem =
+              latestItem ?: [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
+          [self dispatchCaptureRulesForItem:autoItem autoOnly:YES];
       }
 
       NSTimeInterval now = CACurrentMediaTime();

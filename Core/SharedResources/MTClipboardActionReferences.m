@@ -70,6 +70,61 @@ static NSString *MTClipboardPrefix(NSString *slot) {
                                 expectedRevision:revision error:error];
 }
 
+#pragma mark - Capture rules
+
+static NSString *MTClipboardRuleAlwaysMatchSource(NSString *kind) {
+    // 迁移产物：恒匹配（调用方已按槽位/类型圈定适用范围），保留 match(text, meta) 签名。
+    return [NSString stringWithFormat:@"function match(text, meta) {\n  return meta && meta.kind === '%@';\n}", kind];
+}
+
++ (NSArray<NSDictionary *> *)ruleDictionariesInDocument:(NSDictionary *)document {
+    id raw = document[@"clipboardRules"];
+    if (![raw isKindOfClass:NSArray.class]) return @[];
+    NSMutableArray *result = [NSMutableArray array];
+    for (NSDictionary *entry in raw) {
+        if ([entry isKindOfClass:NSDictionary.class]) [result addObject:entry];
+    }
+    return result;
+}
+
++ (NSDictionary *)document:(NSDictionary *)document settingRuleDictionaries:(NSArray<NSDictionary *> *)rules {
+    NSMutableDictionary *next = [document mutableCopy];
+    next[@"clipboardRules"] = [rules isKindOfClass:NSArray.class] ? rules : @[];
+    // 显式规则一旦存在，旧槽位迁移不得再覆盖 clipboardRules。
+    NSMutableDictionary *migration = [next[@"migration"] mutableCopy] ?: [NSMutableDictionary dictionary];
+    if (!migration[@"clipboardRulesV1"]) migration[@"clipboardRulesV1"] = @YES;
+    next[@"migration"] = migration;
+    return next;
+}
+
++ (BOOL)migrateLegacySlotRulesIfNeeded:(NSError **)error {
+    NSDictionary *current = [MTSharedResourceStore readSnapshotError:error];
+    if (!current) return NO;
+    if ([current[@"migration"][@"clipboardRulesV1"] boolValue]) return YES;
+    // 旧双击语义 = 执行槽位第一个动作；按 image-double-tap → image → text 的
+    // 顺序转成恒匹配规则，原有配置行为保留（未命中仍不执行任何动作）。
+    NSArray<NSDictionary *> *legacyRules = @[
+        @{ @"slot": @"image-double-tap", @"kind": @"image" },
+        @{ @"slot": @"image", @"kind": @"image" },
+        @{ @"slot": @"text", @"kind": @"text" }
+    ];
+    NSMutableArray *rules = [NSMutableArray array];
+    for (NSDictionary *legacy in legacyRules) {
+        NSArray<NSDictionary *> *actions = [self actionsInDocument:current slot:legacy[@"slot"]];
+        if (actions.count == 0) continue;
+        NSMutableArray *ids = [NSMutableArray array];
+        for (NSDictionary *action in actions) [ids addObject:action[@"id"]];
+        [rules addObject:@{ @"id": MTSharedDeterministicUUID([@"clipboard-rule|" stringByAppendingString:legacy[@"slot"]]),
+                            @"name": [legacy[@"slot"] isEqual:@"text"] ? @"文字动作" :
+                                     ([legacy[@"slot"] isEqual:@"image"] ? @"图片动作" : @"图片双击动作"),
+                            @"enabled": @YES, @"auto": @NO,
+                            @"source": MTClipboardRuleAlwaysMatchSource(legacy[@"kind"]),
+                            @"actions": ids }];
+    }
+    return [MTSharedResourceStore commitSnapshot:[self document:current settingRuleDictionaries:rules]
+                                expectedRevision:[MTSharedResourceStore currentRevision] error:error];
+}
+
 + (NSDictionary *)document:(NSDictionary *)document importingText:(NSArray *)text image:(NSArray *)image doubleTapURL:(NSString *)url {
     if ([document[@"migration"][@"clipboardActionReferencesV1"] boolValue]) return document;
     NSMutableDictionary *next = [document mutableCopy];

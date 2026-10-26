@@ -173,6 +173,38 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
+			<string>双击采集气泡时按 JS 规则执行不同动作；未命中不执行任何动作。旧的文字/图片动作配置会自动转换为规则。</string>
+			<key>label</key>
+			<string>剪切板规则</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>MTCaptureRulesController</string>
+			<key>id</key>
+			<string>capture-rules</string>
+			<key>label</key>
+			<string>剪切板规则 JS</string>
+		</dict>
+		<dict>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.clipboard.preferences.reload</string>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.lindo.metis.clipboard</string>
+			<key>key</key>
+			<string>CaptureRulesAutoEnabled</string>
+			<key>label</key>
+			<string>复制后自动执行</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
 			<string>Choose which list Metis opens when it is shown. “Previous” keeps the list you last used.</string>
 			<key>label</key>
 			<string>Default View</string>

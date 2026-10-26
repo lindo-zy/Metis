@@ -11,6 +11,7 @@
 #import "MTRespringControllerSupport.h"
 #import "MTSliderCell.h"
 #import "MTCustomJumpManagementViewController.h"
+#import "MTClipboardActionReferences.h"
 
 #import <Preferences/PSSpecifier.h>
 #import <UIKit/UIKit.h>
@@ -49,6 +50,11 @@ NS_ASSUME_NONNULL_END
     NSError *migrationError = nil;
     if (![MTCustomJumpManagementViewController prepareSharedActionsWithError:&migrationError]) {
         NSLog(@"[MetisClipboard] global action migration pending: %@", migrationError.localizedDescription);
+    }
+    // 旧槽位绑定 → 剪切板规则的一次性迁移（幂等，revision CAS 防并发覆盖）。
+    NSError *rulesMigrationError = nil;
+    if (![MTClipboardActionReferences migrateLegacySlotRulesIfNeeded:&rulesMigrationError]) {
+        NSLog(@"[Metis][CaptureRules] slot migration pending: %@", rulesMigrationError.localizedDescription);
     }
 
     NSBundle *bundle = [NSBundle bundleForClass:[self class]];
