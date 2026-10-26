@@ -49,6 +49,9 @@ MetisSpringBoard_FILES += MTClipboardModuleAdapter.m \
 	$(wildcard ../../Modules/Clipboard/Core/Presentation/*.m) \
 	$(wildcard ../../Modules/Clipboard/Core/Views/*.m)
 
+# Rule model/engine lives in MetisCore, shared with Clipboard Preferences.
+MetisSpringBoard_FILES := $(filter-out ../../Modules/Clipboard/Core/Actions/MTCaptureRuleEngine.m,$(MetisSpringBoard_FILES))
+
 MetisSpringBoard_CFLAGS += -I../../Modules/Clipboard/Core \
 	-I../../Modules/Clipboard/Core/Manager \
 	-I../../Modules/Clipboard/Core/Actions \
