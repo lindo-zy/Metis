@@ -30,6 +30,10 @@ extern MTStudlyCapsType spongebobEntropy;
 
 extern CGFloat heightOffset;
 
+// 工具栏图标的默认颜色：未开启「跟随系统」时为 systemBlue，开启后取系统键盘
+// 的标签色（深色模式白、浅色模式黑）。
+extern UIColor *MTToolbarDefaultTintColor(NSDictionary *preferences);
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -254,7 +254,7 @@
                 NSDictionary *definition = [self shortcutDefinition:value];
                 title = [MTHelper customNameForShortcutItem:definition] ?: (MTIsDraftActionSelector(value) ? definition[@"label"] : nil) ?: [self.actionTarget subActionPanelTitleForSelector:value];
                 NSString *iconName = [MTHelper resolvedIconNameForShortcutItem:definition defaultName:definition[@"images13"]];
-                icon = (iconName.length ? [MTHelper imageForName:iconName withSystemColor:YES completion:nil] : nil) ?: [self.actionTarget subActionPanelImageForSelector:value];
+                icon = (iconName.length ? [MTHelper imageForName:iconName policy:MTIconTintPolicyInherit completion:nil] : nil) ?: [self.actionTarget subActionPanelImageForSelector:value];
             } else if ([kind isEqual:@"app"]) {
                 app = @{@"bundleID":value, @"fallback":@YES, @"title":[entry[@"title"] length] ? entry[@"title"] : value};
                 for (NSDictionary *record in records) if ([record[@"bundleID"] isEqual:value]) { app = record; break; }
@@ -304,7 +304,7 @@
             button.layer.cornerRadius = self.actionTarget.buttonRadius;
             button.layer.borderWidth = showsBorder ? self.actionTarget.borderWidth : 0;
             button.layer.borderColor = UIColor.labelColor.CGColor;
-            UIColor *tint = [preferences[kShortcutsTintEnabled] boolValue] ? MTColorFromHex(preferences[@"shortcutstint"], @"#ff0000") : UIColor.labelColor;
+            UIColor *tint = [preferences[kShortcutsTintEnabled] boolValue] ? MTColorFromHex(preferences[@"shortcutstint"], @"#ff0000") : MTToolbarDefaultTintColor(preferences);
             button.tintColor = tint;
             if ([preferences[kColorEnabledkey] boolValue] && (!preferences[kShortcutsBackgroundTintEnabled] || [preferences[kShortcutsBackgroundTintEnabled] boolValue])) button.backgroundColor = MTColorFromHex(preferences[@"shortcutsbackgroundtint"], @"#5B5B5B");
             button.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];

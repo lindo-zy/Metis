@@ -698,10 +698,10 @@ static void reloadPrefs(void);
 
 - (void)setLeftDockItem:(UIKeyboardDockItem *)dockItem {
     if (preferencesBool(kEnabledkey,YES)){
-        // Only read system tint when user hasn't set a custom color
-        // (when kShortcutsTintEnabled is NO, meaning "follow system")
+        // Custom color wins; otherwise systemBlue unless the user asked the
+        // toolbar to follow the system keyboard's own icon color.
         if (!preferencesBool(kShortcutsTintEnabled,NO)){
-            currentTintColor = dockItem.button.tintColor;
+            currentTintColor = preferencesBool(kShortcutsFollowSystemTint,NO) ? dockItem.button.tintColor : [UIColor systemBlueColor];
         }
         if (preferencesInt(kDedicatedGestureButtonkey, 0) == 1 || preferencesInt(kDedicatedGestureButtonkey, 0) == 3){
             %orig;
@@ -738,9 +738,10 @@ static void reloadPrefs(void);
 }
 - (void)setRightDockItem:(UIKeyboardDockItem *)dockItem {
     if (preferencesBool(kEnabledkey,YES)){
-        // Only read system tint when user hasn't set a custom color
+        // Same rule as the left dock: custom color, else systemBlue unless the
+        // user opted into following the system keyboard's icon color.
         if (!preferencesBool(kShortcutsTintEnabled,NO)){
-            currentTintColor = dockItem.button.tintColor;
+            currentTintColor = preferencesBool(kShortcutsFollowSystemTint,NO) ? dockItem.button.tintColor : [UIColor systemBlueColor];
         }
         if (preferencesInt(kDedicatedGestureButtonkey, 0) == 2 || preferencesInt(kDedicatedGestureButtonkey, 0) == 3){
             %orig;
@@ -801,23 +802,18 @@ static void reloadPrefs(void);
 
 %new
 -(void)updateTypeXTint{
-    // Only refresh tint when custom color is NOT enabled
-    // (kShortcutsTintEnabled = NO means "follow system tint")
+    // Custom color wins; otherwise the toolbar is systemBlue by default and
+    // only follows the dock buttons when the user enabled that option.
     if (preferencesBool(kShortcutsTintEnabled,NO)) return;
 
+    BOOL followsSystem = preferencesBool(kShortcutsFollowSystemTint,NO);
     UIColor *newTintColor = nil;
-    if (self.leftDockItem.button){
+    if (followsSystem && self.leftDockItem.button){
         newTintColor = self.leftDockItem.button.tintColor;
-    }else if (self.rightDockItem.button){
+    }else if (followsSystem && self.rightDockItem.button){
         newTintColor = self.rightDockItem.button.tintColor;
     }else{
-        if (@available(iOS 13.0, *)){
-            if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
-                newTintColor = [UIColor whiteColor];
-            }else{
-                newTintColor = [UIColor blackColor];
-            }
-        }
+        newTintColor = followsSystem ? UIColor.labelColor : [UIColor systemBlueColor];
     }
     // Only notify if the tint actually changed to avoid unnecessary reloadData on every layout
     if (newTintColor && ![newTintColor isEqual:currentTintColor]) {
@@ -1017,9 +1013,12 @@ static void reloadPrefs(void) {
     }
     currentBackgroundTintColor = nil;
 
-    // Shortcuts tint: if enabled, use custom color; otherwise follow system (set in setLeftDockItem/updateTypeXTint)
+    // Shortcuts tint: custom color wins; otherwise systemBlue unless the user
+    // opted into following the system keyboard's icon color.
     if (preferencesBool(kShortcutsTintEnabled,NO)) {
         currentTintColor = MTColorFromHex(prefs[@"shortcutstint"], @"#ff0000");
+    } else if (!preferencesBool(kShortcutsFollowSystemTint,NO)) {
+        currentTintColor = [UIColor systemBlueColor];
     }
 
     // Background tint options share the legacy colorBOOL master switch.

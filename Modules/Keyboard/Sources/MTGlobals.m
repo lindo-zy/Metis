@@ -20,3 +20,9 @@ UIKeyboardDockView *dockV = nil;
 NSBundle *tweakBundle = nil;
 BOOL firstInit = YES;
 MTStudlyCapsType spongebobEntropy = 0;
+
+UIColor *MTToolbarDefaultTintColor(NSDictionary *source) {
+    id followsSystem = source[kShortcutsFollowSystemTint];
+    BOOL enabled = [followsSystem respondsToSelector:@selector(boolValue)] && [followsSystem boolValue];
+    return enabled ? UIColor.labelColor : UIColor.systemBlueColor;
+}

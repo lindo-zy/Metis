@@ -102,8 +102,9 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "FOOTER_RADIUS" = "Corner radius (applies when background tint or border is on)";
 //Button settings (per toolbar)
 "BUTTON_SETTINGS" = "Button Settings";
-"FOOTER_BUTTON_SETTINGS" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills.";
-"FOOTER_BUTTON_SETTINGS_TOP" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills. The top toolbar always wraps by Buttons per Row, with at most two rows.";
+"FOOTER_BUTTON_SETTINGS" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the icon color switch which applies to both. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills.";
+"FOOTER_BUTTON_SETTINGS_TOP" = "These settings apply only to this toolbar; the top and bottom toolbars are styled independently, except the icon color switch which applies to both. The border color adapts to light and dark mode. Button Size is the percentage of the cell width each button fills. The top toolbar always wraps by Buttons per Row, with at most two rows.";
+"FOLLOW_SYSTEM_TINT" = "Icons follow system color (black/white)";
 "BORDER_ENABLED" = "Show Border";
 "BORDER_WIDTH" = "Border Thickness";
 "BUTTON_WIDTH" = "Button Size";

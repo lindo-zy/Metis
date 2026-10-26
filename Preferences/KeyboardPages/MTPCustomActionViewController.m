@@ -463,7 +463,7 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     cell.accessoryView = nil;
     cell.editingAccessoryView = nil;
     cell.textLabel.text = [MTHelper localizedStringForActionNamed:selector shortName:NO bundle:mtpLocalBundle];
-    cell.imageView.image = [MTHelper imageFromArray:self.fullOrder atIndex:actionIndex withSystemColor:YES completion:nil];
+    cell.imageView.image = [MTHelper imageFromArray:self.fullOrder atIndex:actionIndex policy:MTIconTintPolicySystemBlue completion:nil];
     return cell;
 }
 

@@ -172,7 +172,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     __block BOOL isThirteen = NO;
 
     label = [MTHelper localizedStringForActionNamed:[MTHelper actionNameFromArray:self.currentOrder[0] atIndex:indexPath.row] shortName:NO bundle:mtpLocalBundle];
-    image = [MTHelper imageFromArray:self.currentOrder[0] atIndex:indexPath.row withSystemColor:YES completion:^(BOOL thirteen, BOOL customPath){
+    image = [MTHelper imageFromArray:self.currentOrder[0] atIndex:indexPath.row policy:MTIconTintPolicySystemBlue completion:^(BOOL thirteen, BOOL customPath){
         isThirteen = thirteen;
         isCustomImagePath = customPath;
         dispatch_semaphore_signal(smp);
@@ -192,7 +192,7 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
     else if ([shortcutItem[@"label"] isKindOfClass:[NSString class]] && [(NSString *)shortcutItem[@"label"] length])
         label = shortcutItem[@"label"];
     NSString *customIcon = [MTHelper customIconForShortcutItem:shortcutItem];
-    if (customIcon) image = [MTHelper imageForName:customIcon withSystemColor:YES completion:nil];
+    if (customIcon) image = [MTHelper imageForName:customIcon policy:MTIconTintPolicySystemBlue completion:nil];
     else {
         NSString *iconBundleID = [MTHelper appIconBundleIDForShortcutItem:shortcutItem];
         if (iconBundleID) image = [MTHelper appIconImageForBundleID:iconBundleID];
@@ -605,6 +605,9 @@ static void MTAppendUniqueShortcuts(NSArray *shortcuts,
         : (backgroundTintOn ? cellsHeightDefault + 5 : cellsHeightDefault);
 
     NSMutableArray<MTPToolbarSettingsRow *> *appearanceRows = [@[
+        // 图标颜色是全局开关，顶部与底部工具栏共用一个取值。
+        [MTPToolbarSettingsRow switchRowWithKey:kShortcutsFollowSystemTint
+                                  label:LOCALIZED(@"FOLLOW_SYSTEM_TINT") defaultValue:NO],
         [MTPToolbarSettingsRow switchRowWithKey:[self scopedAppearanceKey:kCellBorderEnabledkey]
                                   label:LOCALIZED(@"BORDER_ENABLED") defaultValue:NO],
         [MTPToolbarSettingsRow sliderRowWithKey:[self scopedAppearanceKey:kCellBorderWidthkey]

@@ -311,11 +311,12 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 }
 
 - (UIColor *)mtButtonTintColor {
-    if (!self.mtPreviewMode) return currentTintColor;
+    if (!self.mtPreviewMode) return currentTintColor ?: MTToolbarDefaultTintColor(prefs);
     NSDictionary *snapshot = self.mtPreviewPreferences;
+    // 预览与真机同源：自定义色优先，其次「跟随系统」，默认 systemBlue。
     return [snapshot[kShortcutsTintEnabled] boolValue]
         ? MTColorFromHex(snapshot[@"shortcutstint"], @"#ff0000")
-        : UIColor.secondaryLabelColor;
+        : MTToolbarDefaultTintColor(snapshot);
 }
 
 - (void)configurePreviewWithPreferences:(NSDictionary *)preferences {
@@ -2367,7 +2368,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
         if (@available(iOS 13.0, *)) imageVersion = 1;
         NSArray<NSString *> *imageNames = [self.shortcutsGenerator imageNameArrayForiOS:imageVersion];
         if (index < imageNames.count) {
-            UIImage *image = [MTHelper imageForName:imageNames[index] withSystemColor:NO completion:nil];
+            UIImage *image = [MTHelper imageForName:imageNames[index] policy:MTIconTintPolicyInherit completion:nil];
             if (image) return image;
         }
     }
@@ -2807,7 +2808,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
             : [((NSArray *)_shortcuts[kbuttonsImages12])[cellIndex] attributedString];
     }
     if (!showsText) {
-        image = [MTHelper imageForName:imageOfName.string withSystemColor:NO completion:nil];
+        image = [MTHelper imageForName:imageOfName.string policy:MTIconTintPolicyInherit completion:nil];
     }
     if (showsText){
         [cell.btn setImage:nil forState:UIControlStateNormal];

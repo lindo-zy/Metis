@@ -3,8 +3,31 @@
 <plist version="1.0">
 <array>
 	<dict>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>设置内的动作图标统一显示为系统蓝色，不再出现彩色图标</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>按钮设置新增「图标跟随系统颜色」开关，默认使用系统蓝色图标</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>键盘工具栏与设置内预览的图标颜色保持一致</string>
+			</dict>
+		</array>
 		<key>version</key>
-		<string>1.1.3</string>
+		<string>1.1.4</string>
+	</dict>
+	<dict>
 		<key>items</key>
 		<array>
 			<dict>
@@ -32,10 +55,10 @@
 				<string>长截图按原始分辨率持续落盘并流式导出，保存和复制直接使用图像文件</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.1.3</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.1.2</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -57,10 +80,10 @@
 				<string>快速滚动截图增加原始分辨率校验与无损分片，减少文字接缝和重复压缩损失</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.1.2</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.1.1</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -88,10 +111,10 @@
 				<string>快速滚动截图旋转屏幕后转回即可继续，滚太快会提前提醒减速，小图输出无损 PNG、大图自动压缩</string>
 			</dict>
 		</array>
+		<key>version</key>
+		<string>1.1.1</string>
 	</dict>
 	<dict>
-		<key>version</key>
-		<string>1.1.0</string>
 		<key>items</key>
 		<array>
 			<dict>
@@ -101,25 +124,8 @@
 				<string>自定义 JS 动作支持 AI 生成脚本：回复即脚本、可直接调试，可多轮对话修改并回退版本</string>
 			</dict>
 		</array>
-	</dict>
-	<dict>
 		<key>version</key>
-		<string>1.0.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>长截图新增快速滚动截图，支持手动连续滑动页面并实时预览，点复制或保存即可生成长图</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>快速模式采用连续画面对齐与多区域校验，回滑不重复追加；预览小窗支持拖动、暂停和取消，并限制采集内存占用</string>
-			</dict>
-		</array>
+		<string>1.1.0</string>
 	</dict>
 </array>
 </plist>

@@ -71,6 +71,23 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
     }
 }
 
+// 按调用点声明的策略着色：设置内列表固定单色 systemBlue，键盘按钮交给宿主
+// tint，只有明确要求保留 SF Symbol 原生配色的场景才走多色探测。
+static UIImage *MTImageApplyingIconPolicy(UIImage *image, MTIconTintPolicy policy, NSString *cacheKey) {
+    if (!image) return nil;
+    if (@available(iOS 13.0, *)) {
+        if (policy == MTIconTintPolicyPreserveMulticolor) return MTImagePreservingMulticolor(image, cacheKey);
+        if (policy == MTIconTintPolicySystemBlue) {
+            // 用 AlwaysOriginal 承载已染好的蓝色：cell 的选中态与 tintColor
+            // 都不能再把设置列表里的图标改成别的颜色。
+            return [[image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                    imageWithTintColor:UIColor.systemBlueColor renderingMode:UIImageRenderingModeAlwaysOriginal];
+        }
+        return [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    }
+    return image;
+}
+
 @implementation MTHelper
 
 +(UIImage *)imageForTypeXWithPlaceholder:(BOOL)placeholder{
@@ -80,7 +97,7 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
     return [UIImage imageWithContentsOfFile:[bundlePath stringByAppendingPathComponent:@"MetisKeyboard.png"]];
 }
 
-+(UIImage *)imageForName:(NSString *)imageName withSystemColor:(BOOL)withSystemColor completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{
++(UIImage *)imageForName:(NSString *)imageName policy:(MTIconTintPolicy)policy completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{
     UIImage *image;
     NSString *customPrefix = @"CUSTOM_";
     NSString *customPath;
@@ -131,17 +148,18 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
                 // Unresolvable bundle ID falls back to a tintable placeholder
                 // instead of a blank shortcut.
                 image = [UIImage systemImageNamed:@"app"];
+                image = MTImageApplyingIconPolicy(image, policy, @"app");
             }
         }else if (isCustomImagePath){
             image = cacheAndLoadImage(customPath, cachedImagePath);
-            if (withSystemColor){
+            if (policy == MTIconTintPolicySystemBlue){
                 image = [image imageWithTintColor:systemBlueColor];
             }
         }else{
             image = [UIImage systemImageNamed:imageName];
-            // 多色 Symbol 保留原始配色：单色仍走 Automatic/template 供 tint 染色，
-            // 多色切 AlwaysOriginal，避免 UIButton 模板渲染压成单色剪影。
-            if (image) image = MTImagePreservingMulticolor(image, imageName);
+            // 单色还是多色由调用点决定：设置列表与键盘按钮走单色，只有
+            // 显式选择 PreserveMulticolor 才保留 SF Symbol 原生配色。
+            image = MTImageApplyingIconPolicy(image, policy, imageName);
         }
     }else{
         if (isCustomImagePath){
@@ -166,7 +184,7 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
     return [value isKindOfClass:[NSString class]] ? value : nil;
 }
 
-+(UIImage *)imageFromArray:(NSArray *)array atIndex:(NSUInteger)index withSystemColor:(BOOL)withSystemColor completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{
++(UIImage *)imageFromArray:(NSArray *)array atIndex:(NSUInteger)index policy:(MTIconTintPolicy)policy completion:(void (^)(BOOL isThirteen, BOOL isCustomImagePath))handler{
     UIImage *image;
     __block BOOL isThirteen = NO;
     __block BOOL isCustomImagePath = NO;
@@ -176,7 +194,7 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
         NSString *imageNameAtIndex = [self mtSafeStringAtIndex:imagelist index:index];
 
         dispatch_semaphore_t smp = dispatch_semaphore_create(0);
-        image = [self imageForName:imageNameAtIndex withSystemColor:withSystemColor completion:^(BOOL thirteen, BOOL customPath){
+        image = [self imageForName:imageNameAtIndex policy:policy completion:^(BOOL thirteen, BOOL customPath){
             isThirteen = thirteen;
             isCustomImagePath = customPath;
             dispatch_semaphore_signal(smp);
@@ -189,7 +207,7 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
         NSString *imageNameAtIndex = [self mtSafeStringAtIndex:imagelist index:index];
 
         dispatch_semaphore_t smp = dispatch_semaphore_create(0);
-        image = [self imageForName:imageNameAtIndex withSystemColor:withSystemColor completion:^(BOOL thirteen, BOOL customPath){
+        image = [self imageForName:imageNameAtIndex policy:policy completion:^(BOOL thirteen, BOOL customPath){
             isThirteen = thirteen;
             isCustomImagePath = customPath;
             dispatch_semaphore_signal(smp);
@@ -344,18 +362,22 @@ static UIImage *MTImagePreservingMulticolor(UIImage *image, NSString *cacheKey) 
 }
 
 // Resolves one raw icon config string (a link action's or shortcut's "icon"
-// field) into a UIImage: SF Symbol wins (统一设置条目样式：22pt + AlwaysTemplate，
-// 蓝色 tint 由调用方 imageView 决定), then the app icon for bundle IDs (AlwaysOriginal
-// 原色), then the named fallback symbol.
+// field) into a UIImage: SF Symbol wins (22pt + AlwaysTemplate，颜色由策略决定),
+// then the app icon for bundle IDs (AlwaysOriginal 原色), then the fallback symbol.
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName{
+    return [self imageForIconConfig:icon defaultSymbolName:defaultName policy:MTIconTintPolicyInherit];
+}
+
++(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName policy:(MTIconTintPolicy)policy{
     if (@available(iOS 13.0, *)) {
         if (icon.length > 0){
             UIImage *symbol = [MTSettingsStyle settingsSymbolImageNamed:icon];
-            if (symbol) return symbol;
+            if (symbol) return MTImageApplyingIconPolicy(symbol, policy, icon);
             UIImage *appIcon = [self appIconImageForBundleID:icon];
             if (appIcon) return appIcon;
         }
-        return [MTSettingsStyle settingsSymbolImageNamed:defaultName];
+        UIImage *fallback = [MTSettingsStyle settingsSymbolImageNamed:defaultName];
+        return MTImageApplyingIconPolicy(fallback, policy, defaultName);
     }
     return nil;
 }

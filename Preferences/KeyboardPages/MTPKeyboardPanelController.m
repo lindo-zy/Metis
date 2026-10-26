@@ -84,7 +84,7 @@ static NSString *MTPanelLocalized(NSString *key) {
                 PSSpecifier *link = [PSSpecifier preferenceSpecifierNamed:MTPanelString(panel[@"name"]) target:self set:nil get:nil detail:MTPKeyboardPanelController.class cell:PSLinkCell edit:nil];
                 link.identifier = MTPanelSelector(panel[@"id"]);
                 [link setProperty:MTPanelSelector(panel[@"id"]) forKey:@"panelSelector"];
-                [link setProperty:[MTHelper imageForIconConfig:MTPanelDefaultIconName(panel[@"kind"]) defaultSymbolName:@"square.grid.2x2"] forKey:@"iconImage"];
+                [link setProperty:[MTHelper imageForIconConfig:MTPanelDefaultIconName(panel[@"kind"]) defaultSymbolName:@"square.grid.2x2" policy:MTIconTintPolicySystemBlue] forKey:@"iconImage"];
                 [items addObject:link];
             }
         }
@@ -309,8 +309,8 @@ static NSString *MTPanelLocalized(NSString *key) {
 }
 - (UIImage *)imageForEntry:(NSDictionary *)entry {
     NSString *icon = [self definitionForSelector:entry[@"selector"]][@"icon"];
-    if (icon.length) return [MTHelper imageForIconConfig:icon defaultSymbolName:@"link"];
-    return [UIImage systemImageNamed:@"square.grid.2x2"];
+    if (icon.length) return [MTHelper imageForIconConfig:icon defaultSymbolName:@"link" policy:MTIconTintPolicySystemBlue];
+    return [MTHelper imageForIconConfig:nil defaultSymbolName:@"square.grid.2x2" policy:MTIconTintPolicySystemBlue];
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     (void)tableView; (void)section;

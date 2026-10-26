@@ -239,13 +239,12 @@ static CGFloat const MTSubActionContentLeading = 40.0;
     NSDictionary *linkAction = [self linkActionForSelector:selector];
     if (MTIsLinkActionSelector(selector) || MTIsPanelSelector(selector)) {
         NSString *icon = [linkAction[@"icon"] isKindOfClass:[NSString class]] ? linkAction[@"icon"] : @"";
-        return [MTHelper imageForIconConfig:icon defaultSymbolName:@"link"]
-            ?: [UIImage systemImageNamed:@"link"];
+        return [MTHelper imageForIconConfig:icon defaultSymbolName:@"link" policy:MTIconTintPolicySystemBlue];
     }
 
     for (NSUInteger index = 0; index < self.fullOrder.count; index++) {
         if ([[MTHelper actionNameFromArray:self.fullOrder atIndex:index] isEqualToString:selector]) {
-            return [MTHelper imageFromArray:self.fullOrder atIndex:index withSystemColor:YES completion:nil];
+            return [MTHelper imageFromArray:self.fullOrder atIndex:index policy:MTIconTintPolicySystemBlue completion:nil];
         }
     }
     return nil;
