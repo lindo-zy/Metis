@@ -11,7 +11,9 @@
 #import "MTSystemActionCatalog.h"
 #import "MTFloatingAppSession.h"
 #import "MTPJavaScriptTestController.h"
-#import "MTPJavaScriptCodeStyle.h"
+#import "MTPJavaScriptPreviewCell.h"
+#import "MTPContextScriptEditorController.h"
+#import "MTPAIScriptProfile.h"
 #import "MTPAIScriptChatController.h"
 #import "MTHelper.h"
 #import "MTAIEngine.h"
@@ -24,6 +26,7 @@ static NSBundle *mtpLocalBundle;
 // - urlscheme: section 1 = full-width 文本框 (multi-line payload box), then
 //              the 剪切替换 switch (the box types that support @@@)
 // - text:      section 1 = ordered records and an Add row
+// - javascript: section 1 = script preview / AI / debug, section 2 = input / output
 // - url:       3 = URL 设置 (field), 4 = APP内打开 switch, 5 = 剪切替换 switch
 // - openapp:   3 = installed-app picker, 4 = MetisKeyboard floating switch
 // - urlscheme: section 2 = MetisKeyboard floating switch
@@ -54,8 +57,7 @@ static NSInteger const MTLegacyRowLink = 2;
 }
 @end
 
-// Full-width multi-line text box (a UITextView filling the cell) used for the
-// URL scheme / JavaScript payloads instead of a small accessory field.
+// Full-width multi-line text box used for URL scheme payloads.
 @interface MTPLinkActionTextCell : UITableViewCell
 @property (nonatomic, strong) UITextView *textView;
 @property (nonatomic, strong) UILabel *placeholderLabel;
@@ -196,17 +198,19 @@ static NSInteger const MTLegacyRowLink = 2;
 @property (nonatomic, copy) NSString *aiPersonaID;
 @property (nonatomic, copy) NSString *aiModel;
 @property (nonatomic, copy) NSString *selectedAppName;
-// The one payload box cell for URL scheme / JavaScript; kept as a
+// The one payload box cell for URL scheme; kept as a
 // property so its text survives cell reuse while scrolling.
 @property (nonatomic, strong) MTPLinkActionTextCell *payloadBoxCell;
+// 编辑器和 AI 只更新草稿；动作页「保存」仍是唯一的持久化入口。
+@property (nonatomic, copy) NSString *scriptDraft;
+@property (nonatomic, strong) MTPJavaScriptPreviewCell *scriptPreviewCell;
 @property (nonatomic, strong) NSMutableArray<NSString *> *textRecords;
 @property (nonatomic, strong) UISegmentedControl *jsInputControl;
 @property (nonatomic, strong) UISegmentedControl *jsOutputControl;
-// Keeps the 脚本源码 / URL Scheme payload box and the field rows above the
+// Keeps the URL Scheme payload box and the field rows above the
 // keyboard: this controller builds its own UITableView, so Preferences does
 // no automatic keyboard avoidance for it.
 @property (nonatomic, strong) MTPKeyboardAvoider *keyboardAvoider;
-@property (nonatomic, assign) BOOL highlightingScript;
 @end
 
 @implementation MTPLinkActionEditorController {
@@ -344,7 +348,7 @@ static NSInteger const MTLegacyRowLink = 2;
     }
     if (row == MTActionRowName) return self.nameField;
     if (row == MTActionRowIcon) return self.iconField;
-    if (row == MTActionRowPayload && !self.isOpenAppEntry && !self.isShortcutEntry && !self.isSystemEntry) return self.linkField;
+    if (row == MTActionRowPayload && !self.isOpenAppEntry && !self.isShortcutEntry && !self.isSystemEntry && !self.isJavaScriptEntry) return self.linkField;
     return nil;
 }
 
@@ -383,11 +387,9 @@ static NSInteger const MTLegacyRowLink = 2;
 
 #pragma mark - Payload layout
 
-// URL scheme and JavaScript payloads use the full-width multi-line text box
-// (two-section layout) instead of a small accessory field.
+// JS uses a read-only preview and a separate editor; URL scheme keeps its box.
 - (BOOL)usesLargePayloadBox {
-    return !self.isLegacyEntry &&
-        (self.isJavaScriptEntry || [_displayedType isEqualToString:kCustomActionTypeURLScheme]);
+    return [_displayedType isEqualToString:kCustomActionTypeURLScheme];
 }
 
 // The payload value lives in the box for box types, in the small field
@@ -396,7 +398,7 @@ static NSInteger const MTLegacyRowLink = 2;
     // AI 动作没有链接载荷：参数是人设与模型，单独存在 entry 上。
     if (self.isAIEntry) return @"";
     if (self.isTextEntry || self.isSystemEntry) return @"";
-    if (self.isJavaScriptEntry) return self.payloadBoxCell.textView.text ?: self.entry[@"script"] ?: @"";
+    if (self.isJavaScriptEntry) return self.scriptDraft ?: @"";
     if (self.usesLargePayloadBox) return [self trimmedValue:self.payloadBoxCell.textView.text];
     return [self trimmedValue:self.linkField.text];
 }
@@ -425,6 +427,7 @@ static NSInteger const MTLegacyRowLink = 2;
     if (self.isTextEntry) return section == 0 ? MTActionRowPayload : self.textRecords.count + 1;
     if (self.isJavaScriptEntry && section == 2) return 2;
     if (self.isJavaScriptEntry && section == 1) return 3;
+    if (self.isJavaScriptEntry) return MTActionRowPayload;
     if ([_displayedType isEqualToString:kCustomActionTypeURLScheme] && section == 2) return 1;
     if (![self usesLargePayloadBox]) return [self rowCount];
     // Box layout: section 0 holds the shared rows (类型/名称/图标), section 1
@@ -486,6 +489,7 @@ static NSInteger const MTLegacyRowLink = 2;
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == self.payloadSectionCount) return nil;
     if (self.isAIEntry) return section == 1 ? [self typeFooter] : nil;
+    if (self.isJavaScriptEntry) return section == 1 ? [self typeFooter] : nil;
     // The type hint describes the payload, so it follows the payload: on the
     // box section for box types, on the single section otherwise.
     if (self.isTextEntry || [self usesLargePayloadBox]) return section == 1 ? [self typeFooter] : nil;
@@ -497,7 +501,6 @@ static NSInteger const MTLegacyRowLink = 2;
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (indexPath.section == self.payloadSectionCount) return 44;
     if (self.isTextEntry && indexPath.section == 1) return indexPath.row < (NSInteger)self.textRecords.count ? 76 : 44;
-    if (self.isJavaScriptEntry && indexPath.section == 1) return indexPath.row == 0 ? 260 : UITableViewAutomaticDimension;
     if ([self usesLargePayloadBox] && indexPath.section == 1 && indexPath.row == 0) return 120.0;
     return UITableViewAutomaticDimension;
 }
@@ -522,18 +525,7 @@ static NSInteger const MTLegacyRowLink = 2;
     if (!self.payloadBoxCell) {
         self.payloadBoxCell = [self.tableView dequeueReusableCellWithIdentifier:@"MTPLinkActionTextCell" forIndexPath:indexPath];
         self.payloadBoxCell.textView.delegate = self;
-        NSString *key = self.isJavaScriptEntry ? @"script" : @"link";
-        self.payloadBoxCell.textView.text = [self.entry[key] isKindOfClass:[NSString class]] ? self.entry[key] : @"";
-        if (self.isJavaScriptEntry) {
-            UITextView *text = self.payloadBoxCell.textView;
-            text.font = [MTPJavaScriptCodeStyle codeFont];
-            text.autocorrectionType = UITextAutocorrectionTypeNo;
-            text.autocapitalizationType = UITextAutocapitalizationTypeNone;
-            text.smartQuotesType = UITextSmartQuotesTypeNo;
-            text.smartDashesType = UITextSmartDashesTypeNo;
-            text.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
-            [self highlightScript];
-        }
+        self.payloadBoxCell.textView.text = [self.entry[@"link"] isKindOfClass:[NSString class]] ? self.entry[@"link"] : @"";
     }
     NSString *placeholder = [self payloadBoxPlaceholder];
     self.payloadBoxCell.placeholderLabel.text = placeholder;
@@ -620,10 +612,10 @@ static NSInteger const MTLegacyRowLink = 2;
         cell.textLabel.text = LOCALIZED(@"CTX_DEBUG_TITLE");
         cell.detailTextLabel.text = LOCALIZED(@"JS_DEBUG_SUBTITLE");
         cell.detailTextLabel.numberOfLines = 0;
-        cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
         cell.imageView.image = [UIImage systemImageNamed:@"play.circle"];
         cell.imageView.tintColor = UIColor.systemGreenColor;
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        [MTPJavaScriptPreviewCell alignScriptRow:cell];
         return cell;
     }
     if (self.isJavaScriptEntry && indexPath.section == 1 && indexPath.row == 1) {
@@ -640,7 +632,18 @@ static NSInteger const MTLegacyRowLink = 2;
             engine.displayName ?: @"—", model.length ? model : LOCALIZED(@"JS_AI_UNCONFIGURED")];
         cell.detailTextLabel.textColor = configured ? UIColor.secondaryLabelColor : UIColor.systemRedColor;
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        [MTPJavaScriptPreviewCell alignScriptRow:cell];
         return cell;
+    }
+    if (self.isJavaScriptEntry && indexPath.section == 1) {
+        if (!self.scriptPreviewCell) {
+            MTPAIScriptProfile *profile = [MTPAIScriptProfile actionProfile];
+            NSString *source = [self payloadCurrentValue];
+            self.scriptPreviewCell = [[MTPJavaScriptPreviewCell alloc] initWithSource:source
+                usage:[profile byteUsageTextForScript:source]
+                invalid:[profile precheckErrorForScript:source].length > 0];
+        }
+        return self.scriptPreviewCell;
     }
     if ([self usesLargePayloadBox] && indexPath.section == 1) {
         return [self payloadBoxCellForRowAtIndexPath:indexPath];
@@ -758,6 +761,17 @@ static NSInteger const MTLegacyRowLink = 2;
     }
 
     if (self.isJavaScriptEntry && indexPath.section == 2) return;
+    if (self.isJavaScriptEntry && indexPath.section == 1 && indexPath.row == 0) {
+        [self.view endEditing:YES];
+        MTPContextScriptEditorController *editor = [MTPContextScriptEditorController new];
+        editor.profile = [MTPAIScriptProfile actionProfile];
+        editor.source = [self payloadCurrentValue];
+        editor.title = LOCALIZED(@"CTX_EDIT_SCRIPT");
+        __weak typeof(self) weakSelf = self;
+        editor.completion = ^(NSString *script) { [weakSelf updateScriptDraft:script]; };
+        [self.navigationController pushViewController:editor animated:YES];
+        return;
+    }
     if (self.isJavaScriptEntry && indexPath.section == 1 && indexPath.row == 2) {
         [self.view endEditing:YES];
         MTPJavaScriptTestController *test = [MTPJavaScriptTestController new];
@@ -770,16 +784,11 @@ static NSInteger const MTLegacyRowLink = 2;
         [self.view endEditing:YES];
         if ([self.navigationController.topViewController isKindOfClass:MTPAIScriptChatController.class]) return;
         MTPAIScriptChatController *chat = [MTPAIScriptChatController new];
+        chat.profile = [MTPAIScriptProfile actionProfile];
         chat.currentScript = [self payloadCurrentValue];
         __weak typeof(self) weakSelf = self;
         chat.completion = ^(NSString *script) {
-            typeof(self) owner = weakSelf; if (!owner) return;
-            // Keep the existing Save transaction as the only persistent write.
-            // Materialize the source cell even if it has scrolled off screen.
-            if (!owner.payloadBoxCell) [owner payloadBoxCellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:1]];
-            owner.payloadBoxCell.textView.text = script;
-            owner.payloadBoxCell.placeholderLabel.hidden = script.length > 0;
-            [owner highlightScript];
+            [weakSelf updateScriptDraft:script];
         };
         [self.navigationController pushViewController:chat animated:YES];
         return;
@@ -981,32 +990,16 @@ static NSInteger const MTLegacyRowLink = 2;
 
 #pragma mark - Text view
 
+- (void)updateScriptDraft:(NSString *)script {
+    if (![script isKindOfClass:NSString.class]) return;
+    self.scriptDraft = script;
+    self.scriptPreviewCell = nil;
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:1] withRowAnimation:UITableViewRowAnimationNone];
+}
+
 - (void)textViewDidChange:(UITextView *)textView {
     self.payloadBoxCell.placeholderLabel.hidden =
         self.payloadBoxCell.placeholderLabel.text.length == 0 || textView.text.length > 0;
-    if (self.isJavaScriptEntry && textView == self.payloadBoxCell.textView) {
-        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(highlightScript) object:nil];
-        [self performSelector:@selector(highlightScript) withObject:nil afterDelay:0.06];
-    }
-}
-
-- (void)highlightScript {
-    UITextView *textView = self.payloadBoxCell.textView;
-    if (!self.isJavaScriptEntry || !textView || textView.markedTextRange || self.highlightingScript) return;
-    self.highlightingScript = YES;
-    NSRange selection = textView.selectedRange;
-    CGPoint offset = textView.contentOffset;
-    [textView.textStorage beginEditing];
-    [MTPJavaScriptCodeStyle applyToStorage:textView.textStorage];
-    [textView.textStorage endEditing];
-    textView.typingAttributes = [MTPJavaScriptCodeStyle baseAttributes];
-    textView.selectedRange = selection;
-    textView.contentOffset = offset;
-    self.highlightingScript = NO;
-}
-
-- (void)dealloc {
-    [NSObject cancelPreviousPerformRequestsWithTarget:self];
 }
 
 #pragma mark - Text fields
@@ -1018,7 +1011,7 @@ static NSInteger const MTLegacyRowLink = 2;
 }
 
 - (void)textViewDidBeginEditing:(UITextView *)textView {
-    if (!self.isJavaScriptEntry) MTPlaceCaretAtEnd(textView);
+    MTPlaceCaretAtEnd(textView);
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
@@ -1267,6 +1260,7 @@ static NSInteger const MTLegacyRowLink = 2;
         if (!self.textRecords.count) [self.textRecords addObject:@""];
     }
     if (self.isJavaScriptEntry) {
+        self.scriptDraft = [self.entry[@"script"] isKindOfClass:NSString.class] ? self.entry[@"script"] : @"";
         self.jsInputControl = [[UISegmentedControl alloc] initWithItems:@[LOCALIZED(@"JS_AUTO"), LOCALIZED(@"JS_ALL"), LOCALIZED(@"JS_CLIPBOARD")]];
         self.jsOutputControl = [[UISegmentedControl alloc] initWithItems:@[LOCALIZED(@"JS_REPLACE"), LOCALIZED(@"JS_INSERT"), LOCALIZED(@"JS_COPY")]];
         [self.jsInputControl sizeToFit];

@@ -9,7 +9,6 @@ static NSString *MTEditorLabel(NSString *key) {
 }
 
 @interface MTPContextScriptEditorController () <UITextViewDelegate>
-@property(nonatomic, strong) MTPAIScriptProfile *profile;
 @property(nonatomic, strong) UITextView *textView;
 @property(nonatomic, strong) UIView *gutter;
 @property(nonatomic, strong) UILabel *lineNumbers;
@@ -24,7 +23,7 @@ static NSString *MTEditorLabel(NSString *key) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.profile = [MTPAIScriptProfile contextProfile];
+    if (!self.profile) self.profile = [MTPAIScriptProfile contextProfile];
     if (!self.title.length) self.title = MTEditorLabel(@"CTX_EDIT_SCRIPT");
     self.view.backgroundColor = UIColor.systemBackgroundColor;
 
@@ -67,6 +66,11 @@ static NSString *MTEditorLabel(NSString *key) {
 
     self.entryLabel = [UILabel new];
     self.entryLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    self.entryLabel.adjustsFontSizeToFitWidth = YES;
+    self.entryLabel.minimumScaleFactor = 0.75;
+    self.entryLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+    [self.entryLabel setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+        forAxis:UILayoutConstraintAxisHorizontal];
     self.entryLabel.textColor = UIColor.secondaryLabelColor;
     self.entryLabel.text = self.profile.entrySignature;
     self.statusLabel = [UILabel new];
@@ -119,6 +123,7 @@ static NSString *MTEditorLabel(NSString *key) {
     self.textView.autocapitalizationType = UITextAutocapitalizationTypeNone;
     self.textView.smartQuotesType = UITextSmartQuotesTypeNo;
     self.textView.smartDashesType = UITextSmartDashesTypeNo;
+    self.textView.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
     self.textView.spellCheckingType = UITextSpellCheckingTypeNo;
     [container addSubview:self.textView];
 

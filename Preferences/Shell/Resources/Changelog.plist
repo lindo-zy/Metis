@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.2.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>自定义动作 JS 脚本沿用 JS 规则的预览卡片，点击进入独立编辑器，支持行号、语法高亮、实时检查和符号工具栏</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.1.10</string>
 		<key>items</key>
 		<array>

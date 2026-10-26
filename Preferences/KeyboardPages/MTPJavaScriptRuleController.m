@@ -3,8 +3,7 @@
 #import "MTPContextScriptDebugController.h"
 #import "MTPAIScriptChatController.h"
 #import "MTPAIScriptProfile.h"
-#import "MTPJavaScriptCodeStyle.h"
-#import "MTSettingsStyle.h"
+#import "MTPJavaScriptPreviewCell.h"
 #import "MTAIEngine.h"
 #import "MTPrefsManager.h"
 
@@ -81,35 +80,14 @@
 // editingAccessoryType 顶替 accessoryType（默认 None 会把展开箭头吞掉），分隔线
 // 起点也会随行内图标位置各走各的。统一成卡片内 16pt 基准，三行才对齐。
 - (void)alignScriptRow:(UITableViewCell *)cell {
-    cell.editingAccessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    CGFloat inset = [MTSettingsStyle contentInset];
-    cell.separatorInset = UIEdgeInsetsMake(0, inset, 0, inset);
+    [MTPJavaScriptPreviewCell alignScriptRow:cell];
 }
 
 - (UITableViewCell *)previewCell {
     [self refreshValidation];
     NSString *source = self.type.source ?: @"";
-    NSArray<NSString *> *lines = [source componentsSeparatedByString:@"\n"];
-    NSUInteger limit = 7;
-    NSString *snippet = [[lines subarrayWithRange:NSMakeRange(0, MIN(limit, lines.count))]
-        componentsJoinedByString:@"\n"];
-    if (lines.count > limit) snippet = [snippet stringByAppendingString:@"\n…"];
-    if (!snippet.length) snippet = MTPCTX(@"CTX_SCRIPT_EMPTY");
-
-    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    cell.textLabel.numberOfLines = 0;
-    cell.textLabel.attributedText = [MTPJavaScriptCodeStyle attributedStringForSource:snippet];
-    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
-
     BOOL broken = [self.profile isScriptOversized:source] || self.cachedError.length;
-    NSString *detail = [self.cachedUsage stringByAppendingFormat:@" · %@",
-        MTPCTX(broken ? @"CTX_SCRIPT_FAIL" : @"CTX_EDIT_SCRIPT")];
-    cell.detailTextLabel.text = detail;
-    cell.detailTextLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
-    cell.detailTextLabel.textColor = broken ? UIColor.systemRedColor : UIColor.secondaryLabelColor;
-    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    [self alignScriptRow:cell];
-    return cell;
+    return [[MTPJavaScriptPreviewCell alloc] initWithSource:source usage:self.cachedUsage invalid:broken];
 }
 
 - (UITableViewCell *)aiCell {
