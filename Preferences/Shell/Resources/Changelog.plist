@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.2.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复 QuickPrefs 获取设置路径后无法直达子页面的问题，支持全局条目短路径与完整层级路径</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.2.0</string>
 		<key>items</key>
 		<array>
@@ -75,25 +88,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>AI 生成脚本下方新增沙盒调试入口，支持样例文本、运行结果、耗时和 console 日志</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.1.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>截图复制或保存完成后显示悬浮提示，2 秒后或点击后自动消失</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>点击截图保存提示可跳转相册查看刚保存的照片</string>
 			</dict>
 		</array>
 	</dict>

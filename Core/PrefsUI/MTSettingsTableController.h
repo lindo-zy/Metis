@@ -17,6 +17,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 应用当前模型（含 intro/footer 附件视图）并刷新表格。
 - (void)render;
+/// 在 Preferences 查询 specifier 前准备模型；不能依赖 viewDidLoad 的时序。
+- (void)prepareSettingsModel;
+/// 将路径转换为本页的层级路径（首页可补齐分类前缀）。
+- (NSArray<NSString *> *)settingsPathComponents:(NSArray<NSString *> *)components;
 /// 页面级 footer 文本（子类在 model.footerText 之外补充时覆写）。
 - (void)applyFooterText;
 /// 行点按入口（子类覆写；默认实现执行路由）。

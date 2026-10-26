@@ -3,6 +3,7 @@
 #import "MTPrefsRootModel.h"
 #import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
+#import "MTPrefsGlobalModel.h"
 #import "MTPrefsChangelogModel.h"
 #import "MTPrefsChangelogController.h"
 #import "MTLog.h"
@@ -19,13 +20,32 @@
     BOOL _searchActive;
 }
 
+- (void)prepareSettingsModel {
+    if (self.model) return;
+    self.model = [MTPrefsRootModel rootPageModel];
+    [self mtAttachToggleHandler];
+}
+
+- (NSArray<NSString *> *)settingsPathComponents:(NSArray<NSString *> *)components {
+    // QuickPrefs copies a row ID, rather than the complete ancestry. Keep the
+    // standard category-global/... path and accept existing global-* shortcuts.
+    if ([[MTPrefsGlobalModel globalPageModel] rowWithIdentifier:components.firstObject]) {
+        return [@[@"category-global"] arrayByAddingObjectsFromArray:components];
+    }
+    return [super settingsPathComponents:components];
+}
+
+- (void)handleURL:(id)url {
+    if ([NSThread isMainThread]) [self mtExitSearch];
+    [super handleURL:url];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"";
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
     self.navigationItem.backButtonTitle = @"Metis";
-    self.model = [MTPrefsRootModel rootPageModel];
-    [self mtAttachToggleHandler];
+    [self prepareSettingsModel];
     [self mtInstallChangelogButton];
     [self render];
 }

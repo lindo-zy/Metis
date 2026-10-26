@@ -3,6 +3,11 @@
 #import "MTSettingsNavigation.h"
 #import "MTSettingsSpecifierBridge.h"
 #import <Preferences/PSSpecifier.h>
+#import "MTLog.h"
+
+@interface MTSettingsTableController ()
+@property (nonatomic, copy) NSDictionary *mtPendingSettingsURL;
+@end
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
 // 导航条已存在，这里只声明本页需要大标题，不改宿主全局行为。
@@ -54,8 +59,100 @@
 // 不尝试载入不存在的 Root.plist。分组顺序与自定义 datasource 完全一致，
 // 使 Preferences 的 specifierForID:/indexPathForSpecifier:/URL 路由可直接使用。
 - (NSArray *)specifiers {
+    [self prepareSettingsModel];
     if (!_specifiers) _specifiers = [self mtBuildSpecifiers];
     return _specifiers;
+}
+
+- (void)prepareSettingsModel {}
+
+#pragma mark - Preferences URL routing
+
+- (NSArray<NSString *> *)settingsPathComponents:(NSArray<NSString *> *)components {
+    return components;
+}
+
+// Preferences normally passes a resource dictionary. Accept NSURL too, as the
+// Theos compatibility header uses that type (including opaque prefs:root= URLs).
+- (NSDictionary *)mtSettingsResourcesForURL:(id)url {
+    if ([url isKindOfClass:NSDictionary.class]) return url;
+    if (![url isKindOfClass:NSURL.class]) return nil;
+    NSString *query = [url query];
+    if (!query.length) query = [url resourceSpecifier];
+    NSMutableDictionary *resources = [NSMutableDictionary dictionary];
+    for (NSString *item in [query componentsSeparatedByString:@"&"]) {
+        NSRange separator = [item rangeOfString:@"="];
+        if (separator.location == NSNotFound) continue;
+        NSString *key = [[item substringToIndex:separator.location] stringByRemovingPercentEncoding];
+        NSString *value = [[item substringFromIndex:separator.location + 1] stringByRemovingPercentEncoding];
+        if (key && value) resources[key] = value;
+    }
+    return resources;
+}
+
+- (void)handleURL:(id)url {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self handleURL:url]; });
+        return;
+    }
+    self.mtPendingSettingsURL = nil;
+    NSDictionary *resources = [self mtSettingsResourcesForURL:url];
+    id path = resources[@"path"];
+    if (![path isKindOfClass:NSString.class] || ![path length]) {
+        [super handleURL:url];
+        return;
+    }
+    NSArray<NSString *> *components = [self settingsPathComponents:[path componentsSeparatedByString:@"/"]];
+    [self prepareSettingsModel];
+    MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
+    if (!row || [components containsObject:@""]) {
+        [super handleURL:url];
+        return;
+    }
+    // Resolve against the persistent model, never search-result specifiers.
+    self.overlayModel = nil;
+    NSMutableDictionary *pending = [resources mutableCopy];
+    pending[@"path"] = [components componentsJoinedByString:@"/"];
+    self.mtPendingSettingsURL = pending;
+    // Coalesce repeated delivery and let Settings finish attaching the page.
+    dispatch_async(dispatch_get_main_queue(), ^{ [self mtOpenPendingSettingsURL]; });
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self mtOpenPendingSettingsURL];
+}
+
+- (void)mtOpenPendingSettingsURL {
+    NSDictionary *resources = self.mtPendingSettingsURL;
+    if (!resources || self.navigationController.topViewController != self || !self.view.window) return;
+    self.mtPendingSettingsURL = nil;
+    NSArray<NSString *> *components = [resources[@"path"] componentsSeparatedByString:@"/"];
+    MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
+    if (!row) return;
+    [self render];
+    if (row.kind != MTSettingsRowKindLink || row.routeKind == MTSettingsRouteNone ||
+        row.routeKind == MTSettingsRouteInPage) {
+        // A URL to a switch/setting locates it; it must never execute a toggle.
+        if (components.count == 1) [self flashRowWithIdentifier:row.identifier];
+        return;
+    }
+    Class controllerClass = [self controllerClassForSettingsRow:row];
+    if (!controllerClass || ![controllerClass isSubclassOfClass:PSViewController.class]) {
+        MTLogError(MTLogModulePrefs, @"state=settings-url-route-unavailable");
+        return;
+    }
+    PSViewController *controller = [[controllerClass alloc] init];
+    MTSettingsPushController(self, controller, [self specifierForID:row.identifier], NO);
+    MTLogInfo(MTLogModulePrefs, @"state=settings-url-route-open remaining=%lu",
+              (unsigned long)(components.count - 1));
+    if (components.count > 1 && [controller respondsToSelector:@selector(handleURL:)]) {
+        NSMutableDictionary *remaining = [resources mutableCopy];
+        remaining[@"path"] = [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]
+            componentsJoinedByString:@"/"];
+        // Non-model PSListController children keep their native path handling.
+        [controller handleURL:(id)remaining];
+    }
 }
 
 - (NSMutableArray *)mtBuildSpecifiers {

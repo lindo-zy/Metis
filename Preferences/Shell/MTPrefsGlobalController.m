@@ -7,11 +7,16 @@
 // 落到键盘细节域，随后重建模型刷新开关显示（首页总开关同一模式）。
 @implementation MTPrefsGlobalController
 
+- (void)prepareSettingsModel {
+    if (self.model) return;
+    self.model = [MTPrefsGlobalModel globalPageModel];
+    [self mtAttachToggleHandlers];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"全局";
-    self.model = [MTPrefsGlobalModel globalPageModel];
-    [self mtAttachToggleHandlers];
+    [self prepareSettingsModel];
     [self render];
 }
 
