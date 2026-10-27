@@ -22,7 +22,8 @@
             [self presentUnavailableAlertWithTitle:row.title];
             return;
         }
-        id controller = [[controllerClass alloc] init];
+        PSViewController *controller = [[controllerClass alloc] init];
+        [self mtRecordRoutingAnchorForController:controller path:row.identifier];
         MTSettingsPushController(self, controller, [self specifierForID:row.identifier], YES);
         return;
     }

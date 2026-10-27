@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 当前渲染的页面模型；赋值后调用 render 强制刷新。
 @property (nonatomic, strong, nullable) MTSettingsPageModel *model;
-/// 搜索态替换渲染的临时模型（nil = 正常渲染 model）。
+/// 外部替换渲染的临时模型（nil = 正常渲染 model）；被 URL 直达消费时清空。
 @property (nonatomic, strong, nullable) MTSettingsPageModel *overlayModel;
 /// 进入页面后按 identifier 滚动定位并闪烁强调（搜索直达用，一次性消费）。
 @property (nonatomic, copy, nullable) NSString *pendingFocusIdentifier;
@@ -29,12 +29,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)performRouteForRow:(MTSettingsRow *)row;
 /// 与 Preferences 的 detail 路由共用目标解析；Shell 子类补齐子包加载。
 - (nullable Class)controllerClassForSettingsRow:(MTSettingsRow *)row;
+/// 登记本页已为目标路径压出的子控制器（URL 直达与点按共用），
+/// 供同目标重复投递去重；Shell 子包路由压栈时也必须调用。
+- (void)mtRecordRoutingAnchorForController:(PSViewController *)controller path:(NSString *)path;
 /// 按 identifier 滚动到行并做一次透明度脉冲强调；找不到时静默返回。
 - (void)flashRowWithIdentifier:(NSString *)identifier;
 /// 大标题下方的灰色副标题文本（introSubtitle 已由 render 应用）。
 @property (nonatomic, readonly, nullable) NSString *introSubtitleText;
 
-/// 表格顶部的自定义附件头（品牌头/搜索框）。返回 nil 时按 introSubtitle 生成简单副标题头。
+/// 表格顶部的自定义附件头（如品牌头）。返回 nil 时按 introSubtitle 生成简单副标题头。
 - (nullable UIView *)makeTableHeaderView;
 
 @end

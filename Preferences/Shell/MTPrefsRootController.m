@@ -1,24 +1,20 @@
 #import "MTPrefsRootController.h"
 #import "MTSettingsNavigation.h"
 #import "MTPrefsRootModel.h"
-#import "MTPrefsSearchIndex.h"
 #import "MTPrefsGlobalController.h"
 #import "MTPrefsGlobalModel.h"
 #import "MTPrefsChangelogModel.h"
 #import "MTPrefsChangelogController.h"
 #import "MTLog.h"
 
-// 首页渲染：品牌头 + 搜索设置 + 卡片分区。模型与文案见 MTPrefsRootModel
+// 首页渲染：品牌头 + 卡片分区。模型与文案见 MTPrefsRootModel
 // （宿主测试权威）；本文件只做 UIKit 传输（02 §8：系统 grouped 风格）。
 // 导航栏右上角是「更新说明」入口：数据来自包内 Changelog.plist
 // （MTPrefsChangelogModel），呈现为半屏 UISheetPresentationController。
-@interface MTPrefsRootController () <UITextFieldDelegate>
+@interface MTPrefsRootController ()
 @end
 
-@implementation MTPrefsRootController {
-    UISearchTextField *_searchField;
-    BOOL _searchActive;
-}
+@implementation MTPrefsRootController
 
 - (void)prepareSettingsModel {
     if (self.model) return;
@@ -35,11 +31,6 @@
     return [super settingsPathComponents:components];
 }
 
-- (void)handleURL:(id)url {
-    if ([NSThread isMainThread]) [self mtExitSearch];
-    [super handleURL:url];
-}
-
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"";
@@ -50,7 +41,7 @@
     [self render];
 }
 
-#pragma mark - Brand header + search
+#pragma mark - Brand header
 
 - (UIView *)makeTableHeaderView {
     // 品牌区和搜索框对齐系统分组边距；高度随标题/版本字号一起增长。
@@ -95,28 +86,13 @@
     brandRow.translatesAutoresizingMaskIntoConstraints = NO;
     [container addSubview:brandRow];
 
-    _searchField = [[UISearchTextField alloc] init];
-    _searchField.placeholder = @"搜索设置";
-    _searchField.delegate = self;
-    _searchField.clearButtonMode = UITextFieldViewModeWhileEditing;
-    _searchField.returnKeyType = UIReturnKeySearch;
-    _searchField.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    _searchField.adjustsFontForContentSizeCategory = YES;
-    _searchField.translatesAutoresizingMaskIntoConstraints = NO;
-    [_searchField addTarget:self action:@selector(searchTextChanged:) forControlEvents:UIControlEventEditingChanged];
-    [container addSubview:_searchField];
-
     [NSLayoutConstraint activateConstraints:@[
         [brandRow.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
         [brandRow.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
         [brandRow.topAnchor constraintEqualToAnchor:container.topAnchor constant:8.0],
+        [brandRow.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-24.0],
         [brandIcon.widthAnchor constraintEqualToConstant:56.0],
         [brandIcon.heightAnchor constraintEqualToConstant:56.0],
-        [_searchField.topAnchor constraintEqualToAnchor:brandRow.bottomAnchor constant:16.0],
-        [_searchField.leadingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.leadingAnchor],
-        [_searchField.trailingAnchor constraintEqualToAnchor:container.layoutMarginsGuide.trailingAnchor],
-        [_searchField.heightAnchor constraintGreaterThanOrEqualToConstant:40.0],
-        [_searchField.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-24.0],
     ]];
     return container;
 }
@@ -211,83 +187,10 @@
     }
 }
 
-#pragma mark - Search
-
-- (void)mtApplySearchQuery:(NSString *)query {
-    NSArray<MTSettingsSearchEntry *> *entries = [MTPrefsSearchIndex entriesMatchingQuery:query];
-    NSMutableArray<MTSettingsRow *> *rows = [NSMutableArray array];
-    [entries enumerateObjectsUsingBlock:^(MTSettingsSearchEntry *entry, NSUInteger index, BOOL *stop) {
-        MTSettingsRow *row = [MTSettingsRow linkRowWithIdentifier:[NSString stringWithFormat:@"search-result-%lu", (unsigned long)index]
-                                                            title:entry.title];
-        row.subtitle = entry.path;
-        row.userInfo = entry;
-        [rows addObject:row];
-    }];
-    if (!rows.count) {
-        MTSettingsRow *empty = [MTSettingsRow linkRowWithIdentifier:@"search-empty" title:@"无搜索结果"];
-        empty.kind = MTSettingsRowKindInfo;
-        empty.subtitle = @"仅检索设置标题与资源名称";
-        rows = [NSMutableArray arrayWithObject:empty];
-    }
-    MTSettingsSection *section = [MTSettingsSection sectionWithRows:rows];
-    MTSettingsPageModel *overlay = [[MTSettingsPageModel alloc] init];
-    overlay.sections = @[section];
-    self.overlayModel = overlay;
-    [self render];
-}
-
-- (void)mtExitSearch {
-    if (!_searchActive && self.overlayModel == nil) return;
-    _searchActive = NO;
-    self.overlayModel = nil;
-    [self render];
-}
-
-- (void)settingsRowSelected:(MTSettingsRow *)row {
-    MTSettingsSearchEntry *entry = [row.userInfo isKindOfClass:MTSettingsSearchEntry.class] ? row.userInfo : nil;
-    if (!entry) {
-        [super settingsRowSelected:row];
-        return;
-    }
-    MTSettingsRow *target = entry.target;
-    if (target.routeKind == MTSettingsRouteInPage) {
-        [self mtExitSearch];
-        [self flashRowWithIdentifier:[target.userInfo isKindOfClass:NSString.class] ? target.userInfo : target.identifier];
-        return;
-    }
-    if (target.routeKind == MTSettingsRouteShellClass) {
-        Class controllerClass = target.className.length ? NSClassFromString(target.className) : Nil;
-        if (!controllerClass) return;
-        id controller = [[controllerClass alloc] init];
-        // Shell 内模型驱动页支持行级强调；PS 页（引用管理）自然忽略该属性。
-        if ([controller respondsToSelector:@selector(setPendingFocusIdentifier:)]) {
-            [(MTSettingsTableController *)controller setPendingFocusIdentifier:
-                [target.userInfo isKindOfClass:NSString.class] ? target.userInfo : nil];
-        }
-        MTSettingsPushController(self, controller, nil, YES);
-        return;
-    }
-    // 子包目标（资源名称）：退出搜索后按原始路由压栈。
-    [self mtExitSearch];
-    [self performRouteForRow:target];
-}
-
-#pragma mark - Search field
+#pragma mark - Layout
 
 - (void)viewDidLayoutSubviews {
     self.tableView.tableHeaderView.layoutMargins = self.tableView.layoutMargins;
     [super viewDidLayoutSubviews];
 }
-
-- (void)searchTextChanged:(UISearchTextField *)field {
-    _searchActive = field.text.length > 0;
-    if (_searchActive) [self mtApplySearchQuery:field.text];
-    else [self mtExitSearch];
-}
-
-- (BOOL)textFieldShouldReturn:(UITextField *)textField {
-    [textField resignFirstResponder];
-    return YES;
-}
-
 @end

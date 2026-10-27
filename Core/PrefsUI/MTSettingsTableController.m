@@ -9,8 +9,13 @@
 @interface MTSettingsTableController ()
 @property (nonatomic, copy) NSDictionary *mtPendingSettingsURL;
 @property (nonatomic) BOOL mtOwnsSettingsURL;
-@property (nonatomic, copy) NSString *mtConsumedSettingsPath;
-@property (nonatomic) BOOL mtReturningFromSettingsURL;
+// 栈锚点：本页为某条路径压出的子控制器（URL 直达与行点按共用）。
+// 锚点描述导航栈的事实而非某次投递：只要锚定子控制器还在栈内，
+// 同目标的重复投递一律不再次压栈；子控制器出栈后惰性释放。
+@property (nonatomic, copy) NSString *mtRoutedPath;
+@property (nonatomic, weak) PSViewController *mtRoutedChildController;
+// Back 露出本页的外观过渡期：期间到达的同目标投递（含超类生命周期重放）丢弃。
+@property (nonatomic) BOOL mtReturningFromChild;
 @end
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
@@ -49,9 +54,9 @@
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-    if (self.mtConsumedSettingsPath.length && !self.mtPendingSettingsURL &&
+    if (self.mtRoutedPath.length && !self.mtPendingSettingsURL &&
         self.navigationController.topViewController == self) {
-        self.mtReturningFromSettingsURL = YES;
+        self.mtReturningFromChild = YES;
     }
     // PSListController also keeps its own deferred URL. Clear it before the
     // superclass gets a chance to replay it when Back reveals this page.
@@ -136,22 +141,40 @@
     self.mtOwnsSettingsURL = YES;
     [self mtClearNativePendingSettingsURL];
     NSString *canonicalPath = [components componentsJoinedByString:@"/"];
-    MTLogInfo(MTLogModulePrefs, @"state=settings-url-request source=%@ visible=%d consumed=%d returning=%d",
-              NSStringFromClass(self.class), self.navigationController.topViewController == self && self.view.window != nil,
-              [self.mtConsumedSettingsPath isEqualToString:canonicalPath], self.mtReturningFromSettingsURL);
-    // Settings can deliver the same URL again after the first push. The source
-    // page is then hidden: re-queueing it would fire on Back. Keep the consumed
-    // marker until this page has actually returned, including superclass URL
-    // callbacks during the appearance transition. A fresh URL after Back is
-    // allowed, without a timeout/cooldown.
-    if ([self.mtConsumedSettingsPath isEqualToString:canonicalPath] &&
-        (self.navigationController.topViewController != self || !self.view.window ||
-         self.mtReturningFromSettingsURL)) {
-        MTLogInfo(MTLogModulePrefs, @"state=settings-url-duplicate-consumed source=%@ returning=%d",
-                  NSStringFromClass(self.class), self.mtReturningFromSettingsURL);
-        return;
+    [self mtDropRoutingAnchorIfUnstacked];
+    MTLogInfo(MTLogModulePrefs, @"state=settings-url-request source=%@ anchored=%@ in-stack=%d returning=%d",
+              NSStringFromClass(self.class), self.mtRoutedPath, self.mtRoutedChildController != nil,
+              self.mtReturningFromChild);
+    // Settings can redeliver a URL whose target this page already pushed.
+    // While the anchored child is still in the stack the delivery is dropped,
+    // no matter whether this page is visible or mid-return: re-queueing would
+    // fire on Back and stack a second instance. A strict prefix targets an
+    // ancestor that is already open and is dropped for the same reason.
+    // The anchored child may already be deallocated while its Back transition
+    // is still running (weak reference nils before the transition ends); the
+    // return-transition flag keeps those deliveries suppressed as well.
+    BOOL anchorLive = self.mtRoutedChildController != nil &&
+        [self.navigationController.viewControllers containsObject:self.mtRoutedChildController];
+    if (self.mtRoutedPath.length && (anchorLive || self.mtReturningFromChild)) {
+        BOOL sameTarget = [canonicalPath isEqualToString:self.mtRoutedPath];
+        BOOL targetsAncestor = [self mtPath:canonicalPath isComponentPrefixOfPath:self.mtRoutedPath];
+        BOOL extendsAnchor = [self mtPath:self.mtRoutedPath isComponentPrefixOfPath:canonicalPath];
+        if (sameTarget || targetsAncestor || (extendsAnchor && !anchorLive)) {
+            MTLogInfo(MTLogModulePrefs, @"state=settings-url-duplicate-consumed source=%@ reason=%@",
+                      NSStringFromClass(self.class),
+                      sameTarget ? @"self" : (targetsAncestor ? @"ancestor" : @"transition"));
+            return;
+        }
+        if (extendsAnchor) {
+            // The anchored child is already open: hand it the deeper path
+            // instead of stacking a second instance of it.
+            MTLogInfo(MTLogModulePrefs, @"state=settings-url-extend-open source=%@ target=%@",
+                      NSStringFromClass(self.class), self.mtRoutedPath);
+            [self mtForwardPath:resources toComponents:components controller:self.mtRoutedChildController];
+            return;
+        }
     }
-    self.mtReturningFromSettingsURL = NO;
+    self.mtReturningFromChild = NO;
     self.overlayModel = nil;
     NSMutableDictionary *pending = [resources mutableCopy];
     pending[@"path"] = canonicalPath;
@@ -161,33 +184,70 @@
 }
 
 - (void)viewDidAppear:(BOOL)animated {
-    if (self.mtConsumedSettingsPath.length && !self.mtPendingSettingsURL &&
-        self.navigationController.topViewController == self && self.view.window) {
-        self.mtReturningFromSettingsURL = YES;
-    }
     if (self.mtOwnsSettingsURL) [self mtClearNativePendingSettingsURL];
+    BOOL hadPendingRequest = self.mtPendingSettingsURL != nil;
     [super viewDidAppear:animated];
     [self mtOpenPendingSettingsURL];
-    if (self.mtReturningFromSettingsURL && self.navigationController.topViewController == self && self.view.window) {
+    // A pure return (no request opened on the way back) ends the routed
+    // lifetime: the anchor is released so a fresh delivery of the same URL
+    // opens the page again, without a timeout or cooldown.
+    if (self.mtReturningFromChild && self.navigationController.topViewController == self && self.view.window) {
         MTLogInfo(MTLogModulePrefs, @"state=settings-url-return-complete source=%@", NSStringFromClass(self.class));
-        self.mtConsumedSettingsPath = nil;
-        self.mtReturningFromSettingsURL = NO;
+        self.mtReturningFromChild = NO;
+        if (!hadPendingRequest) [self mtReleaseRoutingAnchor];
     }
 }
 
+// 交给超类原生的投递只归还队列所有权；栈锚点是导航栈的事实，
+// 不随单次投递失效（锚定子控制器出栈时才惰性释放）。
 - (void)mtReleaseSettingsURL {
     self.mtPendingSettingsURL = nil;
     self.mtOwnsSettingsURL = NO;
-    self.mtConsumedSettingsPath = nil;
-    self.mtReturningFromSettingsURL = NO;
+}
+
+/// 压栈后由 URL 直达与行点按共同调用的锚点记录（Shell 子包路由亦经此登记）。
+- (void)mtRecordRoutingAnchorForController:(PSViewController *)controller path:(NSString *)path {
+    self.mtRoutedChildController = controller;
+    self.mtRoutedPath = path;
+}
+
+- (void)mtReleaseRoutingAnchor {
+    self.mtRoutedChildController = nil;
+    self.mtRoutedPath = nil;
+}
+
+- (void)mtDropRoutingAnchorIfUnstacked {
+    if (self.mtReturningFromChild) return;
+    PSViewController *child = self.mtRoutedChildController;
+    if (!child) {
+        self.mtRoutedPath = nil;
+        return;
+    }
+    if (![self.navigationController.viewControllers containsObject:child]) {
+        [self mtReleaseRoutingAnchor];
+    }
+}
+
+// Component-boundary prefix: "a/b" prefixes "a/b/c" but not "a/bc".
+- (BOOL)mtPath:(NSString *)prefix isComponentPrefixOfPath:(NSString *)path {
+    if (prefix.length >= path.length || ![path hasPrefix:prefix]) return NO;
+    return [path characterAtIndex:prefix.length] == '/';
+}
+
+// 把除首段外的剩余子路径按 Preferences 资源字典转发给目标控制器。
+- (void)mtForwardPath:(NSDictionary *)resources toComponents:(NSArray<NSString *> *)components
+             controller:(PSViewController *)controller {
+    if (components.count < 2 || ![controller respondsToSelector:@selector(handleURL:)]) return;
+    NSMutableDictionary *remaining = [resources mutableCopy];
+    remaining[@"path"] = [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]
+        componentsJoinedByString:@"/"];
+    [controller handleURL:(id)remaining];
 }
 
 - (void)mtOpenPendingSettingsURL {
     NSDictionary *resources = self.mtPendingSettingsURL;
     if (!resources || self.navigationController.topViewController != self || !self.view.window) return;
     self.mtPendingSettingsURL = nil;
-    self.mtConsumedSettingsPath = nil;
-    self.mtReturningFromSettingsURL = NO;
     [self mtClearNativePendingSettingsURL];
     NSArray<NSString *> *components = [resources[@"path"] componentsSeparatedByString:@"/"];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
@@ -205,17 +265,12 @@
         return;
     }
     PSViewController *controller = [[controllerClass alloc] init];
-    self.mtConsumedSettingsPath = resources[@"path"];
+    [self mtRecordRoutingAnchorForController:controller path:resources[@"path"]];
     MTSettingsPushController(self, controller, [self specifierForID:row.identifier], NO);
     MTLogInfo(MTLogModulePrefs, @"state=settings-url-route-open source=%@ target=%@ remaining=%lu",
               NSStringFromClass(self.class), NSStringFromClass(controllerClass), (unsigned long)(components.count - 1));
-    if (components.count > 1 && [controller respondsToSelector:@selector(handleURL:)]) {
-        NSMutableDictionary *remaining = [resources mutableCopy];
-        remaining[@"path"] = [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]
-            componentsJoinedByString:@"/"];
-        // Non-model PSListController children keep their native path handling.
-        [controller handleURL:(id)remaining];
-    }
+    // Non-model PSListController children keep their native path handling.
+    [self mtForwardPath:resources toComponents:components controller:controller];
 }
 
 - (NSMutableArray *)mtBuildSpecifiers {
@@ -378,7 +433,9 @@
     if (row.routeKind == MTSettingsRouteNone) return;
     Class controllerClass = [self controllerClassForSettingsRow:row];
     if (!controllerClass) return;
-    id controller = [[controllerClass alloc] init];
+    PSViewController *controller = [[controllerClass alloc] init];
+    // 点按与 URL 直达共用锚点：页面已开时同目标 URL 投递不得重复压栈。
+    [self mtRecordRoutingAnchorForController:controller path:row.identifier];
     MTSettingsPushController(self, controller, [self specifierForID:row.identifier], YES);
 }
 
