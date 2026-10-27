@@ -28,18 +28,6 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>defaults</key>
-			<string>com.lindo.metis.clipboard</string>
-			<key>detail</key>
-			<string>MTFloatingPreviewSettingsViewController</string>
-			<key>id</key>
-			<string>floating-preview</string>
-			<key>label</key>
-			<string>Floating Preview</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSLinkListCell</string>
 			<key>default</key>
 			<integer>38</integer>
@@ -173,7 +161,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>双击采集气泡时按 JS 规则执行不同动作；未命中不执行任何动作。复制后自动执行由每条规则内的开关独立控制。旧的文字/图片动作配置会自动转换为规则。</string>
+			<string>复制后按 JS 规则匹配，由命中规则控制小球、SF 图标和气泡提示；单击小球执行绑定动作。未命中不显示小球。</string>
 			<key>label</key>
 			<string>剪切板规则</string>
 		</dict>
@@ -185,7 +173,7 @@
 			<key>id</key>
 			<string>capture-rules</string>
 			<key>label</key>
-			<string>剪切板规则 JS</string>
+			<string>剪切板规则与悬浮入口</string>
 		</dict>
 		<dict>
 			<key>cell</key>

@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>剪切板 JS 规则与悬浮入口合并：命中规则后可显示自定义 SF 图标和气泡提示，单击小球执行绑定动作，未命中不显示；支持按规则关闭小球或提示。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>连续复制或修改规则时丢弃过期匹配，避免旧小球触发已关闭或删除的规则；气泡提示随拖动贴边，并自动避开屏幕边缘。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.9</string>
 		<key>items</key>
 		<array>
@@ -59,19 +78,6 @@
 		</array>
 		<key>version</key>
 		<string>1.3.6</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>App 底栏动作组改为按当前应用独立匹配：非系统输入框或顶部工具栏未出现时，仍显示该 App 配置的动作；底栏出现时主动刷新，避免停留在默认悬浮 App 补位</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.3.5</string>
 	</dict>
 </array>
 </plist>

@@ -11,6 +11,7 @@
 #import "MTNotificationKeys.h"
 #import "MTShortcutSnapshotProvider.h"
 #import "MTSpringBoardHooks.h"
+#import "MTSharedResourceIDs.h"
 
 #import <CoreFoundation/CoreFoundation.h>
 
@@ -304,6 +305,8 @@ static void mtCorePasteTipPreferencesReloadCallback(CFNotificationCenterRef cent
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTNotificationKeyCoreReload
                           callback:mtCoreReloadCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTNotificationKeyPreferencesReload
+                          callback:mtCorePreferencesReloadCallback];
+    [self addDarwinObserverForName:(__bridge CFStringRef)MTSharedResourceChangedNotification
                           callback:mtCorePreferencesReloadCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTNotificationKeyPreferencesHeightReload
                           callback:mtCoreHeightPreferenceReloadCallback];

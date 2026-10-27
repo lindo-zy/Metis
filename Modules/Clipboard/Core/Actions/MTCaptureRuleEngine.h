@@ -7,8 +7,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// 剪切板规则：双击采集气泡 / 复制后自动执行时，按序求值 match(text, meta)，
-// 首个命中的规则决定执行哪些动作；未命中不执行任何动作。
+// 复制后按序求值 match(text, meta)，首个命中规则决定悬浮入口及动作。
 // 规则数据存共享资源文档顶层键 clipboardRules（读写见 MTClipboardActionReferences）。
 @interface MTCaptureRule : NSObject
 
@@ -16,8 +15,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, readonly) NSString *name;
 // 关闭的规则完全不参与求值；缺省为启用。
 @property (nonatomic, assign, readonly) BOOL enabled;
-// 复制后自动执行；运行端只对开启此开关的规则自动求值，规则之间互相独立。
+// 首条命中规则开启此开关时，复制后自动执行；否则等待单击悬浮入口。
 @property (nonatomic, assign, readonly) BOOL autoRun;
+@property (nonatomic, assign, readonly) BOOL floatingEnabled;
+@property (nonatomic, copy, readonly) NSString *symbolName;
+@property (nonatomic, assign, readonly) BOOL tooltipEnabled;
+@property (nonatomic, copy, readonly) NSString *tooltipText;
 @property (nonatomic, copy, readonly) NSString *source;
 // 指向共享资源动作库的 UUID，按序执行，至多 8 个。
 @property (nonatomic, copy, readonly) NSArray<NSString *> *actions;

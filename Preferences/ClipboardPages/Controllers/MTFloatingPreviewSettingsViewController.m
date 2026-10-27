@@ -14,6 +14,7 @@
 @interface MTFloatingPreviewSampleView : UIView
 
 @property(nonatomic, strong) UIView *bubbleView;
+@property(nonatomic, strong) UIImageView *symbolView;
 @property(nonatomic, assign) CGFloat bubbleDiameter;
 @property(nonatomic, strong) UIColor *bubbleColor;
 
@@ -26,15 +27,19 @@
     if (self) {
         [self setBackgroundColor:[UIColor systemBackgroundColor]];
         UIView *bubbleView = [[UIView alloc] initWithFrame:CGRectZero];
-        [bubbleView setBackgroundColor:[UIColor colorWithWhite:0.20 alpha:0.72]];
+        [bubbleView setBackgroundColor:[UIColor colorWithWhite:0.20 alpha:0.92]];
         [[bubbleView layer] setShadowColor:[[UIColor blackColor] CGColor]];
         [[bubbleView layer] setShadowOpacity:0.20];
         [[bubbleView layer] setShadowRadius:6.0];
         [[bubbleView layer] setShadowOffset:CGSizeMake(0, 2)];
         [self addSubview:bubbleView];
         [self setBubbleView:bubbleView];
+        self.symbolView = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"doc.on.clipboard"]];
+        self.symbolView.tintColor = UIColor.systemPurpleColor;
+        self.symbolView.contentMode = UIViewContentModeScaleAspectFit;
+        [bubbleView addSubview:self.symbolView];
         [self setBubbleDiameter:kMTPreferenceKeyFloatingPreviewSizeDefaultValue];
-        [self setBubbleColor:[UIColor colorWithWhite:0.20 alpha:0.72]];
+        [self setBubbleColor:[UIColor colorWithWhite:0.20 alpha:0.92]];
     }
     return self;
 }
@@ -48,6 +53,7 @@
                                            diameter,
                                            diameter)];
     [[self bubbleView] layer].cornerRadius = diameter * 0.5;
+    self.symbolView.frame = CGRectInset(self.bubbleView.bounds, diameter * 0.27, diameter * 0.27);
 }
 
 - (void)setBubbleDiameter:(CGFloat)bubbleDiameter {
@@ -57,7 +63,7 @@
 
 - (void)setBubbleColor:(UIColor *)bubbleColor {
     _bubbleColor = bubbleColor;
-    [[self bubbleView] setBackgroundColor:[bubbleColor colorWithAlphaComponent:0.72]];
+    [[self bubbleView] setBackgroundColor:[bubbleColor colorWithAlphaComponent:0.92]];
 }
 
 @end
@@ -65,8 +71,6 @@
 @interface MTFloatingPreviewSettingsViewController () <UITableViewDataSource, UITableViewDelegate>
 
 @property(nonatomic, strong) UITableView *tableView;
-@property(nonatomic, strong) UISwitch *enabledSwitch;
-@property(nonatomic, strong) UISwitch *doubleTapActionSwitch;
 @property(nonatomic, strong) UISwitch *countdownRingSwitch;
 @property(nonatomic, strong) UISlider *sizeSlider;
 @property(nonatomic, strong) UILabel *sizeValueLabel;
@@ -82,27 +86,15 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    [self setTitle:[self localizedStringForKey:@"Floating Preview"]];
+    [self setTitle:@"小球通用外观"];
     [[self view] setBackgroundColor:[UIColor systemGroupedBackgroundColor]];
     self.preferences = [[NSUserDefaults alloc] initWithSuiteName:kMTClipboardPreferencesIdentifier];
     [self.preferences registerDefaults:@{
-        kMTPreferenceKeyFloatingPreview : @(kMTPreferenceKeyFloatingPreviewDefaultValue),
-        kMTPreferenceKeyFloatingPreviewDoubleTapAction : @(kMTPreferenceKeyFloatingPreviewDoubleTapActionDefaultValue),
         kMTPreferenceKeyFloatingPreviewCountdownRing : @(kMTPreferenceKeyFloatingPreviewCountdownRingDefaultValue),
         kMTPreferenceKeyFloatingPreviewSize : @(kMTPreferenceKeyFloatingPreviewSizeDefaultValue),
         kMTPreferenceKeyFloatingPreviewDuration : @(kMTPreferenceKeyFloatingPreviewDurationDefaultValue),
         kMTPreferenceKeyFloatingPreviewColor : kMTPreferenceKeyFloatingPreviewColorDefaultValue,
     }];
-
-    _enabledSwitch = [[UISwitch alloc] init];
-    [_enabledSwitch setOn:[self.preferences boolForKey:kMTPreferenceKeyFloatingPreview]];
-    [_enabledSwitch addTarget:self action:@selector(enabledSwitchChanged:) forControlEvents:UIControlEventValueChanged];
-
-    _doubleTapActionSwitch = [[UISwitch alloc] init];
-    [_doubleTapActionSwitch setOn:[self.preferences boolForKey:kMTPreferenceKeyFloatingPreviewDoubleTapAction]];
-    [_doubleTapActionSwitch addTarget:self
-                               action:@selector(doubleTapActionSwitchChanged:)
-                     forControlEvents:UIControlEventValueChanged];
 
     _countdownRingSwitch = [[UISwitch alloc] init];
     [_countdownRingSwitch setOn:[self.preferences boolForKey:kMTPreferenceKeyFloatingPreviewCountdownRing]];
@@ -196,16 +188,6 @@
     [[self durationValueLabel] setText:[NSString stringWithFormat:@"%.0fs", [[self durationSlider] value]]];
 }
 
-- (void)enabledSwitchChanged:(UISwitch *)sender {
-    [self.preferences setBool:[sender isOn] forKey:kMTPreferenceKeyFloatingPreview];
-    [self postPreferencesReload];
-}
-
-- (void)doubleTapActionSwitchChanged:(UISwitch *)sender {
-    [self.preferences setBool:[sender isOn] forKey:kMTPreferenceKeyFloatingPreviewDoubleTapAction];
-    [self postPreferencesReload];
-}
-
 - (void)countdownRingSwitchChanged:(UISwitch *)sender {
     [self.preferences setBool:[sender isOn] forKey:kMTPreferenceKeyFloatingPreviewCountdownRing];
     [self postPreferencesReload];
@@ -245,7 +227,7 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     (void)tableView;
-    return section == 0 ? 3 : 1;
+    return 1;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -267,7 +249,7 @@
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
     if (section == 4) {
-        return [self localizedStringForKey:@"The floating preview is always semi-transparent and stays fully visible at the screen edge."];
+        return @"小球是否显示、SF 图标和气泡提示由命中规则决定。此页的外观与显示时长适用于所有规则。";
     }
     return nil;
 }
@@ -284,13 +266,7 @@
     [[cell textLabel] setTextColor:[UIColor labelColor]];
     [[cell textLabel] setHidden:NO];
     [cell setAccessoryView:nil];
-    if ([indexPath section] == 0 && [indexPath row] == 0) {
-        [[cell textLabel] setText:[self localizedStringForKey:@"Enable Floating Preview"]];
-        [cell setAccessoryView:[self enabledSwitch]];
-    } else if ([indexPath section] == 0 && [indexPath row] == 1) {
-        [[cell textLabel] setText:[self localizedStringForKey:@"Double-Tap Action"]];
-        [cell setAccessoryView:[self doubleTapActionSwitch]];
-    } else if ([indexPath section] == 0) {
+    if ([indexPath section] == 0) {
         [[cell textLabel] setText:[self localizedStringForKey:@"Countdown Light Ring"]];
         [cell setAccessoryView:[self countdownRingSwitch]];
     } else if ([indexPath section] == 1) {

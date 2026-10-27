@@ -8,6 +8,8 @@
 #import "MTPAIScriptProfile.h"
 #import "MTPJavaScriptPreviewCell.h"
 #import "MTAIEngine.h"
+#import "MTPSFSymbolPickerController.h"
+#import "MTFloatingPreviewSettingsViewController.h"
 
 static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无法保存规则"
@@ -119,7 +121,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     }];
 }
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 3; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     return section == 0 ? _rules.count : 1;
 }
@@ -133,11 +135,20 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return _rules.count ? @"长按规则拖动排序，或点“编辑”使用排序手柄。首个命中的有效规则执行绑定动作；关闭的规则不参与匹配。" : nil;
-    return @"双击采集气泡时按顺序匹配；未命中不执行动作。复制后自动执行由每条规则内的开关独立控制。";
+    if (section == 2) return @"所有规则共用此处外观；是否显示、图标与提示文本在各规则内设置。";
+    if (section == 0) return _rules.count ? @"长按规则拖动排序，或点“编辑”使用排序手柄。首个命中的有效规则控制悬浮入口和绑定动作；关闭的规则不参与匹配。" : nil;
+    return @"复制后按优先级匹配，首个命中规则决定是否显示小球和提示。单击小球执行绑定动作；未命中不显示。";
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.section == 2) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+        cell.textLabel.text = @"小球通用外观";
+        cell.detailTextLabel.text = @"大小、颜色、显示时长与倒计时光环";
+        cell.imageView.image = [UIImage systemImageNamed:@"circle.lefthalf.filled"];
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        return cell;
+    }
     // Separate identities keep add-row accessories and rule controls independent.
     NSString *reuse = indexPath.section == 0 ? @"rule" : @"add";
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
@@ -165,7 +176,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     cell.textLabel.textColor = rule.enabled ? UIColor.labelColor : UIColor.secondaryLabelColor;
     cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %lu 个动作%@",
         rule.enabled ? @"已开启" : @"已关闭", (unsigned long)rule.actions.count,
-        rule.autoRun ? @" · 复制后自动执行" : @""];
+        rule.autoRun ? @" · 自动执行" : (rule.floatingEnabled ? @" · 点击小球执行" : @" · 不显示小球")];
     UISwitch *toggle = [UISwitch new];
     toggle.on = rule.enabled;
     toggle.accessibilityLabel = [NSString stringWithFormat:@"启用规则：%@", rule.name];
@@ -233,10 +244,15 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (indexPath.section == 2) {
+        [self.navigationController pushViewController:[MTFloatingPreviewSettingsViewController new] animated:YES];
+        return;
+    }
     BOOL isNew = indexPath.section == 1;
     if (isNew && _rules.count >= 32) return;
     NSDictionary *entry = isNew ? @{@"id": NSUUID.UUID.UUIDString, @"name": @"新规则", @"enabled": @YES,
-        @"auto": @NO, @"source": [MTPAIScriptProfile clipboardProfile].sampleTemplate, @"actions": @[]}
+        @"auto": @NO, @"floatingEnabled": @YES, @"symbolName": @"doc.on.clipboard",
+        @"tooltipEnabled": @YES, @"tooltipText": @"", @"source": [MTPAIScriptProfile clipboardProfile].sampleTemplate, @"actions": @[]}
         : _rules[indexPath.row].dictionaryRepresentation;
     MTCaptureRuleEditorController *editor = [[MTCaptureRuleEditorController alloc] initWithEntry:entry isNew:isNew];
     __weak typeof(self) weakSelf = self;
@@ -301,6 +317,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     NSString *name = [self.entry[@"name"] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     NSString *validation = name.length == 0 || name.length > 128 ? @"请输入 1–128 字的规则名称。"
         : [[MTPAIScriptProfile clipboardProfile] precheckErrorForScript:self.entry[@"source"]];
+    if ([self.entry[@"tooltipText"] length] > 128) validation = @"气泡提示文本最多 128 字。";
     if (validation.length) { MTCaptureShowError(self, validation); return; }
     NSError *error = nil;
     NSDictionary *document = [MTSharedResourceStore readSnapshotError:&error];
@@ -325,16 +342,17 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     [self.navigationController popViewControllerAnimated:YES];
 }
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 3; }
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 4; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 3 : (section == 1 ? 3 : [self.entry[@"actions"] count] + 1);
+    return section == 0 || section == 1 ? 3 : (section == 2 ? 4 : [self.entry[@"actions"] count] + 1);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return @[@"基本设置", @"JavaScript 匹配条件", @"命中的动作（按序执行）"][section];
+    return @[@"基本设置", @"JavaScript 匹配条件", @"命中后的悬浮入口", @"绑定动作（点击小球时按序执行）"][section];
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return @"打开后，复制内容时会自动执行该规则。修改在点“保存”后生效。";
+    if (section == 0) return @"开启自动执行后，规则命中时立即执行动作。关闭时等待单击小球；可同时显示悬浮入口。修改在点“保存”后生效。";
     if (section == 1) return @"match(text, meta) 返回真值即命中。meta.kind 为 text 或 image。沙盒无网络，最多 8 KB、限时 50 ms；连续失败 3 次会在当前进程暂时跳过，修改规则后重置。";
+    if (section == 2) return @"小球使用本规则的 SF 图标；气泡展示自定义文本，留空则使用规则名称。关闭小球后仍可自动执行。未命中任何规则时不显示小球。";
     return @"引用共享自定义动作，最多 8 个；未绑定动作的规则不参与匹配。左滑可移除引用，动作库条目不受影响。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -411,6 +429,52 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
         [MTPJavaScriptPreviewCell alignScriptRow:cell];
         return cell;
     }
+    if (indexPath.section == 2) {
+        BOOL floating = [self.entry[@"floatingEnabled"] boolValue];
+        if (indexPath.row == 0 || indexPath.row == 2) {
+            BOOL tooltip = indexPath.row == 2;
+            cell.textLabel.text = tooltip ? @"显示气泡提示" : @"命中后显示小球";
+            UISwitch *toggle = [UISwitch new];
+            toggle.on = [self.entry[tooltip ? @"tooltipEnabled" : @"floatingEnabled"] boolValue];
+            toggle.enabled = !tooltip || floating;
+            toggle.accessibilityLabel = cell.textLabel.text;
+            [toggle addTarget:self action:tooltip ? @selector(tooltipChanged:) : @selector(floatingChanged:)
+                forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        } else if (indexPath.row == 1) {
+            cell.textLabel.text = @"小球 SF 图标";
+            cell.detailTextLabel.text = self.entry[@"symbolName"];
+            cell.imageView.image = [UIImage systemImageNamed:self.entry[@"symbolName"]] ?: [UIImage systemImageNamed:@"doc.on.clipboard"];
+            cell.imageView.tintColor = UIColor.systemPurpleColor;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else {
+            UILabel *label = [UILabel new];
+            label.text = @"气泡提示文本";
+            label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+            UITextField *field = [UITextField new];
+            field.text = self.entry[@"tooltipText"];
+            field.placeholder = @"留空使用规则名称，如：编辑图片";
+            field.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+            field.clearButtonMode = UITextFieldViewModeWhileEditing;
+            field.enabled = floating && [self.entry[@"tooltipEnabled"] boolValue];
+            [field addTarget:self action:@selector(tooltipTextChanged:) forControlEvents:UIControlEventEditingChanged];
+            UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[label, field]];
+            stack.axis = UILayoutConstraintAxisVertical;
+            stack.spacing = 8;
+            stack.translatesAutoresizingMaskIntoConstraints = NO;
+            [cell.contentView addSubview:stack];
+            [NSLayoutConstraint activateConstraints:@[
+                [stack.leadingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.leadingAnchor],
+                [stack.trailingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.trailingAnchor],
+                [stack.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12],
+                [stack.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12],
+                [field.heightAnchor constraintGreaterThanOrEqualToConstant:32]
+            ]];
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        }
+        return cell;
+    }
     NSArray *actions = self.entry[@"actions"];
     if (indexPath.row == actions.count) {
         cell.textLabel.text = @"添加动作";
@@ -425,15 +489,28 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 - (void)nameChanged:(UITextField *)field { [self setDraftValue:field.text ?: @"" forKey:@"name"]; }
 - (void)enabledChanged:(UISwitch *)toggle { [self setDraftValue:@(toggle.on) forKey:@"enabled"]; }
 - (void)autoChanged:(UISwitch *)toggle { [self setDraftValue:@(toggle.on) forKey:@"auto"]; }
+- (void)floatingChanged:(UISwitch *)toggle {
+    [self.view endEditing:YES];
+    [self setDraftValue:@(toggle.on) forKey:@"floatingEnabled"];
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2] withRowAnimation:UITableViewRowAnimationNone];
+}
+- (void)tooltipChanged:(UISwitch *)toggle {
+    [self.view endEditing:YES];
+    [self setDraftValue:@(toggle.on) forKey:@"tooltipEnabled"];
+    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2] withRowAnimation:UITableViewRowAnimationNone];
+}
+- (void)tooltipTextChanged:(UITextField *)field {
+    [self setDraftValue:field.text ?: @"" forKey:@"tooltipText"];
+}
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
-    return indexPath.section == 2 && indexPath.row < [self.entry[@"actions"] count];
+    return indexPath.section == 3 && indexPath.row < [self.entry[@"actions"] count];
 }
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (style != UITableViewCellEditingStyleDelete || ![self tableView:tableView canEditRowAtIndexPath:indexPath]) return;
     NSMutableArray *actions = [self.entry[@"actions"] mutableCopy];
     [actions removeObjectAtIndex:indexPath.row];
     [self setDraftValue:actions forKey:@"actions"];
-    [tableView reloadSections:[NSIndexSet indexSetWithIndex:2] withRowAnimation:UITableViewRowAnimationAutomatic];
+    [tableView reloadSections:[NSIndexSet indexSetWithIndex:3] withRowAnimation:UITableViewRowAnimationAutomatic];
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
@@ -459,7 +536,15 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
             debug.source = self.entry[@"source"];
             [self.navigationController pushViewController:debug animated:YES];
         }
-    } else if (indexPath.section == 2 && indexPath.row == [self.entry[@"actions"] count] && [self.entry[@"actions"] count] < 8) {
+    } else if (indexPath.section == 2 && indexPath.row == 1) {
+        MTPSFSymbolPickerController *picker = [MTPSFSymbolPickerController new];
+        picker.selectedSymbolName = self.entry[@"symbolName"];
+        picker.completion = ^(NSString *symbol) {
+            [weakSelf setDraftValue:symbol forKey:@"symbolName"];
+            [weakSelf.tableView reloadData];
+        };
+        [self.navigationController pushViewController:picker animated:YES];
+    } else if (indexPath.section == 3 && indexPath.row == [self.entry[@"actions"] count] && [self.entry[@"actions"] count] < 8) {
         MTCaptureRuleActionPickerController *picker = [MTCaptureRuleActionPickerController pickerWithExcludedIDs:self.entry[@"actions"]
             completion:^(NSString *uuid) {
                 typeof(self) owner = weakSelf;

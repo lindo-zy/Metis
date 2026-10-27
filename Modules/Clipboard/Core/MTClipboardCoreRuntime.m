@@ -41,12 +41,12 @@ static UIColor *MTFloatingPreviewColorFromHex(NSString *hexColor) {
     unsigned long long number = 0;
     NSScanner *scanner = [NSScanner scannerWithString:value ?: @""];
     if (![scanner scanHexLongLong:&number] || scanner.isAtEnd == NO || (value.length != 6 && value.length != 8)) {
-        return [UIColor colorWithWhite:0.20 alpha:0.72];
+        return [UIColor colorWithWhite:0.20 alpha:0.92];
     }
     CGFloat red = ((number >> (value.length == 8 ? 24 : 16)) & 0xFF) / 255.0;
     CGFloat green = ((number >> (value.length == 8 ? 16 : 8)) & 0xFF) / 255.0;
     CGFloat blue = ((number >> (value.length == 8 ? 8 : 0)) & 0xFF) / 255.0;
-    return [UIColor colorWithRed:red green:green blue:blue alpha:0.72];
+    return [UIColor colorWithRed:red green:green blue:blue alpha:0.92];
 }
 
 @interface UIApplication (MTPrivate)
@@ -160,18 +160,20 @@ NS_ASSUME_NONNULL_END
 @interface MTFloatingPreviewViewController : UIViewController
 
 @property(nonatomic, strong) UIButton *button;
+@property(nonatomic, strong) UIView *tooltipView;
+@property(nonatomic, strong) UILabel *tooltipLabel;
+@property(nonatomic, strong) UIImageView *tooltipIcon;
+@property(nonatomic, strong) CAShapeLayer *tooltipPointer;
+- (void)configureForRule:(MTCaptureRule *)rule;
+- (void)layoutTooltip;
 @property(nonatomic, strong) UIPanGestureRecognizer *panGestureRecognizer;
-@property(nonatomic, strong) UITapGestureRecognizer *doubleTapGestureRecognizer;
 @property(nonatomic, copy, nullable) void (^tapHandler)(void);
-@property(nonatomic, copy, nullable) void (^doubleTapHandler)(void);
 @property(nonatomic, copy, nullable) void (^positionChangedHandler)(BOOL dockedRight, CGFloat verticalPosition);
-@property(nonatomic, assign) BOOL doubleTapEnabled;
 @property(nonatomic, assign) BOOL hasCustomPosition;
 @property(nonatomic, assign) BOOL dockedRight;
 @property(nonatomic, assign) CGFloat verticalPosition;
 @property(nonatomic, assign) CGFloat bubbleDiameter;
 @property(nonatomic, strong) UIColor *bubbleColor;
-@property(nonatomic, assign) BOOL didMoveDuringPan;
 @property(nonatomic, strong, nullable) CALayer *countdownRingContainer;
 @property(nonatomic, strong, nullable) CAShapeLayer *countdownTrackLayer;
 @property(nonatomic, strong, nullable) CAShapeLayer *countdownArcLayer;
@@ -186,10 +188,9 @@ NS_ASSUME_NONNULL_END
 
 @implementation MTFloatingPreviewViewController
 
-static CGFloat const kMTFloatingPreviewDefaultDiameter = 64.0;
-// Keep the bubble fully visible vertically while allowing its outer edge to
-// touch the left/right screen edges with no artificial horizontal gap.
-static CGFloat const kMTFloatingPreviewHorizontalEdgeInset = 0.0;
+static CGFloat const kMTFloatingPreviewDefaultDiameter = 60.0;
+// Keep the ball and attached tooltip inside the screen safe area.
+static CGFloat const kMTFloatingPreviewHorizontalEdgeInset = 12.0;
 static CGFloat const kMTFloatingPreviewVerticalEdgeInset = 12.0;
 // The countdown ring orbits just outside the bubble's rim.
 static CGFloat const kMTCountdownRingGap = 3.0;
@@ -206,16 +207,16 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     [super viewDidLoad];
 
     UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
-    [button setTintColor:[UIColor whiteColor]];
+    [button setTintColor:UIColor.systemPurpleColor];
     if (!self.bubbleColor) {
-        [self setBubbleColor:[UIColor colorWithWhite:0.20 alpha:0.72]];
+        [self setBubbleColor:[UIColor colorWithWhite:0.20 alpha:0.92]];
     }
     if (self.bubbleDiameter <= 0.0) {
         [self setBubbleDiameter:kMTFloatingPreviewDefaultDiameter];
     }
-    [button setBackgroundColor:[[self bubbleColor] colorWithAlphaComponent:0.72]];
+    [button setBackgroundColor:[[self bubbleColor] colorWithAlphaComponent:0.92]];
     [[button layer] setCornerRadius:[self bubbleDiameter] * 0.5];
-    [[button layer] setBorderWidth:1.0];
+    [[button layer] setBorderWidth:0.0];
     [[button layer] setBorderColor:[[UIColor colorWithWhite:1.0 alpha:0.42] CGColor]];
     [[button layer] setShadowColor:[[UIColor blackColor] CGColor]];
     [[button layer] setShadowOpacity:0.28];
@@ -224,22 +225,39 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     UITapGestureRecognizer *tapGestureRecognizer =
         [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(buttonTapped:)];
     [button addGestureRecognizer:tapGestureRecognizer];
-    UITapGestureRecognizer *doubleTapGestureRecognizer =
-        [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(buttonDoubleTapped:)];
-    [doubleTapGestureRecognizer setNumberOfTapsRequired:2];
-    [doubleTapGestureRecognizer setEnabled:[self doubleTapEnabled]];
-    [button addGestureRecognizer:doubleTapGestureRecognizer];
     UIPanGestureRecognizer *panGestureRecognizer =
         [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGestureRecognizer:)];
     [panGestureRecognizer setCancelsTouchesInView:NO];
     [button addGestureRecognizer:panGestureRecognizer];
     [tapGestureRecognizer requireGestureRecognizerToFail:panGestureRecognizer];
-    [tapGestureRecognizer requireGestureRecognizerToFail:doubleTapGestureRecognizer];
-    [doubleTapGestureRecognizer requireGestureRecognizerToFail:panGestureRecognizer];
     [[self view] addSubview:button];
     [self setButton:button];
     [self setPanGestureRecognizer:panGestureRecognizer];
-    [self setDoubleTapGestureRecognizer:doubleTapGestureRecognizer];
+    UIView *tooltip = [UIView new];
+    tooltip.backgroundColor = [UIColor colorWithWhite:0.14 alpha:0.96];
+    tooltip.layer.cornerRadius = 22;
+    tooltip.layer.shadowColor = UIColor.blackColor.CGColor;
+    tooltip.layer.shadowOpacity = 0.2;
+    tooltip.layer.shadowRadius = 8;
+    tooltip.layer.shadowOffset = CGSizeMake(0, 3);
+    // Tooltip is informational. Touches outside the circle pass through the overlay.
+    tooltip.userInteractionEnabled = NO;
+    tooltip.hidden = YES;
+    [self.view addSubview:tooltip];
+    self.tooltipView = tooltip;
+    self.tooltipLabel = [UILabel new];
+    self.tooltipLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+    self.tooltipLabel.textColor = UIColor.whiteColor;
+    self.tooltipLabel.numberOfLines = 2;
+    self.tooltipLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    [tooltip addSubview:self.tooltipLabel];
+    self.tooltipIcon = [UIImageView new];
+    self.tooltipIcon.tintColor = UIColor.systemPurpleColor;
+    self.tooltipIcon.contentMode = UIViewContentModeScaleAspectFit;
+    [tooltip addSubview:self.tooltipIcon];
+    self.tooltipPointer = [CAShapeLayer layer];
+    self.tooltipPointer.fillColor = tooltip.backgroundColor.CGColor;
+    [tooltip.layer addSublayer:self.tooltipPointer];
     [self installCountdownRingLayers];
 }
 
@@ -247,7 +265,7 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     [super viewDidLayoutSubviews];
 
     CGFloat size = MAX(1.0, [self bubbleDiameter]);
-    CGRect bounds = [[self view] bounds];
+    CGRect bounds = UIEdgeInsetsInsetRect(self.view.bounds, self.view.safeAreaInsets);
     CGFloat verticalInset = kMTFloatingPreviewVerticalEdgeInset;
     CGFloat minimumCenterY = CGRectGetMinY(bounds) + verticalInset + size * 0.5;
     CGFloat maximumCenterY = MAX(minimumCenterY, CGRectGetMaxY(bounds) - verticalInset - size * 0.5);
@@ -261,12 +279,13 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     centerX = MIN(MAX(centerX, minimumCenterX), MAX(minimumCenterX, maximumCenterX));
     [[self button] setFrame:CGRectMake(centerX - size * 0.5, centerY - size * 0.5, size, size)];
     [self refreshCountdownRingGeometry];
+    [self layoutTooltip];
 }
 
 - (void)applyBubbleDiameter:(CGFloat)diameter color:(UIColor *)color {
     [self setBubbleDiameter:MAX(1.0, diameter)];
-    [self setBubbleColor:color ?: [UIColor colorWithWhite:0.20 alpha:0.72]];
-    [[self button] setBackgroundColor:[[self bubbleColor] colorWithAlphaComponent:0.72]];
+    [self setBubbleColor:color ?: [UIColor colorWithWhite:0.20 alpha:0.92]];
+    [[self button] setBackgroundColor:[[self bubbleColor] colorWithAlphaComponent:0.92]];
     [[self button] layer].cornerRadius = [self bubbleDiameter] * 0.5;
     [self refreshCountdownRingColors];
     [[self view] setNeedsLayout];
@@ -279,21 +298,14 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
         return;
     }
 
-    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan) {
-        [self setDidMoveDuringPan:NO];
-    }
-
     CGPoint translation = [gestureRecognizer translationInView:view];
-    if (fabs(translation.x) > 2.0 || fabs(translation.y) > 2.0) {
-        [self setDidMoveDuringPan:YES];
-    }
     CGPoint center = [button center];
     center.x += translation.x;
     center.y += translation.y;
     [gestureRecognizer setTranslation:CGPointZero inView:view];
 
     CGFloat halfSize = MAX(1.0, [self bubbleDiameter]) * 0.5;
-    CGRect bounds = [view bounds];
+    CGRect bounds = UIEdgeInsetsInsetRect(view.bounds, view.safeAreaInsets);
     CGFloat minimumX = CGRectGetMinX(bounds) + kMTFloatingPreviewHorizontalEdgeInset + halfSize;
     CGFloat maximumX = MAX(minimumX, CGRectGetMaxX(bounds) - kMTFloatingPreviewHorizontalEdgeInset - halfSize);
     CGFloat minimumY = CGRectGetMinY(bounds) + kMTFloatingPreviewVerticalEdgeInset + halfSize;
@@ -305,6 +317,8 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
         [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
         [self setHasCustomPosition:YES];
         [button setCenter:center];
+        [self refreshCountdownRingGeometry];
+        [self layoutTooltip];
         return;
     }
 
@@ -331,31 +345,52 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
                    forState:UIControlStateNormal];
 }
 
+- (void)configureForRule:(MTCaptureRule *)rule {
+    UIImageSymbolConfiguration *configuration = [UIImageSymbolConfiguration configurationWithPointSize:25 weight:UIImageSymbolWeightRegular];
+    UIImage *icon = [UIImage systemImageNamed:rule.symbolName withConfiguration:configuration]
+        ?: [UIImage systemImageNamed:@"doc.on.clipboard" withConfiguration:configuration];
+    [self setPreviewImage:icon];
+    self.tooltipIcon.image = icon;
+    NSString *text = rule.tooltipText.length ? rule.tooltipText : rule.name;
+    self.tooltipLabel.text = text;
+    self.tooltipView.hidden = !rule.tooltipEnabled || !text.length;
+    self.button.accessibilityLabel = text.length ? text : @"执行剪切板规则";
+    self.button.accessibilityHint = @"单击执行绑定动作，可拖动调整位置";
+    [self.view setNeedsLayout];
+}
+
+- (void)layoutTooltip {
+    if (self.tooltipView.hidden) return;
+    CGRect safe = UIEdgeInsetsInsetRect(self.view.bounds, self.view.safeAreaInsets);
+    safe = CGRectInset(safe, 12, 12);
+    CGFloat maxWidth = MAX(1, MIN(260, CGRectGetWidth(safe)));
+    CGSize textSize = [self.tooltipLabel sizeThatFits:CGSizeMake(MAX(1, maxWidth - 60), 44)];
+    CGFloat width = MIN(maxWidth, MAX(100, ceil(textSize.width) + 60));
+    CGFloat height = MAX(44, ceil(textSize.height) + 20);
+    CGRect button = self.button.frame;
+    BOOL above = CGRectGetMinY(button) - height - 14 >= CGRectGetMinY(safe);
+    CGFloat x = self.dockedRight ? CGRectGetMaxX(button) - width : CGRectGetMinX(button);
+    x = MIN(MAX(x, CGRectGetMinX(safe)), CGRectGetMaxX(safe) - width);
+    CGFloat y = above ? CGRectGetMinY(button) - height - 14 : CGRectGetMaxY(button) + 14;
+    y = MIN(MAX(y, CGRectGetMinY(safe)), CGRectGetMaxY(safe) - height);
+    self.tooltipView.frame = CGRectMake(x, y, width, height);
+    self.tooltipIcon.frame = CGRectMake(14, (height - 24) / 2, 24, 24);
+    self.tooltipLabel.frame = CGRectMake(46, 10, MAX(1, width - 60), height - 20);
+    CGFloat tipX = MIN(MAX(CGRectGetMidX(button) - x, 22), width - 22);
+    CGFloat edgeY = above ? height : 0;
+    UIBezierPath *pointer = [UIBezierPath bezierPath];
+    [pointer moveToPoint:CGPointMake(tipX - 8, edgeY - (above ? 1 : -1))];
+    [pointer addLineToPoint:CGPointMake(tipX, edgeY + (above ? 8 : -8))];
+    [pointer addLineToPoint:CGPointMake(tipX + 8, edgeY - (above ? 1 : -1))];
+    [pointer closePath];
+    self.tooltipPointer.path = pointer.CGPath;
+}
+
 - (void)buttonTapped:(UITapGestureRecognizer *)recognizer {
     (void)recognizer;
-    if ([self didMoveDuringPan]) {
-        [self setDidMoveDuringPan:NO];
-        return;
-    }
     if ([self tapHandler]) {
         [self tapHandler]();
     }
-}
-
-- (void)buttonDoubleTapped:(UITapGestureRecognizer *)recognizer {
-    (void)recognizer;
-    if (![self doubleTapEnabled] || [self didMoveDuringPan]) {
-        [self setDidMoveDuringPan:NO];
-        return;
-    }
-    if ([self doubleTapHandler]) {
-        [self doubleTapHandler]();
-    }
-}
-
-- (void)setDoubleTapEnabled:(BOOL)doubleTapEnabled {
-    _doubleTapEnabled = doubleTapEnabled;
-    [[self doubleTapGestureRecognizer] setEnabled:doubleTapEnabled];
 }
 
 #pragma mark - Countdown Ring
@@ -613,8 +648,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign, readwrite, getter=isEnabled) BOOL enabled;
 @property(nonatomic, assign, readwrite) NSUInteger activationMethod;
 @property(nonatomic, assign) BOOL privacyMode;
-@property(nonatomic, assign) BOOL floatingPreview;
-@property(nonatomic, assign) BOOL floatingPreviewDoubleTapAction;
 @property(nonatomic, assign) CFTimeInterval captureRulesAutoCooldownUntil;
 @property(nonatomic, assign) BOOL floatingPreviewCountdownRing;
 @property(nonatomic, assign) CGFloat floatingPreviewSize;
@@ -634,6 +667,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, nullable) UIWindow *floatingPreviewWindow;
 @property(nonatomic, strong, nullable) MTFloatingPreviewViewController *floatingPreviewViewController;
 @property(nonatomic, strong, nullable) MTPasteboardItem *floatingPreviewItem;
+@property(nonatomic, strong, nullable) MTCaptureRule *floatingPreviewRule;
+@property(nonatomic, assign) NSUInteger captureRuleEvaluationToken;
 @property(nonatomic, copy, nullable) dispatch_block_t floatingPreviewExpirationBlock;
 @property(nonatomic, assign) NSUInteger floatingPreviewDisplayToken;
 @property(nonatomic, assign) MTPanelPresentationMode activePresentationMode;
@@ -685,11 +720,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (MTPanelPresentationMode)currentPresentationMode;
 - (void)showQuickPreviewForItem:(MTPasteboardItem *)item;
 - (nullable UIWindow *)floatingPreviewWindowCreatingIfNeeded;
-- (void)showFloatingPreviewForItem:(MTPasteboardItem *)item;
+- (void)showFloatingPreviewForItem:(MTPasteboardItem *)item rule:(MTCaptureRule *)rule;
 - (void)hideFloatingPreviewAnimated:(BOOL)animated;
 - (void)handleFloatingPreviewTap;
-- (void)handleFloatingPreviewDoubleTap;
-- (void)presentFloatingPreviewActionsForItem:(MTPasteboardItem *)item;
 - (void)cancelFloatingPreviewExpiration;
 - (void)applyFloatingPreviewAppearance;
 
@@ -910,9 +943,6 @@ NS_ASSUME_NONNULL_END
         [viewController setTapHandler:^{
           [weakSelf handleFloatingPreviewTap];
         }];
-        [viewController setDoubleTapHandler:^{
-          [weakSelf handleFloatingPreviewDoubleTap];
-        }];
         [viewController setPositionChangedHandler:^(BOOL dockedRight, CGFloat verticalPosition) {
           __strong typeof(weakSelf) strongSelf = weakSelf;
           if (!strongSelf) {
@@ -945,7 +975,6 @@ NS_ASSUME_NONNULL_END
     [self.floatingPreviewViewController setDockedRight:self.floatingPreviewDockedRight];
     [self.floatingPreviewViewController setVerticalPosition:self.floatingPreviewVerticalPosition];
     [self.floatingPreviewViewController setHasCustomPosition:YES];
-    [self.floatingPreviewViewController setDoubleTapEnabled:self.floatingPreviewDoubleTapAction];
     [self.floatingPreviewViewController applyBubbleDiameter:self.floatingPreviewSize
                                                        color:self.floatingPreviewColor];
 }
@@ -961,6 +990,7 @@ NS_ASSUME_NONNULL_END
 - (void)hideFloatingPreviewAnimated:(BOOL)animated {
     [self cancelFloatingPreviewExpiration];
     self.floatingPreviewItem = nil;
+    self.floatingPreviewRule = nil;
     NSUInteger displayToken = ++self.floatingPreviewDisplayToken;
 
     UIWindow *window = self.floatingPreviewWindow;
@@ -988,7 +1018,7 @@ NS_ASSUME_NONNULL_END
     // Slide the bubble out through its nearest screen edge instead of shrinking
     // in place; the instant alpha drop in hide() lands once it is off-screen.
     UIView *floatingView = [viewController view];
-    CGFloat exitDistance = MAX([viewController bubbleDiameter], 1.0) +
+    CGFloat exitDistance = MAX([viewController bubbleDiameter], CGRectGetWidth(viewController.tooltipView.frame)) +
                            kMTCountdownRingGap + kMTCountdownRingStrokeWidth +
                            kMTFloatingPreviewExitOvershoot;
     BOOL exitRight = [[viewController button] center].x >= CGRectGetMidX([floatingView bounds]);
@@ -1008,8 +1038,8 @@ NS_ASSUME_NONNULL_END
         }];
 }
 
-- (void)showFloatingPreviewForItem:(MTPasteboardItem *)item {
-    if (!item || !self.floatingPreview || !self.enabled || !self.mainViewController ||
+- (void)showFloatingPreviewForItem:(MTPasteboardItem *)item rule:(MTCaptureRule *)rule {
+    if (!item || !rule.floatingEnabled || !self.enabled || !self.mainViewController ||
         ![self.mainViewController isHidden] || [self.mainViewController isEditingAnyContent]) {
         return;
     }
@@ -1032,9 +1062,9 @@ NS_ASSUME_NONNULL_END
     [self cancelFloatingPreviewExpiration];
     NSUInteger displayToken = ++self.floatingPreviewDisplayToken;
     self.floatingPreviewItem = item;
+    self.floatingPreviewRule = rule;
     [[viewController button] setHidden:NO];
-    UIImage *image = [UIImage systemImageNamed:item.imageName.length > 0 ? @"photo.fill" : @"doc.on.clipboard.fill"];
-    [viewController setPreviewImage:image];
+    [viewController configureForRule:rule];
 
     // A transformed view has an undefined frame. Reset the root view before
     // every geometry update, then animate only after its final layout is known.
@@ -1091,33 +1121,19 @@ NS_ASSUME_NONNULL_END
 
 - (void)handleFloatingPreviewTap {
     MTPasteboardItem *item = self.floatingPreviewItem;
-    if (!item) {
-        return;
-    }
-
+    MTCaptureRule *rule = self.floatingPreviewRule;
     [self hideFloatingPreviewAnimated:NO];
-    [self showQuickPreviewForItem:item];
-}
-
-- (void)handleFloatingPreviewDoubleTap {
-    if (![self floatingPreviewDoubleTapAction]) {
-        return;
+    if (!item || !rule || !self.enabled || [self isPackageMaintenanceMode] || ![MTGlobalPanel deviceUnlocked]) return;
+    // Execute the displayed rule against its captured item, never rematch a newer clipboard.
+    // A rule edited/disabled/deleted while the ball was visible is no longer executable.
+    NSArray *latest = [MTCaptureRule rulesFromDictionaries:
+        [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]]];
+    for (MTCaptureRule *candidate in latest) {
+        if (candidate.enabled && [candidate.dictionaryRepresentation isEqual:rule.dictionaryRepresentation]) {
+            [self performCaptureRule:candidate forItem:item autoOnly:NO];
+            break;
+        }
     }
-
-    MTPasteboardItem *item = self.floatingPreviewItem;
-    if (!item) {
-        return;
-    }
-
-    [self presentFloatingPreviewActionsForItem:item];
-}
-
-- (void)presentFloatingPreviewActionsForItem:(MTPasteboardItem *)item {
-    [self cancelFloatingPreviewExpiration];
-    [self hideFloatingPreviewAnimated:NO];
-    // 双击由剪切板规则接管：命中执行绑定动作，未命中不执行任何动作。
-    // 旧槽位绑定由启动期后台迁移转入规则（见 loadPreferences），主路径只读不写。
-    [self dispatchCaptureRulesForItem:item autoOnly:NO];
 }
 
 #pragma mark - Capture Rules
@@ -1131,32 +1147,27 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     return nil;
 }
 
-// 双击气泡 / 复制后自动执行的共同入口：规则求值在后台串行队列跑，
-// 命中后回主线程按序执行绑定动作；未命中（含全部禁用/失败）不执行任何动作。
-- (void)dispatchCaptureRulesForItem:(MTPasteboardItem *)item autoOnly:(BOOL)autoOnly {
-    if (!item) return;
-    // 自动执行只在解锁后进行，避免锁屏采集触发一连串注定失败的动作与失败震动。
-    if (autoOnly && ![MTGlobalPanel deviceUnlocked]) return;
+// A single evaluation owns both the floating entry and optional automatic execution.
+// The first matching rule wins even if it deliberately disables the floating entry.
+- (void)dispatchCaptureRulesForItem:(MTPasteboardItem *)item {
+    if (!item || !self.enabled || ![MTGlobalPanel deviceUnlocked]) return;
+    NSUInteger token = self.captureRuleEvaluationToken;
     NSArray<NSDictionary *> *ruleDictionaries =
         [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
     NSArray<MTCaptureRule *> *rules = [MTCaptureRule rulesFromDictionaries:ruleDictionaries];
-    // Keep the complete ordered set: the engine filters enabled/auto itself.
-    // Pre-filtering here changes its fingerprint between manual and auto runs,
-    // incorrectly clearing consecutive failure counts without a settings edit.
-    if ([rules count] == 0) return;
-    NSString *kind = [[item imageName] length] > 0 ? @"image" : @"text";
-    NSString *text = [kind isEqualToString:@"text"] ? ([item content] ?: @"") : @"";
+    if (!rules.count) return;
+    NSString *kind = item.imageName.length ? @"image" : @"text";
+    NSString *text = [kind isEqual:@"text"] ? (item.content ?: @"") : @"";
     __weak typeof(self) weakSelf = self;
-    [[MTCaptureRuleEngine sharedEngine] evaluateRules:rules
-                                                 text:text
-                                                 kind:kind
-                                             autoOnly:autoOnly
-                                           completion:^(MTCaptureRule *hit) {
-        // A queued match must not run after the user disables, edits or reorders
-        // rules while evaluation is in flight.
+    [[MTCaptureRuleEngine sharedEngine] evaluateRules:rules text:text kind:kind autoOnly:NO
+        completion:^(MTCaptureRule *hit) {
+        typeof(self) owner = weakSelf;
+        if (!owner || token != owner.captureRuleEvaluationToken || !owner.enabled ||
+            [owner isPackageMaintenanceMode] || ![MTGlobalPanel deviceUnlocked]) return;
         NSArray *latest = [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
-        if (![latest isEqual:ruleDictionaries]) return;
-        [weakSelf performCaptureRule:hit forItem:item autoOnly:autoOnly];
+        if (![latest isEqual:ruleDictionaries] || !hit) return;
+        [owner showFloatingPreviewForItem:item rule:hit];
+        if (hit.autoRun) [owner performCaptureRule:hit forItem:item autoOnly:YES];
     }];
 }
 
@@ -1480,8 +1491,6 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
         kMTPreferenceKeyEnabled : @(kMTPreferenceKeyEnabledDefaultValue),
         kMTPreferenceKeyActivationMethod : @(kMTPreferenceKeyActivationMethodDefaultValue),
         kMTPreferenceKeyPrivacyMode : @(kMTPreferenceKeyPrivacyModeDefaultValue),
-        kMTPreferenceKeyFloatingPreview : @(kMTPreferenceKeyFloatingPreviewDefaultValue),
-        kMTPreferenceKeyFloatingPreviewDoubleTapAction : @(kMTPreferenceKeyFloatingPreviewDoubleTapActionDefaultValue),
         kMTPreferenceKeyFloatingPreviewCountdownRing : @(kMTPreferenceKeyFloatingPreviewCountdownRingDefaultValue),
         kMTPreferenceKeyFloatingPreviewSize : @(kMTPreferenceKeyFloatingPreviewSizeDefaultValue),
         kMTPreferenceKeyFloatingPreviewDuration : @(kMTPreferenceKeyFloatingPreviewDurationDefaultValue),
@@ -1516,10 +1525,9 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     [self readPasteTipPreferencesFromPreferences:self.preferences];
     self.activationMethod = [[self.preferences objectForKey:kMTPreferenceKeyActivationMethod] unsignedIntegerValue];
     self.privacyMode = [[self.preferences objectForKey:kMTPreferenceKeyPrivacyMode] boolValue];
-    self.floatingPreview = [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreview] boolValue];
-    self.floatingPreviewDoubleTapAction =
-        [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreviewDoubleTapAction] boolValue];
-    // 旧槽位绑定 → 规则的一次性迁移：启动/刷新时后台执行，避免在双击主路径上
+    self.captureRuleEvaluationToken++;
+    [self hideFloatingPreviewAnimated:NO];
+    // 旧槽位绑定 → 规则的一次性迁移：启动/刷新时后台执行，避免在点击主路径上
     // 做磁盘写。提交走 revision CAS，与设置页并发触发时败者下次重试。
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
       NSError *migrationError = nil;
@@ -1553,7 +1561,7 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     }
     self.floatingPreviewVerticalPosition = MIN(MAX(self.floatingPreviewVerticalPosition, 0.0), 1.0);
     [self applyFloatingPreviewAppearance];
-    if (!self.enabled || !self.floatingPreview) {
+    if (!self.enabled) {
         [self hideFloatingPreviewAnimated:NO];
     }
     self.gestureRecognizerMode =
@@ -1917,7 +1925,13 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
 }
 
 - (void)capturePasteboardChange {
+    if (!NSThread.isMainThread) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self capturePasteboardChange]; });
+        return;
+    }
+    NSUInteger token = ++self.captureRuleEvaluationToken;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      if (token != self.captureRuleEvaluationToken) return;
       [self capturePasteboardChangeNow];
     });
 }
@@ -1927,7 +1941,9 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
         return;
     }
 
+    NSUInteger token = ++self.captureRuleEvaluationToken;
     [[MTPasteboardManager sharedInstance] pullPasteboardChangesWithCompletion:^(BOOL didSaveAnyItem) {
+      if (token != self.captureRuleEvaluationToken) return;
       if ([self.pasteSuppressionState consumeIfActive]) {
           return;
       }
@@ -1935,22 +1951,10 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
           return;
       }
 
-      MTPasteboardItem *latestItem = nil;
-      if (self.floatingPreview && self.enabled && self.mainViewController &&
-          ![self.mainViewController isEditingAnyContent]) {
-          latestItem = [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
-          if (latestItem) {
-              [self showFloatingPreviewForItem:latestItem];
-          }
-      }
-
-      // 复制后自动执行：模块启用时对本次捕获求值，是否执行由各规则自身的 auto
-      // 开关独立决定（引擎 autoOnly 只挑中 auto 规则）。
-      // 冷却窗口（含动作写出的内容）在 performCaptureRule 内兜底。
+      [self hideFloatingPreviewAnimated:NO];
       if (self.enabled) {
-          MTPasteboardItem *autoItem =
-              latestItem ?: [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
-          [self dispatchCaptureRulesForItem:autoItem autoOnly:YES];
+          MTPasteboardItem *item = [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
+          [self dispatchCaptureRulesForItem:item];
       }
 
       NSTimeInterval now = CACurrentMediaTime();

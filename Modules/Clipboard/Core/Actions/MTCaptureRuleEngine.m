@@ -31,6 +31,15 @@ static NSString *MTCaptureRuleName(NSDictionary *entry) {
     return [name substringToIndex:MIN((NSUInteger)MTCaptureRuleNameLimit, name.length)];
 }
 
+static BOOL MTCaptureRuleBool(id value, BOOL fallback) {
+    return [value isKindOfClass:NSNumber.class] ? [value boolValue] : fallback;
+}
+
+static NSString *MTCaptureRuleString(id value, NSString *fallback, NSUInteger limit) {
+    NSString *text = [value isKindOfClass:NSString.class] ? value : fallback;
+    return [text substringToIndex:MIN(limit, text.length)];
+}
+
 @implementation MTCaptureRule
 
 + (NSArray<MTCaptureRule *> *)rulesFromDictionaries:(NSArray *)dictionaries {
@@ -55,8 +64,13 @@ static NSString *MTCaptureRuleName(NSDictionary *entry) {
         rule->_identifier = identifier;
         rule->_name = MTCaptureRuleName(entry);
         // enabled 缺省为开；auto 缺省为关（复制后自动执行默认关闭）。
-        rule->_enabled = entry[@"enabled"] == nil || [entry[@"enabled"] boolValue];
-        rule->_autoRun = [entry[@"auto"] boolValue];
+        rule->_enabled = MTCaptureRuleBool(entry[@"enabled"], YES);
+        rule->_autoRun = MTCaptureRuleBool(entry[@"auto"], NO);
+        rule->_floatingEnabled = MTCaptureRuleBool(entry[@"floatingEnabled"], YES);
+        NSString *symbol = MTCaptureRuleString(entry[@"symbolName"], @"doc.on.clipboard", 128);
+        rule->_symbolName = symbol.length ? symbol : @"doc.on.clipboard";
+        rule->_tooltipEnabled = MTCaptureRuleBool(entry[@"tooltipEnabled"], YES);
+        rule->_tooltipText = MTCaptureRuleString(entry[@"tooltipText"], rule.name, 128);
         rule->_source = source;
         rule->_actions = actions;
         [result addObject:rule];
@@ -70,6 +84,10 @@ static NSString *MTCaptureRuleName(NSDictionary *entry) {
               @"name": self.name ?: @"",
               @"enabled": @(self.enabled),
               @"auto": @(self.autoRun),
+              @"floatingEnabled": @(self.floatingEnabled),
+              @"symbolName": self.symbolName,
+              @"tooltipEnabled": @(self.tooltipEnabled),
+              @"tooltipText": self.tooltipText,
               @"source": self.source ?: @"",
               @"actions": self.actions ?: @[] };
 }
