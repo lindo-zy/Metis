@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>复制后自动执行不再需要总开关：移除原有开关，改为每条规则用各自的自动执行开关独立控制</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.2.9</string>
 		<key>items</key>
 		<array>
@@ -65,31 +78,6 @@
 		</array>
 		<key>version</key>
 		<string>1.2.6</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>剪切板规则：双击采集气泡时按 JS 条件执行不同动作，图片、链接、快递单号等各走各的</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>支持复制后自动执行规则动作，默认关闭，可在设置中按规则单独开启</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>调整</string>
-				<key>text</key>
-				<string>双击气泡未命中任何规则时不再执行动作；原有的文字/图片动作配置会自动转换为规则</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.5</string>
 	</dict>
 </array>
 </plist>

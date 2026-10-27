@@ -173,7 +173,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>双击采集气泡时按 JS 规则执行不同动作；未命中不执行任何动作。旧的文字/图片动作配置会自动转换为规则。</string>
+			<string>双击采集气泡时按 JS 规则执行不同动作；未命中不执行任何动作。复制后自动执行由每条规则内的开关独立控制。旧的文字/图片动作配置会自动转换为规则。</string>
 			<key>label</key>
 			<string>剪切板规则</string>
 		</dict>
@@ -186,20 +186,6 @@
 			<string>capture-rules</string>
 			<key>label</key>
 			<string>剪切板规则 JS</string>
-		</dict>
-		<dict>
-			<key>PostNotification</key>
-			<string>com.lindo.metis.clipboard.preferences.reload</string>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.lindo.metis.clipboard</string>
-			<key>key</key>
-			<string>CaptureRulesAutoEnabled</string>
-			<key>label</key>
-			<string>复制后自动执行</string>
 		</dict>
 		<dict>
 			<key>cell</key>

@@ -615,7 +615,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) BOOL privacyMode;
 @property(nonatomic, assign) BOOL floatingPreview;
 @property(nonatomic, assign) BOOL floatingPreviewDoubleTapAction;
-@property(nonatomic, assign) BOOL captureRulesAutoEnabled;
 @property(nonatomic, assign) CFTimeInterval captureRulesAutoCooldownUntil;
 @property(nonatomic, assign) BOOL floatingPreviewCountdownRing;
 @property(nonatomic, assign) CGFloat floatingPreviewSize;
@@ -1483,7 +1482,6 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
         kMTPreferenceKeyPrivacyMode : @(kMTPreferenceKeyPrivacyModeDefaultValue),
         kMTPreferenceKeyFloatingPreview : @(kMTPreferenceKeyFloatingPreviewDefaultValue),
         kMTPreferenceKeyFloatingPreviewDoubleTapAction : @(kMTPreferenceKeyFloatingPreviewDoubleTapActionDefaultValue),
-        kMTPreferenceKeyCaptureRulesAutoEnabled : @(kMTPreferenceKeyCaptureRulesAutoEnabledDefaultValue),
         kMTPreferenceKeyFloatingPreviewCountdownRing : @(kMTPreferenceKeyFloatingPreviewCountdownRingDefaultValue),
         kMTPreferenceKeyFloatingPreviewSize : @(kMTPreferenceKeyFloatingPreviewSizeDefaultValue),
         kMTPreferenceKeyFloatingPreviewDuration : @(kMTPreferenceKeyFloatingPreviewDurationDefaultValue),
@@ -1521,8 +1519,6 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     self.floatingPreview = [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreview] boolValue];
     self.floatingPreviewDoubleTapAction =
         [[self.preferences objectForKey:kMTPreferenceKeyFloatingPreviewDoubleTapAction] boolValue];
-    self.captureRulesAutoEnabled =
-        [[self.preferences objectForKey:kMTPreferenceKeyCaptureRulesAutoEnabled] boolValue];
     // 旧槽位绑定 → 规则的一次性迁移：启动/刷新时后台执行，避免在双击主路径上
     // 做磁盘写。提交走 revision CAS，与设置页并发触发时败者下次重试。
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
@@ -1948,9 +1944,10 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
           }
       }
 
-      // 复制后自动执行：模块启用 + 总开关打开且存在 auto 规则时对本次捕获求值。
+      // 复制后自动执行：模块启用时对本次捕获求值，是否执行由各规则自身的 auto
+      // 开关独立决定（引擎 autoOnly 只挑中 auto 规则）。
       // 冷却窗口（含动作写出的内容）在 performCaptureRule 内兜底。
-      if (self.enabled && self.captureRulesAutoEnabled) {
+      if (self.enabled) {
           MTPasteboardItem *autoItem =
               latestItem ?: [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
           [self dispatchCaptureRulesForItem:autoItem autoOnly:YES];

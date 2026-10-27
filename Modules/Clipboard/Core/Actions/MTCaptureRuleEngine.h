@@ -16,7 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, readonly) NSString *name;
 // 关闭的规则完全不参与求值；缺省为启用。
 @property (nonatomic, assign, readonly) BOOL enabled;
-// 复制后自动执行；运行端还要求总开关（kMTPreferenceKeyCaptureRulesAutoEnabled）打开。
+// 复制后自动执行；运行端只对开启此开关的规则自动求值，规则之间互相独立。
 @property (nonatomic, assign, readonly) BOOL autoRun;
 @property (nonatomic, copy, readonly) NSString *source;
 // 指向共享资源动作库的 UUID，按序执行，至多 8 个。

@@ -134,7 +134,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 0) return _rules.count ? @"长按规则拖动排序，或点“编辑”使用排序手柄。首个命中的有效规则执行绑定动作；关闭的规则不参与匹配。" : nil;
-    return @"双击采集气泡时按顺序匹配；未命中不执行动作。复制后自动执行需同时打开剪切板总开关和规则内的自动执行开关。";
+    return @"双击采集气泡时按顺序匹配；未命中不执行动作。复制后自动执行由每条规则内的开关独立控制。";
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -333,7 +333,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     return @[@"基本设置", @"JavaScript 匹配条件", @"命中的动作（按序执行）"][section];
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return @"复制后自动执行还需打开剪切板设置中的总开关。修改在点“保存”后生效。";
+    if (section == 0) return @"打开后，复制内容时会自动执行该规则。修改在点“保存”后生效。";
     if (section == 1) return @"match(text, meta) 返回真值即命中。meta.kind 为 text 或 image。沙盒无网络，最多 8 KB、限时 50 ms；连续失败 3 次会在当前进程暂时跳过，修改规则后重置。";
     return @"引用共享自定义动作，最多 8 个；未绑定动作的规则不参与匹配。左滑可移除引用，动作库条目不受影响。";
 }
