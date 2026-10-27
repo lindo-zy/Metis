@@ -73,18 +73,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.2.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>避免重复处理设置直达请求，返回首页后不再自动重进原子页面，并保留再次主动打开链接的能力</string>
-			</dict>
-		</array>
-	</dict>
 </array>
 </plist>
