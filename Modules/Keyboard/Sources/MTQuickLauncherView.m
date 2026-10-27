@@ -494,11 +494,12 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 }
 
 - (void)prefetchFavoriteIcons {
-    [self.favorites enumerateObjects:^(NSString *identifier, NSUInteger index, BOOL *stop) {
-        if (index >= 12) { *stop = YES; return; }
-        if (![identifier isKindOfClass:NSString.class] || [self.iconCache objectForKey:identifier]) return;
+    NSUInteger count = MIN(self.favorites.count, (NSUInteger)12);
+    for (NSUInteger index = 0; index < count; index++) {
+        NSString *identifier = self.favorites[index];
+        if (![identifier isKindOfClass:NSString.class] || [self.iconCache objectForKey:identifier]) continue;
         [self enqueueIconLoadForIdentifier:identifier];
-    }];
+    }
 }
 
 // 快捷动作的 App 图标：先以回退符号占位，加载完成仅当按钮仍指向同一配置时回填。
