@@ -84,9 +84,11 @@ static NSString *MTContextSearchURLString(NSString *text) {
     return [base stringByAppendingString:escaped];
 }
 
-BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, MTContextGroup group) {
-    MTContextGroupSettings *settings = [MTContextGroupSettings settingsFromPreferences:config.preferences];
-    if (!s.inputAvailable || s.secureInput || !settings.enabled || ![config slotsForGroup:MTContextGroupKey(group)]) return NO;
+// slots 由调用方给出：普通判定用「本组自己的格数」，应用组预留期间用「剩余格数」——
+// 后者是共享池，绑定格布局下补位组不会因为自己只有一格而补不满。
+static BOOL MTContextGroupActiveWithSlots(MTContextSnapshot *s, MTContextGroupConfig *config,
+                                          MTContextGroupSettings *settings, MTContextGroup group, NSUInteger slots) {
+    if (!s.inputAvailable || s.secureInput || !settings.enabled || !slots) return NO;
     switch (group) {
         case MTContextGroupDelete: return ![config.preferences[kContextDeleteGroupKey] isEqual:@NO] && s.deletedLength > 0 && s.deleteAge >= 0.3 && s.deleteAge < 3 && s.canUndo;
         case MTContextGroupSelection: return settings.selectionEnabled && s.selectionLength > 0;
@@ -102,6 +104,13 @@ BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, 
         }
         default: return NO;
     }
+}
+
+BOOL MTContextGroupIsActive(MTContextSnapshot *s, MTContextGroupConfig *config, MTContextGroup group) {
+    MTContextGroupSettings *settings = [MTContextGroupSettings settingsFromPreferences:config.preferences];
+    // 应用组的格位按「全部上下文格」算，命中时可覆盖绑定格；其余组只看自己的格位。
+    NSUInteger slots = group == MTContextGroupApp ? [config contextSlotCount] : [config slotsForGroup:MTContextGroupKey(group)];
+    return MTContextGroupActiveWithSlots(s, config, settings, group, slots);
 }
 
 // 选择器 → 可执行动作。URL/AI 这类需要文本的动作在缺文本时留空占位，保证后续
@@ -173,9 +182,11 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
     if (deletion) ttl = ttl > 0 ? MIN(ttl, 3 - snapshot.deleteAge) : 3 - snapshot.deleteAge;
     // 应用动作组最高优先：命中宿主即占据预留区前 N 格（N = 组内动作数，上限为槽位数），
     // 其余格子仍由后续组按优先级补齐；其他组再活跃也不能把已配置的应用按钮挤掉。
+    // 预留区按「全部上下文格」计算：格子绑定到具体组时同样让位给应用动作，
+    // 未命中宿主时绑定语义保持原样（渲染端只在应用组获胜时放宽格数）。
     NSMutableArray *combined = [NSMutableArray array];
     NSString *appReason = nil;
-    NSUInteger appSlots = [config slotsForGroup:@"app"];
+    NSUInteger appSlots = [config contextSlotCount];
     if (snapshot.hostBundleID.length && appSlots) {
         id appSwitch = config.preferences[kContextAppGroupKey];
         if (![appSwitch isKindOfClass:NSNumber.class] || [appSwitch boolValue]) {
@@ -196,10 +207,14 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
     NSUInteger remaining = reserved ? appSlots - reserved : 0;
 
     for (NSNumber *number in MTContextPriority(config.preferences)) {
-        MTContextGroup group = number.integerValue; BOOL active = MTContextGroupIsActive(snapshot, config, group);
+        MTContextGroup group = number.integerValue;
         NSString *key = MTContextGroupKey(group);
         if (group == MTContextGroupApp) continue; // 已在上方预留，不再参与竞争。
-        NSUInteger slots = reserved ? MIN(remaining, [config slotsForGroup:key]) : [config slotsForGroup:key];
+        // 应用组已预留时，剩余格是一个共享池：活跃判断与补位上限都用剩余格数，
+        // 这样绑定格布局下补位组也能把剩余格补满；未预留时保持各组原槽位数。
+        NSUInteger slots = reserved ? remaining : [config slotsForGroup:key];
+        BOOL active = reserved ? MTContextGroupActiveWithSlots(snapshot, config, settings, group, slots)
+                               : MTContextGroupIsActive(snapshot, config, group);
         if (!active || !slots) continue;
         if (group == MTContextGroupIdle) {
             // Idle 组不产动作：应用组已预留时返回应用决策（剩余格维持占位），否则按原样兜底。

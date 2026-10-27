@@ -196,6 +196,12 @@ static BOOL MTContextSourceHasValidSyntax(NSString *source) {
     for (NSDictionary *entry in entries) if ([entry[@"kind"] isEqual:@"context"] && ([entry[@"value"] isEqual:@"auto"] || [entry[@"value"] isEqual:MTContextCanonicalGroup(group)])) count++;
     return MIN((NSUInteger)8, count);
 }
+- (NSUInteger)contextSlotCount {
+    NSDictionary *layout = MTBottomBarLayout(self.preferences); NSUInteger count = 0;
+    NSArray *entries = [layout[@"left"] arrayByAddingObjectsFromArray:[layout[@"single"] boolValue] ? @[] : layout[@"right"]];
+    for (NSDictionary *entry in entries) if ([entry[@"kind"] isEqual:@"context"]) count++;
+    return MIN((NSUInteger)8, count);
+}
 - (NSDictionary *)dictionaryRepresentation {
     NSMutableDictionary *groups = [NSMutableDictionary dictionary];
     for (NSString *key in MTContextGroupKeys()) {

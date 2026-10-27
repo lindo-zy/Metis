@@ -41,5 +41,8 @@ FOUNDATION_EXPORT NSString *MTContextTypeTitle(NSString *identifier);
 + (NSDictionary *)migratePreferences:(NSDictionary *)preferences;
 - (NSArray<MTContextType *> *)typesForGroup:(NSString *)group;
 - (NSUInteger)slotsForGroup:(NSString *)group;
+// 底栏可换内容的格数（不区分 auto / 绑定到某个组）。应用动作组的预留区按这个
+// 口径计算：命中宿主时预留前 N 格一律给应用组，绑定关系在命中期间让位。
+- (NSUInteger)contextSlotCount;
 - (NSDictionary *)dictionaryRepresentation;
 @end

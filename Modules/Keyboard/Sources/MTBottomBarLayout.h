@@ -102,10 +102,17 @@ static inline double MTBottomBarLeftFraction(NSDictionary *layout) {
 
 // A group occupies a stable cell even when its trigger is inactive. Only the
 // winning group may supply actions; rendering never reads clipboard/input.
+// 应用组获胜时预留区覆盖全部上下文格（含绑定到具体组的格子），未获胜时绑定格
+// 只认自己的组——保证「命中宿主后前 N 格一定是应用动作」。
+static inline BOOL MTBottomBarAppCoversCells(NSString *winningGroup) {
+    return [winningGroup isEqual:@"app"];
+}
+
 static inline MTContextAction *MTBottomBarContextAction(NSDictionary *entry, MTContextDecision *decision) {
     if (![entry[@"kind"] isEqual:@"context"] || !decision) return nil;
     NSString *group = entry[@"value"];
-    if (![group isEqual:@"auto"] && ![group isEqual:MTContextGroupKey(decision.group)]) return nil;
+    if (![group isEqual:@"auto"] && ![group isEqual:MTContextGroupKey(decision.group)] &&
+        !MTBottomBarAppCoversCells(MTContextGroupKey(decision.group))) return nil;
     NSUInteger index = [entry[@"index"] unsignedIntegerValue];
     return index < decision.actions.count ? decision.actions[index] : nil;
 }
@@ -113,12 +120,13 @@ static inline MTContextAction *MTBottomBarContextAction(NSDictionary *entry, MTC
 // Index in the winning group's visible cells, including auto cells and bound cells.
 static inline NSInteger MTBottomBarContextOrdinal(NSDictionary *layout, NSUInteger segmentIndex, NSUInteger row, NSString *group) {
     NSInteger ordinal = 0;
+    BOOL covers = MTBottomBarAppCoversCells(group);
     NSArray *segments = @[layout[@"left"] ?: @[], [layout[@"single"] boolValue] ? @[] : (layout[@"right"] ?: @[])];
     for (NSUInteger s = 0; s < segments.count; s++) {
         NSArray *entries = segments[s];
         for (NSUInteger i = 0; i < entries.count; i++) {
             NSDictionary *entry = entries[i];
-            BOOL eligible = [entry[@"kind"] isEqual:@"context"] && ([entry[@"value"] isEqual:@"auto"] || [entry[@"value"] isEqual:group]);
+            BOOL eligible = [entry[@"kind"] isEqual:@"context"] && (covers || [entry[@"value"] isEqual:@"auto"] || [entry[@"value"] isEqual:group]);
             if (s == segmentIndex && i == row) return eligible ? ordinal : -1;
             if (eligible) ordinal++;
         }

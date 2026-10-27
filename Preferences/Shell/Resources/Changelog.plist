@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复底栏格子绑定到具体动作组时应用动作组不生效的问题：进入配置的 App 后，前几个按钮固定为该 App 的动作，剩余按钮再由其他动作组补齐</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.0</string>
 		<key>items</key>
 		<array>
@@ -65,19 +78,6 @@
 				<string>规则列表支持直接启停、长按拖动和编辑排序，优先级从上到下；修复异步返回误命中和连续失败计数</string>
 			</dict>
 		</array>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>应用动作组升级为最高优先级：进入绑定的 App 时组内按钮先占据底栏预留区，多余格位继续由复制、选区等其他动作组补齐</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.6</string>
 	</dict>
 </array>
 </plist>
