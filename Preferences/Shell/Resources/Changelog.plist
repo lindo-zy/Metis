@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>剪切板气泡提示改为与悬浮小球一致的同色背景，文字颜色随背景深浅自动适配，整体观感更统一。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.1</string>
 		<key>items</key>
 		<array>
@@ -71,25 +84,6 @@
 				<string>修复九键搜索按键及应用选择等待双击判定的问题，连续输入、清空和点选应用及时响应，同时保留顶部双击复位与左右滑动切换。</string>
 			</dict>
 		</array>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>快速面板打开更流畅：快捷动作图标改为后台加载，常用应用图标提前准备，首屏直接完整显示</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>重复打开快速面板时，相同九键输入直接复用上次搜索结果，配置未变时不再重复检索</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.3.8</string>
 	</dict>
 </array>
 </plist>

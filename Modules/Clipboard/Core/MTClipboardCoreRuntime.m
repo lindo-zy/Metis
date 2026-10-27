@@ -182,6 +182,7 @@ NS_ASSUME_NONNULL_END
 
 - (void)setPreviewImage:(nullable UIImage *)image;
 - (void)applyBubbleDiameter:(CGFloat)diameter color:(UIColor *)color;
+- (void)applyTooltipBackgroundWithColor:(UIColor *)color;
 - (void)startCountdownRingWithDuration:(NSTimeInterval)duration;
 - (void)stopCountdownRing;
 
@@ -238,12 +239,9 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     self.symbolView.userInteractionEnabled = NO;
     [button addSubview:self.symbolView];
     [self setPanGestureRecognizer:panGestureRecognizer];
-    UIVisualEffectView *tooltip = [[UIVisualEffectView alloc] initWithEffect:
-        [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight]];
-    tooltip.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.12];
+    UIView *tooltip = [[UIView alloc] init];
     tooltip.layer.cornerRadius = 14;
     tooltip.clipsToBounds = YES;
-    tooltip.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
     tooltip.layer.shadowColor = UIColor.blackColor.CGColor;
     tooltip.layer.shadowOpacity = 0.2;
     tooltip.layer.shadowRadius = 8;
@@ -255,10 +253,10 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     self.tooltipView = tooltip;
     self.tooltipLabel = [UILabel new];
     self.tooltipLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    self.tooltipLabel.textColor = [UIColor colorWithWhite:0.15 alpha:1];
     self.tooltipLabel.numberOfLines = 2;
     self.tooltipLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-    [tooltip.contentView addSubview:self.tooltipLabel];
+    [tooltip addSubview:self.tooltipLabel];
+    [self applyTooltipBackgroundWithColor:self.bubbleColor];
     [self installCountdownRingLayers];
 }
 
@@ -290,8 +288,20 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
     [self setBubbleColor:color ?: [UIColor colorWithWhite:0.20 alpha:0.92]];
     [[self button] setBackgroundColor:[[self bubbleColor] colorWithAlphaComponent:0.92]];
     [[self button] layer].cornerRadius = [self bubbleDiameter] * 0.5;
+    [self applyTooltipBackgroundWithColor:self.bubbleColor];
     [self refreshCountdownRingColors];
     [[self view] setNeedsLayout];
+}
+
+// The tooltip reads as part of the ball: same background, text flips for contrast.
+- (void)applyTooltipBackgroundWithColor:(UIColor *)color {
+    CGFloat red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0;
+    [color getRed:&red green:&green blue:&blue alpha:&alpha];
+    CGFloat luminance = red * 0.299 + green * 0.587 + blue * 0.114;
+    [[self tooltipView] setBackgroundColor:[color colorWithAlphaComponent:0.92]];
+    [[self tooltipLabel] setTextColor:luminance > 0.6
+        ? [UIColor colorWithWhite:0.15 alpha:1.0]
+        : [UIColor colorWithWhite:0.95 alpha:1.0]];
 }
 
 - (void)handlePanGestureRecognizer:(UIPanGestureRecognizer *)gestureRecognizer {
