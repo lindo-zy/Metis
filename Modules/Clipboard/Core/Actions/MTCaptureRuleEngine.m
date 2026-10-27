@@ -10,7 +10,7 @@
 #import <dlfcn.h>
 
 static NSUInteger const MTCaptureRuleMaxCount = 32;
-static NSUInteger const MTCaptureRuleMaxActions = 8;
+static NSUInteger const MTCaptureRuleMaxActions = 1;
 static NSUInteger const MTCaptureRuleNameLimit = 128;
 static NSUInteger const MTCaptureRuleSourceLimit = 8192;
 static NSUInteger const MTCaptureRuleTextLimit = 2000;
@@ -38,6 +38,15 @@ static BOOL MTCaptureRuleBool(id value, BOOL fallback) {
 static NSString *MTCaptureRuleString(id value, NSString *fallback, NSUInteger limit) {
     NSString *text = [value isKindOfClass:NSString.class] ? value : fallback;
     return [text substringToIndex:MIN(limit, text.length)];
+}
+
+static NSString *MTCaptureRuleSymbolColor(id value) {
+    if (![value isKindOfClass:NSString.class]) return @"#007AFF";
+    NSString *hex = [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if ([hex hasPrefix:@"#"]) hex = [hex substringFromIndex:1];
+    NSCharacterSet *invalid = [[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"] invertedSet];
+    if (hex.length != 6 || [hex rangeOfCharacterFromSet:invalid].location != NSNotFound) return @"#007AFF";
+    return [@"#" stringByAppendingString:hex.uppercaseString];
 }
 
 @implementation MTCaptureRule
@@ -69,6 +78,7 @@ static NSString *MTCaptureRuleString(id value, NSString *fallback, NSUInteger li
         rule->_floatingEnabled = MTCaptureRuleBool(entry[@"floatingEnabled"], YES);
         NSString *symbol = MTCaptureRuleString(entry[@"symbolName"], @"doc.on.clipboard", 128);
         rule->_symbolName = symbol.length ? symbol : @"doc.on.clipboard";
+        rule->_symbolColor = MTCaptureRuleSymbolColor(entry[@"symbolColor"]);
         rule->_tooltipEnabled = MTCaptureRuleBool(entry[@"tooltipEnabled"], YES);
         rule->_tooltipText = MTCaptureRuleString(entry[@"tooltipText"], rule.name, 128);
         rule->_source = source;
@@ -86,6 +96,7 @@ static NSString *MTCaptureRuleString(id value, NSString *fallback, NSUInteger li
               @"auto": @(self.autoRun),
               @"floatingEnabled": @(self.floatingEnabled),
               @"symbolName": self.symbolName,
+              @"symbolColor": self.symbolColor,
               @"tooltipEnabled": @(self.tooltipEnabled),
               @"tooltipText": self.tooltipText,
               @"source": self.source ?: @"",

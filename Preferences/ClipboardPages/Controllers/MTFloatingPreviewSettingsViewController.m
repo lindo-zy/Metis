@@ -35,7 +35,7 @@
         [self addSubview:bubbleView];
         [self setBubbleView:bubbleView];
         self.symbolView = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"doc.on.clipboard"]];
-        self.symbolView.tintColor = UIColor.systemPurpleColor;
+        self.symbolView.tintColor = UIColor.systemBlueColor;
         self.symbolView.contentMode = UIViewContentModeScaleAspectFit;
         [bubbleView addSubview:self.symbolView];
         [self setBubbleDiameter:kMTPreferenceKeyFloatingPreviewSizeDefaultValue];
@@ -53,7 +53,7 @@
                                            diameter,
                                            diameter)];
     [[self bubbleView] layer].cornerRadius = diameter * 0.5;
-    self.symbolView.frame = CGRectInset(self.bubbleView.bounds, diameter * 0.27, diameter * 0.27);
+    self.symbolView.frame = CGRectInset(self.bubbleView.bounds, diameter * 0.29, diameter * 0.29);
 }
 
 - (void)setBubbleDiameter:(CGFloat)bubbleDiameter {

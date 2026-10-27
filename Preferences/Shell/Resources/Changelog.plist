@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>调整</string>
+				<key>text</key>
+				<string>剪切板每条 JS 规则仅绑定一个共享动作，旧配置保留首个动作，支持直接更换或移除引用。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>小球 SF 图标缩小并支持独立配置颜色，默认蓝色；气泡改为窄版纯文本半透明磨砂提示，1 秒后自动消失。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.10</string>
 		<key>items</key>
 		<array>
@@ -65,19 +84,6 @@
 		</array>
 		<key>version</key>
 		<string>1.3.7</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>悬浮九宫格空搜索只显示常用应用，输入九键后再搜索全部可启动应用；复用应用搜索索引、结果格子和图标任务，减少切换、连续输入与重复打开时的卡顿</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.3.6</string>
 	</dict>
 </array>
 </plist>

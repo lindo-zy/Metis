@@ -19,10 +19,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) BOOL autoRun;
 @property (nonatomic, assign, readonly) BOOL floatingEnabled;
 @property (nonatomic, copy, readonly) NSString *symbolName;
+// #RRGGBB，缺省或非法值使用蓝色 #007AFF。
+@property (nonatomic, copy, readonly) NSString *symbolColor;
 @property (nonatomic, assign, readonly) BOOL tooltipEnabled;
 @property (nonatomic, copy, readonly) NSString *tooltipText;
 @property (nonatomic, copy, readonly) NSString *source;
-// 指向共享资源动作库的 UUID，按序执行，至多 8 个。
+// 指向共享资源动作库的 UUID，至多一个；旧配置保留首个有效引用。
 @property (nonatomic, copy, readonly) NSArray<NSString *> *actions;
 
 // 防御性解析：非法条目（缺 id/source 超限/结构不对）直接丢弃，不抛错。
