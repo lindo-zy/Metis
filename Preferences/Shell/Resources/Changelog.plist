@@ -9,6 +9,12 @@
 		<array>
 			<dict>
 				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复网页输入框、自绘输入框里底栏仍显示悬浮应用而不显示配置动作的问题：改为直接向键盘获取当前输入框，不再依赖输入框自身的激活通知</string>
+			</dict>
+			<dict>
+				<key>tag</key>
 				<string>优化</string>
 				<key>text</key>
 				<string>优化悬浮面板九宫格搜索：应用图标在后台加载并缓存，连续输入取消过期搜索，减少重复列表刷新与卡顿</string>

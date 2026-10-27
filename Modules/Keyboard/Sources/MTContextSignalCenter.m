@@ -3,6 +3,7 @@
 #import "MTContextClassifier.h"
 #import "MTPrefsManager.h"
 #import "common.h"
+#import <objc/message.h>
 
 NSNotificationName const MTContextGroupDidChangeNotification = @"MTContextGroupDidChangeNotification";
 
@@ -62,6 +63,25 @@ static id<UITextInput> MTContextTextInputForResponder(UIResponder *responder) {
     if (![responder isKindOfClass:UIResponder.class]) return nil;
     if (![responder conformsToProtocol:@protocol(UITextInput)]) return nil;
     return (id<UITextInput>)responder;
+}
+
+// 当前键盘的输入响应者：与 Keyboard 模块的 MTKeyboardInputDelegate 同源
+// （iOS 17 移除了 privateInputDelegate，退回 inputDelegate）。非原生输入视图
+// 同样由这两个属性给出，因此不依赖 becomeFirstResponder: 的 hook 是否命中。
+static UIResponder *MTContextKeyboardInputDelegate(void) {
+    Class keyboardClass = NSClassFromString(@"UIKeyboardImpl");
+    SEL activeSelector = NSSelectorFromString(@"activeInstance");
+    if (!keyboardClass || ![keyboardClass respondsToSelector:activeSelector]) return nil;
+    id (*sendObject)(id, SEL) = (id (*)(id, SEL))objc_msgSend;
+    id keyboard = sendObject(keyboardClass, activeSelector);
+    if (!keyboard) return nil;
+    for (NSString *name in @[@"privateInputDelegate", @"inputDelegate"]) {
+        SEL selector = NSSelectorFromString(name);
+        if (![keyboard respondsToSelector:selector]) continue;
+        id value = sendObject(keyboard, selector);
+        if ([value isKindOfClass:UIResponder.class]) return (UIResponder *)value;
+    }
+    return nil;
 }
 
 // 密码框必须当成「有输入框但不可读」：原生两类直接取属性，其余按 UITextInputTraits 问。
@@ -387,7 +407,20 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     MTContextSnapshot *snapshot = [MTContextSnapshot new];
     snapshot.hostBundleID = MTHostBundleIdentifier();
     UIResponder *responder = self.activeResponder;
-    if ([responder isFirstResponder]) {
+    BOOL responderIsActive = [responder isFirstResponder];
+    if (!responderIsActive) {
+        // 自愈：hook 覆盖不到（网页输入框、自绘输入框、hook 时序晚于首次判定）时，
+        // 直接问键盘当前的输入响应者，不再等 becomeFirstResponder: 上报。
+        // 键盘自己的输入 delegate 本身就代表「此刻在输入」，个别输入视图不是
+        // first responder，因此这里不再要求 isFirstResponder。
+        UIResponder *resolved = MTContextKeyboardInputDelegate();
+        if (resolved && [resolved conformsToProtocol:@protocol(UITextInput)]) {
+            responder = resolved;
+            responderIsActive = YES;
+            if (!self.activeResponder) self.activeResponder = resolved;
+        }
+    }
+    if (responderIsActive) {
         if ([responder isKindOfClass:UITextField.class]) {
             UITextField *field = (UITextField *)responder;
             snapshot.inputAvailable = YES;
@@ -422,6 +455,17 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
                 }
             }
         }
+    }
+    // 仍然没有输入会话时留一次诊断：底栏此时会退化成悬浮应用，需要能从日志分辨
+    // 「响应者取不到」和「取到了但没动作」。
+    if (!snapshot.inputAvailable) {
+        static dispatch_once_t noInputOnce;
+        dispatch_once(&noInputOnce, ^{
+            NSLog(@"[Metis] context no-input host=%@ responder=%@ firstResponder=%d",
+                  snapshot.hostBundleID ?: @"(nil)",
+                  responder ? NSStringFromClass([responder class]) : @"(nil)",
+                  responderIsActive);
+        });
     }
     // 安全输入框不读任何内容，只保留「有输入框」这一事实。
     snapshot.selectionLength = snapshot.secureInput ? 0 : self.selectionLength;
@@ -505,6 +549,16 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
     }
     MTContextSnapshot *snapshot = [self snapshotNow];
     MTContextDecision *decision = [MTContextGroupEngine decisionForSnapshot:snapshot config:[self currentConfig]];
+    // 判定落空时留一条诊断（每进程一次）：底栏这时候会显示悬浮应用补位，
+    // 日志用来区分「没识别到输入」和「识别到了但小组没产出动作」。
+    if (decision.group == MTContextGroupDefault) {
+        static dispatch_once_t emptyOnce;
+        dispatch_once(&emptyOnce, ^{
+            NSLog(@"[Metis] context no-action host=%@ input=%d len=%lu reason=%@",
+                  snapshot.hostBundleID ?: @"(nil)", snapshot.inputAvailable,
+                  (unsigned long)snapshot.inputLength, decision.reason);
+        });
+    }
     NSTimeInterval remainingLock = self.lockedUntil - MTContextNow();
     if (remainingLock > 0 && snapshot.inputAvailable && !snapshot.secureInput) {
         // Freeze presentation after a tap; actions always execute freshly evaluated payloads.
@@ -527,9 +581,9 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
 
 - (void)applyDecision:(MTContextDecision *)decision generation:(NSUInteger)generation {
     if ([self.currentDecision isEquivalentToDecision:decision]) return;
-    NSLog(@"[MetisKeyboard][ContextGroup] %@ -> %@ reason=%@ actions=%lu",
+    NSLog(@"[MetisKeyboard][ContextGroup] %@ -> %@ host=%@ reason=%@ actions=%lu",
           MTContextGroupName(self.currentDecision.group), MTContextGroupName(decision.group),
-          decision.reason, (unsigned long)decision.actions.count);
+          MTHostBundleIdentifier() ?: @"(nil)", decision.reason, (unsigned long)decision.actions.count);
     self.currentDecision = decision;
     [[NSNotificationCenter defaultCenter] postNotificationName:MTContextGroupDidChangeNotification object:self];
 }
