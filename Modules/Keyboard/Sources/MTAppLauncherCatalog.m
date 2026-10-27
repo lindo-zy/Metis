@@ -33,6 +33,10 @@ static BOOL MTLauncherHiddenTags(id tags) {
 @property(nonatomic, strong) id workspace;
 @property(nonatomic, copy) NSArray<NSDictionary *> *records; // worker queue only
 @property(nonatomic, strong) NSDate *loadedAt; // worker queue only
+// All index cache state is worker-only; records retain their identity until a rescan.
+@property(nonatomic, copy) NSArray<MTAppSearchEntry *> *indexedEntries;
+@property(nonatomic, strong) NSArray *indexedRecords;
+@property(nonatomic, copy) NSDictionary *indexedAliases;
 @property(nonatomic) BOOL observing;
 @end
 
@@ -51,7 +55,7 @@ static BOOL MTLauncherHiddenTags(id tags) {
 - (void)applicationsDidUninstall:(__unused NSArray *)applications { [self invalidate]; }
 - (void)applicationDatabaseDidChange { [self invalidate]; }
 - (void)invalidate {
-    dispatch_async(self.worker, ^{ self.loadedAt = nil; });
+    dispatch_async(self.worker, ^{ self.loadedAt = nil; self.indexedEntries = nil; });
     dispatch_async(dispatch_get_main_queue(), ^{ if (self.didInvalidate) self.didInvalidate(); });
 }
 - (void)prepareWorkspace {
@@ -74,7 +78,7 @@ static BOOL MTLauncherHiddenTags(id tags) {
     NSAssert(NSThread.isMainThread, @"Launcher catalogue must be requested on the main thread");
     [self prepareWorkspace];
     id workspace = self.workspace;
-    NSDictionary *aliasSnapshot = [aliases copy], *fallback = [names copy];
+    NSDictionary *aliasSnapshot = [aliases copy] ?: @{}, *fallback = [names copy] ?: @{};
     dispatch_async(self.worker, ^{
         @autoreleasepool {
             BOOL available = self.loadedAt != nil;
@@ -105,7 +109,8 @@ static BOOL MTLauncherHiddenTags(id tags) {
                             @"english": [english isKindOfClass:NSString.class] ? english : @""}];
                         [seen addObject:identifier];
                     }
-                    self.records = records; self.loadedAt = NSDate.date;
+                    if (![self.records isEqualToArray:records]) self.records = records;
+                    self.loadedAt = NSDate.date;
                 } else { self.loadedAt = nil; }
                 NSLog(@"[MetisKeyboard][Launcher] catalogue available=%d count=%lu", available, (unsigned long)self.records.count);
             }
@@ -115,6 +120,12 @@ static BOOL MTLauncherHiddenTags(id tags) {
                 for (NSString *identifier in fallback) [seed addObject:@{@"id": identifier, @"name": fallback[identifier]}];
                 records = seed;
             }
+            if (available && self.indexedEntries && self.indexedRecords == records &&
+                [self.indexedAliases isEqual:aliasSnapshot]) {
+                NSArray *cached = self.indexedEntries;
+                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(cached, available); });
+                return;
+            }
             NSMutableArray *entries = [NSMutableArray array];
             for (NSDictionary *record in records) {
                 id raw = aliasSnapshot[record[@"id"]];
@@ -122,6 +133,9 @@ static BOOL MTLauncherHiddenTags(id tags) {
                 if ([raw isKindOfClass:NSArray.class]) [terms addObjectsFromArray:raw];
                 if ([record[@"english"] length]) [terms addObject:record[@"english"]];
                 [entries addObject:[MTAppSearchEntry entryWithIdentifier:record[@"id"] name:record[@"name"] aliases:terms]];
+            }
+            if (available) {
+                self.indexedEntries = entries; self.indexedRecords = records; self.indexedAliases = aliasSnapshot;
             }
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(entries, available); });
         }
