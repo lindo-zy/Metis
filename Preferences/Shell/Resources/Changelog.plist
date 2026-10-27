@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复设置直达链接触发两套路由的问题，返回首页后不再因重复导航重新进入子页面</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.6</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>首页移除搜索框，设置项按分类直接浏览</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.3.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复在网页输入框、跨平台框架自绘输入框（如 WorkBuddy）里底栏动作全部失效的问题：输入会话改为按输入框协议识别，不再只认系统原生输入框，应用动作组与复制、粘贴等动作组在这些 App 里同样可用</string>
 			</dict>
 		</array>
 	</dict>

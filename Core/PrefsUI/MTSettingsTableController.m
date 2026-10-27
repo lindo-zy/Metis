@@ -6,8 +6,15 @@
 #import "MTLog.h"
 #import <objc/message.h>
 
+// The bundled Theos header exposes only the legacy notification selector.
+// iOS 16/17 PSListController dispatches through this completion-bearing entry.
+@interface PSListController (MTSettingsURLCompletionCompatibility)
+- (void)handleURL:(id)url withCompletion:(void (^)(void))completion;
+@end
+
 @interface MTSettingsTableController ()
 @property (nonatomic, copy) NSDictionary *mtPendingSettingsURL;
+@property (nonatomic, copy) void (^mtPendingSettingsURLCompletion)(void);
 @property (nonatomic) BOOL mtOwnsSettingsURL;
 // 栈锚点：本页为某条路径压出的子控制器（URL 直达与行点按共用）。
 // 锚点描述导航栈的事实而非某次投递：只要锚定子控制器还在栈内，
@@ -122,20 +129,41 @@
         dispatch_async(dispatch_get_main_queue(), ^{ [self handleURL:url]; });
         return;
     }
+    if (![self mtHandleSettingsURL:url completion:nil]) [super handleURL:url];
+}
+
+- (void)handleURL:(id)url withCompletion:(void (^)(void))completion {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self handleURL:url withCompletion:completion]; });
+        return;
+    }
+    MTLogInfo(MTLogModulePrefs, @"state=settings-url-entry source=%@ instance=%p modern=1",
+              NSStringFromClass(self.class), (__bridge void *)self);
+    // Do not enter PSURLControllerHandler for a model route: that handler
+    // invokes handleURL: as a notification, then continues native navigation.
+    // Overriding only the notification lets native and custom pushes coexist.
+    if ([self mtHandleSettingsURL:url completion:completion]) return;
+    if ([PSListController instancesRespondToSelector:@selector(handleURL:withCompletion:)]) {
+        [super handleURL:url withCompletion:completion];
+    } else {
+        [super handleURL:url];
+        if (completion) completion();
+    }
+}
+
+- (BOOL)mtHandleSettingsURL:(id)url completion:(void (^)(void))completion {
     NSDictionary *resources = [self mtSettingsResourcesForURL:url];
     id path = resources[@"path"];
     if (![path isKindOfClass:NSString.class] || ![path length]) {
         [self mtReleaseSettingsURL];
-        [super handleURL:url];
-        return;
+        return NO;
     }
     NSArray<NSString *> *components = [self settingsPathComponents:[path componentsSeparatedByString:@"/"]];
     [self prepareSettingsModel];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
     if (!row || [components containsObject:@""]) {
         [self mtReleaseSettingsURL];
-        [super handleURL:url];
-        return;
+        return NO;
     }
     // Resolve against the persistent model, never search-result specifiers.
     self.mtOwnsSettingsURL = YES;
@@ -163,24 +191,31 @@
             MTLogInfo(MTLogModulePrefs, @"state=settings-url-duplicate-consumed source=%@ reason=%@",
                       NSStringFromClass(self.class),
                       sameTarget ? @"self" : (targetsAncestor ? @"ancestor" : @"transition"));
-            return;
+            if (completion) completion();
+            return YES;
         }
         if (extendsAnchor) {
             // The anchored child is already open: hand it the deeper path
             // instead of stacking a second instance of it.
             MTLogInfo(MTLogModulePrefs, @"state=settings-url-extend-open source=%@ target=%@",
                       NSStringFromClass(self.class), self.mtRoutedPath);
-            [self mtForwardPath:resources toComponents:components controller:self.mtRoutedChildController];
-            return;
+            [self mtForwardPath:resources toComponents:components controller:self.mtRoutedChildController
+                     completion:completion];
+            return YES;
         }
     }
     self.mtReturningFromChild = NO;
     self.overlayModel = nil;
     NSMutableDictionary *pending = [resources mutableCopy];
     pending[@"path"] = canonicalPath;
+    void (^supersededCompletion)(void) = self.mtPendingSettingsURLCompletion;
     self.mtPendingSettingsURL = pending;
+    self.mtPendingSettingsURLCompletion = completion;
     // Coalesce repeated delivery and let Settings finish attaching the page.
     dispatch_async(dispatch_get_main_queue(), ^{ [self mtOpenPendingSettingsURL]; });
+    // A superseded request is settled once; the latest request owns the queue.
+    if (supersededCompletion) supersededCompletion();
+    return YES;
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -201,8 +236,11 @@
 // 交给超类原生的投递只归还队列所有权；栈锚点是导航栈的事实，
 // 不随单次投递失效（锚定子控制器出栈时才惰性释放）。
 - (void)mtReleaseSettingsURL {
+    void (^completion)(void) = self.mtPendingSettingsURLCompletion;
+    self.mtPendingSettingsURLCompletion = nil;
     self.mtPendingSettingsURL = nil;
     self.mtOwnsSettingsURL = NO;
+    if (completion) completion();
 }
 
 /// 压栈后由 URL 直达与行点按共同调用的锚点记录（Shell 子包路由亦经此登记）。
@@ -236,32 +274,48 @@
 
 // 把除首段外的剩余子路径按 Preferences 资源字典转发给目标控制器。
 - (void)mtForwardPath:(NSDictionary *)resources toComponents:(NSArray<NSString *> *)components
-             controller:(PSViewController *)controller {
-    if (components.count < 2 || ![controller respondsToSelector:@selector(handleURL:)]) return;
+             controller:(PSViewController *)controller completion:(void (^)(void))completion {
+    if (components.count < 2 || !controller) {
+        if (completion) completion();
+        return;
+    }
     NSMutableDictionary *remaining = [resources mutableCopy];
     remaining[@"path"] = [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]
         componentsJoinedByString:@"/"];
-    [controller handleURL:(id)remaining];
+    SEL modern = @selector(handleURL:withCompletion:);
+    if ([controller respondsToSelector:modern]) {
+        ((void (*)(id, SEL, id, id))objc_msgSend)(controller, modern, remaining, completion);
+    } else {
+        if ([controller respondsToSelector:@selector(handleURL:)]) [controller handleURL:(id)remaining];
+        if (completion) completion();
+    }
 }
 
 - (void)mtOpenPendingSettingsURL {
     NSDictionary *resources = self.mtPendingSettingsURL;
     if (!resources || self.navigationController.topViewController != self || !self.view.window) return;
+    void (^completion)(void) = self.mtPendingSettingsURLCompletion;
+    self.mtPendingSettingsURLCompletion = nil;
     self.mtPendingSettingsURL = nil;
     [self mtClearNativePendingSettingsURL];
     NSArray<NSString *> *components = [resources[@"path"] componentsSeparatedByString:@"/"];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
-    if (!row) return;
+    if (!row) {
+        if (completion) completion();
+        return;
+    }
     [self render];
     if (row.kind != MTSettingsRowKindLink || row.routeKind == MTSettingsRouteNone ||
         row.routeKind == MTSettingsRouteInPage) {
         // A URL to a switch/setting locates it; it must never execute a toggle.
         if (components.count == 1) [self flashRowWithIdentifier:row.identifier];
+        if (completion) completion();
         return;
     }
     Class controllerClass = [self controllerClassForSettingsRow:row];
     if (!controllerClass || ![controllerClass isSubclassOfClass:PSViewController.class]) {
         MTLogError(MTLogModulePrefs, @"state=settings-url-route-unavailable");
+        if (completion) completion();
         return;
     }
     PSViewController *controller = [[controllerClass alloc] init];
@@ -270,7 +324,7 @@
     MTLogInfo(MTLogModulePrefs, @"state=settings-url-route-open source=%@ target=%@ remaining=%lu",
               NSStringFromClass(self.class), NSStringFromClass(controllerClass), (unsigned long)(components.count - 1));
     // Non-model PSListController children keep their native path handling.
-    [self mtForwardPath:resources toComponents:components controller:controller];
+    [self mtForwardPath:resources toComponents:components controller:controller completion:completion];
 }
 
 - (NSMutableArray *)mtBuildSpecifiers {
