@@ -195,6 +195,32 @@ static NSUInteger MTContextSelectionLength(id<UITextInput> input) {
     } @catch (__unused NSException *exception) { return 0; }
 }
 
+// 非原生输入视图（WebView 的 WKContentView、Flutter/RN 的自绘输入视图）不会走
+// UITextField/UITextView 的 becomeFirstResponder:，上下文中心收不到输入会话，
+// 于是所有动作组（含应用动作组）一起失效。UIKeyboardImpl 的 delegate 就是当前
+// 文本响应者，键盘每次刷新选区时同步一次，即可覆盖任意 UITextInput 实现。
+static void MTSyncGenericResponderWithKeyboard(id impl) {
+    id delegate = [impl delegate];
+    if (!delegate) return;
+    if ([delegate isKindOfClass:UITextField.class] || [delegate isKindOfClass:UITextView.class]) return;
+    BOOL supported = [delegate isKindOfClass:UIResponder.class] && [delegate conformsToProtocol:@protocol(UITextInput)];
+    if (!supported) {
+        // 未知输入视图只记一条类名，方便下一次构建补对应分支。
+        static NSMutableSet *loggedClasses;
+        static dispatch_once_t logOnce;
+        dispatch_once(&logOnce, ^{ loggedClasses = [NSMutableSet set]; });
+        NSString *name = NSStringFromClass([delegate class]) ?: @"?";
+        if (NSThread.isMainThread && ![loggedClasses containsObject:name]) {
+            [loggedClasses addObject:name];
+            NSLog(@"[Metis] context keyboard-delegate class=%@ lacksUITextInput", name);
+        }
+        return;
+    }
+    MTContextSignalCenter *center = [MTContextSignalCenter sharedCenter];
+    [center noteResponderActivated:(UIResponder *)delegate];
+    [center noteSelectionLengthChanged:MTContextSelectionLength((id<UITextInput>)delegate) responder:(UIResponder *)delegate];
+}
+
 static BOOL MTStockDockRequiresHiding(UIKeyboardDockView *dock) {
     // initWithFrame may run before the private dock-item tree is assembled.
     // A source declaration is not proof that this getter exists on each iOS.
@@ -466,6 +492,14 @@ static void reloadPrefs(void);
     // The first keyboard presentation can finish wiring its input delegate only
     // after the responder's own becomeFirstResponder: has already returned.
     MTRefreshActiveTopToolbarWithConfiguration(NO);
+    MTSyncGenericResponderWithKeyboard(self);
+}
+
+// 每次光标/选区刷新都会走到这里，且对所有输入视图一视同仁：非原生输入框的
+// 「有没有文字、选中几个字」只能靠这一步同步给上下文中心。
+- (void)updateForChangedSelection {
+    %orig;
+    MTSyncGenericResponderWithKeyboard(self);
 }
 
 %end

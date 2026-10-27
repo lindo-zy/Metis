@@ -56,10 +56,63 @@ static NSTimeInterval MTContextNow(void) {
     return NSDate.date.timeIntervalSince1970;
 }
 
+// 只认 UITextField / UITextView 会把 WebView（WKContentView）、Flutter/RN 的
+// 自绘输入视图整类丢掉——它们的输入会话不符合原生两类，但都实现 UITextInput。
+static id<UITextInput> MTContextTextInputForResponder(UIResponder *responder) {
+    if (![responder isKindOfClass:UIResponder.class]) return nil;
+    if (![responder conformsToProtocol:@protocol(UITextInput)]) return nil;
+    return (id<UITextInput>)responder;
+}
+
+// 密码框必须当成「有输入框但不可读」：原生两类直接取属性，其余按 UITextInputTraits 问。
+static BOOL MTContextResponderIsSecure(UIResponder *responder) {
+    if ([responder isKindOfClass:UITextField.class]) return ((UITextField *)responder).secureTextEntry;
+    if ([responder isKindOfClass:UITextView.class]) return ((UITextView *)responder).secureTextEntry;
+    if ([responder respondsToSelector:NSSelectorFromString(@"isSecureTextEntry")]) return [(id<UITextInputTraits>)responder isSecureTextEntry];
+    return NO;
+}
+
+// 文档长度只走 offsetFromPosition:，不建字符串：WebView 里每次判定都读全文会拖主线程。
+static NSUInteger MTContextTextInputLength(id<UITextInput> input) {
+    if (!input) return 0;
+    @try {
+        UITextPosition *start = [input beginningOfDocument];
+        UITextPosition *end = [input endOfDocument];
+        if (!start || !end) return 0;
+        NSInteger offset = [input offsetFromPosition:start toPosition:end];
+        return offset > 0 ? (NSUInteger)offset : 0;
+    } @catch (__unused NSException *exception) {
+        return 0;
+    }
+}
+
+// 全文只在需要种子文本时读，且读到上限就截断（与选区同一上限）。
+static NSString *MTContextTextInputString(id<UITextInput> input) {
+    if (!input) return nil;
+    @try {
+        UITextPosition *start = [input beginningOfDocument];
+        UITextPosition *end = [input endOfDocument];
+        if (!start || !end) return nil;
+        NSInteger length = [input offsetFromPosition:start toPosition:end];
+        if (length <= 0) return nil;
+        if ((NSUInteger)length > MTContextSelectionTextLimit) {
+            UITextPosition *limited = [input positionFromPosition:start offset:MTContextSelectionTextLimit];
+            if (!limited) return nil;
+            end = limited;
+        }
+        UITextRange *range = [input textRangeFromPosition:start toPosition:end];
+        if (!range) return nil;
+        NSString *text = [input textInRange:range];
+        return [text isKindOfClass:NSString.class] ? text : nil;
+    } @catch (__unused NSException *exception) {
+        return nil;
+    }
+}
+
 FOUNDATION_EXPORT NSUInteger MTContextTextLengthForResponder(UIResponder *responder) {
     if ([responder isKindOfClass:UITextField.class]) return ((UITextField *)responder).text.length;
     if ([responder isKindOfClass:UITextView.class]) return ((UITextView *)responder).text.length;
-    return 0;
+    return MTContextTextInputLength(MTContextTextInputForResponder(responder));
 }
 
 static NSString *MTContextTextForResponder(UIResponder *responder) {
@@ -68,7 +121,8 @@ static NSString *MTContextTextForResponder(UIResponder *responder) {
         return field.secureTextEntry ? nil : field.text;
     }
     if ([responder isKindOfClass:UITextView.class]) return ((UITextView *)responder).secureTextEntry ? nil : ((UITextView *)responder).text;
-    return nil;
+    if (MTContextResponderIsSecure(responder)) return nil;
+    return MTContextTextInputString(MTContextTextInputForResponder(responder));
 }
 
 // 选区文本只在去抖后的判定里读一次：hook 只记录长度，避免拖选时反复取子串。
@@ -348,6 +402,25 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
             snapshot.contentType = view.textContentType;
             snapshot.keyboardType = view.keyboardType;
             snapshot.inputLength = view.text.length;
+        } else {
+            id<UITextInput> input = MTContextTextInputForResponder(responder);
+            if (input) {
+                snapshot.inputAvailable = YES;
+                snapshot.secureInput = MTContextResponderIsSecure(responder);
+                if ([responder respondsToSelector:NSSelectorFromString(@"textContentType")]) snapshot.contentType = [(id<UITextInputTraits>)responder textContentType];
+                if ([responder respondsToSelector:NSSelectorFromString(@"keyboardType")]) snapshot.keyboardType = [(id<UITextInputTraits>)responder keyboardType];
+                snapshot.inputLength = MTContextTextInputLength(input);
+                // 泛化分支首次命中时留一条日志：确认是哪一类输入视图吃到了上下文判定。
+                static NSMutableSet *loggedClasses;
+                static dispatch_once_t logOnce;
+                dispatch_once(&logOnce, ^{ loggedClasses = [NSMutableSet set]; });
+                NSString *name = NSStringFromClass([responder class]) ?: @"?";
+                if (NSThread.isMainThread && ![loggedClasses containsObject:name]) {
+                    [loggedClasses addObject:name];
+                    NSLog(@"[Metis] context generic-responder class=%@ secure=%d length=%lu",
+                          name, snapshot.secureInput, (unsigned long)snapshot.inputLength);
+                }
+            }
         }
     }
     // 安全输入框不读任何内容，只保留「有输入框」这一事实。

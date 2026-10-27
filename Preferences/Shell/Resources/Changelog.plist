@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复在网页输入框、跨平台框架自绘输入框（如 WorkBuddy）里底栏动作全部失效的问题：输入会话改为按输入框协议识别，不再只认系统原生输入框，应用动作组与复制、粘贴等动作组在这些 App 里同样可用</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.1</string>
 		<key>items</key>
 		<array>
@@ -51,31 +64,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复通过设置链接直达子页面后，返回首页会再次自动进入原页面的问题</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.2.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>剪切板规则统一自定义动作的脚本预览和编辑风格，修复名称输入与设置项目重叠；草稿统一保存后生效</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>规则支持 AI 编写、多轮修改、版本回退和沙盒调试，可测试文本、图片类型并查看命中结果、耗时和日志</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>规则列表支持直接启停、长按拖动和编辑排序，优先级从上到下；修复异步返回误命中和连续失败计数</string>
 			</dict>
 		</array>
 	</dict>
