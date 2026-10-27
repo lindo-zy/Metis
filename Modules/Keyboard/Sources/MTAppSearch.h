@@ -15,3 +15,6 @@
 FOUNDATION_EXPORT NSString *MTAppSearchNormalize(NSString *text);
 FOUNDATION_EXPORT NSArray<MTAppSearchMatch *> *MTAppSearch(NSArray<MTAppSearchEntry *> *entries,
     NSString *query, NSArray<NSString *> *favorites, NSDictionary *usage);
+// Returns nil when cancelled. The predicate runs on the caller's search worker.
+FOUNDATION_EXPORT NSArray<MTAppSearchMatch *> *MTAppSearchWithCancellation(NSArray<MTAppSearchEntry *> *entries,
+    NSString *query, NSArray<NSString *> *favorites, NSDictionary *usage, BOOL (^cancelled)(void));

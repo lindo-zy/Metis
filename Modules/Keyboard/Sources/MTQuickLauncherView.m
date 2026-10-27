@@ -30,6 +30,7 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
 @property(nonatomic, strong) UILabel *name;
 @property(nonatomic, strong) UILabel *badge;
 @property(nonatomic, copy) BOOL (^activationHandler)(void);
+@property(nonatomic, copy) NSString *representedIdentifier;
 @end
 @implementation MTLauncherAppCell
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -45,6 +46,10 @@ CGRect MTQuickLauncherFrame(CGRect bounds, UIEdgeInsets safe, NSInteger side, CG
     } return self;
 }
 - (BOOL)accessibilityActivate { return self.activationHandler ? self.activationHandler() : NO; }
+- (void)prepareForReuse {
+    [super prepareForReuse];
+    self.representedIdentifier = nil; self.activationHandler = nil; self.icon.image = nil;
+}
 - (void)layoutSubviews {
     [super layoutSubviews]; CGFloat w = self.bounds.size.width;
     CGFloat icon = MIN(38, MAX(16, self.bounds.size.height - 28));
@@ -90,7 +95,10 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
 @property(nonatomic, strong) UIView *keys;
 @property(nonatomic, strong) NSMutableArray<UIButton *> *keyButtons;
 @property(nonatomic, strong) MTAppLauncherCatalog *catalog;
-@property(nonatomic, strong) dispatch_queue_t searchQueue;
+@property(nonatomic, strong) NSOperationQueue *searchQueue;
+@property(nonatomic, strong) NSOperationQueue *iconQueue;
+@property(nonatomic, strong) NSCache<NSString *, UIImage *> *iconCache;
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NSOperation *> *iconRequests;
 @property(nonatomic, copy) NSArray<MTAppSearchEntry *> *entries;
 @property(nonatomic, copy) NSArray<MTAppSearchMatch *> *results;
 @property(nonatomic, copy) NSArray<NSString *> *favorites;
@@ -174,7 +182,17 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         self.collection.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
         [self.collection registerClass:MTLauncherAppCell.class forCellWithReuseIdentifier:@"app"]; [self.panelContent addSubview:self.collection];
         self.keys = [UIView new]; [self.panelContent addSubview:self.keys]; self.keyButtons = [NSMutableArray array];
-        self.catalog = [MTAppLauncherCatalog new]; self.searchQueue = dispatch_queue_create("com.lindo.metis.keyboard.launcher.search", DISPATCH_QUEUE_SERIAL);
+        self.catalog = [MTAppLauncherCatalog new];
+        self.searchQueue = [NSOperationQueue new];
+        self.searchQueue.name = @"com.lindo.metis.keyboard.launcher.search";
+        self.searchQueue.maxConcurrentOperationCount = 1;
+        self.searchQueue.qualityOfService = NSQualityOfServiceUserInitiated;
+        self.iconQueue = [NSOperationQueue new];
+        self.iconQueue.name = @"com.lindo.metis.keyboard.launcher.icons";
+        self.iconQueue.maxConcurrentOperationCount = 2;
+        self.iconQueue.qualityOfService = NSQualityOfServiceUserInitiated;
+        self.iconCache = [NSCache new]; self.iconCache.countLimit = 256;
+        self.iconRequests = [NSMutableDictionary dictionary];
         __weak typeof(self) weakSelf = self;
         self.catalog.didInvalidate = ^{ if (weakSelf.active) [weakSelf loadCatalog]; };
         self.query = @""; self.results = @[]; self.entries = @[];
@@ -203,11 +221,12 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
 }
 - (void)endSession {
     self.active = NO; self.session++; self.generation++; self.launching = NO;
+    [self.searchQueue cancelAllOperations]; [self cancelIconRequests];
     // 会话结束视为拖动被打断：宿主可能已先取消，这里只兜底清掉本地追踪态。
     if (self.dragging) { self.dragging = NO; self.dragPan.enabled = NO; self.dragPan.enabled = YES; }
     self.modePan.enabled = NO; self.modePan.enabled = YES;
     self.query = @""; self.results = @[];
-    [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData];
+    [self.collection reloadData]; [self.collection setContentOffset:CGPointZero animated:NO];
 }
 - (void)showOpenFailure {
     self.launching = NO; self.statusLabel.text = MTQL(@"QUICK_OPEN_FAILED");
@@ -334,12 +353,16 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 }
 - (void)updateResults {
     NSUInteger generation = ++self.generation, session = self.session;
+    [self.searchQueue cancelAllOperations]; [self cancelIconRequests];
     NSString *query = self.query; BOOL searching = MTAppSearchNormalize(query).length > 0;
     self.queryLabel.text = query.length ? query : MTQL(@"QUICK_PLACEHOLDER");
     self.queryLabel.textColor = query.length ? UIColor.labelColor : UIColor.lightGrayColor;
     self.clearButton.hidden = !query.length;
-    // Old buttons disappear immediately when the query changes, before background matching returns.
-    self.results = @[]; [self.collection setContentOffset:CGPointZero animated:NO]; [self.collection reloadData];
+    // Keep the last frame while matching, but never allow an old result to launch.
+    // Swap the collection once per completed query instead of clearing/rebuilding twice.
+    self.selectionIdentifier = nil;
+    self.collection.userInteractionEnabled = NO;
+    self.collection.accessibilityElementsHidden = YES;
     NSArray *entries = self.entries, *favorites = self.favorites; NSDictionary *usage = self.usage;
     if (!searching) {
         NSMutableDictionary *byID = [NSMutableDictionary dictionary];
@@ -361,22 +384,66 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     }
     self.statusLabel.text = MTQL(@"QUICK_SEARCHING");
     __weak typeof(self) weakSelf = self;
-    dispatch_async(self.searchQueue, ^{
-        NSArray *matches = MTAppSearch(entries, query, favorites, usage);
+    NSBlockOperation *operation = [NSBlockOperation new];
+    __weak NSBlockOperation *weakOperation = operation;
+    [operation addExecutionBlock:^{
+        NSBlockOperation *work = weakOperation;
+        if (!work || work.cancelled) return;
+        NSArray *matches = MTAppSearchWithCancellation(entries, query, favorites, usage, ^{ return work.cancelled; });
+        if (!matches || work.cancelled) return;
         dispatch_async(dispatch_get_main_queue(), ^{
             MTQuickLauncherView *view = weakSelf;
-            if (!view.active || view.session != session || view.generation != generation) return;
+            if (work.cancelled || !view.active || view.session != session || view.generation != generation) return;
             [view applyResults:matches];
         });
-    });
+    }];
+    [self.searchQueue addOperation:operation];
 }
 - (void)applyResults:(NSArray *)results {
     self.results = results;
+    self.collection.userInteractionEnabled = YES;
+    self.collection.accessibilityElementsHidden = NO;
     BOOL searching = MTAppSearchNormalize(self.query).length > 0;
     self.statusLabel.text = searching ? (results.count ? MTQL(@"QUICK_MATCHES") : MTQL(@"QUICK_NO_MATCHES")) : MTQL(self.presentationMode == MTQuickLauncherModeSearch || !self.favorites.count ? @"QUICK_ALL_APPS" : (results.count ? @"QUICK_FAVORITES" : @"QUICK_EMPTY_FAVORITES"));
     if (!self.loaded) self.statusLabel.text = MTQL(@"QUICK_LOADING");
     else if (!self.available) self.statusLabel.text = MTQL(@"QUICK_CATALOG_UNAVAILABLE");
     [self.collection reloadData];
+    [self.collection setContentOffset:CGPointZero animated:NO];
+}
+- (void)cancelIconRequests {
+    [self.iconQueue cancelAllOperations];
+    [self.iconRequests removeAllObjects];
+}
+- (void)loadIconForCell:(MTLauncherAppCell *)cell identifier:(NSString *)identifier {
+    cell.representedIdentifier = identifier;
+    UIImage *cached = [self.iconCache objectForKey:identifier];
+    cell.icon.image = cached ?: [UIImage systemImageNamed:@"app"];
+    if (cached || self.iconRequests[identifier] || !self.active || !self.collection.userInteractionEnabled) return;
+    __weak typeof(self) weakSelf = self;
+    NSBlockOperation *operation = [NSBlockOperation new];
+    __weak NSBlockOperation *weakOperation = operation;
+    [operation addExecutionBlock:^{
+        @autoreleasepool {
+            NSBlockOperation *work = weakOperation;
+            if (!work || work.cancelled) return;
+            // Disk reads, private icon lookup and rasterization must not block keypad touches.
+            UIImage *icon = [MTHelper appIconImageForBundleID:identifier];
+            icon = [icon imageByPreparingForDisplay] ?: icon;
+            if (work.cancelled) return;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                MTQuickLauncherView *view = weakSelf;
+                if (work.cancelled || view.iconRequests[identifier] != work) return;
+                [view.iconRequests removeObjectForKey:identifier];
+                if (!icon) return;
+                [view.iconCache setObject:icon forKey:identifier];
+                for (MTLauncherAppCell *visible in view.collection.visibleCells) {
+                    if ([visible.representedIdentifier isEqual:identifier]) visible.icon.image = icon;
+                }
+            });
+        }
+    }];
+    self.iconRequests[identifier] = operation;
+    [self.iconQueue addOperation:operation];
 }
 - (NSInteger)collectionView:(UICollectionView *)collection numberOfItemsInSection:(NSInteger)section {
     return self.results.count;
@@ -384,7 +451,7 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
 - (__kindof UICollectionViewCell *)collectionView:(UICollectionView *)collection cellForItemAtIndexPath:(NSIndexPath *)path {
     MTLauncherAppCell *cell = [collection dequeueReusableCellWithReuseIdentifier:@"app" forIndexPath:path];
     MTAppSearchMatch *match = self.results[path.item];
-    cell.icon.image = [MTHelper appIconImageForBundleID:match.entry.identifier] ?: [UIImage systemImageNamed:@"app"];
+    [self loadIconForCell:cell identifier:match.entry.identifier];
     cell.name.text = match.entry.name;
     cell.badge.text = match.quality == 3 ? MTQL(@"QUICK_APPROXIMATE") : @"";
     cell.accessibilityLabel = [NSString stringWithFormat:@"%@ %@", match.entry.name, cell.badge.text];

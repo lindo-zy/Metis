@@ -62,10 +62,8 @@ static BOOL MTAppSearchNeighbor(unichar a, unichar b) {
     return labs(x / 3 - y / 3) + labs(x % 3 - y % 3) == 1;
 }
 
-static NSInteger MTAppSearchQuality(MTAppSearchEntry *entry, NSString *query) {
+static NSInteger MTAppSearchQuality(MTAppSearchEntry *entry, NSString *query, BOOL numeric) {
     NSInteger best = NSIntegerMax;
-    BOOL numeric = query.length >= 3 && [query rangeOfCharacterFromSet:
-        [NSCharacterSet characterSetWithCharactersInString:@"0123456789"].invertedSet].location == NSNotFound;
     for (NSString *term in entry.terms) {
         if ([term isEqual:query]) return 0;
         if ([term hasPrefix:query]) { best = MIN(best, 1); continue; }
@@ -91,16 +89,26 @@ static double MTAppSearchUsage(NSDictionary *usage, NSString *identifier, NSStri
 
 NSArray<MTAppSearchMatch *> *MTAppSearch(NSArray<MTAppSearchEntry *> *entries, NSString *rawQuery,
     NSArray<NSString *> *favorites, NSDictionary *usage) {
+    return MTAppSearchWithCancellation(entries, rawQuery, favorites, usage, nil);
+}
+
+NSArray<MTAppSearchMatch *> *MTAppSearchWithCancellation(NSArray<MTAppSearchEntry *> *entries, NSString *rawQuery,
+    NSArray<NSString *> *favorites, NSDictionary *usage, BOOL (^cancelled)(void)) {
+    if (cancelled && cancelled()) return nil;
     NSString *query = MTAppSearchNormalize(rawQuery);
     if (query.length == 0 || query.length > 64) return @[];
+    BOOL numeric = query.length >= 3 && [query rangeOfCharacterFromSet:
+        [NSCharacterSet characterSetWithCharactersInString:@"0123456789"].invertedSet].location == NSNotFound;
     NSSet *pinned = [NSSet setWithArray:favorites ?: @[]];
     NSMutableArray<MTAppSearchMatch *> *matches = [NSMutableArray array];
     for (MTAppSearchEntry *entry in entries) {
-        NSInteger quality = MTAppSearchQuality(entry, query);
+        if (cancelled && cancelled()) return nil;
+        NSInteger quality = MTAppSearchQuality(entry, query, numeric);
         if (quality == NSIntegerMax) continue;
         MTAppSearchMatch *match = [MTAppSearchMatch new]; match.entry = entry; match.quality = quality;
         [matches addObject:match];
     }
+    if (cancelled && cancelled()) return nil;
     [matches sortUsingComparator:^NSComparisonResult(MTAppSearchMatch *a, MTAppSearchMatch *b) {
         if (a.quality != b.quality) return a.quality < b.quality ? NSOrderedAscending : NSOrderedDescending;
         BOOL ap = [pinned containsObject:a.entry.identifier], bp = [pinned containsObject:b.entry.identifier];
@@ -112,5 +120,5 @@ NSArray<MTAppSearchMatch *> *MTAppSearch(NSArray<MTAppSearchEntry *> *entries, N
         NSComparisonResult name = [a.entry.name localizedStandardCompare:b.entry.name];
         return name == NSOrderedSame ? [a.entry.identifier compare:b.entry.identifier] : name;
     }];
-    return matches;
+    return cancelled && cancelled() ? nil : matches;
 }
