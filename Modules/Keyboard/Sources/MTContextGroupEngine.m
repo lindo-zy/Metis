@@ -88,7 +88,15 @@ static NSString *MTContextSearchURLString(NSString *text) {
 // 后者是共享池，绑定格布局下补位组不会因为自己只有一格而补不满。
 static BOOL MTContextGroupActiveWithSlots(MTContextSnapshot *s, MTContextGroupConfig *config,
                                           MTContextGroupSettings *settings, MTContextGroup group, NSUInteger slots) {
-    if (!s.inputAvailable || s.secureInput || !settings.enabled || !slots) return NO;
+    if (!s || s.secureInput || !settings.enabled || !slots) return NO;
+    // App bindings depend on the host, including custom editors with no readable UITextInput.
+    if (group == MTContextGroupApp) {
+        id appSwitch = config.preferences[kContextAppGroupKey];
+        if ([appSwitch isKindOfClass:NSNumber.class] && ![appSwitch boolValue]) return NO;
+        MTContextAppGroup *app = [MTContextAppGroup groupForBundleID:s.hostBundleID inGroups:config.appGroups];
+        return app.enabled && app.actions.count > 0;
+    }
+    if (!s.inputAvailable) return NO;
     switch (group) {
         case MTContextGroupDelete: return ![config.preferences[kContextDeleteGroupKey] isEqual:@NO] && s.deletedLength > 0 && s.deleteAge >= 0.3 && s.deleteAge < 3 && s.canUndo;
         case MTContextGroupSelection: return settings.selectionEnabled && s.selectionLength > 0;
@@ -96,12 +104,6 @@ static BOOL MTContextGroupActiveWithSlots(MTContextSnapshot *s, MTContextGroupCo
         case MTContextGroupPaste: return settings.pasteEnabled && s.pastedLength >= settings.pasteMinLength && s.pasteAge >= 0 && s.pasteAge < settings.pasteFreshness;
         case MTContextGroupTyping: return settings.inputEnabled && s.inputLength > 0;
         case MTContextGroupIdle: return settings.idleEnabled && s.inputLength == 0;
-        case MTContextGroupApp: {
-            id appSwitch = config.preferences[kContextAppGroupKey];
-            if ([appSwitch isKindOfClass:NSNumber.class] && ![appSwitch boolValue]) return NO;
-            MTContextAppGroup *group = [MTContextAppGroup groupForBundleID:s.hostBundleID inGroups:config.appGroups];
-            return group.enabled && group.actions.count > 0;
-        }
         default: return NO;
     }
 }
@@ -171,7 +173,7 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
 }
 + (MTContextDecision *)decisionForSnapshot:(MTContextSnapshot *)snapshot config:(MTContextGroupConfig *)config {
     MTContextGroupSettings *settings = [MTContextGroupSettings settingsFromPreferences:config.preferences];
-    if (!snapshot || !settings.enabled || !snapshot.inputAvailable || snapshot.secureInput)
+    if (!snapshot || !settings.enabled || snapshot.secureInput)
         return [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"inactive" actions:@[] ttl:0];
     NSTimeInterval ttl = 0;
     BOOL copy = settings.clipboardEnabled && snapshot.clipboardAvailable && snapshot.clipboardAge >= 0 && snapshot.clipboardAge < settings.clipboardFreshness;
@@ -193,7 +195,7 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
             MTContextAppGroup *match = [MTContextAppGroup groupForBundleID:snapshot.hostBundleID inGroups:config.appGroups];
             if (match.enabled && match.actions.count) {
                 BOOL appUsable = NO;
-                NSArray *appActions = MTContextActionsForSelectors(match.actions, snapshot.inputText,
+                NSArray *appActions = MTContextActionsForSelectors(match.actions, snapshot.inputAvailable ? snapshot.inputText : nil,
                                                                    MIN(appSlots, (NSUInteger)match.actions.count), &appUsable);
                 if (appUsable) {
                     [combined addObjectsFromArray:appActions];
@@ -205,6 +207,14 @@ static NSArray<MTContextAction *> *MTContextActionsForSelectors(NSArray *selecto
     // 预留之后剩下的格数：只在应用组命中时收紧，未命中保持各组的原槽位数（兼容旧语义）。
     NSUInteger reserved = combined.count;
     NSUInteger remaining = reserved ? appSlots - reserved : 0;
+
+    // Missing input must only disable text-dependent groups, never configured App buttons.
+    // Do not consume clipboard/selection signals or run text rules without an input session.
+    if (!snapshot.inputAvailable) {
+        return reserved
+            ? [MTContextDecision decisionWithGroup:MTContextGroupApp reason:appReason actions:combined ttl:0]
+            : [MTContextDecision decisionWithGroup:MTContextGroupDefault reason:@"no-input" actions:@[] ttl:0];
+    }
 
     for (NSNumber *number in MTContextPriority(config.preferences)) {
         MTContextGroup group = number.integerValue;

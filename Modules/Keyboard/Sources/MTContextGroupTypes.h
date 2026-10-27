@@ -18,7 +18,7 @@ typedef NS_ENUM(NSInteger, MTContextGroup) {
     MTContextGroupInput,
     MTContextGroupIdle,
     MTContextGroupDelete,
-    // G7 应用：按宿主 App 换预留区动作，优先级排在「输入类型」之后、「无文字」之前。
+    // G7 应用：按宿主 App 优先预留动作格，不依赖输入框或顶部工具栏。
     MTContextGroupApp,
     MTContextGroupCopy = MTContextGroupClipboard,
     MTContextGroupTyping = MTContextGroupInput,

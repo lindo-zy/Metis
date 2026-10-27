@@ -456,8 +456,8 @@ static NSString *MTContextSelectedText(UIResponder *responder) {
             }
         }
     }
-    // 仍然没有输入会话时留一次诊断：底栏此时会退化成悬浮应用，需要能从日志分辨
-    // 「响应者取不到」和「取到了但没动作」。
+    // 没有输入会话时只停用输入状态组；应用动作组仍按宿主 App 匹配。
+    // 保留一次诊断，区分「响应者取不到」和「取到了但没动作」。
     if (!snapshot.inputAvailable) {
         static dispatch_once_t noInputOnce;
         dispatch_once(&noInputOnce, ^{

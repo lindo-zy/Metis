@@ -150,6 +150,9 @@
 //   （最坏上千次 notify_get_state），不能跟着选区变化每 200ms 跑一次；
 // - reloadSnapshot:NO 是动作组变化：复用固定动作/速启按钮和应用图标，只替换动态格。
 - (void)refresh {
+    // The bottom bar can appear without any native responder/accessory hook firing.
+    // Resolve host-bound App actions now instead of rendering an old fallback decision.
+    if (!self.preview) [[MTContextSignalCenter sharedCenter] evaluateNow];
     [self refreshReloadingSnapshot:YES];
 }
 
