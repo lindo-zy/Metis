@@ -9,6 +9,8 @@
 @interface MTSettingsTableController ()
 @property (nonatomic, copy) NSDictionary *mtPendingSettingsURL;
 @property (nonatomic) BOOL mtOwnsSettingsURL;
+@property (nonatomic, copy) NSString *mtConsumedSettingsPath;
+@property (nonatomic) BOOL mtReturningFromSettingsURL;
 @end
 
 // 大标题样式与系统设置一致；被宿主（Settings.app / PreferenceLoader）压栈时
@@ -47,6 +49,10 @@
 }
 
 - (void)viewWillAppear:(BOOL)animated {
+    if (self.mtConsumedSettingsPath.length && !self.mtPendingSettingsURL &&
+        self.navigationController.topViewController == self) {
+        self.mtReturningFromSettingsURL = YES;
+    }
     // PSListController also keeps its own deferred URL. Clear it before the
     // superclass gets a chance to replay it when Back reveals this page.
     if (self.mtOwnsSettingsURL) [self mtClearNativePendingSettingsURL];
@@ -111,11 +117,10 @@
         dispatch_async(dispatch_get_main_queue(), ^{ [self handleURL:url]; });
         return;
     }
-    self.mtPendingSettingsURL = nil;
-    self.mtOwnsSettingsURL = NO;
     NSDictionary *resources = [self mtSettingsResourcesForURL:url];
     id path = resources[@"path"];
     if (![path isKindOfClass:NSString.class] || ![path length]) {
+        [self mtReleaseSettingsURL];
         [super handleURL:url];
         return;
     }
@@ -123,30 +128,66 @@
     [self prepareSettingsModel];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
     if (!row || [components containsObject:@""]) {
+        [self mtReleaseSettingsURL];
         [super handleURL:url];
         return;
     }
     // Resolve against the persistent model, never search-result specifiers.
     self.mtOwnsSettingsURL = YES;
     [self mtClearNativePendingSettingsURL];
+    NSString *canonicalPath = [components componentsJoinedByString:@"/"];
+    MTLogInfo(MTLogModulePrefs, @"state=settings-url-request source=%@ visible=%d consumed=%d returning=%d",
+              NSStringFromClass(self.class), self.navigationController.topViewController == self && self.view.window != nil,
+              [self.mtConsumedSettingsPath isEqualToString:canonicalPath], self.mtReturningFromSettingsURL);
+    // Settings can deliver the same URL again after the first push. The source
+    // page is then hidden: re-queueing it would fire on Back. Keep the consumed
+    // marker until this page has actually returned, including superclass URL
+    // callbacks during the appearance transition. A fresh URL after Back is
+    // allowed, without a timeout/cooldown.
+    if ([self.mtConsumedSettingsPath isEqualToString:canonicalPath] &&
+        (self.navigationController.topViewController != self || !self.view.window ||
+         self.mtReturningFromSettingsURL)) {
+        MTLogInfo(MTLogModulePrefs, @"state=settings-url-duplicate-consumed source=%@ returning=%d",
+                  NSStringFromClass(self.class), self.mtReturningFromSettingsURL);
+        return;
+    }
+    self.mtReturningFromSettingsURL = NO;
     self.overlayModel = nil;
     NSMutableDictionary *pending = [resources mutableCopy];
-    pending[@"path"] = [components componentsJoinedByString:@"/"];
+    pending[@"path"] = canonicalPath;
     self.mtPendingSettingsURL = pending;
     // Coalesce repeated delivery and let Settings finish attaching the page.
     dispatch_async(dispatch_get_main_queue(), ^{ [self mtOpenPendingSettingsURL]; });
 }
 
 - (void)viewDidAppear:(BOOL)animated {
+    if (self.mtConsumedSettingsPath.length && !self.mtPendingSettingsURL &&
+        self.navigationController.topViewController == self && self.view.window) {
+        self.mtReturningFromSettingsURL = YES;
+    }
     if (self.mtOwnsSettingsURL) [self mtClearNativePendingSettingsURL];
     [super viewDidAppear:animated];
     [self mtOpenPendingSettingsURL];
+    if (self.mtReturningFromSettingsURL && self.navigationController.topViewController == self && self.view.window) {
+        MTLogInfo(MTLogModulePrefs, @"state=settings-url-return-complete source=%@", NSStringFromClass(self.class));
+        self.mtConsumedSettingsPath = nil;
+        self.mtReturningFromSettingsURL = NO;
+    }
+}
+
+- (void)mtReleaseSettingsURL {
+    self.mtPendingSettingsURL = nil;
+    self.mtOwnsSettingsURL = NO;
+    self.mtConsumedSettingsPath = nil;
+    self.mtReturningFromSettingsURL = NO;
 }
 
 - (void)mtOpenPendingSettingsURL {
     NSDictionary *resources = self.mtPendingSettingsURL;
     if (!resources || self.navigationController.topViewController != self || !self.view.window) return;
     self.mtPendingSettingsURL = nil;
+    self.mtConsumedSettingsPath = nil;
+    self.mtReturningFromSettingsURL = NO;
     [self mtClearNativePendingSettingsURL];
     NSArray<NSString *> *components = [resources[@"path"] componentsSeparatedByString:@"/"];
     MTSettingsRow *row = [self.model rowWithIdentifier:components.firstObject];
@@ -164,9 +205,10 @@
         return;
     }
     PSViewController *controller = [[controllerClass alloc] init];
+    self.mtConsumedSettingsPath = resources[@"path"];
     MTSettingsPushController(self, controller, [self specifierForID:row.identifier], NO);
-    MTLogInfo(MTLogModulePrefs, @"state=settings-url-route-open remaining=%lu",
-              (unsigned long)(components.count - 1));
+    MTLogInfo(MTLogModulePrefs, @"state=settings-url-route-open source=%@ target=%@ remaining=%lu",
+              NSStringFromClass(self.class), NSStringFromClass(controllerClass), (unsigned long)(components.count - 1));
     if (components.count > 1 && [controller respondsToSelector:@selector(handleURL:)]) {
         NSMutableDictionary *remaining = [resources mutableCopy];
         remaining[@"path"] = [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]

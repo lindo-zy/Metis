@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.2.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>避免重复处理设置直达请求，返回首页后不再自动重进原子页面，并保留再次主动打开链接的能力</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.2.8</string>
 		<key>items</key>
 		<array>
@@ -77,25 +90,6 @@
 		</array>
 		<key>version</key>
 		<string>1.2.5</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>快速面板改为磨砂竖列：上下滚动选择应用，左滑展开双列，再左滑进入九宫格应用和九键搜索，右滑逐级收回</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>快速面板顶部支持四个独立快捷按钮，可从自定义动作自由选择，动作修改同步生效</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.2.4</string>
 	</dict>
 </array>
 </plist>
