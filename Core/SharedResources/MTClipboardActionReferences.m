@@ -77,19 +77,32 @@ static NSString *MTClipboardRuleAlwaysMatchSource(NSString *kind) {
     return [NSString stringWithFormat:@"function match(text, meta) {\n  return meta && meta.kind === '%@';\n}", kind];
 }
 
+static NSDictionary *MTClipboardSingleActionRule(NSDictionary *entry) {
+    // Keep the existing array schema, but normalize old multi-action rules on read/write.
+    NSMutableDictionary *rule = entry.mutableCopy;
+    NSArray *actions = [entry[@"actions"] isKindOfClass:NSArray.class] ? entry[@"actions"] : @[];
+    rule[@"actions"] = @[];
+    for (id uuid in actions) {
+        if (![uuid isKindOfClass:NSString.class] || ![uuid length]) continue;
+        rule[@"actions"] = @[uuid];
+        break;
+    }
+    return rule;
+}
+
 + (NSArray<NSDictionary *> *)ruleDictionariesInDocument:(NSDictionary *)document {
     id raw = document[@"clipboardRules"];
     if (![raw isKindOfClass:NSArray.class]) return @[];
     NSMutableArray *result = [NSMutableArray array];
     for (NSDictionary *entry in raw) {
-        if ([entry isKindOfClass:NSDictionary.class]) [result addObject:entry];
+        if ([entry isKindOfClass:NSDictionary.class]) [result addObject:MTClipboardSingleActionRule(entry)];
     }
     return result;
 }
 
 + (NSDictionary *)document:(NSDictionary *)document settingRuleDictionaries:(NSArray<NSDictionary *> *)rules {
     NSMutableDictionary *next = [document mutableCopy];
-    next[@"clipboardRules"] = [rules isKindOfClass:NSArray.class] ? rules : @[];
+    next[@"clipboardRules"] = [self ruleDictionariesInDocument:@{@"clipboardRules": rules ?: @[]}];
     // 显式规则一旦存在，旧槽位迁移不得再覆盖 clipboardRules。
     NSMutableDictionary *migration = [next[@"migration"] mutableCopy] ?: [NSMutableDictionary dictionary];
     if (!migration[@"clipboardRulesV1"]) migration[@"clipboardRulesV1"] = @YES;

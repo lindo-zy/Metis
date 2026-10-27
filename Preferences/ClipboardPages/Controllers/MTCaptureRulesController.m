@@ -10,6 +10,7 @@
 #import "MTAIEngine.h"
 #import "MTPSFSymbolPickerController.h"
 #import "MTFloatingPreviewSettingsViewController.h"
+#import "MTTagColorFormatter.h"
 
 static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无法保存规则"
@@ -273,8 +274,8 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 @implementation MTCaptureRuleEditorController
 - (instancetype)initWithEntry:(NSDictionary *)entry isNew:(BOOL)isNew {
     if ((self = [super initWithStyle:UITableViewStyleInsetGrouped])) {
-        _entry = entry.copy;
-        _originalEntry = entry.copy;
+        _entry = [MTCaptureRule rulesFromDictionaries:@[entry]].firstObject.dictionaryRepresentation ?: entry.copy;
+        _originalEntry = _entry;
         _isNew = isNew;
     }
     return self;
@@ -344,16 +345,16 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 4; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 || section == 1 ? 3 : (section == 2 ? 4 : [self.entry[@"actions"] count] + 1);
+    return section == 0 || section == 1 ? 3 : (section == 2 ? 5 : 1);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return @[@"基本设置", @"JavaScript 匹配条件", @"命中后的悬浮入口", @"绑定动作（点击小球时按序执行）"][section];
+    return @[@"基本设置", @"JavaScript 匹配条件", @"命中后的悬浮入口", @"绑定动作"][section];
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 0) return @"开启自动执行后，规则命中时立即执行动作。关闭时等待单击小球；可同时显示悬浮入口。修改在点“保存”后生效。";
     if (section == 1) return @"match(text, meta) 返回真值即命中。meta.kind 为 text 或 image。沙盒无网络，最多 8 KB、限时 50 ms；连续失败 3 次会在当前进程暂时跳过，修改规则后重置。";
-    if (section == 2) return @"小球使用本规则的 SF 图标；气泡展示自定义文本，留空则使用规则名称。关闭小球后仍可自动执行。未命中任何规则时不显示小球。";
-    return @"引用共享自定义动作，最多 8 个；未绑定动作的规则不参与匹配。左滑可移除引用，动作库条目不受影响。";
+    if (section == 2) return @"小球 SF 图标颜色默认为蓝色。气泡仅作纯文本提示，留空使用规则名称，1 秒后消失。关闭小球后仍可自动执行；未命中不显示小球。";
+    return @"每条规则只能绑定一个共享自定义动作，点击可更换，左滑可移除引用。旧规则保留第一个动作；未绑定动作的规则不参与匹配，动作库条目不受影响。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (indexPath.section == 1 && indexPath.row == 0) {
@@ -431,8 +432,8 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     }
     if (indexPath.section == 2) {
         BOOL floating = [self.entry[@"floatingEnabled"] boolValue];
-        if (indexPath.row == 0 || indexPath.row == 2) {
-            BOOL tooltip = indexPath.row == 2;
+        if (indexPath.row == 0 || indexPath.row == 3) {
+            BOOL tooltip = indexPath.row == 3;
             cell.textLabel.text = tooltip ? @"显示气泡提示" : @"命中后显示小球";
             UISwitch *toggle = [UISwitch new];
             toggle.on = [self.entry[tooltip ? @"tooltipEnabled" : @"floatingEnabled"] boolValue];
@@ -446,8 +447,19 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
             cell.textLabel.text = @"小球 SF 图标";
             cell.detailTextLabel.text = self.entry[@"symbolName"];
             cell.imageView.image = [UIImage systemImageNamed:self.entry[@"symbolName"]] ?: [UIImage systemImageNamed:@"doc.on.clipboard"];
-            cell.imageView.tintColor = UIColor.systemPurpleColor;
+            cell.imageView.tintColor = [MTTagColorFormatter colorFromHexColor:
+                [self.entry[@"symbolColor"] stringByAppendingString:@"FF"]];
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else if (indexPath.row == 2) {
+            cell.textLabel.text = @"SF 图标颜色";
+            UIColorWell *well = [UIColorWell new];
+            well.supportsAlpha = NO;
+            well.title = @"SF 图标颜色";
+            well.selectedColor = [MTTagColorFormatter colorFromHexColor:
+                [self.entry[@"symbolColor"] stringByAppendingString:@"FF"]];
+            [well addTarget:self action:@selector(symbolColorChanged:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = well;
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
         } else {
             UILabel *label = [UILabel new];
             label.text = @"气泡提示文本";
@@ -476,14 +488,10 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
         return cell;
     }
     NSArray *actions = self.entry[@"actions"];
-    if (indexPath.row == actions.count) {
-        cell.textLabel.text = @"添加动作";
-        cell.textLabel.textColor = actions.count < 8 ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
-        cell.detailTextLabel.text = actions.count < 8 ? @"从共享自定义动作中选择" : @"最多绑定 8 个动作";
-        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-    } else {
-        cell.textLabel.text = [NSString stringWithFormat:@"%ld. %@", (long)indexPath.row + 1, [self nameForActionUUID:actions[indexPath.row]]];
-    }
+    cell.textLabel.text = actions.count ? [self nameForActionUUID:actions.firstObject] : @"选择动作";
+    cell.textLabel.textColor = actions.count ? UIColor.labelColor : UIColor.systemBlueColor;
+    cell.detailTextLabel.text = actions.count ? @"点击更换动作" : @"从共享自定义动作中选择一个";
+    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return cell;
 }
 - (void)nameChanged:(UITextField *)field { [self setDraftValue:field.text ?: @"" forKey:@"name"]; }
@@ -501,6 +509,12 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 }
 - (void)tooltipTextChanged:(UITextField *)field {
     [self setDraftValue:field.text ?: @"" forKey:@"tooltipText"];
+}
+- (void)symbolColorChanged:(UIColorWell *)well {
+    NSString *hex = [MTTagColorFormatter hexColorFromColor:well.selectedColor ?: UIColor.systemBlueColor];
+    [self setDraftValue:[hex substringToIndex:7] forKey:@"symbolColor"];
+    NSIndexPath *iconPath = [NSIndexPath indexPathForRow:1 inSection:2];
+    [self.tableView cellForRowAtIndexPath:iconPath].imageView.tintColor = well.selectedColor;
 }
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
     return indexPath.section == 3 && indexPath.row < [self.entry[@"actions"] count];
@@ -544,14 +558,12 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
             [weakSelf.tableView reloadData];
         };
         [self.navigationController pushViewController:picker animated:YES];
-    } else if (indexPath.section == 3 && indexPath.row == [self.entry[@"actions"] count] && [self.entry[@"actions"] count] < 8) {
-        MTCaptureRuleActionPickerController *picker = [MTCaptureRuleActionPickerController pickerWithExcludedIDs:self.entry[@"actions"]
+    } else if (indexPath.section == 3) {
+        MTCaptureRuleActionPickerController *picker = [MTCaptureRuleActionPickerController pickerWithExcludedIDs:@[]
             completion:^(NSString *uuid) {
                 typeof(self) owner = weakSelf;
                 if (!owner) return;
-                NSMutableArray *actions = [owner.entry[@"actions"] mutableCopy];
-                if (![actions containsObject:uuid] && actions.count < 8) [actions addObject:uuid];
-                [owner setDraftValue:actions forKey:@"actions"];
+                [owner setDraftValue:@[uuid] forKey:@"actions"];
                 [owner.tableView reloadData];
             }];
         [self.navigationController pushViewController:picker animated:YES];
