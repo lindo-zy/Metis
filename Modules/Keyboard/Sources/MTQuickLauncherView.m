@@ -106,6 +106,7 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
 @property(nonatomic, copy) NSArray<MTAppSearchEntry *> *entries;
 @property(nonatomic, copy) NSArray<MTAppSearchMatch *> *results;
 @property(nonatomic, copy) NSArray<NSString *> *favorites;
+@property(nonatomic, copy) NSString *modeHint;
 @property(nonatomic, copy) NSDictionary *fallbackNames;
 @property(nonatomic, copy) NSDictionary *aliases;
 @property(nonatomic, copy) NSDictionary *usage;
@@ -200,23 +201,26 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         self.iconRequests = [NSMutableDictionary dictionary];
         __weak typeof(self) weakSelf = self;
         self.catalog.didInvalidate = ^{ if (weakSelf.active) [weakSelf loadCatalog]; };
-        self.query = @""; self.results = @[]; self.entries = @[];
+        self.query = @""; self.results = @[]; self.entries = @[]; self.modeHint = @"QUICK_STAGE_EXPAND";
         [self buildKeys];
     } return self;
 }
 - (void)beginWithFavorites:(NSArray<NSString *> *)favorites names:(NSDictionary<NSString *, NSString *> *)names
     aliases:(NSDictionary *)aliases usage:(NSDictionary *)usage {
     self.presentationMode = MTQuickLauncherModeStrip;
+    self.modeHint = @"QUICK_STAGE_EXPAND";
     self.active = YES; self.session++; self.generation++; self.query = @""; self.launching = NO;
     aliases = aliases ?: @{}; names = names ?: @{};
     BOOL reusable = [self.aliases isEqual:aliases] && [self.fallbackNames isEqual:names];
     self.favorites = [favorites copy]; self.fallbackNames = [names copy]; self.aliases = [aliases copy]; self.usage = [usage copy];
     self.loaded = NO; self.available = NO;
-    [self.queryCache removeAllObjects];
-    // Keep the previous index only for the same configuration. Transliteration
-    // belongs to the catalogue worker, never the opening animation's main thread.
-    if (!reusable) self.entries = @[];
+    if (!reusable) {
+        self.entries = @[];
+        [self.queryCache removeAllObjects];
+    }
     [self updateResults]; [self loadCatalog];
+    // 预取常用图标：首屏配置格子时大概率已进缓存，消除占位符渐现。
+    [self prefetchFavoriteIcons];
 }
 - (void)loadCatalog {
     NSUInteger session = self.session;
@@ -224,8 +228,11 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
     [self.catalog loadWithAliases:self.aliases fallbackNames:self.fallbackNames completion:^(NSArray *entries, BOOL available) {
         MTQuickLauncherView *view = weakSelf;
         if (!view.active || view.session != session) return;
-        view.loaded = YES; view.available = available; view.entries = entries;
-        [view.queryCache removeAllObjects]; [view updateResults];
+        view.loaded = YES; view.available = available;
+        // Catalog cache hits hand back the identical instance: keep query
+        // results valid across panel sessions until the index really changes.
+        if (view.entries != entries) { view.entries = entries; [view.queryCache removeAllObjects]; }
+        [view updateResults];
     }];
 }
 - (void)endSession {
@@ -255,7 +262,16 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         UIButton *button = self.actionButtons[i];
         NSString *name = [entry[@"name"] isKindOfClass:NSString.class] ? entry[@"name"] : @"";
         BOOL configured = [entry[@"selector"] length] > 0;
-        [button setImage:configured ? [MTHelper imageForCustomActionEntry:entry] : [UIImage systemImageNamed:@"plus.circle"] forState:UIControlStateNormal];
+        // SF Symbols resolve cheaply on the main thread; app-icon lookups hit
+        // disk and private APIs and must stay off the opening path.
+        NSString *icon = [entry[@"icon"] isKindOfClass:NSString.class] ? entry[@"icon"] : @"";
+        NSString *fallback = [MTHelper defaultIconForActionType:[entry[@"type"] isKindOfClass:NSString.class] ? entry[@"type"] : @""];
+        UIImage *resolved = configured ? ([MTHelper symbolImageForIconConfig:icon] ?: [self.iconCache objectForKey:icon]) : nil;
+        if (configured && !resolved && icon.length) {
+            resolved = [UIImage systemImageNamed:fallback];
+            [self loadActionIconAsyncForIcon:icon buttonIndex:i];
+        }
+        [button setImage:configured ? (resolved ?: [UIImage systemImageNamed:fallback]) : [UIImage systemImageNamed:@"plus.circle"] forState:UIControlStateNormal];
         [button setTitle:configured ? name : MTQL(@"QUICK_ACTION_EMPTY") forState:UIControlStateNormal];
         button.accessibilityLabel = configured ? name : MTQL(@"QUICK_ACTION_EMPTY_HINT");
         button.enabled = configured;
@@ -272,6 +288,8 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
     self.presentationMode = mode;
     // A previous search must never leak its results into the favorites stages.
     if (mode != MTQuickLauncherModeSearch) self.query = @"";
+    self.modeHint = mode == MTQuickLauncherModeStrip ? @"QUICK_STAGE_EXPAND"
+        : (mode == MTQuickLauncherModeSearch ? @"QUICK_STAGE_COLLAPSE" : @"QUICK_STAGE_SEARCH");
     [self updateResults];
     [self setNeedsLayout];
     if (self.modeChangeHandler) self.modeChangeHandler();
@@ -442,6 +460,13 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     if (cached || !sameIdentifier || !cell.icon.image)
         cell.icon.image = cached ?: [UIImage systemImageNamed:@"app"];
     if (cached || self.iconRequests[identifier] || !self.active || !self.collection.userInteractionEnabled) return;
+    [self enqueueIconLoadForIdentifier:identifier];
+}
+
+// 格子与快捷按钮共用的后台图标任务：磁盘读取、私有图标查询与光栅化全部离开主线程，
+// 回填前在主线程校验请求仍然有效（取消/会话/同一请求）。
+- (void)enqueueIconLoadForIdentifier:(NSString *)identifier {
+    if (!self.active || self.iconRequests[identifier]) return;
     __weak typeof(self) weakSelf = self;
     NSBlockOperation *operation = [NSBlockOperation new];
     __weak NSBlockOperation *weakOperation = operation;
@@ -449,7 +474,6 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
         @autoreleasepool {
             NSBlockOperation *work = weakOperation;
             if (!work || work.cancelled) return;
-            // Disk reads, private icon lookup and rasterization must not block keypad touches.
             UIImage *icon = [MTHelper appIconImageForBundleID:identifier];
             icon = [icon imageByPreparingForDisplay] ?: icon;
             if (work.cancelled) return;
@@ -466,6 +490,51 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
         }
     }];
     self.iconRequests[identifier] = operation;
+    [self.iconQueue addOperation:operation];
+}
+
+- (void)prefetchFavoriteIcons {
+    [self.favorites enumerateObjects:^(NSString *identifier, NSUInteger index, BOOL *stop) {
+        if (index >= 12) { *stop = YES; return; }
+        if (![identifier isKindOfClass:NSString.class] || [self.iconCache objectForKey:identifier]) return;
+        [self enqueueIconLoadForIdentifier:identifier];
+    }];
+}
+
+// 快捷动作的 App 图标：先以回退符号占位，加载完成仅当按钮仍指向同一配置时回填。
+- (void)loadActionIconAsyncForIcon:(NSString *)icon buttonIndex:(NSUInteger)index {
+    UIImage *cached = [self.iconCache objectForKey:icon];
+    if (cached) {
+        [self.actionButtons[index] setImage:cached forState:UIControlStateNormal];
+        return;
+    }
+    NSString *key = [@"action:" stringByAppendingString:icon];
+    if (self.iconRequests[key]) return;
+    __weak typeof(self) weakSelf = self;
+    NSUInteger generation = self.generation, session = self.session;
+    NSBlockOperation *operation = [NSBlockOperation new];
+    __weak NSOperation *weakOperation = operation;
+    [operation addExecutionBlock:^{
+        @autoreleasepool {
+            NSOperation *work = weakOperation;
+            if (!work || work.cancelled) return;
+            UIImage *appIcon = [MTHelper appIconImageForBundleID:icon];
+            appIcon = [appIcon imageByPreparingForDisplay] ?: appIcon;
+            if (work.cancelled) return;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                MTQuickLauncherView *view = weakSelf;
+                if (!view || work.cancelled || view.iconRequests[key] != work) return;
+                [view.iconRequests removeObjectForKey:key];
+                if (!appIcon || !view.active || view.generation != generation || view.session != session) return;
+                NSDictionary *entry = index < view.quickActions.count ? view.quickActions[index] : nil;
+                if (![entry isKindOfClass:NSDictionary.class] || ![entry[@"icon"] isKindOfClass:NSString.class] ||
+                    ![entry[@"icon"] isEqual:icon]) return;
+                [view.iconCache setObject:appIcon forKey:icon];
+                [view.actionButtons[index] setImage:appIcon forState:UIControlStateNormal];
+            });
+        }
+    }];
+    self.iconRequests[key] = operation;
     [self.iconQueue addOperation:operation];
 }
 - (NSInteger)collectionView:(UICollectionView *)collection numberOfItemsInSection:(NSInteger)section {
@@ -539,7 +608,7 @@ static NSUInteger const MTQuickLauncherKeyTagClear = 100;
     if (!CGSizeEqualToSize(self.flow.itemSize, itemSize)) { self.flow.itemSize = itemSize; [self.flow invalidateLayout]; }
     if (search) for (NSUInteger i = 0; i < self.keyButtons.count; i++) self.keyButtons[i].frame = MTQuickLauncherDigitFrame(self.keys.bounds.size, i);
     self.modeButton.frame = frames.footer;
-    NSString *hint = strip ? @"QUICK_STAGE_EXPAND" : (search ? @"QUICK_STAGE_COLLAPSE" : @"QUICK_STAGE_SEARCH");
+    NSString *hint = self.modeHint ?: @"QUICK_STAGE_EXPAND";
     [self.modeButton setTitle:MTQL(hint) forState:UIControlStateNormal];
     self.modeButton.accessibilityLabel = MTQL(hint);
 }
