@@ -138,9 +138,11 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         [self.panelContent addSubview:self.grabber];
         self.dragPan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragPanned:)];
         self.dragPan.maximumNumberOfTouches = 1; self.dragPan.delegate = self;
+        self.dragPan.delaysTouchesBegan = NO; self.dragPan.delaysTouchesEnded = NO;
         [self addGestureRecognizer:self.dragPan];
         self.modePan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(modePanned:)];
         self.modePan.maximumNumberOfTouches = 1; self.modePan.delegate = self;
+        self.modePan.delaysTouchesBegan = NO; self.modePan.delaysTouchesEnded = NO;
         [self addGestureRecognizer:self.modePan];
         self.modeButton = [UIButton buttonWithType:UIButtonTypeSystem];
         self.modeButton.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
@@ -160,6 +162,7 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         self.actionButtons = actions;
         UITapGestureRecognizer *resetTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(resetTapped:)];
         resetTap.numberOfTapsRequired = 2;
+        resetTap.delaysTouchesBegan = NO; resetTap.delaysTouchesEnded = NO;
         resetTap.delegate = self; [self addGestureRecognizer:resetTap];
         self.titleLabel = [UILabel new]; self.titleLabel.text = MTQL(@"QUICK_TITLE");
         self.titleLabel.font = [UIFont boldSystemFontOfSize:17]; self.titleLabel.textColor = UIColor.labelColor;
@@ -302,6 +305,21 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
     CGPoint d = [gesture translationInView:self], v = [gesture velocityInView:self];
     [self setMode:MTQuickLauncherNextMode(self.presentationMode, d.x, d.y, v.x)];
 }
+- (BOOL)isGrabberPoint:(CGPoint)point {
+    CGFloat trailing = self.presentationMode == MTQuickLauncherModeSearch ? 48 : 0;
+    return point.x >= 0 && point.x < self.panelContent.bounds.size.width - trailing &&
+        point.y >= 0 && point.y <= MTQuickLauncherGrabberZoneHeight;
+}
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
+    if (!self.active || self.launching) return NO;
+    // Reject at touch-down: shouldBegin runs only when a double tap is ready
+    // to recognize, after UIKit has already held a key's touch-up for a timeout.
+    CGPoint point = [touch locationInView:self.panelContent];
+    if (gesture == self.dragPan || [gesture isKindOfClass:UITapGestureRecognizer.class])
+        return [self isGrabberPoint:point];
+    if (gesture == self.modePan) return !self.dragging && point.y > MTQuickLauncherGrabberZoneHeight;
+    return YES;
+}
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture {
     if (!self.active || self.launching) return NO;
     CGPoint point = [gesture locationInView:self.panelContent];
@@ -309,8 +327,7 @@ static CGFloat const MTQuickLauncherGrabberZoneHeight = 24.0;
         CGPoint v = [self.modePan velocityInView:self];
         return !self.dragging && point.y > MTQuickLauncherGrabberZoneHeight && fabs(v.x) > fabs(v.y) * 1.2;
     }
-    if (gesture == self.dragPan || [gesture isKindOfClass:UITapGestureRecognizer.class]) return point.y >= 0 && point.y <= MTQuickLauncherGrabberZoneHeight &&
-        point.x < self.panelContent.bounds.size.width - (self.presentationMode == MTQuickLauncherModeSearch ? 48 : 0);
+    if (gesture == self.dragPan || [gesture isKindOfClass:UITapGestureRecognizer.class]) return [self isGrabberPoint:point];
     return YES;
 }
 - (void)emitDrag:(MTQuickLauncherDragPhase)phase translation:(CGPoint)translation {
