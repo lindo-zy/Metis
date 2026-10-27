@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.3.3</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>设置直达链接不再重复打开同一个子页面，返回首页后也不会自动重进</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>首页移除搜索框，设置项按分类直接浏览</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.3.2</string>
 		<key>items</key>
 		<array>
@@ -51,19 +70,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>避免重复处理设置直达请求，返回首页后不再自动重进原子页面，并保留再次主动打开链接的能力</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.2.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复通过设置链接直达子页面后，返回首页会再次自动进入原页面的问题</string>
 			</dict>
 		</array>
 	</dict>

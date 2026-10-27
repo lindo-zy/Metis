@@ -7,7 +7,6 @@ BUNDLE_NAME = MetisPrefs
 # 驱动控制器（UIKit）；引用页仍是 PSListController。
 MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsGlobalModel.m \
-	MTPrefsSearchIndex.m \
 	MTPrefsChangelogModel.m \
 	MTPrefsEntryController.m \
 	MTPrefsRootController.m \
