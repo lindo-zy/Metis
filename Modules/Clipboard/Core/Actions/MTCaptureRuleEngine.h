@@ -24,10 +24,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) BOOL tooltipEnabled;
 @property (nonatomic, copy, readonly) NSString *tooltipText;
 @property (nonatomic, copy, readonly) NSString *source;
+// 内建兜底为 text/image；自定义 JS 规则为空。不经过 JavaScript 求值。
+@property (nonatomic, copy, readonly) NSString *fallbackKind;
+@property (nonatomic, assign, readonly, getter=isFallback) BOOL fallback;
 // 指向共享资源动作库的 UUID，至多一个；旧配置保留首个有效引用。
 @property (nonatomic, copy, readonly) NSArray<NSString *> *actions;
 
-// 防御性解析：非法条目（缺 id/source 超限/结构不对）直接丢弃，不抛错。
+// 防御性解析：自定义条目缺 id/source 超限/结构不对时丢弃，内建兜底无需 source。
 + (NSArray<MTCaptureRule *> *)rulesFromDictionaries:(nullable NSArray *)dictionaries;
 - (NSDictionary *)dictionaryRepresentation;
 

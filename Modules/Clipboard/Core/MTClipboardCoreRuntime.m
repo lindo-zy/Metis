@@ -1136,7 +1136,7 @@ NS_ASSUME_NONNULL_END
     // Execute the displayed rule against its captured item, never rematch a newer clipboard.
     // A rule edited/disabled/deleted while the ball was visible is no longer executable.
     NSArray *latest = [MTCaptureRule rulesFromDictionaries:
-        [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]]];
+        [MTClipboardActionReferences effectiveRuleDictionariesInDocument:[MTSharedResourceStore readSnapshot]]];
     for (MTCaptureRule *candidate in latest) {
         if (candidate.enabled && [candidate.dictionaryRepresentation isEqual:rule.dictionaryRepresentation]) {
             NSLog(@"[Metis][ClipboardRules] state=tap rule=%@ actions=%lu",
@@ -1164,7 +1164,7 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     if (!item || !self.enabled || ![MTGlobalPanel deviceUnlocked]) return;
     NSUInteger token = self.captureRuleEvaluationToken;
     NSArray<NSDictionary *> *ruleDictionaries =
-        [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
+        [MTClipboardActionReferences effectiveRuleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
     NSArray<MTCaptureRule *> *rules = [MTCaptureRule rulesFromDictionaries:ruleDictionaries];
     if (!rules.count) return;
     NSString *kind = item.imageName.length ? @"image" : @"text";
@@ -1175,7 +1175,7 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
         typeof(self) owner = weakSelf;
         if (!owner || token != owner.captureRuleEvaluationToken || !owner.enabled ||
             [owner isPackageMaintenanceMode] || ![MTGlobalPanel deviceUnlocked]) return;
-        NSArray *latest = [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
+        NSArray *latest = [MTClipboardActionReferences effectiveRuleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
         if (![latest isEqual:ruleDictionaries] || !hit) return;
         NSLog(@"[Metis][ClipboardRules] state=matched rule=%@ floating=%d auto=%d",
               hit.identifier, hit.floatingEnabled, hit.autoRun);

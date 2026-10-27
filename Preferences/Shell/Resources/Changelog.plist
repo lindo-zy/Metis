@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复剪切板规则中 SF 图标颜色选择器错位，色盘在设置行右侧居中显示。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>新增“复制文本”和“复制图片”两个默认开启的兜底动作，自定义 JS 未命中时按内容类型直接匹配，无需 JS；初始未绑定动作，可分别选择一个共享动作。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.0</string>
 		<key>items</key>
 		<array>
@@ -71,19 +90,6 @@
 		</array>
 		<key>version</key>
 		<string>1.3.8</string>
-	</dict>
-	<dict>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复设置直达链接触发两套路由的问题，返回首页后不再因重复导航重新进入子页面</string>
-			</dict>
-		</array>
-		<key>version</key>
-		<string>1.3.7</string>
 	</dict>
 </array>
 </plist>
