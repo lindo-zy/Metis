@@ -110,6 +110,42 @@ static NSDictionary *MTClipboardSingleActionRule(NSDictionary *entry) {
     return next;
 }
 
++ (NSArray<NSDictionary *> *)fallbackRuleDictionariesInDocument:(NSDictionary *)document {
+    NSArray *stored = [document[@"clipboardFallbacks"] isKindOfClass:NSArray.class] ? document[@"clipboardFallbacks"] : @[];
+    NSMutableArray *result = [NSMutableArray array];
+    for (NSString *kind in @[@"text", @"image"]) {
+        NSString *identifier = [@"clipboard-fallback-" stringByAppendingString:kind];
+        NSMutableDictionary *entry = [@{@"id": identifier, @"fallbackKind": kind,
+            @"name": [kind isEqual:@"text"] ? @"复制文本" : @"复制图片",
+            @"enabled": @YES, @"auto": @NO, @"floatingEnabled": @YES,
+            @"symbolName": [kind isEqual:@"text"] ? @"doc.on.clipboard" : @"photo",
+            @"symbolColor": @"#007AFF", @"tooltipEnabled": @YES, @"tooltipText": @"",
+            @"source": @"", @"actions": @[]} mutableCopy];
+        for (id candidate in stored) {
+            if (![candidate isKindOfClass:NSDictionary.class] || ![candidate[@"id"] isEqual:identifier]) continue;
+            [entry addEntriesFromDictionary:candidate];
+            break;
+        }
+        // Identity and type are fixed; fallback matching never evaluates source.
+        entry[@"id"] = identifier;
+        entry[@"fallbackKind"] = kind;
+        entry[@"source"] = @"";
+        [result addObject:MTClipboardSingleActionRule(entry)];
+    }
+    return result;
+}
+
++ (NSDictionary *)document:(NSDictionary *)document settingFallbackRuleDictionaries:(NSArray<NSDictionary *> *)rules {
+    NSMutableDictionary *next = document.mutableCopy;
+    next[@"clipboardFallbacks"] = [self fallbackRuleDictionariesInDocument:@{@"clipboardFallbacks": rules ?: @[]}];
+    return next;
+}
+
++ (NSArray<NSDictionary *> *)effectiveRuleDictionariesInDocument:(NSDictionary *)document {
+    return [[self ruleDictionariesInDocument:document] arrayByAddingObjectsFromArray:
+        [self fallbackRuleDictionariesInDocument:document]];
+}
+
 + (BOOL)migrateLegacySlotRulesIfNeeded:(NSError **)error {
     NSDictionary *current = [MTSharedResourceStore readSnapshotError:error];
     if (!current) return NO;

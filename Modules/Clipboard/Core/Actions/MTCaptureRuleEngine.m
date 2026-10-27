@@ -54,15 +54,27 @@ static NSString *MTCaptureRuleSymbolColor(id value) {
 + (NSArray<MTCaptureRule *> *)rulesFromDictionaries:(NSArray *)dictionaries {
     if (![dictionaries isKindOfClass:NSArray.class]) return @[];
     NSMutableArray<MTCaptureRule *> *result = [NSMutableArray array];
+    NSUInteger customCount = 0;
+    NSMutableSet *fallbackKinds = [NSMutableSet set];
     for (NSDictionary *entry in dictionaries) {
         if (![entry isKindOfClass:NSDictionary.class]) continue;
         NSString *identifier = [entry[@"id"] isKindOfClass:NSString.class] ? entry[@"id"] : nil;
         NSString *source = [entry[@"source"] isKindOfClass:NSString.class] ? entry[@"source"] : nil;
+        NSString *fallbackKind = [entry[@"fallbackKind"] isKindOfClass:NSString.class] ? entry[@"fallbackKind"] : @"";
+        BOOL fallback = [@[@"text", @"image"] containsObject:fallbackKind] &&
+            [identifier isEqual:[@"clipboard-fallback-" stringByAppendingString:fallbackKind]];
         NSMutableCharacterSet *allowedIdentifier = [NSCharacterSet alphanumericCharacterSet].mutableCopy;
         [allowedIdentifier addCharactersInString:@"-"];
         if (identifier.length == 0 || identifier.length > 64 ||
             [identifier rangeOfCharacterFromSet:[allowedIdentifier invertedSet]].location != NSNotFound) continue;
-        if (source.length == 0 || [source lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > MTCaptureRuleSourceLimit) continue;
+        if (fallback) {
+            if ([fallbackKinds containsObject:fallbackKind]) continue;
+            [fallbackKinds addObject:fallbackKind];
+        } else {
+            if (customCount >= MTCaptureRuleMaxCount || source.length == 0 ||
+                [source lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > MTCaptureRuleSourceLimit) continue;
+            customCount++;
+        }
         NSMutableArray<NSString *> *actions = [NSMutableArray array];
         for (id action in [entry[@"actions"] isKindOfClass:NSArray.class] ? entry[@"actions"] : @[]) {
             if (![action isKindOfClass:NSString.class] || [(NSString *)action length] == 0) continue;
@@ -81,13 +93,15 @@ static NSString *MTCaptureRuleSymbolColor(id value) {
         rule->_symbolColor = MTCaptureRuleSymbolColor(entry[@"symbolColor"]);
         rule->_tooltipEnabled = MTCaptureRuleBool(entry[@"tooltipEnabled"], YES);
         rule->_tooltipText = MTCaptureRuleString(entry[@"tooltipText"], rule.name, 128);
-        rule->_source = source;
+        rule->_fallbackKind = fallback ? fallbackKind : @"";
+        rule->_source = fallback ? @"" : source;
         rule->_actions = actions;
         [result addObject:rule];
-        if (result.count >= MTCaptureRuleMaxCount) break;
     }
     return result;
 }
+
+- (BOOL)isFallback { return self.fallbackKind.length > 0; }
 
 - (NSDictionary *)dictionaryRepresentation {
     return @{ @"id": self.identifier,
@@ -100,6 +114,7 @@ static NSString *MTCaptureRuleSymbolColor(id value) {
               @"tooltipEnabled": @(self.tooltipEnabled),
               @"tooltipText": self.tooltipText,
               @"source": self.source ?: @"",
+              @"fallbackKind": self.fallbackKind,
               @"actions": self.actions ?: @[] };
 }
 
@@ -147,7 +162,11 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
     NSString *copy = [text isKindOfClass:NSString.class]
         ? [text substringToIndex:MIN((NSUInteger)MTCaptureRuleTextLimit, text.length)]
         : @"";
-    NSString *safeKind = [kind isKindOfClass:NSString.class] && kind.length ? kind : @"text";
+    NSString *safeKind = [kind isEqual:@"image"] ? @"image" : @"text";
+    // Even imported/reordered arrays cannot place a fallback ahead of custom JS.
+    NSMutableArray<MTCaptureRule *> *ordered = [NSMutableArray array];
+    for (MTCaptureRule *rule in rules) if (!rule.isFallback) [ordered addObject:rule];
+    for (MTCaptureRule *rule in rules) if (rule.isFallback) [ordered addObject:rule];
     NSString *fingerprint = MTCaptureFingerprint(rules);
     dispatch_async(self.queue, ^{
         if (![fingerprint isEqual:self.failureFingerprint]) {
@@ -155,9 +174,13 @@ static NSString *MTCaptureFingerprint(NSArray<MTCaptureRule *> *rules) {
             self.failureFingerprint = fingerprint;
         }
         MTCaptureRule *hit = nil;
-        for (MTCaptureRule *rule in rules) {
+        for (MTCaptureRule *rule in ordered) {
             if (!rule.enabled || !rule.actions.count) continue;
             if (autoOnly && !rule.autoRun) continue;
+            if (rule.isFallback) {
+                if ([rule.fallbackKind isEqual:safeKind]) { hit = rule; break; }
+                continue;
+            }
             if ([self.failures[rule.identifier] unsignedIntegerValue] >= MTCaptureRuleFailureLimit) continue;
             NSDictionary *result = [self evaluateSource:rule.source text:copy kind:safeKind];
             if ([result[@"error"] length] > 0) {

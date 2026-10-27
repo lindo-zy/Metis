@@ -161,7 +161,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>复制后按 JS 规则匹配，由命中规则控制小球、SF 图标和气泡提示；单击小球执行绑定动作。未命中不显示小球。</string>
+			<string>复制后优先匹配 JS 规则，未命中时按文本或图片类型使用兜底动作；单击小球执行绑定动作。兜底默认开启，请分别选择动作。</string>
 			<key>label</key>
 			<string>剪切板规则</string>
 		</dict>

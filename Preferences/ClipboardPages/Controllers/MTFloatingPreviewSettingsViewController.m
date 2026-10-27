@@ -249,7 +249,7 @@
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
     if (section == 4) {
-        return @"小球是否显示、SF 图标和气泡提示由命中规则决定。此页的外观与显示时长适用于所有规则。";
+        return @"小球是否显示、SF 图标和气泡提示由命中的规则或兜底动作决定。此页的外观与显示时长适用于所有规则和兜底动作。";
     }
     return nil;
 }
