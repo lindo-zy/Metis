@@ -1130,6 +1130,8 @@ NS_ASSUME_NONNULL_END
         [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]]];
     for (MTCaptureRule *candidate in latest) {
         if (candidate.enabled && [candidate.dictionaryRepresentation isEqual:rule.dictionaryRepresentation]) {
+            NSLog(@"[Metis][ClipboardRules] state=tap rule=%@ actions=%lu",
+                  candidate.identifier, (unsigned long)candidate.actions.count);
             [self performCaptureRule:candidate forItem:item autoOnly:NO];
             break;
         }
@@ -1166,6 +1168,8 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
             [owner isPackageMaintenanceMode] || ![MTGlobalPanel deviceUnlocked]) return;
         NSArray *latest = [MTClipboardActionReferences ruleDictionariesInDocument:[MTSharedResourceStore readSnapshot]];
         if (![latest isEqual:ruleDictionaries] || !hit) return;
+        NSLog(@"[Metis][ClipboardRules] state=matched rule=%@ floating=%d auto=%d",
+              hit.identifier, hit.floatingEnabled, hit.autoRun);
         [owner showFloatingPreviewForItem:item rule:hit];
         if (hit.autoRun) [owner performCaptureRule:hit forItem:item autoOnly:YES];
     }];
@@ -1175,7 +1179,7 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     if (!rule || [rule.actions count] == 0) return;
     if (autoOnly) {
         // 防环路：动作输出写剪切板 → 新捕获 → 再次自动执行。冷却窗口内的
-        // 捕获不再自动执行（气泡预览与手动双击不受影响）；内部写另有
+        // 捕获不再自动执行（悬浮入口与手动单击不受影响）；内部写另有
         // pasteSuppressionState 兜底。
         CFTimeInterval now = CACurrentMediaTime();
         if (now < self.captureRulesAutoCooldownUntil) return;
