@@ -366,6 +366,12 @@ static UIImage *MTImageApplyingIconPolicy(UIImage *image, MTIconTintPolicy polic
 // Resolves one raw icon config string (a link action's or shortcut's "icon"
 // field) into a UIImage: SF Symbol wins (22pt + AlwaysTemplate，颜色由策略决定),
 // then the app icon for bundle IDs (AlwaysOriginal 原色), then the fallback symbol.
++(UIImage *)symbolImageForIconConfig:(NSString *)icon {
+    if (!icon.length) return nil;
+    UIImage *symbol = [MTSettingsStyle settingsSymbolImageNamed:icon];
+    return symbol ? MTImageApplyingIconPolicy(symbol, MTIconTintPolicyInherit, icon) : nil;
+}
+
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName{
     return [self imageForIconConfig:icon defaultSymbolName:defaultName policy:MTIconTintPolicyInherit];
 }

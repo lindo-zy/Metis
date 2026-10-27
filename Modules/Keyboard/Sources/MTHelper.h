@@ -28,6 +28,9 @@ typedef NS_ENUM(NSInteger, MTIconTintPolicy) {
 +(UIImage *)appIconImageForBundleID:(NSString *)bundleID;
 +(NSString *)defaultIconForActionType:(NSString *)type;
 +(UIImage *)imageForCustomActionEntry:(NSDictionary *)entry;
+// 仅解析 SF Symbol 配置（轻量，可主线程调用）；App 图标查询含磁盘与私有 API，
+// 调用方必须走异步管线。
++(UIImage *)symbolImageForIconConfig:(NSString *)icon;
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName;
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName policy:(MTIconTintPolicy)policy;
 +(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName;
