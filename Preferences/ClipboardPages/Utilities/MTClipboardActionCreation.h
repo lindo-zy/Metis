@@ -12,6 +12,6 @@ BOOL MTClipboardPersistCustomActionDefinition(NSDictionary *definition);
 
 // 桥接层从 legacy selector 确定性推导 store UUID：写入完成后用它把新动作
 // 解析成共享库 UUID（引用以 UUID 存储）。找不到返回 nil。
-NSString *Nullable MTClipboardStoredActionIDForSelector(NSString *selector);
+NSString * _Nullable MTClipboardStoredActionIDForSelector(NSString *selector);
 
 NS_ASSUME_NONNULL_END
