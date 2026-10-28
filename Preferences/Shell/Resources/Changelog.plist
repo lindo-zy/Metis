@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.5</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>截取规则的「选择动作」面板现在显示动作图标，与其他动作面板保持一致。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>截取规则编辑页已绑定动作的行同步显示对应图标。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.4</string>
 		<key>items</key>
 		<array>
@@ -75,25 +94,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>新增“复制文本”和“复制图片”两个默认开启的兜底动作，自定义 JS 未命中时按内容类型直接匹配，无需 JS；初始未绑定动作，可分别选择一个共享动作。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.0</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>调整</string>
-				<key>text</key>
-				<string>剪切板每条 JS 规则仅绑定一个共享动作，旧配置保留首个动作，支持直接更换或移除引用。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>小球 SF 图标缩小并支持独立配置颜色，默认蓝色；气泡改为窄版纯文本半透明磨砂提示，1 秒后自动消失。</string>
 			</dict>
 		</array>
 	</dict>

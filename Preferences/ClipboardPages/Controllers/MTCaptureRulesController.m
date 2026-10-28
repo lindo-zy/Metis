@@ -13,6 +13,7 @@
 #import "MTPSFSymbolPickerController.h"
 #import "MTFloatingPreviewSettingsViewController.h"
 #import "MTTagColorFormatter.h"
+#import "MTHelper.h"
 
 static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"无法保存规则"
@@ -316,7 +317,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     for (NSDictionary *resource in [MTSharedResourceStore readSnapshot][@"actions"]) {
         NSDictionary *action = resource[@"entry"];
         if (![MTClipboardActionReferences supportsEntry:action]) continue;
-        [library addObject:@{@"id": resource[@"id"], @"name": action[@"name"] ?: @"未命名动作"}];
+        [library addObject:@{@"id": resource[@"id"], @"name": action[@"name"] ?: @"未命名动作", @"entry": action}];
     }
     self.libraryActions = library;
     [self.tableView reloadData];
@@ -333,6 +334,12 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 - (NSString *)nameForActionUUID:(NSString *)uuid {
     for (NSDictionary *action in self.libraryActions) if ([action[@"id"] isEqual:uuid]) return action[@"name"];
     return @"已删除或不支持的动作";
+}
+// 与各动作选择面板同源：entry 自带图标 + 蓝色 tint；库中查不到时不显示。
+- (UIImage *)imageForActionUUID:(NSString *)uuid {
+    for (NSDictionary *action in self.libraryActions)
+        if ([action[@"id"] isEqual:uuid]) return [MTHelper imageForCustomActionEntry:action[@"entry"]];
+    return nil;
 }
 - (void)commit {
     [self.view endEditing:YES];
@@ -521,6 +528,8 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     cell.textLabel.text = actions.count ? [self nameForActionUUID:actions.firstObject] : @"选择动作";
     cell.textLabel.textColor = actions.count ? UIColor.labelColor : UIColor.systemBlueColor;
     cell.detailTextLabel.text = actions.count ? @"点击更换动作" : @"从共享自定义动作中选择一个";
+    cell.imageView.image = actions.count ? [self imageForActionUUID:actions.firstObject] : nil;
+    cell.imageView.tintColor = [UIColor systemBlueColor];
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return cell;
 }
@@ -654,7 +663,8 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
         if ([self.excludedIDs containsObject:resource[@"id"]]) continue;
         [candidates addObject:@{ @"id": resource[@"id"] ?: @"",
                                  @"name": entry[@"name"] ?: @"未命名动作",
-                                 @"type": entry[@"type"] ?: @"urlscheme" }];
+                                 @"type": entry[@"type"] ?: @"urlscheme",
+                                 @"entry": entry }];
     }
     _candidates = candidates;
     [self.tableView reloadData];
@@ -684,7 +694,8 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
         cell.textLabel.text = action[@"name"];
         cell.textLabel.textColor = UIColor.labelColor;
         cell.detailTextLabel.text = [self typeLabel:action[@"type"]];
-        cell.imageView.image = nil;
+        cell.imageView.image = [MTHelper imageForCustomActionEntry:action[@"entry"]];
+        cell.imageView.tintColor = [UIColor systemBlueColor];
         cell.accessoryType = UITableViewCellAccessoryNone;
         cell.selectionStyle = UITableViewCellSelectionStyleDefault;
         return cell;
