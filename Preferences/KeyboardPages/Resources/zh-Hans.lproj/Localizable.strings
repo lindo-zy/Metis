@@ -947,7 +947,7 @@
 "QUICK_ACTION_EMPTY" = "未配置";
 "QUICK_ACTION_EMPTY_HINT" = "请在快速面板设置中配置快捷按钮";
 "QUICK_ACTIONS_FOOTER" = "四个位置分别从「自定义动作」选择；竖列从上到下排列，双列按从左到右、从上到下排列。动作内容与自定义动作同步更新。";
-"QUICK_ACTION_PICKER_FOOTER" = "先在「自定义动作」创建动作，再在此选择。快速面板可运行不依赖输入框的动作；JavaScript 需使用剪切板输入和复制输出。";
+"QUICK_ACTION_PICKER_FOOTER" = "从「自定义动作」中选择，也可在底部新建；新建的动作保存在全局动作库。快速面板可运行不依赖输入框的动作；JavaScript 需使用剪切板输入和复制输出。";
 "QUICK_ACTION_UNAVAILABLE" = "此动作需要输入框，或不支持全局执行";
 "QUICK_STAGE_EXPAND" = "‹ 左滑展开";
 "QUICK_STAGE_SEARCH" = "‹ 左滑搜索";

@@ -52,6 +52,9 @@ static BOOL MTEdgeSaveBinding(NSString *slot, NSString *field, id value) {
     self.actionContextKind = MTPanelGestureKind;
     self.requiresGlobalExecution = YES;
     self.selectionManagedExternally = YES;
+    // 与 Dock/状态栏手势对齐：类型集限制在免输入框四类，受限选择器与保存
+    // 后的自动选中返回由基类提供。
+    self.allowsCreatingCustomActions = YES;
     self.selectedSelector = MTEdgeGestureBinding([MTPrefsManager.sharedInstance readPrefs], slot)[@"selector"];
     // Configure before the shared picker loads its rows. The PSLinkCell route
     // supplies specifier/root/parent context through Preferences itself.

@@ -1,7 +1,9 @@
 #import "MTCaptureRulesController.h"
 #import "MTCaptureRuleEngine.h"
 #import "MTClipboardActionReferences.h"
+#import "MTClipboardActionCreation.h"
 #import "MTSharedResourceStore.h"
+#import "MTPLinkActionEditorController.h"
 #import "MTPContextScriptEditorController.h"
 #import "MTPContextScriptDebugController.h"
 #import "MTPAIScriptChatController.h"
@@ -606,6 +608,9 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
 @property (nonatomic, copy) NSArray<NSDictionary *> *candidates;
 @property (nonatomic, copy) NSArray<NSString *> *excludedIDs;
 @property (nonatomic, copy) void (^completion)(NSString *uuid);
+// 就地新建动作后待回传的 UUID：编辑器保存回调触发时编辑器仍在弹栈，
+// completion 与 pop 延迟到本页 viewDidAppear 再执行，避免压栈竞态。
+@property (nonatomic, copy) NSString *pendingCreatedUUID;
 @end
 
 @implementation MTCaptureRuleActionPickerController
@@ -629,6 +634,17 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     [self reloadCandidates];
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    if (self.pendingCreatedUUID.length == 0) return;
+    NSString *uuid = self.pendingCreatedUUID;
+    self.pendingCreatedUUID = nil;
+    void (^completion)(NSString *) = self.completion;
+    self.completion = nil;
+    [self.navigationController popViewControllerAnimated:YES];
+    if (completion) completion(uuid);
+}
+
 - (void)reloadCandidates {
     NSMutableArray *candidates = [NSMutableArray array];
     for (NSDictionary *resource in [MTSharedResourceStore readSnapshot][@"actions"]) {
@@ -644,8 +660,10 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     [self.tableView reloadData];
 }
 
+// 候选动作行 + 底部「添加动作」行；空库时先补一行占位，新建入口任何状态
+// 下可用。
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return (NSInteger)_candidates.count;
+    return (NSInteger)_candidates.count + 1 + (_candidates.count == 0 ? 1 : 0);
 }
 
 - (NSString *)typeLabel:(NSString *)type {
@@ -654,17 +672,47 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     return labels[type] ?: @"链接";
 }
 
+- (BOOL)rowIsAddRow:(NSIndexPath *)indexPath {
+    return _candidates.count == 0 ? indexPath.row == 1 : indexPath.row == (NSInteger)_candidates.count;
+}
+
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"action"];
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"action"];
-    NSDictionary *action = _candidates[(NSUInteger)indexPath.row];
-    cell.textLabel.text = action[@"name"];
-    cell.detailTextLabel.text = [self typeLabel:action[@"type"]];
+    if (indexPath.row < (NSInteger)_candidates.count) {
+        NSDictionary *action = _candidates[(NSUInteger)indexPath.row];
+        cell.textLabel.text = action[@"name"];
+        cell.textLabel.textColor = UIColor.labelColor;
+        cell.detailTextLabel.text = [self typeLabel:action[@"type"]];
+        cell.imageView.image = nil;
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+        return cell;
+    }
+    cell.detailTextLabel.text = nil;
+    cell.imageView.image = nil;
+    cell.accessoryType = UITableViewCellAccessoryNone;
+    if ([self rowIsAddRow:indexPath]) {
+        cell.textLabel.text = @"添加动作";
+        cell.textLabel.textColor = UIColor.systemBlueColor;
+        cell.imageView.image = [UIImage systemImageNamed:@"plus.circle.fill"];
+        cell.imageView.tintColor = UIColor.systemGreenColor;
+        cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+        return cell;
+    }
+    cell.textLabel.text = @"动作库中还没有可用动作";
+    cell.textLabel.textColor = UIColor.secondaryLabelColor;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
     return cell;
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if ([self rowIsAddRow:indexPath]) {
+        [self presentAddActionTypeChooser];
+        return;
+    }
+    if (indexPath.row >= (NSInteger)_candidates.count) return;
     NSString *uuid = _candidates[(NSUInteger)indexPath.row][@"id"];
     void (^completion)(NSString *) = self.completion;
     self.completion = nil;
@@ -672,8 +720,53 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     if (completion) completion(uuid);
 }
 
+#pragma mark - Add flow
+
+// 类型集与草稿构造统一在编辑器类方法（免输入框四类，与自定义跳转管理页
+// 等入口同形）；落盘与 selector→UUID 解析共用 MTClipboardActionCreation。
+- (void)presentAddActionTypeChooser {
+    __weak typeof(self) weakSelf = self;
+    [MTPLinkActionEditorController presentGloballyExecutableTypeChooserFromController:self
+        message:@"新建的动作保存在全局动作库中，键盘与其他入口同样可见。"
+        completion:^(NSString *type) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (strongSelf && type.length) [strongSelf startAddFlowForType:type];
+        }];
+}
+
+- (void)startAddFlowForType:(NSString *)type {
+    NSMutableDictionary *entry = [MTPLinkActionEditorController draftEntryForType:type];
+    if (!entry) return;
+    MTPLinkActionEditorController *editor = [[MTPLinkActionEditorController alloc] init];
+    editor.entry = entry;
+    __weak typeof(self) weakSelf = self;
+    editor.completion = ^(NSDictionary *savedEntry) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        NSString *selector = [savedEntry isKindOfClass:NSDictionary.class] ? savedEntry[@"selector"] : nil;
+        if (selector.length) MTClipboardPersistCustomActionDefinition(savedEntry);
+        NSString *storedID = selector.length ? MTClipboardStoredActionIDForSelector(selector) : nil;
+        if (storedID.length == 0) {
+            // 动作已进库但解析不到 UUID：留在本页让用户手选，不静默丢引用。
+            [strongSelf reloadCandidates];
+            [strongSelf showCreationError];
+            return;
+        }
+        strongSelf.pendingCreatedUUID = storedID;
+    };
+    [self.navigationController pushViewController:editor animated:YES];
+}
+
+- (void)showCreationError {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"动作引用未保存"
+        message:@"动作已保存到全局动作库，但未能自动绑定，请手动选择该动作。"
+        preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return @"动作来自共享动作库（键盘/剪贴板各处共用）；在动作库中删除后，规则中的该位自动失效。";
+    return @"动作来自共享动作库（键盘/剪贴板各处共用），也可在底部新建；在动作库中删除后，规则中的该位自动失效。";
 }
 
 @end

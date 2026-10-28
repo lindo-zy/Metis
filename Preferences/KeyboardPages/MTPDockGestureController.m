@@ -147,19 +147,19 @@ static BOOL MTDockSaveSelector(NSString *direction, NSString *selector) {
 }
 - (void)addAction:(PSSpecifier *)specifier {
     (void)specifier;
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:MTDockLocalized(@"ADD") message:nil preferredStyle:UIAlertControllerStyleAlert];
     __weak typeof(self) weakSelf = self;
-    for (NSString *type in @[kCustomActionTypeURLScheme, kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem])
-        [alert addAction:[UIAlertAction actionWithTitle:[MTPLinkActionEditorController displayNameForType:type] style:UIAlertActionStyleDefault
-            handler:^(__unused UIAlertAction *action) { [weakSelf addType:type]; }]];
-    [alert addAction:[UIAlertAction actionWithTitle:MTDockLocalized(@"ANSWER_CANCEL") style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
+    // 类型集与 alert 形状与其他免输入框入口共享（编辑器类方法）。
+    [MTPLinkActionEditorController presentGloballyExecutableTypeChooserFromController:self
+        message:nil
+        completion:^(NSString *type) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (strongSelf && type.length) [strongSelf addType:type];
+        }];
 }
 - (void)addType:(NSString *)type {
     MTPLinkActionEditorController *editor = [MTPLinkActionEditorController new];
-    editor.entry = [@{@"selector": [kLinkActionSelectorPrefix stringByAppendingString:NSUUID.UUID.UUIDString],
-        @"type": type, @"name": [MTPLinkActionEditorController displayNameForType:type],
-        @"icon": [MTPLinkActionEditorController defaultIconForType:type], @"link": @""} mutableCopy];
+    editor.entry = [MTPLinkActionEditorController draftEntryForType:type];
+    if (!editor.entry) return;
     __weak typeof(self) weakSelf = self;
     __weak MTPLinkActionEditorController *weakEditor = editor;
     NSString *direction = [self.direction copy];

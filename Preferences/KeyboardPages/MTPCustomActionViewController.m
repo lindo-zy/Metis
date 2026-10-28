@@ -35,6 +35,9 @@ static NSBundle *mtpLocalBundle;
 @property (nonatomic, strong) NSArray *builtInDisplayRowsSource;
 @property (nonatomic, copy) NSArray<NSDictionary *> *customDisplayRows;
 @property (nonatomic, copy) NSString *pickerFilterSignature;
+// 就地新建动作后待回传的 selector：编辑器保存回调触发时编辑器仍在弹栈，
+// completion 与 pop 延迟到本页 viewDidAppear 再执行，避免压栈竞态。
+@property (nonatomic, copy) NSString *pendingAutoPickSelector;
 @end
 
 @implementation MTPCustomActionViewController
@@ -204,57 +207,16 @@ static NSBundle *mtpLocalBundle;
 
 #pragma mark - Action editor
 
-// 「新建动作」页可选六类型（与 MTPNewActionTypeController 固定顺序一致）；
+// 「新建动作」页可选类型集与草稿构造统一在 MTPLinkActionEditorController；
 // legacy url 类型仅用于既有条目兼容，不在新建流程内。
-static BOOL MTIsCreatableActionType(NSString *type) {
-    static NSSet<NSString *> *creatableTypes;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        creatableTypes = [NSSet setWithObjects:kCustomActionTypeURLScheme, kCustomActionTypeText,
-            kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem,
-            kCustomActionTypeAI, kCustomActionTypeJavaScript, nil];
-    });
-    return [creatableTypes containsObject:type];
-}
-
 - (void)startAddFlowForType:(NSString *)type {
-    // 防御：nil/未知类型直接拒绝——字典字面量插入 nil 值会抛异常，未知类型
-    // 会产出编辑器无法识别的脏条目。
-    if (!MTIsCreatableActionType(type)) {
+    // 防御：未知类型直接拒绝——草稿构造返回 nil，强行压栈会产出编辑器无法
+    // 识别的脏条目。
+    NSMutableDictionary *entry = [MTPLinkActionEditorController draftEntryForType:type];
+    if (!entry) {
         NSLog(@"[MetisKeyboard][CustomActions] add flow rejected: unknown type '%@'", type ?: @"<nil>");
         return;
     }
-    BOOL opensApplication = [type isEqualToString:kCustomActionTypeOpenApp];
-    NSMutableDictionary *entry = [@{
-        @"selector": [kLinkActionSelectorPrefix stringByAppendingString:NSUUID.UUID.UUIDString],
-        @"name": opensApplication ? LOCALIZED(@"OPEN_APP") : LOCALIZED(@"DEFAULT_BUTTON_NAME"),
-        @"icon": opensApplication ? @"app" : ([type isEqualToString:kCustomActionTypeShortcut] ? @"bolt.fill" : @"link"),
-        @"link": @"",
-        kCustomActionTypeKey: type,
-    } mutableCopy];
-    if ([type isEqualToString:kCustomActionTypeSystem]) {
-        entry[@"name"] = LOCALIZED(@"ACTION_TYPE_SYSTEM");
-        entry[@"icon"] = @"gearshape";
-        [entry removeObjectForKey:@"link"];
-    }
-    if ([type isEqualToString:kCustomActionTypeText]) {
-        entry[@"icon"] = @"doc.text";
-        entry[kCustomActionTextRecordsKey] = @[@""];
-        [entry removeObjectForKey:@"link"];
-    }
-    if ([type isEqualToString:kCustomActionTypeAI]) {
-        entry[@"name"] = LOCALIZED(@"ACTION_TYPE_AI");
-        entry[@"icon"] = @"sparkles";
-        [entry removeObjectForKey:@"link"];
-    }
-    if (opensApplication || [type isEqualToString:kCustomActionTypeURLScheme]) entry[kCustomActionFloatingKey] = @YES;
-    if ([type isEqualToString:kCustomActionTypeJavaScript]) {
-        entry[@"icon"] = @"curlybraces";
-        entry[@"script"] = @"async function main(str) {\n    return str.toUpperCase();\n}\n";
-        entry[@"jsInput"] = @"auto";
-        entry[@"jsOutput"] = @"replace";
-    }
-
     MTPLinkActionEditorController *editor = [[MTPLinkActionEditorController alloc] init];
     if (self.defaultActionGroup.length) entry[kCustomActionGroupKey] = self.defaultActionGroup;
     editor.entry = entry;
@@ -290,12 +252,15 @@ static BOOL MTIsCreatableActionType(NSString *type) {
 // of the editor never leaves a half-configured row behind.
 - (void)presentAddActionTypeChooser {
     __weak typeof(self) weakSelf = self;
+    // 手势槽只能执行免编辑器动作，类型集由编辑器类的受限选择器提供。
     if ([self.actionContextKind isEqual:MTPanelGestureKind]) {
-        UIAlertController *menu = [UIAlertController alertControllerWithTitle:LOCALIZED(@"ADD") message:nil preferredStyle:UIAlertControllerStyleAlert];
-        for (NSString *type in @[kCustomActionTypeURLScheme, kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem])
-            [menu addAction:[UIAlertAction actionWithTitle:[MTPLinkActionEditorController displayNameForType:type] style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) { [weakSelf startAddFlowForType:type]; }]];
-        [menu addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"CANCEL") style:UIAlertActionStyleCancel handler:nil]];
-        [self presentViewController:menu animated:YES completion:nil];
+        [MTPLinkActionEditorController presentGloballyExecutableTypeChooserFromController:self
+            message:nil
+            completion:^(NSString *type) {
+                __strong typeof(weakSelf) strongSelf = weakSelf;
+                if (!strongSelf || type.length == 0) return;
+                [strongSelf startAddFlowForType:type];
+            }];
         return;
     }
     [MTPLinkActionEditorController presentTypeChooserFromController:self
@@ -611,7 +576,27 @@ static BOOL MTIsCreatableActionType(NSString *type) {
     return nil;
 }
 
+// 就地新建动作的统一回传：批量模式立即勾选（完成时一并带回）；单选外部
+// 管理模式记录待选 selector，待 viewDidAppear（编辑器弹栈完毕）回传并
+// pop。管理与只读选择页不受影响（两个开关均未开时为 no-op）。
 - (void)customActionWasCreated:(NSString *)selector {
+    if (selector.length == 0) return;
+    if (self.allowsMultipleSelection) {
+        [self markSelectorPicked:selector];
+        return;
+    }
+    if (!self.selectionManagedExternally || !self.allowsCreatingCustomActions) return;
+    self.selectedSelector = selector;
+    self.pendingAutoPickSelector = selector;
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    if (self.pendingAutoPickSelector.length == 0) return;
+    NSString *selector = self.pendingAutoPickSelector;
+    self.pendingAutoPickSelector = nil;
+    if (self.completion) self.completion(selector);
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)markSelectorPicked:(NSString *)selector {

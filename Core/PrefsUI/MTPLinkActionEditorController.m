@@ -277,6 +277,62 @@ static NSInteger const MTLegacyRowLink = 2;
     [controller presentViewController:alert animated:YES completion:nil];
 }
 
+// 无输入框宿主可执行类型：URL Scheme 载体覆盖 http(s)（url 类型不再新建），
+// AI / 文本 / 依赖输入框的 JavaScript 不在内——在无输入框的入口新建会产出
+// 无法执行的动作。
++ (NSArray<NSString *> *)globallyExecutableCreatableTypes {
+    return @[kCustomActionTypeURLScheme, kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem];
+}
+
++ (void)presentGloballyExecutableTypeChooserFromController:(UIViewController *)controller
+                                                   message:(NSString *)message
+                                                completion:(void (^)(NSString *type))completion {
+    [self loadTweakBundle];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:LOCALIZED(@"CHOOSE_ACTION_TYPE")
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    for (NSString *type in [self globallyExecutableCreatableTypes]) {
+        [alert addAction:[UIAlertAction actionWithTitle:[self displayNameForType:type]
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(__unused UIAlertAction *action) {
+            if (completion) completion(type);
+        }]];
+    }
+    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_CANCEL")
+                                              style:UIAlertActionStyleCancel
+                                            handler:nil]];
+    [controller presentViewController:alert animated:YES completion:nil];
+}
+
+// 新建草稿的唯一权威构造。名称/图标只作初始占位，用户在编辑器里改；草稿
+// 不落盘，只有编辑器「保存」回调的条目才由调用方持久化。
++ (NSMutableDictionary *)draftEntryForType:(NSString *)type {
+    if (!type.length) return nil;
+    BOOL opensApplication = [type isEqualToString:kCustomActionTypeOpenApp];
+    BOOL named = opensApplication || [type isEqualToString:kCustomActionTypeShortcut] ||
+        [type isEqualToString:kCustomActionTypeSystem] || [type isEqualToString:kCustomActionTypeAI];
+    NSMutableDictionary *entry = [@{
+        @"selector": [kLinkActionSelectorPrefix stringByAppendingString:NSUUID.UUID.UUIDString],
+        @"name": named ? [self displayNameForType:type] : LOCALIZED(@"DEFAULT_BUTTON_NAME"),
+        @"icon": [self defaultIconForType:type],
+        @"link": @"",
+        kCustomActionTypeKey: type,
+    } mutableCopy];
+    if ([type isEqualToString:kCustomActionTypeSystem]) [entry removeObjectForKey:@"link"];
+    if (opensApplication || [type isEqualToString:kCustomActionTypeURLScheme]) entry[kCustomActionFloatingKey] = @YES;
+    if ([type isEqualToString:kCustomActionTypeText]) {
+        entry[kCustomActionTextRecordsKey] = @[@""];
+        [entry removeObjectForKey:@"link"];
+    }
+    if ([type isEqualToString:kCustomActionTypeJavaScript]) {
+        entry[@"script"] = @"async function main(str) {\n    return str.toUpperCase();\n}\n";
+        entry[@"jsInput"] = @"auto";
+        entry[@"jsOutput"] = @"replace";
+        [entry removeObjectForKey:@"link"];
+    }
+    return entry;
+}
+
 #pragma mark - Layout
 
 - (BOOL)isLegacyEntry {

@@ -1,5 +1,6 @@
 #import "MTCustomJumpManagementViewController.h"
 #import "MTClipboardActionReferences.h"
+#import "MTClipboardActionCreation.h"
 #import "MTSharedResourceStore.h"
 #import "MTPrefsManager.h"
 #import "MTHelper.h"
@@ -21,18 +22,6 @@ typedef NS_ENUM(NSInteger, MTClipboardActionRowKind) {
     MTClipboardActionRowKindAdd = 1,
     MTClipboardActionRowKindEmpty = 2,
 };
-
-// 剪切板可执行类型：与 MTClipboardActionReferences.supportsEntry 一一对应。
-// AI / 文本 / JavaScript 不在其中——它们依赖输入框或脚本通道，在此新建会产出
-// 无法执行的动作，因此不出现在类型选择器里。
-static NSArray<NSString *> *MTClipboardCreatableActionTypes(void) {
-    static NSArray<NSString *> *types;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        types = @[kCustomActionTypeURLScheme, kCustomActionTypeOpenApp, kCustomActionTypeShortcut, kCustomActionTypeSystem];
-    });
-    return types;
-}
 
 static NSString *MTClipboardActionName(NSDictionary *entry) {
     NSString *name = entry[@"name"];
@@ -209,8 +198,11 @@ static NSString *MTClipboardActionTypeLabel(NSDictionary *entry) {
         [rows addObject:@{@"kind": @(MTClipboardActionRowKindAction), @"action": action}];
     }
     if (!rows.count) {
+        // 空库时占位行与「添加动作」行并存：底部新建入口在任何状态下可用
+        //（此前空库反而看不到添加行，footer 却宣称可以本页新建）。
         [rows addObject:@{@"kind": @(MTClipboardActionRowKindEmpty)}];
-    } else if (!self.query.length) {
+    }
+    if (!self.query.length) {
         // 搜索态列表是纯过滤结果，不提供新建入口，避免「搜索里新建」的歧义。
         [rows addObject:@{@"kind": @(MTClipboardActionRowKindAdd)}];
     }
@@ -249,49 +241,13 @@ static NSString *MTClipboardActionTypeLabel(NSDictionary *entry) {
     return saved;
 }
 
-// The global library is owned by the legacy view: appending the definition to
-// kLinkActionskey and writing through MTPrefsManager lets the bridge commit it
-// to the shared resource store, which is also what makes it visible to the
-// keyboard's own pickers.
-- (BOOL)persistCustomActionDefinition:(NSDictionary *)definition {
-    NSMutableDictionary *prefs = [[[MTPrefsManager sharedInstance] readPrefs] mutableCopy] ?: [NSMutableDictionary dictionary];
-    NSArray *stored = [prefs[kLinkActionskey] isKindOfClass:NSArray.class] ? prefs[kLinkActionskey] : @[];
-    NSMutableArray *definitions = [NSMutableArray array];
-    for (id raw in stored) {
-        NSMutableDictionary *entry = [raw isKindOfClass:NSDictionary.class] ? [raw mutableCopy] : [NSMutableDictionary dictionary];
-        if ([entry[@"selector"] isEqual:definition[@"selector"]]) continue;
-        [definitions addObject:entry];
-    }
-    [definitions addObject:definition];
-    prefs[kLinkActionskey] = definitions;
-
-    NSString *group = MTActionGroupNormalizedName(definition[kCustomActionGroupKey]);
-    if (group.length) {
-        NSArray *storedGroups = [prefs[kLinkActionGroupsKey] isKindOfClass:NSArray.class] ? prefs[kLinkActionGroupsKey] : @[];
-        NSMutableArray *groups = [storedGroups mutableCopy];
-        if (![groups containsObject:group]) [groups addObject:group];
-        prefs[kLinkActionGroupsKey] = groups;
-    }
-    [[MTPrefsManager sharedInstance] writePrefs:prefs];
-    return YES;
-}
-
-// The bridge derives the store UUID deterministically from the legacy
-// selector, so the freshly committed action is matched through legacyRef.
-- (NSString *)storedActionIDForSelector:(NSString *)selector {
-    if (!selector.length) return nil;
-    NSDictionary *snapshot = [MTSharedResourceStore readSnapshot];
-    for (NSDictionary *action in snapshot[@"actions"]) {
-        NSDictionary *legacyRef = action[@"legacyRef"];
-        if ([legacyRef isKindOfClass:NSDictionary.class] && [legacyRef[@"selector"] isEqual:selector]) return action[@"id"];
-    }
-    return nil;
-}
-
+// 落盘与 selector→UUID 解析统一在 MTClipboardActionCreation（与捕获规则的
+// 添加流程共用）：legacy 域写入后由桥接层镜像进共享资源库，对键盘等入口
+// 同样可见。
 - (void)referenceCreatedEntry:(NSDictionary *)entry {
     NSString *selector = entry[@"selector"];
-    if (selector.length) [self persistCustomActionDefinition:entry];
-    NSString *storedID = selector.length ? [self storedActionIDForSelector:selector] : nil;
+    if (selector.length) MTClipboardPersistCustomActionDefinition(entry);
+    NSString *storedID = selector.length ? MTClipboardStoredActionIDForSelector(selector) : nil;
     if (!storedID.length) {
         NSError *error = [NSError errorWithDomain:@"MetisClipboardReferences" code:2
             userInfo:@{NSLocalizedDescriptionKey: @"动作已保存，但未能写回引用，请返回后重试。"}];
@@ -307,39 +263,20 @@ static NSString *MTClipboardActionTypeLabel(NSDictionary *entry) {
 #pragma mark - Add flow
 
 - (void)presentAddActionTypeChooser {
-    UIAlertController *menu = [UIAlertController alertControllerWithTitle:@"选择动作类型"
-        message:@"新建的动作保存在全局动作库中，键盘与其他入口同样可见。"
-        preferredStyle:UIAlertControllerStyleAlert];
+    // 类型集与草稿构造统一在编辑器类方法（免输入框四类），与其他入口同形。
     __weak typeof(self) weakSelf = self;
-    for (NSString *type in MTClipboardCreatableActionTypes()) {
-        [menu addAction:[UIAlertAction actionWithTitle:[MTPLinkActionEditorController displayNameForType:type]
-            style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-            [weakSelf startAddFlowForType:type];
-        }]];
-    }
-    [menu addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:menu animated:YES completion:nil];
+    [MTPLinkActionEditorController presentGloballyExecutableTypeChooserFromController:self
+        message:@"新建的动作保存在全局动作库中，键盘与其他入口同样可见。"
+        completion:^(NSString *type) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (strongSelf && type.length) [strongSelf startAddFlowForType:type];
+        }];
 }
 
 - (void)startAddFlowForType:(NSString *)type {
-    // 防御：nil/未知类型直接拒绝——字典字面量插入 nil 值会抛异常，未知类型
-    // 会产出编辑器无法识别的脏条目。
-    if (![MTClipboardCreatableActionTypes() containsObject:type]) return;
-    BOOL opensApplication = [type isEqualToString:kCustomActionTypeOpenApp];
-    NSMutableDictionary *entry = [@{
-        @"selector": [kLinkActionSelectorPrefix stringByAppendingString:NSUUID.UUID.UUIDString],
-        @"name": opensApplication ? @"打开 App" : ([type isEqualToString:kCustomActionTypeShortcut] ? @"快捷指令" : @"新动作"),
-        @"icon": opensApplication ? @"app" : ([type isEqualToString:kCustomActionTypeShortcut] ? @"bolt.fill" : @"link"),
-        @"link": @"",
-        kCustomActionTypeKey: type,
-    } mutableCopy];
-    if ([type isEqualToString:kCustomActionTypeSystem]) {
-        entry[@"name"] = @"系统操作";
-        entry[@"icon"] = @"gearshape";
-        [entry removeObjectForKey:@"link"];
-    }
-    if (opensApplication || [type isEqualToString:kCustomActionTypeURLScheme]) entry[kCustomActionFloatingKey] = @YES;
-
+    // 防御：未知类型直接拒绝（草稿构造返回 nil），避免编辑器收到脏条目。
+    NSMutableDictionary *entry = [MTPLinkActionEditorController draftEntryForType:type];
+    if (!entry) return;
     MTPLinkActionEditorController *editor = [[MTPLinkActionEditorController alloc] init];
     editor.entry = entry;
     __weak typeof(self) weakSelf = self;

@@ -947,7 +947,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_ACTION_EMPTY" = "Unassigned";
 "QUICK_ACTION_EMPTY_HINT" = "Assign this shortcut in Quick Panel settings";
 "QUICK_ACTIONS_FOOTER" = "Choose a custom action for each of the four slots. The strip runs top to bottom; the expanded panel runs left to right, then top to bottom. Changes to the custom action also update its shortcut.";
-"QUICK_ACTION_PICKER_FOOTER" = "Create actions in Custom Actions, then choose them here. Quick Panel runs actions that do not need an editor. JavaScript requires clipboard input and copy output.";
+"QUICK_ACTION_PICKER_FOOTER" = "Choose an action, or create one with the Add row below; new actions join the shared library. Quick Panel runs actions that do not need an editor. JavaScript requires clipboard input and copy output.";
 "QUICK_ACTION_UNAVAILABLE" = "Requires an editor or does not support global execution";
 "QUICK_STAGE_EXPAND" = "‹ Expand";
 "QUICK_STAGE_SEARCH" = "‹ Search";

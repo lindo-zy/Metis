@@ -56,8 +56,10 @@
 - (void)writePreferences;
 - (void)removeReferencesToSelector:(NSString *)selector fromPreferences:(NSMutableDictionary *)preferences;
 - (void)pushEditorForCustomRow:(NSInteger)row;
-// No-op here; pickers that enable allowsCreatingCustomActions override it to
-// fold the just-saved selector into their pending selection.
+// Folds the just-saved selector from the 添加 flow into the pending pick:
+// batch mode checks it so 完成 includes it; single-row external pickers get
+// the selection plus a deferred completion/pop (see viewDidAppear). Only
+// subclasses with custom selection semantics need to override it.
 - (void)customActionWasCreated:(NSString *)selector;
 // Batch-mode checkmark for one selector without exposing the live pick set.
 - (void)markSelectorPicked:(NSString *)selector;
