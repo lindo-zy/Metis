@@ -36,6 +36,11 @@
     if (self.browseTapped) self.browseTapped();
 }
 
+- (void)setIconConfig:(NSString *)iconConfig {
+    self.textField.text = [iconConfig isKindOfClass:[NSString class]] ? iconConfig : @"";
+    [self refreshPreview];
+}
+
 - (void)textFieldChanged:(UITextField *)sender {
     [self refreshPreview];
     if (self.textChanged) self.textChanged(sender.text ?: @"");

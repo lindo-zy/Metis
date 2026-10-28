@@ -33,7 +33,17 @@ typedef NS_ENUM(NSInteger, MTIconTintPolicy) {
 +(UIImage *)symbolImageForIconConfig:(NSString *)icon;
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName;
 +(UIImage *)imageForIconConfig:(NSString *)icon defaultSymbolName:(NSString *)defaultName policy:(MTIconTintPolicy)policy;
+// 把一个原始图标配置（SF Symbol 名 / Bundle ID）规整成工具栏可渲染的名字：
+// 有效符号原样返回，Bundle ID 加 APP_ 前缀，其余取 defaultName。
++(NSString *)iconNameForIconConfig:(NSString *)icon defaultName:(NSString *)defaultName;
+// 按 selector 在偏好里查自定义动作定义（linkactions 数组），找不到返回 nil。
++(NSDictionary *)customActionEntryForSelector:(NSString *)selector preferences:(NSDictionary *)preferences;
 +(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName;
+// 工具栏条目在绑定动作时会把图标冻结成快照（images13），动作后来改图标就再也
+// 同步不过去。传 preferences 的版本会对「selector 直接指向自定义动作」的条目
+// 改读动作定义的实时图标；条目上的 icon 与 images13 不一致说明用户在按钮上
+// 显式覆盖过图标，此时仍以条目自身为准。
++(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName preferences:(NSDictionary *)preferences;
 @end
 
 #endif

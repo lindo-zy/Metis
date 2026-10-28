@@ -409,12 +409,51 @@ static UIImage *MTImageApplyingIconPolicy(UIImage *image, MTIconTintPolicy polic
     return [self imageForIconConfig:icon defaultSymbolName:fallback] ?: [UIImage systemImageNamed:fallback];
 }
 
-+(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName{
-    NSString *sfName = [self customIconForShortcutItem:item];
++(NSString *)iconNameForIconConfig:(NSString *)icon defaultName:(NSString *)defaultName{
+    if (![icon isKindOfClass:[NSString class]] || icon.length == 0) return defaultName;
+    NSDictionary *probe = @{@"icon": icon};
+    NSString *sfName = [self customIconForShortcutItem:probe];
     if (sfName) return sfName;
-    NSString *bundleID = [self appIconBundleIDForShortcutItem:item];
+    NSString *bundleID = [self appIconBundleIDForShortcutItem:probe];
     if (bundleID) return [MTAppIconNamePrefix stringByAppendingString:bundleID];
     return defaultName;
+}
+
++(NSDictionary *)customActionEntryForSelector:(NSString *)selector preferences:(NSDictionary *)preferences{
+    if (![selector isKindOfClass:[NSString class]] || selector.length == 0) return nil;
+    NSDictionary *snapshot = [preferences isKindOfClass:[NSDictionary class]]
+        ? preferences : [MTPrefsManager sharedInstance].prefs;
+    id actions = [snapshot isKindOfClass:[NSDictionary class]] ? snapshot[kLinkActionskey] : nil;
+    if (![actions isKindOfClass:[NSArray class]]) return nil;
+    for (id action in (NSArray *)actions) {
+        if ([action isKindOfClass:[NSDictionary class]] && [action[@"selector"] isEqual:selector]) return action;
+    }
+    return nil;
+}
+
++(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName{
+    MTPrefsManager *manager = [MTPrefsManager sharedInstance];
+    return [self resolvedIconNameForShortcutItem:item defaultName:defaultName
+                                     preferences:manager.preferencesAvailable ? manager.prefs : nil];
+}
+
++(NSString *)resolvedIconNameForShortcutItem:(NSDictionary *)item defaultName:(NSString *)defaultName preferences:(NSDictionary *)preferences{
+    if (![item isKindOfClass:[NSDictionary class]]) return defaultName;
+    NSString *storedIcon = [item[@"icon"] isKindOfClass:[NSString class]] ? item[@"icon"] : @"";
+    NSString *snapshotIcon = [item[@"images13"] isKindOfClass:[NSString class]] ? item[@"images13"] : @"";
+    // 条目上的 icon 与绑定时冻结的 images13 不同 = 用户在按钮上显式改过图标，
+    // 这份覆盖值优先级最高，不能再被动作定义盖掉。
+    BOOL userOverride = storedIcon.length > 0 && ![storedIcon isEqualToString:snapshotIcon];
+    if (!userOverride) {
+        NSString *selector = [item[@"selector"] isKindOfClass:[NSString class]] ? item[@"selector"] : nil;
+        NSDictionary *action = [self customActionEntryForSelector:selector preferences:preferences];
+        NSString *liveIcon = [action[@"icon"] isKindOfClass:[NSString class]] ? action[@"icon"] : @"";
+        if (liveIcon.length) {
+            NSString *live = [self iconNameForIconConfig:liveIcon defaultName:@""];
+            if (live.length) return live;
+        }
+    }
+    return [self iconNameForIconConfig:storedIcon defaultName:defaultName];
 }
 
 @end

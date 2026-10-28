@@ -8,5 +8,8 @@
 @property (nonatomic, readonly, strong) UIImageView *previewImageView;
 @property (nonatomic, copy) void (^textChanged)(NSString *text);
 @property (nonatomic, copy) void (^browseTapped)(void);
+// 用条目里存的图标配置初始化：赋值与预览刷新必须成对发生，否则缩略图会
+// 停在 init 时的空值（link）上，与输入框里显示的图标名不一致。
+- (void)setIconConfig:(NSString *)iconConfig;
 - (void)refreshPreview;
 @end

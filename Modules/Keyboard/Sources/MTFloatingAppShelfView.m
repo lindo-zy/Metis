@@ -258,7 +258,7 @@
             if (fixed) {
                 NSDictionary *definition = [self shortcutDefinition:value];
                 title = [MTHelper customNameForShortcutItem:definition] ?: (MTIsDraftActionSelector(value) ? definition[@"label"] : nil) ?: [self.actionTarget subActionPanelTitleForSelector:value];
-                NSString *iconName = [MTHelper resolvedIconNameForShortcutItem:definition defaultName:definition[@"images13"]];
+                NSString *iconName = [MTHelper resolvedIconNameForShortcutItem:definition defaultName:definition[@"images13"] preferences:preferences];
                 icon = (iconName.length ? [MTHelper imageForName:iconName policy:MTIconTintPolicyInherit completion:nil] : nil) ?: [self.actionTarget subActionPanelImageForSelector:value];
             } else if ([kind isEqual:@"app"]) {
                 app = @{@"bundleID":value, @"fallback":@YES, @"title":[entry[@"title"] length] ? entry[@"title"] : value};

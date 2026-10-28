@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修改自定义动作的图标后，键盘底栏与悬浮栏的按钮会立刻跟着更新，不再停留在绑定时的旧图标。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>打开自定义动作设置页时，图标预览正确显示已设置的图标，不再一律显示链接图标。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>图标名无效时给出提示并改用默认图标，不再在没有提示的情况下保存成另一个值。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.6</string>
 		<key>items</key>
 		<array>
@@ -75,19 +100,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>剪切板气泡提示文本留空时不再显示规则名称，改为只显示小球；需要气泡时填写提示文本即可。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>剪切板气泡提示改为与悬浮小球一致的同色背景，文字颜色随背景深浅自动适配，整体观感更统一。</string>
 			</dict>
 		</array>
 	</dict>

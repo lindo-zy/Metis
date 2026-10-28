@@ -1134,16 +1134,20 @@ static NSInteger const MTLegacyRowLink = 2;
         return;
     }
     if (name.length == 0) name = LOCALIZED(@"DEFAULT_BUTTON_NAME");
-    // SF Symbol names and app bundle identifiers are both accepted; anything
-    // else resets to the "link" default. A bundle-ID icon is loaded once
-    // here so its PNG lands in the shared snapshot for sandboxed toolbar hosts.
+    // SF Symbol names and app bundle identifiers are both accepted. Anything
+    // else cannot render at all: tell the user and fall back to the type's
+    // default instead of silently rewriting what they typed (a silent rewrite
+    // makes the stored value diverge from what the field still shows).
+    // A bundle-ID icon is loaded once here so its PNG lands in the shared
+    // snapshot for sandboxed toolbar hosts.
     NSString *defaultIcon = [MTPLinkActionEditorController defaultIconForType:_displayedType];
     if (icon.length > 0) {
         NSString *bundleID = [MTHelper appIconBundleIDForShortcutItem:@{@"icon": icon}];
         if (bundleID) {
             [MTHelper appIconImageForBundleID:bundleID];
         } else if (![MTHelper customIconForShortcutItem:@{@"icon": icon}]) {
-            icon = defaultIcon;
+            [self showInvalidIconAlertReplacingWith:defaultIcon];
+            return;
         }
     } else {
         icon = defaultIcon;
@@ -1258,7 +1262,9 @@ static NSInteger const MTLegacyRowLink = 2;
     self.iconInputView = [[MTPIconInputView alloc] initWithFrame:CGRectMake(0.0, 0.0, 267.0, 36.0)];
     self.iconField = self.iconInputView.textField;
     self.iconField.placeholder = @"link";
-    self.iconField.text = [self.entry[@"icon"] isKindOfClass:[NSString class]] ? self.entry[@"icon"] : @"";
+    // 走 setIconConfig 而不是直接写 text：缩略图必须跟着初值立刻刷新，否则
+    // 打开既有条目时预览会停在 link 上，看起来和配置的图标不一致。
+    [self.iconInputView setIconConfig:[self.entry[@"icon"] isKindOfClass:[NSString class]] ? self.entry[@"icon"] : @""];
     self.iconField.delegate = self;
     __weak typeof(self) weakSelf = self;
     self.iconInputView.textChanged = ^(__unused NSString *text) { [weakSelf refreshIconPreview]; };
@@ -1283,6 +1289,23 @@ static NSInteger const MTLegacyRowLink = 2;
 // setter would hit plain field cells and crash on an unrecognized selector.
 - (void)refreshIconPreview {
     [self.iconInputView refreshPreview];
+}
+
+// 图标名既不是有效 SF Symbol 也不是 Bundle ID 时保存不了：先提示，再把输入
+// 框改成真正会写入的默认图标，让「看到的值」和「存下的值」重新一致。
+- (void)showInvalidIconAlertReplacingWith:(NSString *)replacement {
+    __weak typeof(self) weakSelf = self;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"MetisKeyboard"
+                                                                   message:LOCALIZED(@"CUSTOM_ICON_INVALID")
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:LOCALIZED(@"ANSWER_OK")
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(__unused UIAlertAction *action) {
+        typeof(weakSelf) owner = weakSelf;
+        if (!owner) return;
+        [owner.iconInputView setIconConfig:replacement];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)viewDidLoad {

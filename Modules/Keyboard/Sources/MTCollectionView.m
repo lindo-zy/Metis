@@ -236,17 +236,20 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
 }
 
 // Resolves one configured shortcut entry into the parallel toolbar arrays.  The
-// iOS 13 image slot takes the custom SF Symbol when it validates, and custom
-// names are keyed by selector for short-label mode. iOS 12 has no SF Symbols,
-// so images12 always keeps its default value.
+// iOS 13 image slot takes the custom SF Symbol when it validates (or the live
+// icon of the bound custom action), and custom names are keyed by selector for
+// short-label mode. iOS 12 has no SF Symbols, so images12 always keeps its
+// default value.
 -(void)integrateShortcutItem:(NSDictionary *)item
               intoImages12:(NSMutableArray *)images12
                images13:(NSMutableArray *)images13
                selectors:(NSMutableArray *)selectors
-                    names:(NSMutableDictionary *)names {
+                    names:(NSMutableDictionary *)names
+              preferences:(NSDictionary *)preferences {
     NSString *selector = item[@"selector"];
     [images12 addObject:item[@"images12"]];
-    [images13 addObject:[MTHelper resolvedIconNameForShortcutItem:item defaultName:item[@"images13"]]];
+    [images13 addObject:[MTHelper resolvedIconNameForShortcutItem:item defaultName:item[@"images13"]
+                                                     preferences:preferences]];
     [selectors addObject:selector];
 
     NSString *customName = [MTHelper customNameForShortcutItem:item];
@@ -646,7 +649,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
             // Also clamp legacy settings before Settings has persisted disabled flags.
             if (enabledButtons >= capacity) continue;
             if (item[@"images12"] && item[@"images13"] && selector) {
-                [self integrateShortcutItem:item intoImages12:images12 images13:images13 selectors:selectors names:customNames];
+                [self integrateShortcutItem:item intoImages12:images12 images13:images13 selectors:selectors names:customNames preferences:currentPrefs];
                 displayModes[selector] = MTButtonDisplayMode(item[kMTButtonDisplayMode]);
                 enabledButtons++;
             }
