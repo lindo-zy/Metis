@@ -458,6 +458,9 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_WIFI" = "Wi-Fi";
 "SYSTEM_BLUETOOTH" = "Bluetooth";
 "SYSTEM_AIRPLANE" = "Airplane mode";
+"SYSTEM_AIRDROP_RESTART" = "Restart AirDrop";
+"SYSTEM_AIRDROP_RESTART_DONE" = "AirDrop restarted";
+"SYSTEM_AIRDROP_RESTART_FAILED" = "Failed to restart AirDrop";
 "SYSTEM_CELLULAR" = "Cellular data";
 "SYSTEM_ORIENTATION" = "Orientation lock";
 "SYSTEM_DND" = "Do Not Disturb";

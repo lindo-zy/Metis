@@ -13,6 +13,19 @@
 #import <notify.h>
 #include <signal.h>
 #include <unistd.h>
+#include <spawn.h>
+#include <sys/wait.h>
+
+// Apple-private persona spawn APIs (absent from the public SDK): the
+// Dopamine/RootHide systemhook intercepts persona id 99 + OVERRIDE spawns
+// and rewrites the child's ucred via jailbreakd, which is the sanctioned
+// way for a tweak inside SpringBoard (mobile) to run a root command.
+#ifndef POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE
+#define POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE 1
+#endif
+extern int posix_spawnattr_set_persona_np(const posix_spawnattr_t *__restrict, uid_t, uint32_t);
+extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t *__restrict, uid_t);
+extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t *__restrict, uid_t);
 
 static __weak UIAlertController *MTSystemActionConfirmation;
 static UIWindow *MTSystemConfirmHostWindow;
@@ -84,6 +97,74 @@ static UIViewController *MTMakeSystemConfirmHost(void) {
     else [window makeKeyAndVisible];
     return host;
 }
+
+// Completion toast for actions whose outcome is otherwise invisible (AirDrop
+// restart). Own dedicated window so it shows above Metis panels and foreground
+// apps regardless of which surface triggered the action. Same teardown
+// discipline as the confirm host: released with the toast, by generation, so a
+// newer toast never gets torn down by an older one's dismissal.
+static UIWindow *MTSystemActionToastWindow;
+
+static void MTReleaseSystemActionToastWindow(UIWindow *window) {
+    if (!window) return;
+    if (MTSystemActionToastWindow == window) MTSystemActionToastWindow = nil;
+    window.hidden = YES;
+    window.rootViewController = nil;
+}
+
+static void MTShowSystemActionCompletionToast(NSString *message) {
+    if (!NSThread.isMainThread) {
+        dispatch_async(dispatch_get_main_queue(), ^{ MTShowSystemActionCompletionToast(message); });
+        return;
+    }
+    if (!message.length) return;
+    MTReleaseSystemActionToastWindow(MTSystemActionToastWindow);
+    UIWindowScene *scene = MTSystemConfirmWindowScene();
+    UIWindow *window = scene ? [[UIWindow alloc] initWithWindowScene:scene]
+                             : [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
+    if (scene) window.frame = scene.coordinateSpace.bounds;
+    window.backgroundColor = UIColor.clearColor;
+    // 与确认框宿主同层（alert+2）：盖住可能仍开着的面板；toast 不收交互。
+    window.windowLevel = UIWindowLevelAlert + 2;
+    UIViewController *host = [UIViewController new];
+    host.view.backgroundColor = UIColor.clearColor;
+    window.rootViewController = host;
+    MTSystemActionToastWindow = window;
+    if (scene) window.hidden = NO;
+    else [window makeKeyAndVisible];
+
+    UILabel *toast = [[UILabel alloc] initWithFrame:CGRectZero];
+    toast.text = message;
+    toast.textColor = UIColor.whiteColor;
+    toast.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.88];
+    toast.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    toast.textAlignment = NSTextAlignmentCenter;
+    toast.numberOfLines = 0;
+    toast.layer.cornerRadius = 9;
+    toast.layer.masksToBounds = YES;
+    CGFloat maxWidth = MAX(120, MIN(CGRectGetWidth(window.bounds) - 40, 320));
+    CGSize textSize = [toast sizeThatFits:CGSizeMake(maxWidth - 28, CGFLOAT_MAX)];
+    CGFloat width = MIN(maxWidth, MAX(160, textSize.width + 28));
+    CGFloat height = MAX(42, textSize.height + 20);
+    CGFloat y = MAX(20, CGRectGetMidY(window.bounds) - height / 2.0);
+    toast.frame = CGRectMake((CGRectGetWidth(window.bounds) - width) / 2.0, y, width, height);
+    toast.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin |
+                             UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
+    toast.alpha = 0;
+    [host.view addSubview:toast];
+    __weak UIWindow *ownedWindow = window;
+    [UIView animateWithDuration:0.18 animations:^{
+        toast.alpha = 1;
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.22 delay:1.6 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            toast.alpha = 0;
+        } completion:^(BOOL finished) {
+            [toast removeFromSuperview];
+            MTReleaseSystemActionToastWindow(ownedWindow);
+        }];
+    }];
+}
+
 
 // 宿主挑选：调用方指定 > 自建专用窗口。外来窗口一律不挂——SB 的状态栏
 // 窗口（剪贴板面板就装在里面）bounds 全屏、命中区域却只有窄条，尺寸过滤
@@ -312,6 +393,46 @@ BOOL MTSystemExitActionAvailable(NSString *action) {
     return NO;
 }
 
+// AirDrop 重启：killall sharingd，launchd 会自动拉起。spawn 和 waitpid 在
+// 后台队列完成，退出码经主线程 toast 回报；返回值只表示「已受理派发」。
+static MTSystemOpenResult MTRestartSharingDaemon(void) {
+    const char *binary = "/usr/bin/killall";
+    if (access(binary, X_OK) != 0) return MTSystemOpenUnavailable;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        posix_spawnattr_t attr;
+        posix_spawnattr_init(&attr);
+        posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+        posix_spawnattr_set_persona_uid_np(&attr, 0);
+        posix_spawnattr_set_persona_gid_np(&attr, 0);
+        char *argv[] = {(char *)"killall", (char *)"sharingd", NULL};
+        pid_t pid = -1;
+        int spawned = posix_spawn(&pid, binary, NULL, &attr, argv, NULL);
+        posix_spawnattr_destroy(&attr);
+        if (spawned != 0) {
+            NSLog(@"[MetisKeyboard][SystemAction] airdrop spawn error=%d", spawned);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NSBundle *bundle = [NSBundle bundleWithPath:bundlePath];
+                MTShowSystemActionCompletionToast(
+                    [bundle localizedStringForKey:@"SYSTEM_AIRDROP_RESTART_FAILED" value:@"Failed to restart AirDrop" table:nil]);
+            });
+            return;
+        }
+        int status = 0;
+        pid_t waited = waitpid(pid, &status, 0);
+        BOOL exited = waited == pid && WIFEXITED(status);
+        int code = exited ? WEXITSTATUS(status) : -1;
+        NSLog(@"[MetisKeyboard][SystemAction] airdrop killall pid=%d wait=%d exit=%d", pid, waited, code);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSBundle *bundle = [NSBundle bundleWithPath:bundlePath];
+            BOOL done = exited && code == 0;
+            MTShowSystemActionCompletionToast(
+                [bundle localizedStringForKey:done ? @"SYSTEM_AIRDROP_RESTART_DONE" : @"SYSTEM_AIRDROP_RESTART_FAILED"
+                    value:done ? @"AirDrop restarted" : @"Failed to restart AirDrop" table:nil]);
+        });
+    });
+    return MTSystemOpenSucceeded;
+}
+
 MTSystemOpenResult MTPerformSystemAction(NSString *action) {
     if (!MTSystemActionDefinition(action)) return MTSystemOpenInvalid;
     if (![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"] || !NSThread.isMainThread) return MTSystemOpenUnavailable;
@@ -367,6 +488,7 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
         return MTSystemCall(manager, @"setPowered:", @[@(next)]);
     }
     if ([action isEqual:@"airplane"]) return MTSystemToggle(MTSystemShared(@"SBAirplaneModeController", @"sharedInstance"), @"isInAirplaneMode", @"setInAirplaneMode:");
+    if ([action isEqual:@"airdrop-restart"]) return MTRestartSharingDaemon();
     if ([action isEqual:@"cellular"]) {
         typedef Boolean (*GetData)(void);
         typedef void (*SetData)(Boolean);
