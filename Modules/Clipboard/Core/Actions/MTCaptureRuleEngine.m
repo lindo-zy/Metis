@@ -92,7 +92,7 @@ static NSString *MTCaptureRuleSymbolColor(id value) {
         rule->_symbolName = symbol.length ? symbol : @"doc.on.clipboard";
         rule->_symbolColor = MTCaptureRuleSymbolColor(entry[@"symbolColor"]);
         rule->_tooltipEnabled = MTCaptureRuleBool(entry[@"tooltipEnabled"], YES);
-        rule->_tooltipText = MTCaptureRuleString(entry[@"tooltipText"], rule.name, 128);
+        rule->_tooltipText = MTCaptureRuleString(entry[@"tooltipText"], @"", 128);
         rule->_fallbackKind = fallback ? fallbackKind : @"";
         rule->_source = fallback ? @"" : source;
         rule->_actions = actions;

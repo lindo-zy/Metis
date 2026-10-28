@@ -379,7 +379,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
     if (self.isFallback && section == 3) return @"请选择一个共享自定义动作，点击可更换，左滑可移除引用。未绑定动作时不参与匹配；动作库条目不受影响。";
     if (section == 0) return @"开启自动执行后，规则命中时立即执行动作。关闭时等待单击小球；可同时显示悬浮入口。修改在点“保存”后生效。";
     if (section == 1) return @"match(text, meta) 返回真值即命中。meta.kind 为 text 或 image。沙盒无网络，最多 8 KB、限时 50 ms；连续失败 3 次会在当前进程暂时跳过，修改规则后重置。";
-    if (section == 2) return @"小球 SF 图标颜色默认为蓝色。气泡仅作纯文本提示，留空使用名称，1 秒后消失。关闭小球后仍可自动执行。";
+    if (section == 2) return @"小球 SF 图标颜色默认为蓝色。气泡仅作纯文本提示，留空则不显示气泡、只显示小球；显示后 1 秒自动消失。关闭小球后仍可自动执行。";
     return @"每条规则只能绑定一个共享自定义动作，点击可更换，左滑可移除引用。旧规则保留第一个动作；未绑定动作的规则不参与匹配，动作库条目不受影响。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -494,7 +494,7 @@ static void MTCaptureShowError(UIViewController *owner, NSString *message) {
             label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
             UITextField *field = [UITextField new];
             field.text = self.entry[@"tooltipText"];
-            field.placeholder = @"留空使用规则名称，如：编辑图片";
+            field.placeholder = @"留空则不显示气泡，如：编辑图片";
             field.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
             field.clearButtonMode = UITextFieldViewModeWhileEditing;
             field.enabled = floating && [self.entry[@"tooltipEnabled"] boolValue];

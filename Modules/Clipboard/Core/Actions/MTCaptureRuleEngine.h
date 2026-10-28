@@ -22,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 // #RRGGBB，缺省或非法值使用蓝色 #007AFF。
 @property (nonatomic, copy, readonly) NSString *symbolColor;
 @property (nonatomic, assign, readonly) BOOL tooltipEnabled;
+// 空串表示不显示气泡。
 @property (nonatomic, copy, readonly) NSString *tooltipText;
 @property (nonatomic, copy, readonly) NSString *source;
 // 内建兜底为 text/image；自定义 JS 规则为空。不经过 JavaScript 求值。

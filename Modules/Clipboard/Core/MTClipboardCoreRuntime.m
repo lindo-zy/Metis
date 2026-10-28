@@ -364,7 +364,8 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
         ?: [UIImage systemImageNamed:@"doc.on.clipboard" withConfiguration:configuration];
     [self setPreviewImage:icon];
     self.button.tintColor = [MTFloatingPreviewColorFromHex(rule.symbolColor) colorWithAlphaComponent:1.0];
-    NSString *text = rule.tooltipText.length ? rule.tooltipText : rule.name;
+    // Empty tooltipText means no bubble at all; VoiceOver still reads the rule name.
+    NSString *text = rule.tooltipText;
     self.tooltipLabel.text = text;
     self.tooltipView.hidden = !rule.tooltipEnabled || !text.length;
     if (!self.tooltipView.hidden) {
@@ -376,7 +377,8 @@ static CGFloat const kMTFloatingPreviewExitOvershoot = 8.0;
             [owner hideTooltip];
         });
     }
-    self.button.accessibilityLabel = text.length ? text : @"执行剪切板规则";
+    NSString *accessibleText = text.length ? text : rule.name;
+    self.button.accessibilityLabel = accessibleText.length ? accessibleText : @"执行剪切板规则";
     self.button.accessibilityHint = @"单击执行绑定动作，可拖动调整位置";
     [self.view setNeedsLayout];
 }
