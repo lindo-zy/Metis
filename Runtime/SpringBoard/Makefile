@@ -21,7 +21,7 @@ MetisSpringBoard_CFLAGS += -I../../Modules/Capture/Sources/Common
 MetisSpringBoard_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisSpringBoard_FRAMEWORKS = UIKit CoreGraphics QuartzCore CoreText Photos ImageIO IOSurface
 
-# Keyboard（MetisKeyboard）SpringBoard 侧：服务/全局手势/悬浮托管/SMS/浏览器重定向
+# Keyboard（MetisKeyboard）SpringBoard 侧：服务/全局手势/悬浮托管/SMS
 MetisSpringBoard_FILES += MTKeyboardSpringBoardEntry.xm \
 	../../Modules/Keyboard/Sources/MTServer.m \
 	../../Modules/Keyboard/Sources/MTSMSCodePolicy.m \
@@ -30,8 +30,7 @@ MetisSpringBoard_FILES += MTKeyboardSpringBoardEntry.xm \
 	../../Modules/Keyboard/Sources/MTEdgeDebugOverlay.m \
 	../../Modules/Keyboard/Sources/MTArcDebugOverlay.m \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTGlobalPanelHooks.xm \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTSMSCodeHooks.xm \
-	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTBrowserRedirectHooks.xm
+	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTSMSCodeHooks.xm
 
 MetisSpringBoard_CFLAGS += -I../../Modules/Keyboard/Sources
 MetisSpringBoard_FRAMEWORKS += SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore

@@ -31,6 +31,7 @@
 @property(nonatomic) uint8_t gestureSerial;
 @property(nonatomic) BOOL floatingTarget;
 @property(nonatomic, strong) NSMapTable<UIWindow *, UIPinchGestureRecognizer *> *gestures;
+@property(nonatomic, strong) NSMapTable<UIWindow *, UITapGestureRecognizer *> *doubleTapGestures;
 @property(nonatomic, strong) NSMapTable<UIWindow *, MTFloatTouchObserver *> *touchObservers;
 @property(nonatomic, strong) NSMapTable<UIPanGestureRecognizer *, UIWindow *> *scrollGestures;
 - (void)refresh;
@@ -41,6 +42,7 @@
     if ((self = [super init])) {
         _sessionToken = _baseToken = _focusToken = _activityToken = _inputToken = _sceneToken = NOTIFY_TOKEN_INVALID;
         _gestures = [NSMapTable weakToStrongObjectsMapTable];
+        _doubleTapGestures = [NSMapTable weakToStrongObjectsMapTable];
         _touchObservers = [NSMapTable weakToStrongObjectsMapTable];
         _scrollGestures = [NSMapTable weakToWeakObjectsMapTable];
     }
@@ -116,6 +118,13 @@
         !window || gesture.view.window != window) return;
     [self publishTouchActivityInWindow:window];
 }
+- (void)doubleTapped:(UITapGestureRecognizer *)gesture {
+    if (!self.floatingTarget || gesture.state != UIGestureRecognizerStateRecognized ||
+        ![gesture.view isKindOfClass:UIWindow.class]) return;
+    UIWindow *window = (UIWindow *)gesture.view;
+    if (window.hidden || [self.doubleTapGestures objectForKey:window] != gesture) return;
+    [self publishTouchActivityInWindow:window];
+}
 - (void)observedTouch:(UITouch *)touch {
     [self observedTouchInWindow:touch.window];
     if (self.floatingTarget) [self observeContentScrollForTouch:touch];
@@ -130,6 +139,8 @@
     self.nonce = 0; self.gestureNonce = 0; self.sceneHash = 0;
     [self clearContentScrollObservers];
     for (UIWindow *window in self.gestures.keyEnumerator) [window removeGestureRecognizer:[self.gestures objectForKey:window]];
+    for (UIWindow *window in self.doubleTapGestures.keyEnumerator) [window removeGestureRecognizer:[self.doubleTapGestures objectForKey:window]];
+    [self.doubleTapGestures removeAllObjects];
     for (UIWindow *window in self.touchObservers.keyEnumerator) [window removeGestureRecognizer:[self.touchObservers objectForKey:window]];
     [self.gestures removeAllObjects]; [self.touchObservers removeAllObjects];
     for (NSNumber *token in @[@(self.inputToken), @(self.sceneToken)])
@@ -164,6 +175,14 @@
                 [window addGestureRecognizer:observer]; [self.touchObservers setObject:observer forKey:window];
                 installed++;
             }
+            if (floating && ![self.doubleTapGestures objectForKey:window]) {
+                UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(doubleTapped:)];
+                doubleTap.numberOfTapsRequired = 2;
+                doubleTap.cancelsTouchesInView = NO;
+                doubleTap.delaysTouchesBegan = NO; doubleTap.delaysTouchesEnded = NO;
+                doubleTap.delegate = self;
+                [window addGestureRecognizer:doubleTap]; [self.doubleTapGestures setObject:doubleTap forKey:window];
+            }
             if (!floating || [self.gestures objectForKey:window]) continue;
             UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinch:)];
             pinch.delegate = self; [window addGestureRecognizer:pinch]; [self.gestures setObject:pinch forKey:window];
@@ -178,10 +197,10 @@
     return self.floatingTarget && [self isCurrent] && [self matchesWindow:touch.window];
 }
 - (BOOL)gestureRecognizer:(__unused UIGestureRecognizer *)gesture shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
-    return ![other isKindOfClass:UIPinchGestureRecognizer.class];
+    return [gesture isKindOfClass:UITapGestureRecognizer.class] || ![other isKindOfClass:UIPinchGestureRecognizer.class];
 }
 - (BOOL)gestureRecognizer:(__unused UIGestureRecognizer *)gesture shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)other {
-    return [self isCurrent] && [other isKindOfClass:UIPinchGestureRecognizer.class];
+    return [gesture isKindOfClass:UIPinchGestureRecognizer.class] && [self isCurrent] && [other isKindOfClass:UIPinchGestureRecognizer.class];
 }
 - (void)pinch:(UIPinchGestureRecognizer *)gesture {
     if (!self.floatingTarget || ![self isCurrent] || self.inputToken == NOTIFY_TOKEN_INVALID) return;

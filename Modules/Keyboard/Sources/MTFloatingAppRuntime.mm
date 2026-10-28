@@ -209,6 +209,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 @property(nonatomic) CGFloat pinchPreviousScale;
 @property(nonatomic, strong) UIPanGestureRecognizer *dragGesture;
 @property(nonatomic, strong) UIPinchGestureRecognizer *pinchGesture;
+@property(nonatomic, strong) UITapGestureRecognizer *doubleTapGesture;
 - (void)setTitle:(NSString *)title;
 - (void)applySizingPreferences:(NSDictionary *)preferences;
 - (void)applyInteractionActive:(BOOL)active;
@@ -324,6 +325,13 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     self.pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinch:)];
     self.pinchGesture.delegate = self;
     [self.card addGestureRecognizer:self.pinchGesture];
+    self.doubleTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(doubleTapped:)];
+    self.doubleTapGesture.numberOfTapsRequired = 2;
+    self.doubleTapGesture.cancelsTouchesInView = NO;
+    self.doubleTapGesture.delaysTouchesBegan = NO;
+    self.doubleTapGesture.delaysTouchesEnded = NO;
+    self.doubleTapGesture.delegate = self;
+    [self.card addGestureRecognizer:self.doubleTapGesture];
     self.content = [[UIView alloc] init]; self.content.clipsToBounds = YES;
     [self.card addSubview:self.content];
     self.canvas = [[UIView alloc] init]; [self.content addSubview:self.canvas];
@@ -371,11 +379,18 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     [self.view setNeedsLayout]; [self.view layoutIfNeeded];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
-    if (gesture == self.dragGesture) {
+    if (gesture == self.dragGesture || gesture == self.doubleTapGesture) {
         for (UIView *view = touch.view; view && view != gesture.view; view = view.superview)
             if ([view isKindOfClass:UIControl.class]) return NO;
     }
     return YES;
+}
+- (void)doubleTapped:(UITapGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateRecognized && self.owner.controller == self &&
+        self.view.window && !self.view.window.hidden) [self applyInteractionActive:YES];
+}
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
+    return gesture == self.doubleTapGesture || other == self.doubleTapGesture;
 }
 - (void)pinch:(UIPinchGestureRecognizer *)gesture {
     switch (gesture.state) {
@@ -483,11 +498,17 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
     }];
 }
 - (void)setHostViews:(NSArray<UIView *> *)views canvasSize:(CGSize)size {
+    if (!isfinite(size.width) || !isfinite(size.height) || size.width <= 1 || size.height <= 1) return;
+    [self loadViewIfNeeded];
     self.canvasSize = size;
     for (UIView *view in [self.canvas.subviews copy]) [view removeFromSuperview];
+    // Establish native coordinates before attachment. A newly created canvas has
+    // zero bounds; flexible host views would otherwise grow by the entire canvas
+    // delta on the first layout, cropping/misaligning the remote app's layers.
+    self.canvas.bounds = (CGRect){CGPointZero, size};
     for (UIView *view in views) {
+        view.autoresizingMask = UIViewAutoresizingNone;
         view.frame = (CGRect){CGPointZero, size};
-        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [self.canvas addSubview:view];
     }
     [self.spinner stopAnimating];

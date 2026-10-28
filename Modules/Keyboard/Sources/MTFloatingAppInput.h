@@ -4,7 +4,7 @@
 
 static NSString * const MTFloatInputSessionName = @"com.lindo.metis.keyboard.floating-input.session-v1";
 static NSString * const MTFloatInputBaseName = @"com.lindo.metis.keyboard.floating-input.base-v1";
-// v2: floating-app activity means a recognized content scroll, never touch-down.
+// v2: floating activity means recognized scrolling or a double tap, never touch-down.
 // Reject touch notifications from app processes still running the previous code.
 static NSString * const MTFloatInputActivityName = @"com.lindo.metis.keyboard.floating-input.activity-v2";
 static NSString * const MTFloatInputFocusName = @"com.lindo.metis.keyboard.floating-input.focus-v1";

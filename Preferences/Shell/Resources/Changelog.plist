@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复悬浮应用首次打开或刷新内容时，画面被裁切、卡片内容错位重叠的问题。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>自动缩放开启时，双击悬浮小窗也可放大到预设大小，保留滚动放大。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>移除浏览器重定向功能及相关设置入口。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.7</string>
 		<key>items</key>
 		<array>
@@ -87,19 +112,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>统一各入口新建动作时的类型选择和默认内容。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>剪切板气泡提示文本留空时不再显示规则名称，改为只显示小球；需要气泡时填写提示文本即可。</string>
 			</dict>
 		</array>
 	</dict>

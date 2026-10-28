@@ -5,7 +5,6 @@
 // prefschanged 通知，运行端零改动（02 §6：原有具体功能开关仍按功能语义保留）。
 static NSString *const MTGlobalPrefsDomain = @"com.lindo.metis.keyboard";
 static NSString *const MTSmsCodeCopyKey = @"smscodecopyBOOL";
-static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
 
 @implementation MTPrefsGlobalModel
 
@@ -75,8 +74,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     return @[dock, statusBar, edge, arc, keyboard, floatingApp];
 }
 
-// 原「其他」页「自动化」区：AI 问答链接 + 两个功能开关（各自独立成行，
-// 不合并；缺省关与运行端默认一致）。
+// 原「其他」页「自动化」区：AI 问答链接 + 短信验证码开关（缺省关）。
 + (NSArray<MTSettingsRow *> *)automationRows {
     MTSettingsRow *aiChat = [MTSettingsRow linkRowWithIdentifier:@"global-ai-chat" title:@"AI 问答"];
     aiChat.iconName = @"bubble.left.and.bubble.right";
@@ -91,13 +89,7 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     sms.colorName = @"green";
     sms.userInfo = @([self smsCodeCopyEnabled]);
 
-    MTSettingsRow *redirect = [MTSettingsRow linkRowWithIdentifier:@"global-browser-redirect" title:@"浏览器重定向"];
-    redirect.kind = MTSettingsRowKindToggle;
-    redirect.iconName = @"arrow.uturn.forward.circle.fill";
-    redirect.colorName = @"teal";
-    redirect.userInfo = @([self browserRedirectEnabled]);
-
-    return @[aiChat, sms, redirect];
+    return @[aiChat, sms];
 }
 
 + (MTSettingsPageModel *)globalPageModel {
@@ -152,19 +144,11 @@ static NSString *const MTBrowserRedirectKey = @"browserredirectBOOL";
     return [self mtBooleanForKey:MTSmsCodeCopyKey];
 }
 
-+ (BOOL)browserRedirectEnabled {
-    return [self mtBooleanForKey:MTBrowserRedirectKey];
-}
-
 + (void)setSmsCodeCopyEnabled:(BOOL)enabled {
     [self mtSetBoolean:enabled forKey:MTSmsCodeCopyKey];
 }
 
-+ (void)setBrowserRedirectEnabled:(BOOL)enabled {
-    [self mtSetBoolean:enabled forKey:MTBrowserRedirectKey];
-}
-
-// 读取缺省关，与运行端默认一致（MTSMSCodePolicy / MTBrowserRedirectHooks）。
+// 读取缺省关，与运行端默认一致（MTSMSCodePolicy）。
 + (BOOL)mtBooleanForKey:(NSString *)key {
     CFPreferencesAppSynchronize((__bridge CFStringRef)MTGlobalPrefsDomain);
     CFPropertyListRef value = CFPreferencesCopyAppValue((__bridge CFStringRef)key,

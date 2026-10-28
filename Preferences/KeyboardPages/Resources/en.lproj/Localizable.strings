@@ -849,7 +849,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "CTX_TYPING_HINT" = "Show actions by content type when the field has text.";
 
 "FLOATING_APP_AUTO_RESIZE" = "Expand on scroll, shrink when leaving";
-"FLOATING_APP_AUTO_RESIZE_FOOTER" = "On by default. Scroll the floating app content with one finger to expand to the window area preset above. Tapping, long pressing, and dragging the title bar do not trigger expansion. Touch the underlying app or Home Screen to shrink to 10%. The title and buttons stay the same size, and pinch resizing remains available. Turn off for manual sizing only.";
+"FLOATING_APP_AUTO_RESIZE_FOOTER" = "On by default. Double tap the floating window or scroll its content with one finger to expand to the window area preset above. Single tapping, long pressing, and dragging the title bar do not trigger expansion. Touch the underlying app or Home Screen to shrink to 10%. The title and buttons stay the same size, and pinch resizing remains available. Turn off for manual sizing only.";
 
 "BUTTON_DISPLAY_HINT" = "Changes only this button. Text is the default; icon mode uses this button’s configured icon.";
 
