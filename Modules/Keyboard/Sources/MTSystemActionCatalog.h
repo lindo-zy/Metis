@@ -28,6 +28,7 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"wifi", @"SYSTEM_WIFI", @"wifi", @"control"],
             @[@"bluetooth", @"SYSTEM_BLUETOOTH", @"antenna.radiowaves.left.and.right", @"control"],
             @[@"airplane", @"SYSTEM_AIRPLANE", @"airplane", @"control"],
+            @[@"airdrop-restart", @"SYSTEM_AIRDROP_RESTART", @"dot.radiowaves.left.and.right", @"control"],
             @[@"cellular", @"SYSTEM_CELLULAR", @"antenna.radiowaves.left.and.right", @"control"],
             @[@"orientation-lock", @"SYSTEM_ORIENTATION", @"lock.rotation", @"control"],
             @[@"do-not-disturb", @"SYSTEM_DND", @"moon.fill", @"control"],
