@@ -855,6 +855,8 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         }
     } @catch (__unused NSException *exception) {}
     self.window.hidden = YES; self.window.rootViewController = nil;
+    // 挂靠 scene 的窗口被 scene 强持有：摘除后才随引用释放，否则每次会话泄一窗。
+    self.window.windowScene = nil;
     self.window = nil; self.controller = nil;
     self.scene = nil; self.baseScene = nil; self.baseIdentifier = nil;
     self.originalSettings = nil; self.layerManager = nil; self.fallbackHostManager = nil;

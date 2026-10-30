@@ -459,6 +459,7 @@ static BOOL MTIsHiddenShortcutSelector(NSString *selector) {
     if (panelWindow == MTSubActionPanelFloatingHostWindow &&
         ![panelWindow viewWithTag:MTSubActionPanelOverlayTag]) {
         panelWindow.hidden = YES;
+        panelWindow.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         MTSubActionPanelFloatingHostWindow = nil;
     }
     if (MTActiveSubActionPanelOwner == self) MTActiveSubActionPanelOwner = nil;
@@ -2406,6 +2407,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
             return MTSubActionPanelFloatingHostWindow;
         }
         MTSubActionPanelFloatingHostWindow.hidden = YES;
+        MTSubActionPanelFloatingHostWindow.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         MTSubActionPanelFloatingHostWindow = nil;
     }
 
@@ -2469,6 +2471,7 @@ static UIWindow *MTSubActionPanelCreateHostWindow(UIWindow *sourceWindow) {
         [overlay removeFromSuperview];
         if (floatingHost && ![floatingHost viewWithTag:MTSubActionPanelOverlayTag]) {
             floatingHost.hidden = YES;
+            floatingHost.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
             if (MTSubActionPanelFloatingHostWindow == floatingHost) MTSubActionPanelFloatingHostWindow = nil;
         }
         if (completion) completion();

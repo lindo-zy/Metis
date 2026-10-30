@@ -160,6 +160,7 @@ void MTUpdateEdgeDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *sl
     if (!available || !MTEdgeGestureFlag(preferences[kMTEdgeGesturesDebug]) || slots.count == 0) {
         MTEdgeDebugWindowInstance.hidden = YES;
         MTEdgeDebugWindowInstance.rootViewController = nil;
+        MTEdgeDebugWindowInstance.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         MTEdgeDebugWindowInstance = nil;
         MTEdgeDebugLayer = nil;
         MTEdgeDistanceLayer = nil;
@@ -205,6 +206,7 @@ void MTUpdateEdgeDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *sl
             !MTEdgeDisableLayerHitTesting(layer) || !MTEdgeDisableLayerHitTesting(distanceLayer)) {
             window.hidden = YES;
             window.rootViewController = nil;
+            window.windowScene = nil;
             NSLog(@"[MetisKeyboard][EdgeGesture] debug overlay unavailable: layer passthrough unsupported");
             return;
         }

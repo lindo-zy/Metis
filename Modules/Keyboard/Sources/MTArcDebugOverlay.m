@@ -86,6 +86,7 @@ void MTUpdateArcDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *slo
     if (!available || !MTArcGestureFlag(preferences[kMTArcGesturesDebug]) || slots.count == 0) {
         MTArcDebugWindowInstance.hidden = YES;
         MTArcDebugWindowInstance.rootViewController = nil;
+        MTArcDebugWindowInstance.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         MTArcDebugWindowInstance = nil;
         MTArcDebugLayer = nil;
         MTArcDebugPreferences = nil;
@@ -129,6 +130,7 @@ void MTUpdateArcDebugOverlay(NSDictionary *preferences, NSArray<NSString *> *slo
             !MTArcDisableLayerHitTesting(layer)) {
             window.hidden = YES;
             window.rootViewController = nil;
+            window.windowScene = nil;
             NSLog(@"[MetisKeyboard][ArcGesture] debug overlay unavailable: layer passthrough unsupported");
             return;
         }

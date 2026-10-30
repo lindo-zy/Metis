@@ -130,7 +130,7 @@ static CGRect MTJSProbeKeyboardFrame(UIWindow *window) {
     [self.timer invalidate]; self.timer = nil;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self.engine cancel]; self.engine = nil;
-    self.menuWindow.hidden = YES; self.menuWindow = nil; self.choices = nil;
+    self.menuWindow.hidden = YES; self.menuWindow.windowScene = nil; self.menuWindow = nil; self.choices = nil;
     self.choiceScroll = nil; self.choiceCancelButton = nil;
     self.provider = nil; self.open = nil; self.error = nil;
     if (MTActiveJavaScriptHost == self) MTActiveJavaScriptHost = nil;
@@ -254,7 +254,7 @@ static CGRect MTJSProbeKeyboardFrame(UIWindow *window) {
     __attribute__((objc_precise_lifetime)) MTJavaScriptHost *keepAlive = self;
     (void)keepAlive;
     if (![self valid]) { [self cancel]; return; }
-    self.menuWindow.hidden = YES; self.menuWindow = nil; self.choices = nil;
+    self.menuWindow.hidden = YES; self.menuWindow.windowScene = nil; self.menuWindow = nil; self.choices = nil;
     self.choiceScroll = nil; self.choiceCancelButton = nil;
     NSString *type = action[@"type"], *content = action[@"content"];
     if ([type isEqual:@"function"]) { [self.engine callFunction:content arguments:action[@"args"]]; return; }
@@ -397,6 +397,7 @@ static CGRect MTJSProbeKeyboardFrame(UIWindow *window) {
     [cancelButton addTarget:self action:@selector(cancel) forControlEvents:UIControlEventTouchUpInside];
     [backdrop addSubview:cancelButton];
     self.menuWindow.hidden = YES;
+    self.menuWindow.windowScene = nil; // 旧窗摘除 scene 后才随引用释放
     self.menuWindow = window;
     self.choiceScroll = scroll;
     self.choiceCancelButton = cancelButton;

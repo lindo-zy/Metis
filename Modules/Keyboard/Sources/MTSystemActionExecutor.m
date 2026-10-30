@@ -42,6 +42,7 @@ static void MTReleaseSystemConfirmHostWindow(UIWindow *window) {
     if (MTSystemConfirmHostWindow == window) MTSystemConfirmHostWindow = nil;
     window.hidden = YES;
     window.rootViewController = nil;
+    window.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
 }
 
 static void MTReleaseSystemConfirmHost(void) {
@@ -110,6 +111,7 @@ static void MTReleaseSystemActionToastWindow(UIWindow *window) {
     if (MTSystemActionToastWindow == window) MTSystemActionToastWindow = nil;
     window.hidden = YES;
     window.rootViewController = nil;
+    window.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
 }
 
 static void MTShowSystemActionCompletionToast(NSString *message) {

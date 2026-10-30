@@ -450,7 +450,9 @@ static BOOL MTGlobalPanelHasForegroundApplication(BOOL *known) {
     [self.controlSession invalidate]; self.controlSession = nil;
     self.controls.actionHandler = nil; self.controls = nil;
     self.window.hidden = YES;
-    self.window.rootViewController = nil; self.window = nil;
+    self.window.rootViewController = nil;
+    self.window.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
+    self.window = nil;
     self.grid.blankAction = nil; self.grid = nil;
     self.panel = nil; self.scroll = nil; self.items = nil; self.snapshot = nil;
     self.dockPresentation = NO;

@@ -920,6 +920,7 @@ NS_ASSUME_NONNULL_END
     if (self.overlayWindow && [self.overlayWindow windowScene] != windowScene) {
         [self.overlayWindow setHidden:YES];
         [self.overlayWindow setRootViewController:nil];
+        [self.overlayWindow setWindowScene:nil]; // scene 强持有挂靠窗口，摘除后才随引用释放
         self.overlayWindow = nil;
     }
 
@@ -945,6 +946,7 @@ NS_ASSUME_NONNULL_END
     if (self.floatingPreviewWindow && [self.floatingPreviewWindow windowScene] != windowScene) {
         [self.floatingPreviewWindow setHidden:YES];
         [self.floatingPreviewWindow setRootViewController:nil];
+        [self.floatingPreviewWindow setWindowScene:nil]; // scene 强持有挂靠窗口，摘除后才随引用释放
         self.floatingPreviewWindow = nil;
         self.floatingPreviewViewController = nil;
     }

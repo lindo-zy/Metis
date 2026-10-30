@@ -1819,6 +1819,7 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     if (g_aiPanelWindow) { // 残窗：连同旧会话一起丢弃
         g_aiPanelWindow.hidden = YES;
         g_aiPanelWindow.rootViewController = nil;
+        g_aiPanelWindow.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         g_aiPanelWindow = nil;
     }
 
@@ -1944,6 +1945,7 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     if (g_aiPanelWindow) {
         g_aiPanelWindow.hidden = YES;
         g_aiPanelWindow.rootViewController = nil; // 会话销毁，控制器随之释放
+        g_aiPanelWindow.windowScene = nil; // scene 强持有挂靠窗口，摘除后才随引用释放
         g_aiPanelWindow = nil;
     }
 }

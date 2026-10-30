@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复快速启动面板、悬浮小窗、截图等功能反复使用后内存持续上升、可能导致设备自动重启的问题。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.8</string>
 		<key>items</key>
 		<array>
@@ -81,37 +94,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>截取规则编辑页已绑定动作的行同步显示对应图标。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>剪切板捕获规则的「绑定动作」页支持直接新建动作，不必先去全局动作库创建。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>快速面板、边缘手势、弧形手势的动作选择页均可在页内新建动作。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>剪切板文字/图片动作页在动作库为空时看不到「添加动作」入口的问题。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>统一各入口新建动作时的类型选择和默认内容。</string>
 			</dict>
 		</array>
 	</dict>

@@ -187,8 +187,10 @@ static UIWindowScene *MTResolveForegroundWindowScene(void) {
         self.requestedKeyWindow = NO;
         self.hostedContentView = nil;
         self.rootViewController = nil;
+        // scene 强持有挂靠窗口：不摘除则持有者释放引用后窗口仍泄漏，
+        // 每次截屏/长截/toast 会话泄一窗。
+        self.windowScene = nil;
         if (completion) completion();
-        // 持有者随后释放引用，窗口随 ARC 释放。
     };
 
     if ([NSThread isMainThread]) {
