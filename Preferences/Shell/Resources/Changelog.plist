@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复悬浮小窗中的应用从后台恢复或再放大后，画面错乱、内容重叠的问题。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.9</string>
 		<key>items</key>
 		<array>
@@ -75,25 +88,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>系统动作新增「AirDrop 重启」，一键重启 AirDrop 服务，完成后显示提示。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.5</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>截取规则的「选择动作」面板现在显示动作图标，与其他动作面板保持一致。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>截取规则编辑页已绑定动作的行同步显示对应图标。</string>
 			</dict>
 		</array>
 	</dict>

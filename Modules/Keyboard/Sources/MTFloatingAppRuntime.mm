@@ -280,6 +280,7 @@ NSString *MTFloatingBundleIdentifierForURL(NSURL *url) {
 - (void)nativeWindowVisible:(NSNotification *)notification;
 - (BOOL)protectsScene:(id)scene;
 - (id)protectedSettings:(id)settings scene:(id)scene;
+- (void)normalizeSceneFrameForSettings:(id)settings;
 @end
 
 @implementation MTFloatingAppCardController
@@ -529,6 +530,20 @@ static UIWindowScene *MTFloatWindowScene(void) {
         if ([NSStringFromClass(windowScene.class) isEqual:@"SBWindowScene"]) fallback = windowScene;
     }
     return fallback;
+}
+
+// 托管画布必须是设备显示尺寸：卡片只对画布做等比缩放，不参与远端排版。
+// 旧实现取 self.window.bounds.size 建立 scene，窗口此时可能已被布局成卡片尺寸，
+// 远端 App 会按卡片宽度排版；之后它再被原生全屏打开（或从后台恢复），页面里
+// 缓存的窄版布局与新全屏布局同屏叠加，表现为卡片/全屏内容错乱。
+static CGSize MTFloatDisplaySize(void) {
+    UIWindowScene *windowScene = MTFloatWindowScene();
+    CGRect bounds = windowScene ? windowScene.coordinateSpace.bounds : CGRectZero;
+    if (isfinite(bounds.size.width) && isfinite(bounds.size.height) &&
+        bounds.size.width > 1 && bounds.size.height > 1) return bounds.size;
+    CGSize screen = UIScreen.mainScreen.bounds.size;
+    return (isfinite(screen.width) && isfinite(screen.height) && screen.width > 1 && screen.height > 1)
+        ? screen : CGSizeZero;
 }
 
 static void MTFloatApplySettings(id scene, id settings) {
@@ -1008,6 +1023,25 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     }
     [self poll:generation];
 }
+// 把托管 scene 的 frame 校正回设备显示尺寸。托管期间远端 App 只能看到
+// 显示尺寸的窗口，卡片靠画布变换缩放；否则恢复/原生全屏时两套排版并存。
+- (void)normalizeSceneFrameForSettings:(id)settings {
+    if (!settings) return;
+    SEL frameSelector = NSSelectorFromString(@"frame");
+    SEL setFrameSelector = NSSelectorFromString(@"setFrame:");
+    NSMethodSignature *signature = [settings methodSignatureForSelector:frameSelector];
+    if (![settings respondsToSelector:frameSelector] || ![settings respondsToSelector:setFrameSelector] ||
+        !signature || signature.numberOfArguments != 2 || strcmp(signature.methodReturnType, @encode(CGRect))) return;
+    CGSize display = MTFloatDisplaySize();
+    if (display.width < 1 || display.height < 1) return;
+    CGRect current = ((CGRect (*)(id, SEL))objc_msgSend)(settings, frameSelector);
+    if (isfinite(current.size.width) && isfinite(current.size.height) &&
+        fabs(current.size.width - display.width) <= 1 && fabs(current.size.height - display.height) <= 1) return;
+    ((void (*)(id, SEL, CGRect))objc_msgSend)(settings, setFrameSelector, (CGRect){CGPointZero, display});
+    NSLog(@"[MetisKeyboard][FloatingApp] canvas resync from=%.0fx%.0f to=%.0fx%.0f bundleID=%@",
+        (double)current.size.width, (double)current.size.height, (double)display.width, (double)display.height,
+        self.session.bundleIdentifier);
+}
 - (CGSize)canvasSize {
     id settings = MTFloatObject(self.scene, @"settings");
     SEL frame = NSSelectorFromString(@"frame");
@@ -1109,7 +1143,11 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
         id display = MTFloatObject(UIScreen.mainScreen, @"displayConfiguration");
         if (display && [settings respondsToSelector:NSSelectorFromString(@"setDisplayConfiguration:")])
             ((void (*)(id, SEL, id))objc_msgSend)(settings, NSSelectorFromString(@"setDisplayConfiguration:"), display);
-        CGRect frame = (CGRect){CGPointZero, self.window.bounds.size};
+        // 画布尺寸固定为设备显示：冷启动此处窗口可能已被布局成卡片尺寸，用
+        // window.bounds 会把远端 App 钉在卡片宽度上排版（见 MTFloatDisplaySize）。
+        CGSize canvasDisplay = MTFloatDisplaySize();
+        if (canvasDisplay.width < 1 || canvasDisplay.height < 1) canvasDisplay = self.window.bounds.size;
+        CGRect frame = (CGRect){CGPointZero, canvasDisplay};
         ((void (*)(id, SEL, CGRect))objc_msgSend)(settings, NSSelectorFromString(@"setFrame:"), frame);
         MTFloatForegroundSettings(settings, YES);
         MTFloatSetBool(settings, @"setDeviceOrientationEventsEnabled:", YES);
@@ -1164,7 +1202,11 @@ static BOOL MTFloatRegisterSwitcherCard(NSString *identifier, id scene, id windo
     self.activeLease = YES;
     id settings = MTFloatObject(scene, @"mutableSettings") ?: MTFloatObject(self.originalSettings, @"mutableCopy");
     @try {
-        MTFloatForegroundSettings(settings, YES); MTFloatApplySettings(scene, settings);
+        MTFloatForegroundSettings(settings, YES);
+        // 热恢复时 scene 可能残留在上一轮会话的卡片尺寸上：先校正成显示尺寸
+        // 再前台化，远端 App 唤醒后按原生尺寸重排，画布与内容几何一致。
+        [self normalizeSceneFrameForSettings:settings];
+        MTFloatApplySettings(scene, settings);
     } @catch (__unused NSException *exception) { [self cleanup:MTSystemOpenFailed reason:@"scene-activation"]; return NO; }
     if (![self acquireAssertion]) { [self cleanup:MTSystemOpenUnavailable reason:@"assertion-unavailable"]; return NO; }
     self.layerManager = MTFloatObject(scene, @"layerManager");
