@@ -739,7 +739,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (CGRect)fullscreenPanelFrameInWindow:(nullable UIWindow *)window;
 - (MTPanelPresentationMode)currentPresentationMode;
 - (void)showQuickPreviewForItem:(MTPasteboardItem *)item;
-- (void)showClipboardPreviewPanel;
 - (nullable UIWindow *)floatingPreviewWindowCreatingIfNeeded;
 - (void)showFloatingPreviewForItem:(MTPasteboardItem *)item rule:(MTCaptureRule *)rule;
 - (void)hideFloatingPreviewAnimated:(BOOL)animated;

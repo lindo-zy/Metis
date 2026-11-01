@@ -29,6 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)startLockStateObserver;
 
 - (void)show;
+- (void)showClipboardPreviewPanel;
 - (void)hide;
 - (void)hideWithStandardDismissAnimation;
 - (void)hideForExternalRequest;
