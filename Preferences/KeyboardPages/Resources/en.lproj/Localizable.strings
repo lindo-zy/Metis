@@ -678,6 +678,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_SAVE" = "Save";
 
 "SYSTEM_CLIPBOARD" = "Show Clipboard";
+"SYSTEM_WORD_SELECTION" = "Word Segmentation";
 
 // API balance
 "AI_BALANCE" = "API balance";

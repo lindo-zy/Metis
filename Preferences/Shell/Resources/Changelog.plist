@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.4.11</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>系统动作新增「分词面板」，点击直接打开当前剪切板内容的预览面板，无需再进入剪切板长按。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.4.10</string>
 		<key>items</key>
 		<array>
@@ -75,19 +88,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>图标名无效时给出提示并改用默认图标，不再在没有提示的情况下保存成另一个值。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>系统动作新增「AirDrop 重启」，一键重启 AirDrop 服务，完成后显示提示。</string>
 			</dict>
 		</array>
 	</dict>

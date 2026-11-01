@@ -53,6 +53,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)show;
 - (void)showWithCompletion:(nullable void (^)(void))completion;
 - (void)showQuickPreviewForItem:(MTPasteboardItem *)item;
+- (void)showPreviewForItem:(MTPasteboardItem *)item;
 - (void)hide;
 - (void)hideRestoringFocus;
 - (void)hideWithStandardDismissAnimation;

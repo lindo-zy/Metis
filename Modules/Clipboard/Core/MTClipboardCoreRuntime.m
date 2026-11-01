@@ -739,6 +739,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (CGRect)fullscreenPanelFrameInWindow:(nullable UIWindow *)window;
 - (MTPanelPresentationMode)currentPresentationMode;
 - (void)showQuickPreviewForItem:(MTPasteboardItem *)item;
+- (void)showClipboardPreviewPanel;
 - (nullable UIWindow *)floatingPreviewWindowCreatingIfNeeded;
 - (void)showFloatingPreviewForItem:(MTPasteboardItem *)item rule:(MTCaptureRule *)rule;
 - (void)hideFloatingPreviewAnimated:(BOOL)animated;
@@ -2010,6 +2011,52 @@ static NSString *MTCaptureEntryTypeForUUID(NSDictionary *snapshot, NSString *uui
     [self.mainViewController applyUserInterfaceStyle:UIUserInterfaceStyleUnspecified];
     [self applyCurrentKeyboardHostUserInterfaceStyle];
     [self.mainViewController showQuickPreviewForItem:item];
+}
+
+// 分词面板系统动作入口：先把最新剪切板落库，再按用户分词偏好直接展示
+// 该条目的预览面板（与历史列表长按同路径）；剪切板为空时退化为普通唤起，
+// 面板已可见时沿用 quick preview 的无操作约定。
+- (void)showClipboardPreviewPanel {
+    if ([self isPackageMaintenanceMode]) {
+        return;
+    }
+
+    if (!self.mainViewController || ![self.mainViewController isHidden]) {
+        return;
+    }
+
+    [self hideFloatingPreviewAnimated:NO];
+
+    BOOL locked = NO;
+    if ([self readUILocked:&locked] && locked) {
+        [self playFailureHapticFeedbackIfNeeded];
+        return;
+    }
+
+    __weak typeof(self) weakSelf = self;
+    [[MTPasteboardManager sharedInstance] pullPasteboardChangesWithCompletion:^(BOOL didSaveAnyItem) {
+      __strong typeof(weakSelf) strongSelf = weakSelf;
+      if (!strongSelf || !strongSelf.mainViewController || ![strongSelf.mainViewController isHidden]) {
+          return;
+      }
+
+      MTPasteboardItem *item = [[MTPasteboardManager sharedInstance] getLatestHistoryItem];
+      if (!item) {
+          [strongSelf show];
+          return;
+      }
+
+      MTPanelPresentationMode presentationMode = [strongSelf currentPresentationMode];
+      if (![strongSelf preparePanelHostForPresentationMode:presentationMode]) {
+          [strongSelf playFailureHapticFeedbackIfNeeded];
+          return;
+      }
+
+      [strongSelf applyHeightPreferenceToViewApplyingWhenHidden:YES];
+      [strongSelf.mainViewController applyUserInterfaceStyle:UIUserInterfaceStyleUnspecified];
+      [strongSelf applyCurrentKeyboardHostUserInterfaceStyle];
+      [strongSelf.mainViewController showPreviewForItem:item];
+    }];
 }
 
 #pragma mark - Visibility

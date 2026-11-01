@@ -132,6 +132,9 @@ NS_ASSUME_NONNULL_BEGIN
             completion:(nullable void (^)(void))completion;
 - (void)showWithInitialContentItem:(nullable MTPasteboardItem *)contentItem
                         completion:(nullable void (^)(void))completion;
+- (void)showWithInitialContentItem:(nullable MTPasteboardItem *)contentItem
+                forceWordSelection:(BOOL)forceWordSelection
+                        completion:(nullable void (^)(void))completion;
 @end
 
 NS_ASSUME_NONNULL_END
@@ -2869,6 +2872,12 @@ NS_ASSUME_NONNULL_END
 
 - (void)showWithInitialContentItem:(nullable MTPasteboardItem *)contentItem
                         completion:(nullable void (^)(void))completion {
+    [self showWithInitialContentItem:contentItem forceWordSelection:YES completion:completion];
+}
+
+- (void)showWithInitialContentItem:(nullable MTPasteboardItem *)contentItem
+                forceWordSelection:(BOOL)forceWordSelection
+                        completion:(nullable void (^)(void))completion {
     if ([[self panelPresentationController] isAnimating] || [self preparingToShow]) {
         return;
     }
@@ -2912,7 +2921,7 @@ NS_ASSUME_NONNULL_END
                                                                    hidesSearchBar:YES];
                               if (contentItem) {
                                   [self showContentForItem:contentItem
-                                      forceWordSelection:YES
+                                      forceWordSelection:forceWordSelection
                                                  animated:NO
                                               completion:nil];
                               }
@@ -2938,6 +2947,16 @@ NS_ASSUME_NONNULL_END
     }
 
     [self showWithInitialContentItem:item completion:nil];
+}
+
+// 分词面板动作入口：与长按历史条目一致，按用户分词偏好决定落点是
+// 预览面板还是分词视图，不强制走分词。
+- (void)showPreviewForItem:(MTPasteboardItem *)item {
+    if (!item || [self isEditingAnyContent] || ![self isHidden]) {
+        return;
+    }
+
+    [self showWithInitialContentItem:item forceWordSelection:NO completion:nil];
 }
 
 #pragma mark - Hiding

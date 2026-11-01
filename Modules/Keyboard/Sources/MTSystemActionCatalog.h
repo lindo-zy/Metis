@@ -20,6 +20,7 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"reachability", @"SYSTEM_QUICK_PANEL", @"magnifyingglass", @"device"],
             @[@"screenshot", @"SYSTEM_SCREENSHOT", @"camera.viewfinder", @"device"],
             @[@"clipboard", @"SYSTEM_CLIPBOARD", @"doc.on.clipboard", @"device"],
+            @[@"word-selection", @"SYSTEM_WORD_SELECTION", @"textformat.123", @"device"],
             @[@"ai-chat", @"LONG_AI_CHAT", @"sparkles", @"device"],
             @[@"control-center", @"SYSTEM_CONTROL_CENTER", @"switch.2", @"control"],
             @[@"screen-recording", @"SYSTEM_SCREEN_RECORDING", @"record.circle", @"control"],

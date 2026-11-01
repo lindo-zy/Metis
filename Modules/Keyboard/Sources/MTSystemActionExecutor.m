@@ -446,6 +446,13 @@ MTSystemOpenResult MTPerformSystemAction(NSString *action) {
         return notify_post("com.lindo.metis.clipboard.core.show") == NOTIFY_STATUS_OK
             ? MTSystemOpenSucceeded : MTSystemOpenFailed;
     }
+    // 分词面板：同通道唤起，剪切板核心拉取最新剪切板后直接展示预览面板，
+    // 免去「打开剪切板 → 长按条目」两步。
+    if ([action isEqual:@"word-selection"]) {
+        if (!NSClassFromString(@"MTClipboardCoreRuntime")) return MTSystemOpenUnavailable;
+        return notify_post("com.lindo.metis.clipboard.core.show-preview") == NOTIFY_STATUS_OK
+            ? MTSystemOpenSucceeded : MTSystemOpenFailed;
+    }
     if ([action isEqual:@"ai-chat"])
         return [MTAIPanel presentForSystemAction] ? MTSystemOpenSucceeded : MTSystemOpenUnavailable;
     MTLoadSystemActionFrameworks();

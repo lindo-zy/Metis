@@ -677,6 +677,7 @@
 "QUICK_SAVE" = "保存";
 
 "SYSTEM_CLIPBOARD" = "剪切板动作";
+"SYSTEM_WORD_SELECTION" = "分词面板";
 
 // API balance
 "AI_BALANCE" = "API 余额";

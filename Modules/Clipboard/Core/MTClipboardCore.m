@@ -94,6 +94,16 @@ static void mtCoreShowCallback(CFNotificationCenterRef center, void *observer, C
     [[MTClipboardCoreRuntime sharedRuntime] show];
 }
 
+static void mtCoreShowPreviewCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
+                                         const void *object, CFDictionaryRef userInfo) {
+    (void)center;
+    (void)observer;
+    (void)name;
+    (void)object;
+    (void)userInfo;
+    [[MTClipboardCoreRuntime sharedRuntime] showClipboardPreviewPanel];
+}
+
 static void mtCoreHideCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object,
                                    CFDictionaryRef userInfo) {
     (void)center;
@@ -296,6 +306,8 @@ static void mtCorePasteTipPreferencesReloadCallback(CFNotificationCenterRef cent
                           callback:mtCoreShowCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTLegacyNotificationKeyCoreShow
                           callback:mtCoreShowCallback];
+    [self addDarwinObserverForName:(__bridge CFStringRef)kMTNotificationKeyCoreShowPreview
+                          callback:mtCoreShowPreviewCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTNotificationKeyCoreHide
                           callback:mtCoreHideCallback];
     [self addDarwinObserverForName:(__bridge CFStringRef)kMTLegacyNotificationKeyCoreHide

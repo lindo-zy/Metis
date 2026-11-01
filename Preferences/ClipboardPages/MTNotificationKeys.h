@@ -9,6 +9,7 @@
 
 static NSString *const kMTNotificationKeyCoreShow = @"com.lindo.metis.clipboard.core.show";
 static NSString *const kMTLegacyNotificationKeyCoreShow = @"dev.traurige.mt.core.show";
+static NSString *const kMTNotificationKeyCoreShowPreview = @"com.lindo.metis.clipboard.core.show-preview";
 static NSString *const kMTNotificationKeyCoreHide = @"com.lindo.metis.clipboard.core.hide";
 static NSString *const kMTLegacyNotificationKeyCoreHide = @"dev.traurige.mt.core.hide";
 static NSString *const kMTNotificationKeyCoreToggle = @"com.lindo.metis.clipboard.core.toggle";
