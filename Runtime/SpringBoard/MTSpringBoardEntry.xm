@@ -4,6 +4,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "MTCore.h"
+#import "../../Modules/Charging/MTChargingRuntime.h"
 
 %ctor {
     // filter 已限定 SpringBoard；这里再校验一次，防止 filter 环境异常。
@@ -11,6 +12,7 @@
         return;
     }
     setenv("METIS_SPRINGBOARD_LOADED", "1", 1);
+    MTChargingInstall();
     MTLogInfo(MTLogModuleCore,
               @"state=sb-loaded version=%@ arm=%@",
               MTCoreVersionString,

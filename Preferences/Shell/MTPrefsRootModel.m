@@ -1,7 +1,7 @@
 #import "MTPrefsRootModel.h"
 #import "MTCore.h"
 
-// 四分类固定顺序与摘要（02 §1；原「其他」分类内容已并入全局，02 §6）；
+// 分类固定顺序与摘要（原「其他」分类内容已并入全局）；新增充电入口。
 // 全局在 Shell 内，键盘/剪切板/截图直达各子包根控制器。行元组：[id, 标题,
 // 摘要, SF Symbol, 色token, 子包(NSNull 或字符串), 控制器类名]。控制器一律
 // 字符串引用：模型不链接子包/壳控制器类，宿主测试只编译模型不编译控制器。
@@ -16,6 +16,8 @@ static NSArray *MTRootCategoryConfigs(void) {
           @"MetisClipboardPrefs", @"MTClipboardRootListController"],
         @[@"capture",   @"截图",   @"截取、标注与长截图", @"crop", @"purple",
           @"MetisCapturePrefs", @"MTCaptureRootListController"],
+        @[@"charging",  @"充电",   @"锁屏功率、曲线与电池详情", @"bolt.batteryblock.fill", @"green",
+          [NSNull null], @"MTPrefsChargingController"],
     ];
 }
 

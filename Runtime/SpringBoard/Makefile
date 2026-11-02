@@ -6,6 +6,10 @@ TWEAK_NAME = MetisSpringBoard
 MetisSpringBoard_FILES = MTSpringBoardEntry.xm \
 	MTCaptureModuleAdapter.m
 
+MetisSpringBoard_FILES += ../../Modules/Charging/MTChargingSnapshot.m \
+	../../Modules/Charging/MTChargingCardView.m \
+	../../Modules/Charging/MTChargingRuntime.m
+
 # Capture（MetisCapture 迁入，04 §3）
 MetisSpringBoard_FILES += $(wildcard ../../Modules/Capture/Sources/Common/*.m) \
 	$(wildcard ../../Modules/Capture/Sources/Capture/*.m) \

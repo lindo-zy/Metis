@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>新增默认关闭的充电模块，开启后可在锁屏查看电池侧功率、曲线、电量和电池详情。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.0</string>
 		<key>items</key>
 		<array>
@@ -63,31 +76,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>移除浏览器重定向功能及相关设置入口。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修改自定义动作的图标后，键盘底栏与悬浮栏的按钮会立刻跟着更新，不再停留在绑定时的旧图标。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>打开自定义动作设置页时，图标预览正确显示已设置的图标，不再一律显示链接图标。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>图标名无效时给出提示并改用默认图标，不再在没有提示的情况下保存成另一个值。</string>
 			</dict>
 		</array>
 	</dict>

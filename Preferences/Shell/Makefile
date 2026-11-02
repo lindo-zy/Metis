@@ -13,6 +13,7 @@ MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsShellTableController.m \
 	MTPrefsSubbundleLoader.m \
 	MTPrefsGlobalController.m \
+	MTPrefsChargingController.m \
 	MTPrefsChangelogController.m \
 	MTPrefsReferencesController.m \
 	MTPrefsBackupController.m \
