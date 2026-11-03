@@ -64,11 +64,8 @@ static const double MTChargeCoarseStep = 5.0;
 // A few-mAh gauge recalibration is not a charge-direction reversal; absorb it
 // in the window instead of discarding it. Larger jumps restart the clock.
 static const double MTChargeGaugeJitterMilliampHours = 3.0;
-// Continuous valid charging for this long yields an instantaneous-current
-// estimate (labeled “按当前速度”) before the observed-rate window matures.
-static const NSTimeInterval MTChargeInstantEstimateStableSeconds = 30.0;
 // The window slope needs a few samples before it means anything; shorter
-// spans stay with the instant estimate (or nothing).
+// spans stay with the instant estimate (or the held one).
 static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
 
 @implementation MTChargingSnapshot
@@ -166,7 +163,8 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
 
 @interface MTChargingEstimator ()
 @property(nonatomic, strong) NSMutableArray<NSDictionary<NSString *, NSNumber *> *> *samples;
-@property(nonatomic) NSTimeInterval stableSince; // 0 = 尚无连续有效充电
+@property(nonatomic) NSInteger lastEstimateMinutes; // 充电期间估时不允许空窗的保持值
+@property(nonatomic) BOOL lastEstimateRate;         // 保持值是否为速度外推（决定显示文案）
 @property(nonatomic) NSTimeInterval taperStart;
 @property(nonatomic) NSTimeInterval taperLast;
 @property(nonatomic) BOOL taperCandidate;
@@ -180,7 +178,25 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
 - (void)reset {
     [self.samples removeAllObjects];
     self.taperCandidate = NO; self.taperStart = 0; self.taperLast = 0;
-    self.stableSince = 0;
+}
+// 充电期间估时不允许空窗：输入暂缺或窗口刚被回校清空时保持上一次估时，
+// 来源标注为 Held。从未产生过估时（如刚接电、电流仍低于阈值）才留空。
+- (void)applyHeldEstimate:(MTChargingSnapshot *)snapshot {
+    if (self.lastEstimateMinutes <= 0) return;
+    snapshot.minutesToFull = self.lastEstimateMinutes;
+    snapshot.etaSource = MTChargeEtaSourceHeld;
+    snapshot.rateEstimate = self.lastEstimateRate;
+}
+// 瞬时电流直除兜底：窗口未成熟、刚被回校清窗、涓流观测期、同拍重复回调
+// 都在此取得估时；仍无结果时保持上次估时，充电期间不允许无估时空窗。
+- (void)fillInstantOrHeldEstimate:(MTChargingSnapshot *)snapshot remaining:(double)remaining ma:(double)ma {
+    snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining currentMilliamp:ma];
+    if (snapshot.minutesToFull > 0) {
+        snapshot.etaSource = MTChargeEtaSourceRateInstant;
+        snapshot.rateEstimate = YES;
+    } else {
+        [self applyHeldEstimate:snapshot];
+    }
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot atTime:(NSTimeInterval)time {
     BOOL hasSystemEstimate = snapshot.minutesToFull > 0 && !snapshot.rateEstimate;
@@ -189,7 +205,9 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
     snapshot.trickleObservedSeconds = NAN;
     snapshot.etaSource = MTChargeEtaSourceNone;
     if (!snapshot.connected || !snapshot.charging || snapshot.fullyCharged) {
-        snapshot.minutesToFull = -1; [self reset]; return;
+        snapshot.minutesToFull = -1;
+        self.lastEstimateMinutes = -1; self.lastEstimateRate = NO;
+        [self reset]; return;
     }
     // Not a hardware charging-stage flag. Require sustained high SOC, voltage
     // and low positive C-rate; label this as estimated, never infer from 80% alone.
@@ -209,32 +227,41 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
     double remaining = snapshot.remainingMilliampHours, ma = snapshot.amps * 1000.0;
     // The battery controller's explicit full-charge model accounts for taper;
     // don't overwrite it with a linear, instantaneous-current calculation.
-    if (hasSystemEstimate) { [self.samples removeAllObjects]; snapshot.etaSource = MTChargeEtaSourceSystem; return; }
+    if (hasSystemEstimate) {
+        [self.samples removeAllObjects];
+        snapshot.etaSource = MTChargeEtaSourceSystem;
+        self.lastEstimateMinutes = snapshot.minutesToFull; self.lastEstimateRate = NO;
+        return;
+    }
     snapshot.minutesToFull = -1;
     if (!isfinite(time) || !isfinite(remaining) || remaining <= 0 ||
         !isfinite(ma) || ma < MTChargeMinCurrentMilliamp) {
         if (candidate) [self.samples removeAllObjects]; else [self reset];
-        self.stableSince = 0;
+        [self applyHeldEstimate:snapshot];
         return;
     }
-    // 稳定时钟：只在数据持续有效时前进。快速估时、采样中断后的重新积累
-    // 都以它为界；涓流观测期内仍照常前进（数据有效即充电未中断）。
-    if (self.stableSince == 0 || time < self.stableSince) self.stableSince = time;
     // A constant-current extrapolation cannot predict the declining-current
-    // tail. Keep the observation timer but suppress ETA while it is observed.
-    if (snapshot.trickleEstimated) { [self.samples removeAllObjects]; return; }
+    // tail, so the observed-rate window is dropped while taper is observed;
+    // the estimates below still run so the card never goes blank.
+    if (snapshot.trickleEstimated) { [self.samples removeAllObjects]; }
     NSDictionary *last = self.samples.lastObject;
     double delta = last ? time - [last[@"time"] doubleValue] : 0.0;
     // 采样中断、时间回退或超过容忍带的回校（剩余电量向上跳；或下降速度
     // 超过充电电流可能输送的两倍——都是电量计重校准而非真实充电进度）：
-    // 稳定时钟与窗口一起重来。
+    // 只清观测窗口重新积累；充电未中断，估时显示由瞬时/保持值兜底。
     if (last && (delta < 0 || delta > 10 || remaining > [last[@"remaining"] doubleValue] + MTChargeGaugeJitterMilliampHours ||
         [last[@"remaining"] doubleValue] - remaining > 2.0 * ma * delta / 3600.0 + MTChargeGaugeJitterMilliampHours)) {
         [self.samples removeAllObjects];
-        self.stableSince = time;
         last = nil;
     }
-    if (last && delta < 0.8) return; // layout/reload callbacks aren't new samples
+    if (last && delta < 0.8) { // layout/reload callbacks aren't new samples
+        [self fillInstantOrHeldEstimate:snapshot remaining:remaining ma:ma];
+        if (snapshot.minutesToFull > 0) {
+            self.lastEstimateMinutes = snapshot.minutesToFull;
+            self.lastEstimateRate = snapshot.rateEstimate;
+        }
+        return;
+    }
     [self.samples addObject:@{@"time": @(time), @"remaining": @(remaining), @"ma": @(ma)}];
     while (self.samples.count > 1 && time - [self.samples[0][@"time"] doubleValue] > 120)
         [self.samples removeObjectAtIndex:0];
@@ -266,19 +293,17 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
                 if (consistent) {
                     snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
                         currentMilliamp:MIN(averageMA, rateMilliamp)];
-                    if (snapshot.minutesToFull > 0) snapshot.etaSource = MTChargeEtaSourceRateWindow;
+                    if (snapshot.minutesToFull > 0) { snapshot.etaSource = MTChargeEtaSourceRateWindow; snapshot.rateEstimate = YES; }
                 }
             }
         }
     }
-    // 窗口未成熟时的快速估时：连续有效充电已稳定一段时间，按瞬时电流
-    // 外推（沿用 rateEstimate 的「按当前速度」标注）。大幅回校后的静默
-    // 期由稳定时钟承担，持续回校的异常电量计永远到不了这里。
-    if (snapshot.minutesToFull <= 0 && time - self.stableSince >= MTChargeInstantEstimateStableSeconds) {
-        snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
-            currentMilliamp:ma];
-        if (snapshot.minutesToFull > 0) snapshot.etaSource = MTChargeEtaSourceRateInstant;
+    // 接通电源第一拍即可用：窗口未成熟、刚被回校清窗或涓流观测期都按
+    // 瞬时电流直除（沿用「按当前速度」标注），滑动窗成熟后动态替换。
+    if (snapshot.minutesToFull <= 0) [self fillInstantOrHeldEstimate:snapshot remaining:remaining ma:ma];
+    if (snapshot.minutesToFull > 0) {
+        self.lastEstimateMinutes = snapshot.minutesToFull;
+        self.lastEstimateRate = snapshot.rateEstimate;
     }
-    snapshot.rateEstimate = snapshot.minutesToFull > 0;
 }
 @end

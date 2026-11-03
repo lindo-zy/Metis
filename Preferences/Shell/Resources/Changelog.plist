@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.5</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>充电卡片接通电源立即显示预计充满时间，充电期间数值持续动态校正，不再出现估算中空窗。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.4</string>
 		<key>items</key>
 		<array>
@@ -57,19 +70,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>电池未上报厂商时，充电卡片按电池序列号前缀显示封装厂商并标注为推断。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.0</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>充电卡片新增电池循环次数；电池未上报时显示占位，替换原本次净增。</string>
 			</dict>
 		</array>
 	</dict>

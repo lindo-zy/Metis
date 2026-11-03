@@ -305,8 +305,8 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
             }
             if (!snapshot.connected) { [self stop]; return; }
             [self.estimator updateSnapshot:snapshot atTime:NSProcessInfo.processInfo.systemUptime];
-            // 首评必打，其后仅来源或分钟数变化时打：真机定位“一直在预估”
-            // 卡在哪道门（source: 0 无 1 系统 2 滑动窗 3 瞬时估）。
+            // 首评必打，其后仅来源或分钟数变化时打：真机定位估时来源与
+            // 兜底链路（source: 0 无 1 系统 2 滑动窗 3 瞬时估 4 保持上次）。
             NSUInteger etaSource = snapshot.etaSource;
             NSInteger etaMinutes = snapshot.minutesToFull;
             if (!self.etaLoggedOnce || etaSource != self.etaSource || etaMinutes != self.etaMinutes) {
