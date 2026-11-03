@@ -39,6 +39,9 @@ static const double MTChargeCoarseStep = 5.0;
 + (instancetype)snapshotWithProperties:(NSDictionary *)p
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging {
     MTChargingSnapshot *s = [self new];
+    s.sessionGainMilliampHours = NAN;
+    s.trickleObservedSeconds = NAN;
+    s.connectionKnown = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class];
     s.connected = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class] ? [p[@"ExternalConnected"] boolValue] : connected;
     s.charging = s.connected && ([p[@"IsCharging"] isKindOfClass:NSNumber.class] ? [p[@"IsCharging"] boolValue] : charging);
     double current = MTChargeNumber(p, @"CurrentCapacity"), maximum = MTChargeNumber(p, @"MaxCapacity");
@@ -66,11 +69,19 @@ static const double MTChargeCoarseStep = 5.0;
     // iOS, so only the raw counters (or a mAh-scaled pair) can give minutes.
     double rawMaximum = MTChargeNestedNumber(p, @"AppleRawMaxCapacity");
     double rawCurrent = MTChargeNestedNumber(p, @"AppleRawCurrentCapacity");
-    if (rawMaximum > 0 && rawCurrent >= 0 && rawCurrent <= rawMaximum)
-        s.remainingMilliampHours = rawMaximum - rawCurrent;
-    else if (maximum > 200 && current >= 0 && current <= maximum)
-        s.remainingMilliampHours = maximum - current;
-    else s.remainingMilliampHours = NAN;
+    s.currentMilliampHours = NAN;
+    s.fullMilliampHours = NAN;
+    s.designMilliampHours = MTChargeNestedNumber(p, @"DesignCapacity");
+    if (s.designMilliampHours < 200 || s.designMilliampHours > 50000) s.designMilliampHours = NAN;
+    if (rawCurrent >= 0 && rawCurrent <= 50000) {
+        s.currentMilliampHours = rawCurrent; s.capacitySource = 1;
+        if (rawMaximum >= 200 && rawMaximum <= 50000) s.fullMilliampHours = rawMaximum;
+    } else if (maximum > 200 && maximum <= 50000 && current >= 0 && current <= maximum) {
+        s.currentMilliampHours = current; s.fullMilliampHours = maximum; s.capacitySource = 2;
+    }
+    // DesignCapacity is nominal; it must never be substituted for today's FCC.
+    s.remainingMilliampHours = s.fullMilliampHours >= s.currentMilliampHours ?
+        s.fullMilliampHours - s.currentMilliampHours : NAN;
     // TimeRemaining can also mean discharge time. Only explicitly named
     // time-to-full fields are accepted, in minutes; 0/-1/65535 are not ETAs.
     s.minutesToFull = -1;
@@ -86,8 +97,37 @@ static const double MTChargeCoarseStep = 5.0;
 }
 @end
 
+@interface MTChargingSession ()
+@property(nonatomic) BOOL known;
+@property(nonatomic) BOOL connected;
+@property(nonatomic) double baseline;
+@property(nonatomic) NSUInteger source;
+@end
+
+@implementation MTChargingSession
+- (void)reset { self.known = NO; self.connected = NO; self.baseline = NAN; self.source = 0; }
+- (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
+    snapshot.sessionGainMilliampHours = NAN;
+    if (!snapshot.connectionKnown) { [self reset]; return; }
+    if (!snapshot.connected) {
+        [self reset]; self.known = YES; return;
+    }
+    if (!self.known || !self.connected) {
+        self.baseline = self.known ? snapshot.currentMilliampHours : NAN;
+        self.source = snapshot.capacitySource;
+    }
+    self.known = YES; self.connected = YES;
+    if (snapshot.capacitySource != self.source) self.baseline = NAN;
+    if (isfinite(self.baseline) && isfinite(snapshot.currentMilliampHours))
+        snapshot.sessionGainMilliampHours = snapshot.currentMilliampHours - self.baseline;
+}
+@end
+
 @interface MTChargingEstimator ()
 @property(nonatomic, strong) NSMutableArray<NSDictionary<NSString *, NSNumber *> *> *samples;
+@property(nonatomic) NSTimeInterval taperStart;
+@property(nonatomic) NSTimeInterval taperLast;
+@property(nonatomic) BOOL taperCandidate;
 @end
 
 @implementation MTChargingEstimator
@@ -95,20 +135,46 @@ static const double MTChargeCoarseStep = 5.0;
     if ((self = [super init])) _samples = [NSMutableArray array];
     return self;
 }
-- (void)reset { [self.samples removeAllObjects]; }
+- (void)reset {
+    [self.samples removeAllObjects];
+    self.taperCandidate = NO; self.taperStart = 0; self.taperLast = 0;
+}
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot atTime:(NSTimeInterval)time {
     BOOL hasSystemEstimate = snapshot.minutesToFull > 0 && !snapshot.rateEstimate;
     snapshot.rateEstimate = NO;
+    snapshot.trickleEstimated = NO;
+    snapshot.trickleObservedSeconds = NAN;
     if (!snapshot.connected || !snapshot.charging || snapshot.fullyCharged) {
         snapshot.minutesToFull = -1; [self reset]; return;
     }
+    // Not a hardware charging-stage flag. Require sustained high SOC, voltage
+    // and low positive C-rate; label this as estimated, never infer from 80% alone.
+    BOOL candidate = isfinite(time) && snapshot.level >= 0.9 && snapshot.volts >= 4.1 &&
+        snapshot.amps > 0 && isfinite(snapshot.fullMilliampHours) &&
+        snapshot.remainingMilliampHours > 0 &&
+        snapshot.amps * 1000 <= snapshot.fullMilliampHours * 0.15;
+    if (!candidate || !self.taperCandidate || time < self.taperLast || time - self.taperLast > 10) {
+        self.taperStart = time;
+    }
+    self.taperCandidate = candidate;
+    self.taperLast = time;
+    if (candidate && time - self.taperStart >= 30) {
+        snapshot.trickleEstimated = YES;
+        snapshot.trickleObservedSeconds = time - self.taperStart;
+    }
     // The battery controller's explicit full-charge model accounts for taper;
     // don't overwrite it with a linear, instantaneous-current calculation.
-    if (hasSystemEstimate) { [self reset]; return; }
+    if (hasSystemEstimate) { [self.samples removeAllObjects]; return; }
     snapshot.minutesToFull = -1;
+    // A constant-current extrapolation cannot predict the declining-current
+    // tail. Keep the observation timer but wait for an explicit system ETA.
+    if (snapshot.trickleEstimated) { [self.samples removeAllObjects]; return; }
     double remaining = snapshot.remainingMilliampHours, ma = snapshot.amps * 1000.0;
     if (!isfinite(time) || !isfinite(remaining) || remaining <= 0 ||
-        !isfinite(ma) || ma < MTChargeMinCurrentMilliamp) { [self reset]; return; }
+        !isfinite(ma) || ma < MTChargeMinCurrentMilliamp) {
+        if (candidate) [self.samples removeAllObjects]; else [self reset];
+        return;
+    }
     NSDictionary *last = self.samples.lastObject;
     double delta = time - [last[@"time"] doubleValue];
     if (last && (delta < 0 || delta > 10 || remaining > [last[@"remaining"] doubleValue] + 2)) {

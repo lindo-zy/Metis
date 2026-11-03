@@ -51,16 +51,17 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     NSDictionary *properties = @{@"ExternalConnected": @YES, @"IsCharging": @YES,
         @"CurrentCapacity": @62, @"MaxCapacity": @100, @"Voltage": @4020,
         @"InstantAmperage": @2090, @"Temperature": @3320,
-        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033, @"AvgTimeToFull": @48};
+        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033, @"DesignCapacity": @3181, @"AvgTimeToFull": @48};
     MTChargingSnapshot *snapshot = [MTChargingSnapshot snapshotWithProperties:properties
         fallbackLevel:0.62 connected:YES charging:YES];
+    snapshot.sessionGainMilliampHours = 420; // fixed preview, never live telemetry
     [_card updateSnapshot:snapshot];
 }
 
 - (void)setPreviewEnabled:(BOOL)enabled {
     // 关闭态压暗而不是隐藏：用户仍能看到开启后的样式，同时不会误以为已生效。
     _card.alpha = enabled ? 1.0 : 0.55;
-    _caption.text = enabled ? @"锁屏效果预览 · 示意数据" : @"当前为关闭状态，开启后按此样式显示";
+    _caption.text = @"锁屏效果预览 · 示意数据";
 }
 
 - (void)layoutSubviews {
@@ -89,7 +90,6 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     toggle.kind = MTSettingsRowKindToggle;
     toggle.iconName = @"bolt.batteryblock.fill";
     toggle.colorName = @"green";
-    toggle.subtitle = @"充电时在锁屏底部显示详情";
     toggle.userInfo = @(MTChargingDetailsEnabled());
     __weak typeof(self) weakSelf = self;
     toggle.toggleHandler = ^(BOOL on) {
@@ -104,12 +104,8 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
         [strongSelf.preview setPreviewEnabled:MTChargingDetailsEnabled()];
     };
     MTSettingsSection *section = [MTSettingsSection sectionWithRows:@[toggle]];
-    section.footerText = @"默认关闭，开启后立即生效；也受 Metis 总开关控制。";
-    MTSettingsRow *info = [MTSettingsRow linkRowWithIdentifier:@"charging-details-info" title:@"实时充电数据"];
-    info.kind = MTSettingsRowKindInfo;
-    info.subtitle = @"电池侧功率、电量、电压、电流、电池温度和充满预估。无系统充满预估时需连续采样约一分钟，按当前速度估算；数据不足时显示正在估算。电池侧功率不等于充电器输出功率。";
     self.model = [MTSettingsPageModel new];
-    self.model.sections = @[section, [MTSettingsSection sectionWithRows:@[info]]];
+    self.model.sections = @[section];
 }
 
 - (void)viewDidLoad {

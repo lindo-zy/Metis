@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>锁屏充电卡片新增实时容量、设计容量与本次净增；净增基于观察到的插电起点，熄屏和密码界面切换不重置。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>连续观测高电量、较高电压和低电流后显示涓流估测与已观测时长；末段不再用恒定电流外推充满时间，缺少有效系统预估时显示余时估算中。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>按新布局扩展充电卡片，移除设置页开关下方及实时充电数据的说明文字。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.8</string>
 		<key>items</key>
 		<array>
@@ -75,25 +100,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>锁屏充电卡片移除近 60 秒功率曲线，卡片更紧凑，功率、电量等其余数据保持不变。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>锁屏充电卡片的近 60 秒曲线不再随功率小幅波动上下跳动，曲线高度保持稳定。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>充满预估改按剩余电量和实际充电电流推算，不再显示系统给出的明显偏大的分钟数。</string>
 			</dict>
 		</array>
 	</dict>

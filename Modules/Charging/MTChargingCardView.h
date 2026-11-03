@@ -5,7 +5,7 @@
 // static 修饰：宿主测试只编 Runtime+Snapshot（CardView 用桩类替代），头文件内联
 // 取值即可，不产生对 MTChargingCardView.m 的链接依赖。
 static const CGFloat MTChargingCardDesignWidth = 361.0;
-static const CGFloat MTChargingCardDesignHeight = 186.0;
+static const CGFloat MTChargingCardDesignHeight = 246.0;
 
 @interface MTChargingCardView : UIView
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot;
