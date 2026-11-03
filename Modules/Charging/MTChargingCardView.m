@@ -65,11 +65,15 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         MTChargeText(capacityTitles[i], CGRectMake(x, 164, 95, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
         MTChargeText(capacityValues[i], CGRectMake(x, 182, 95, 24), 14, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     }
+    MTChargeText([NSString stringWithFormat:@"厂商：%@", s.batteryManufacturer ?: @"未知"],
+        CGRectMake(18, 211, 154, 17), 10, UIFontWeightMedium, muted, NSTextAlignmentLeft);
+    MTChargeText([NSString stringWithFormat:@"型号：%@", s.batteryModel ?: @"未知"],
+        CGRectMake(184, 211, 160, 17), 10, UIFontWeightMedium, muted, NSTextAlignmentLeft);
     NSString *status = !s.connected ? @"未充电" : (s.fullyCharged ? @"已充满" :
         (s.trickleEstimated ? @"涓流估测" : (s.charging ? @"正在充电" : @"充电已暂停")));
-    CGRect badge = CGRectMake(17, 218, 88, 20);
+    CGRect badge = CGRectMake(17, 240, 88, 20);
     [[green colorWithAlphaComponent:0.14] setFill]; [[UIBezierPath bezierPathWithRoundedRect:badge cornerRadius:10] fill];
-    MTChargeText(status, CGRectMake(20, 221, 82, 16), 10, UIFontWeightSemibold, green, NSTextAlignmentCenter);
+    MTChargeText(status, CGRectMake(20, 243, 82, 16), 10, UIFontWeightSemibold, green, NSTextAlignmentCenter);
     NSString *eta = !s.connected ? @"尚未接入电源" : (s.fullyCharged ? @"电量已充满" : (!s.charging ? @"充电已暂停" :
         (s.minutesToFull > 0 ? [NSString stringWithFormat:s.rateEstimate ? @"按当前速度约 %ld 分钟" : @"预计约 %ld 分钟充满",
             (long)s.minutesToFull] : @"正在估算充电时间")));
@@ -80,7 +84,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         eta = [NSString stringWithFormat:@"%@ · %@", observed,
             s.minutesToFull > 0 ? [NSString stringWithFormat:@"预计约 %ld 分钟", (long)s.minutesToFull] : @"余时估算中"];
     }
-    MTChargeText(eta, CGRectMake(112, 221, 231, 16), 10, UIFontWeightMedium, muted, NSTextAlignmentRight);
+    MTChargeText(eta, CGRectMake(112, 243, 231, 16), 10, UIFontWeightMedium, muted, NSTextAlignmentRight);
     CGContextRestoreGState(context);
 }
 @end
@@ -107,11 +111,12 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
     self.ink.snapshot = snapshot; [self.ink setNeedsDisplay];
-    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，设计容量 %@，本次净增 %@%@",
+    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，设计容量 %@，本次净增 %@，电池厂商 %@，电池型号 %@%@",
         MTChargeValue(snapshot.level * 100, 0, @"%"), MTChargeValue(snapshot.watts, 1, @"瓦"),
         MTChargeValue(snapshot.volts, 2, @"伏"), MTChargeValue(snapshot.amps, 2, @"安"), MTChargeValue(snapshot.celsius, 1, @"摄氏度"),
         MTChargeValue(snapshot.currentMilliampHours, 0, @"毫安时"), MTChargeValue(snapshot.designMilliampHours, 0, @"毫安时"),
         MTChargeValue(snapshot.sessionGainMilliampHours, 0, @"毫安时"),
+        snapshot.batteryManufacturer ?: @"未知", snapshot.batteryModel ?: @"未知",
         snapshot.trickleEstimated ? [NSString stringWithFormat:@"，涓流阶段为估测，已连续观测 %.0f 秒", floor(snapshot.trickleObservedSeconds)] : @""];
 }
 @end

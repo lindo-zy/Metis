@@ -2,6 +2,30 @@
 #include <math.h>
 #include <stdint.h>
 
+static NSString *MTChargeIdentityString(id value) {
+    // Accept NUL-padded UTF-8 buffers in explicit identity fields.
+    // Do not decode ManufacturerData, serial prefixes or other binary blobs.
+    NSString *string = nil;
+    if ([value isKindOfClass:NSString.class]) string = value;
+    else if ([value isKindOfClass:NSData.class] && [value length] <= 512)
+        string = [[NSString alloc] initWithData:value encoding:NSUTF8StringEncoding];
+    if (!string || string.length > 512) return nil;
+    NSMutableCharacterSet *padding = [NSCharacterSet.whitespaceAndNewlineCharacterSet mutableCopy];
+    [padding addCharactersInRange:NSMakeRange(0, 1)];
+    string = [string stringByTrimmingCharactersInSet:padding];
+    if (!string.length || string.length > 128 ||
+        [string rangeOfCharacterFromSet:NSCharacterSet.controlCharacterSet].location != NSNotFound) return nil;
+    if ([@[@"unknown", @"n/a", @"none", @"null", @"(null)", @"-", @"—", @"未知"] containsObject:string.lowercaseString]) return nil;
+    return string;
+}
+
+static NSString *MTChargeIdentity(NSDictionary *properties, NSString *key) {
+    NSString *value = MTChargeIdentityString(properties[key]);
+    id nested = properties[@"BatteryData"];
+    if (!value && [nested isKindOfClass:NSDictionary.class]) value = MTChargeIdentityString(nested[key]);
+    return value ?: @"未知";
+}
+
 static double MTChargeNumber(NSDictionary *dict, NSString *key) {
     id value = dict[key];
     if (![value isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID()) return NAN;
@@ -39,6 +63,8 @@ static const double MTChargeCoarseStep = 5.0;
 + (instancetype)snapshotWithProperties:(NSDictionary *)p
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging {
     MTChargingSnapshot *s = [self new];
+    s.batteryManufacturer = MTChargeIdentity(p, @"Manufacturer");
+    s.batteryModel = MTChargeIdentity(p, @"Model");
     s.sessionGainMilliampHours = NAN;
     s.trickleObservedSeconds = NAN;
     s.connectionKnown = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class];

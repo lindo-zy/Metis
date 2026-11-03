@@ -2,6 +2,9 @@
 
 // Foundation-only decoding: no adapter rating is ever used as live power.
 @interface MTChargingSnapshot : NSObject
+/// 电池服务原始上报信息；缺失或无效时为“未知”，不通过机型/容量推断。
+@property(nonatomic, copy) NSString *batteryManufacturer;
+@property(nonatomic, copy) NSString *batteryModel;
 @property(nonatomic) BOOL connected;
 @property(nonatomic) BOOL charging;
 @property(nonatomic) BOOL fullyCharged;

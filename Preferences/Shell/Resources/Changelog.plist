@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>充电卡片读取并显示电池服务上报的厂商与型号；缺失、空值或无效内容统一显示未知，不再依照容量或设备机型推断。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.9</string>
 		<key>items</key>
 		<array>
@@ -87,19 +100,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>锁屏有通知时充电卡片自动让位，通知清空后恢复显示。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.5</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>锁屏充电卡片移除近 60 秒功率曲线，卡片更紧凑，功率、电量等其余数据保持不变。</string>
 			</dict>
 		</array>
 	</dict>
