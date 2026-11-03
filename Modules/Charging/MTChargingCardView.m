@@ -115,7 +115,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
     self.ink.snapshot = snapshot; [self.ink setNeedsDisplay];
-    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，最大容量 %@，循环次数 %@，电池厂商 %@%@，电池健康度 %@",
+    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，最大容量 %@，循环次数 %@，电池厂商 %@%@，电池健康度 %@%@",
         MTChargeValue(snapshot.level * 100, 0, @"%"), MTChargeValue(snapshot.watts, 1, @"瓦"),
         MTChargeValue(snapshot.volts, 2, @"伏"), MTChargeValue(snapshot.amps, 2, @"安"), MTChargeValue(snapshot.celsius, 1, @"摄氏度"),
         MTChargeValue(snapshot.currentMilliampHours, 0, @"毫安时"), MTChargeValue(snapshot.fullMilliampHours, 0, @"毫安时"),
