@@ -63,19 +63,29 @@ static NSString *MTChargeViewChain(UIView *view) {
 // window with a bounded scan and treat visible views whose class chain
 // contains Passcode / Notification as passcode keypad or notification
 // content (SBPasscodeLockView, NotificationLongLookView and CSCombinedList
-// families on iOS 16/17 all carry those markers). Each state flip logs the
-// first hit's class chain so device verification can confirm the markers.
+// families on iOS 16/17 all carry those markers). Notification matches only
+// count inside the cover sheet's own subtree so parked home-screen views in
+// the same window cannot trigger them; the first evaluation always logs its
+// result so a persistent false positive is visible in syslog right away.
 typedef enum {
     MTChargingYieldNone = 0,
     MTChargingYieldNotifications,
     MTChargingYieldPasscode,
 } MTChargingYieldReason;
 
-static void MTChargingScanNode(UIView *node, NSUInteger depth, NSUInteger *budget, UIView *windowRoot,
-    NSUInteger *passcodeHits, NSUInteger *notificationHits, UIView **passcodeHit, UIView **notificationHit) {
+typedef struct {
+    MTChargingYieldReason reason;
+    NSUInteger passcodeHits, notificationHits;
+    CGRect notificationFrame; // window coords of the first visible stack view; CGRectNull if none
+} MTChargingYieldResult;
+
+static void MTChargingScanNode(UIView *node, NSUInteger depth, NSUInteger *budget, UIView *windowRoot, BOOL inHostTree,
+    UIView *hostView, MTChargingYieldResult *result, UIView **passcodeHit, UIView **notificationHit) {
     if (*budget == 0 || depth > 16) return;
     if (node.hidden || node.alpha < 0.01f) return; // an invisible parent hides its whole subtree
+    if (result->passcodeHits && !CGRectIsNull(result->notificationFrame)) return; // both already found
     (*budget)--;
+    if (node == hostView) inHostTree = YES;
     BOOL passcodeMatch = NO, notificationMatch = NO;
     for (Class cls = node.class; cls && !(passcodeMatch && notificationMatch); cls = class_getSuperclass(cls)) {
         NSString *name = NSStringFromClass(cls);
@@ -85,35 +95,54 @@ static void MTChargingScanNode(UIView *node, NSUInteger depth, NSUInteger *budge
     if (passcodeMatch || notificationMatch) {
         CGRect frame = [node convertRect:node.bounds toView:windowRoot];
         if (frame.size.width > 8 && frame.size.height > 8 && CGRectIntersectsRect(frame, windowRoot.bounds)) {
-            if (passcodeMatch && *passcodeHits == 0) *passcodeHit = node;
-            if (notificationMatch && *notificationHits == 0) *notificationHit = node;
-            *passcodeHits += passcodeMatch;
-            *notificationHits += notificationMatch;
+            if (passcodeMatch) {
+                if (result->passcodeHits == 0) *passcodeHit = node;
+                result->passcodeHits++;
+            }
+            // Notification content only counts inside the cover sheet subtree,
+            // so notification-named views parked elsewhere in the window
+            // (home screen layers, tweak panels) can never trigger it. The
+            // frame tracked is the topmost hit so the card clears the stack.
+            if (notificationMatch && inHostTree) {
+                if (CGRectIsNull(result->notificationFrame) ||
+                    CGRectGetMinY(frame) < CGRectGetMinY(result->notificationFrame)) {
+                    *notificationHit = node; result->notificationFrame = frame;
+                }
+                result->notificationHits++;
+            }
         }
     }
     for (UIView *child in node.subviews)
-        MTChargingScanNode(child, depth + 1, budget, windowRoot, passcodeHits, notificationHits, passcodeHit, notificationHit);
+        MTChargingScanNode(child, depth + 1, budget, windowRoot, inHostTree, hostView, result, passcodeHit, notificationHit);
 }
 
-static MTChargingYieldReason MTChargingCoverSheetYield(UIViewController *host) {
-    UIView *window = host.viewIfLoaded.window;
-    if (!window) return MTChargingYieldNone;
-    NSUInteger passcodeHits = 0, notificationHits = 0;
+static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
+    MTChargingYieldResult result = {MTChargingYieldNone, 0, 0, CGRectNull};
+    UIView *hostView = host.viewIfLoaded;
+    UIView *window = hostView.window;
+    if (!window) return result;
     UIView *passcodeHit = nil, *notificationHit = nil;
     NSUInteger budget = 1200;
     for (UIView *child in window.subviews)
-        MTChargingScanNode(child, 1, &budget, window, &passcodeHits, &notificationHits, &passcodeHit, &notificationHit);
-    MTChargingYieldReason reason = passcodeHits ? MTChargingYieldPasscode :
-        (notificationHits ? MTChargingYieldNotifications : MTChargingYieldNone);
-    // Log only on state flips; the chain names the winning view for on-device checks.
+        MTChargingScanNode(child, 1, &budget, window, NO, hostView, &result, &passcodeHit, &notificationHit);
+    result.reason = result.passcodeHits ? MTChargingYieldPasscode :
+        (result.notificationHits ? MTChargingYieldNotifications : MTChargingYieldNone);
+    // The first evaluation always logs (a false positive that exists from
+    // launch never produces a flip), later ones only on state flips.
     static MTChargingYieldReason lastLogged = -1;
-    if (lastLogged >= 0 && reason != lastLogged) {
-        if (reason == MTChargingYieldNone) MTLogInfo(@"charging", @"state=yield-clear");
-        else MTLogInfo(@"charging", @"state=yield reason=%ld chain=%@", (long)reason,
-            MTChargeViewChain(reason == MTChargingYieldPasscode ? passcodeHit : notificationHit));
+    static BOOL loggedOnce = NO;
+    if (!loggedOnce) {
+        loggedOnce = YES;
+        MTLogInfo(@"charging", @"state=yield-init reason=%ld notif=%lu pass=%lu chain=%@", (long)result.reason,
+            (unsigned long)result.notificationHits, (unsigned long)result.passcodeHits,
+            notificationHit ? MTChargeViewChain(notificationHit) : (passcodeHit ? MTChargeViewChain(passcodeHit) : @"-"));
+    } else if (result.reason != lastLogged) {
+        if (result.reason == MTChargingYieldNone) MTLogInfo(@"charging", @"state=yield-clear");
+        else MTLogInfo(@"charging", @"state=yield reason=%ld chain=%@", (long)result.reason,
+            MTChargeViewChain(result.reason == MTChargingYieldPasscode ? passcodeHit : notificationHit));
     }
-    lastLogged = reason;
-    return reason;
+    lastLogged = result.reason;
+    return result;
 }
 
 @interface MTChargingRuntime : NSObject
@@ -214,10 +243,10 @@ static MTChargingYieldReason MTChargingCoverSheetYield(UIViewController *host) {
 }
 - (void)refresh {
     if (![self canShow]) { [self stop]; return; }
-    // Passcode/notification yield: take the card down but keep the 1s poll so
-    // it comes back on its own once the keypad is gone or notifications clear.
-    // Every other gate failure keeps the full stop semantics.
-    if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+    // Passcode keypad still takes the card down (polling stays alive so the
+    // card returns once the keypad is gone). Notifications no longer hide the
+    // card here — layout repositions it above the stack instead.
+    if (MTChargingCoverSheetYield(self.host).reason == MTChargingYieldPasscode) {
         [self.card removeFromSuperview]; self.card = nil;
         [self ensureTimer];
         return;
@@ -238,7 +267,7 @@ static MTChargingYieldReason MTChargingCoverSheetYield(UIViewController *host) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.sampling = NO;
             if (generation != self.generation || ![self canShow]) return;
-            if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+            if (MTChargingCoverSheetYield(self.host).reason == MTChargingYieldPasscode) {
                 [self.card removeFromSuperview]; self.card = nil;
                 [self ensureTimer];
                 return;
@@ -274,13 +303,25 @@ static MTChargingYieldReason MTChargingCoverSheetYield(UIViewController *host) {
     UIView *host = self.host.viewIfLoaded;
     if (!host || !self.card) return;
     if (![self canShow]) { [self stop]; return; }
-    if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+    MTChargingYieldResult yield = MTChargingCoverSheetYield(self.host);
+    if (yield.reason == MTChargingYieldPasscode) {
         [self.card removeFromSuperview]; self.card = nil;
         return;
     }
     CGFloat width = MIN(host.bounds.size.width - 32, 430);
     CGFloat height = width * MTChargingCardDesignHeight / MTChargingCardDesignWidth;
     CGFloat bottom = host.bounds.size.height - host.safeAreaInsets.bottom - 86;
+    if (yield.reason == MTChargingYieldNotifications && !CGRectIsNull(yield.notificationFrame)) {
+        // Reposition above the notification stack instead of hiding. If the
+        // stack leaves no room for the card, hide but keep polling (refresh's
+        // passcode branch owns ensureTimer, so keep the same contract here by
+        // relying on the sampling path to re-ensure the timer).
+        CGRect stackInHost = host.window ? [host convertRect:yield.notificationFrame fromView:host.window]
+                                         : yield.notificationFrame;
+        CGFloat movedBottom = CGRectGetMinY(stackInHost) - 12;
+        if (movedBottom - height >= host.bounds.size.height * 0.35) bottom = movedBottom;
+        else { [self.card removeFromSuperview]; self.card = nil; return; }
+    }
     if (width < 250 || bottom - height < host.bounds.size.height * 0.35) { [self stop]; return; }
     CGRect rect = CGRectMake((host.bounds.size.width - width) / 2, bottom - height, width, height);
     UIView *parent = self.card.superview;

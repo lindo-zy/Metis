@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复锁屏有通知时充电卡片完全不显示的问题。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>锁屏有通知时充电卡片自动上移到通知上方，不再遮挡通知；通知列表展开时仍自动隐藏。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.6</string>
 		<key>items</key>
 		<array>
@@ -69,19 +88,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>锁屏充电卡片底色加深，亮色壁纸上的小字更容易看清。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>充电页新增锁屏效果预览，开启前就能看到功率、曲线和电量卡片的实际样式。</string>
 			</dict>
 		</array>
 	</dict>
