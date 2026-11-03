@@ -55,9 +55,12 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         MTChargeText(titles[i], CGRectMake(x, 108, 90, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
         MTChargeText(values[i], CGRectMake(x, 125, 95, 24), 16, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     }
-    NSArray *capacityTitles = @[@"实时容量", @"设计容量", @"循环次数"];
+    // 最大容量取满充容量（AppleRawMaxCapacity）；部分电量计的 DesignCapacity
+    // 会镜像剩余容量，百分比电量计的 MaxCapacity 也与剩余容量同刻度，
+    // 都不能当作“最大”展示。
+    NSArray *capacityTitles = @[@"实时容量", @"最大容量", @"循环次数"];
     NSArray *capacityValues = @[MTChargeValue(s.currentMilliampHours, 0, @" mAh"),
-        MTChargeValue(s.designMilliampHours, 0, @" mAh"), MTChargeValue(s.cycleCount, 0, @" 次")];
+        MTChargeValue(s.fullMilliampHours, 0, @" mAh"), MTChargeValue(s.cycleCount, 0, @" 次")];
     for (NSUInteger i = 0; i < 3; i++) {
         CGFloat x = i == 0 ? 18 : (i == 1 ? 136 : 254);
         MTChargeText(capacityTitles[i], CGRectMake(x, 164, 95, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
@@ -110,10 +113,10 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
     self.ink.snapshot = snapshot; [self.ink setNeedsDisplay];
-    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，设计容量 %@，循环次数 %@，电池厂商 %@%@，电池型号 %@%@",
+    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，最大容量 %@，循环次数 %@，电池厂商 %@%@，电池型号 %@%@",
         MTChargeValue(snapshot.level * 100, 0, @"%"), MTChargeValue(snapshot.watts, 1, @"瓦"),
         MTChargeValue(snapshot.volts, 2, @"伏"), MTChargeValue(snapshot.amps, 2, @"安"), MTChargeValue(snapshot.celsius, 1, @"摄氏度"),
-        MTChargeValue(snapshot.currentMilliampHours, 0, @"毫安时"), MTChargeValue(snapshot.designMilliampHours, 0, @"毫安时"),
+        MTChargeValue(snapshot.currentMilliampHours, 0, @"毫安时"), MTChargeValue(snapshot.fullMilliampHours, 0, @"毫安时"),
         MTChargeValue(snapshot.cycleCount, 0, @""),
         snapshot.batteryManufacturer ?: @"未知",
         snapshot.batteryManufacturerInferred ? @"（按序列号前缀推断）" : @"", snapshot.batteryModel ?: @"未知",
