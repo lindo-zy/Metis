@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.6</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>上滑输入密码时充电卡片立即隐藏，不再遮挡密码键盘。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>锁屏有通知时充电卡片自动让位，通知清空后恢复显示。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.5</string>
 		<key>items</key>
 		<array>
@@ -63,19 +82,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>充电页新增锁屏效果预览，开启前就能看到功率、曲线和电量卡片的实际样式。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.1</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>新增默认关闭的充电模块，开启后可在锁屏查看电池侧功率、曲线、电量和电池详情。</string>
 			</dict>
 		</array>
 	</dict>

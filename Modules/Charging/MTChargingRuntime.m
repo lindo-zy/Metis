@@ -59,6 +59,63 @@ static NSString *MTChargeViewChain(UIView *view) {
     return [names componentsJoinedByString:@"<"];
 }
 
+// Yield gate: instead of hooking a single class name, walk the cover sheet's
+// window with a bounded scan and treat visible views whose class chain
+// contains Passcode / Notification as passcode keypad or notification
+// content (SBPasscodeLockView, NotificationLongLookView and CSCombinedList
+// families on iOS 16/17 all carry those markers). Each state flip logs the
+// first hit's class chain so device verification can confirm the markers.
+typedef enum {
+    MTChargingYieldNone = 0,
+    MTChargingYieldNotifications,
+    MTChargingYieldPasscode,
+} MTChargingYieldReason;
+
+static void MTChargingScanNode(UIView *node, NSUInteger depth, NSUInteger *budget, UIView *windowRoot,
+    NSUInteger *passcodeHits, NSUInteger *notificationHits, UIView **passcodeHit, UIView **notificationHit) {
+    if (*budget == 0 || depth > 16) return;
+    if (node.hidden || node.alpha < 0.01f) return; // an invisible parent hides its whole subtree
+    (*budget)--;
+    BOOL passcodeMatch = NO, notificationMatch = NO;
+    for (Class cls = node.class; cls && !(passcodeMatch && notificationMatch); cls = class_getSuperclass(cls)) {
+        NSString *name = NSStringFromClass(cls);
+        if (!passcodeMatch && [name containsString:@"Passcode"]) passcodeMatch = YES;
+        if (!notificationMatch && [name containsString:@"Notification"]) notificationMatch = YES;
+    }
+    if (passcodeMatch || notificationMatch) {
+        CGRect frame = [node convertRect:node.bounds toView:windowRoot];
+        if (frame.size.width > 8 && frame.size.height > 8 && CGRectIntersectsRect(frame, windowRoot.bounds)) {
+            if (passcodeMatch && *passcodeHits == 0) *passcodeHit = node;
+            if (notificationMatch && *notificationHits == 0) *notificationHit = node;
+            *passcodeHits += passcodeMatch;
+            *notificationHits += notificationMatch;
+        }
+    }
+    for (UIView *child in node.subviews)
+        MTChargingScanNode(child, depth + 1, budget, windowRoot, passcodeHits, notificationHits, passcodeHit, notificationHit);
+}
+
+static MTChargingYieldReason MTChargingCoverSheetYield(UIViewController *host) {
+    UIView *window = host.viewIfLoaded.window;
+    if (!window) return MTChargingYieldNone;
+    NSUInteger passcodeHits = 0, notificationHits = 0;
+    UIView *passcodeHit = nil, *notificationHit = nil;
+    NSUInteger budget = 1200;
+    for (UIView *child in window.subviews)
+        MTChargingScanNode(child, 1, &budget, window, &passcodeHits, &notificationHits, &passcodeHit, &notificationHit);
+    MTChargingYieldReason reason = passcodeHits ? MTChargingYieldPasscode :
+        (notificationHits ? MTChargingYieldNotifications : MTChargingYieldNone);
+    // Log only on state flips; the chain names the winning view for on-device checks.
+    static MTChargingYieldReason lastLogged = -1;
+    if (lastLogged >= 0 && reason != lastLogged) {
+        if (reason == MTChargingYieldNone) MTLogInfo(@"charging", @"state=yield-clear");
+        else MTLogInfo(@"charging", @"state=yield reason=%ld chain=%@", (long)reason,
+            MTChargeViewChain(reason == MTChargingYieldPasscode ? passcodeHit : notificationHit));
+    }
+    lastLogged = reason;
+    return reason;
+}
+
 @interface MTChargingRuntime : NSObject
 @property(nonatomic, weak) UIViewController *host;
 @property(nonatomic, strong) MTChargingCardView *card;
@@ -148,8 +205,23 @@ static NSString *MTChargeViewChain(UIView *view) {
     [self.card removeFromSuperview]; self.card = nil;
     self.ampsEMA = 0;
 }
+- (void)ensureTimer {
+    if (self.timer) return;
+    __weak typeof(self) weakSelf = self;
+    self.timer = [NSTimer timerWithTimeInterval:1 repeats:YES block:^(NSTimer *timer) { [weakSelf refresh]; }];
+    self.timer.tolerance = 0.15;
+    [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
+}
 - (void)refresh {
     if (![self canShow]) { [self stop]; return; }
+    // Passcode/notification yield: take the card down but keep the 1s poll so
+    // it comes back on its own once the keypad is gone or notifications clear.
+    // Every other gate failure keeps the full stop semantics.
+    if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+        [self.card removeFromSuperview]; self.card = nil;
+        [self ensureTimer];
+        return;
+    }
     UIDeviceBatteryState state = UIDevice.currentDevice.batteryState;
     if (self.sampling) return;
     NSTimeInterval probeTime = NSProcessInfo.processInfo.systemUptime;
@@ -166,6 +238,11 @@ static NSString *MTChargeViewChain(UIView *view) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.sampling = NO;
             if (generation != self.generation || ![self canShow]) return;
+            if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+                [self.card removeFromSuperview]; self.card = nil;
+                [self ensureTimer];
+                return;
+            }
             if (!snapshot.connected) { [self stop]; return; }
             // Smooth the charging current before deriving the ETA: a single noisy
             // sample would otherwise rewrite the estimate every second.
@@ -174,12 +251,7 @@ static NSString *MTChargeViewChain(UIView *view) {
                 snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:
                     snapshot.remainingMilliampHours currentMilliamp:self.ampsEMA * 1000.0];
             } else self.ampsEMA = 0;
-            if (!self.timer) {
-                __weak typeof(self) weakSelf = self;
-                self.timer = [NSTimer timerWithTimeInterval:1 repeats:YES block:^(NSTimer *timer) { [weakSelf refresh]; }];
-                self.timer.tolerance = 0.15;
-                [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
-            }
+            [self ensureTimer];
             if (!self.card) {
                 self.card = [[MTChargingCardView alloc] initWithFrame:CGRectZero];
                 // Depth-effect lock screens composite the wallpaper subject above
@@ -202,6 +274,10 @@ static NSString *MTChargeViewChain(UIView *view) {
     UIView *host = self.host.viewIfLoaded;
     if (!host || !self.card) return;
     if (![self canShow]) { [self stop]; return; }
+    if (MTChargingCoverSheetYield(self.host) != MTChargingYieldNone) {
+        [self.card removeFromSuperview]; self.card = nil;
+        return;
+    }
     CGFloat width = MIN(host.bounds.size.width - 32, 430);
     CGFloat height = width * MTChargingCardDesignHeight / MTChargingCardDesignWidth;
     CGFloat bottom = host.bounds.size.height - host.safeAreaInsets.bottom - 86;
