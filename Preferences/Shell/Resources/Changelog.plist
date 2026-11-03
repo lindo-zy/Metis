@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>充电卡片新增电池循环次数；电池未上报时显示占位，替换原本次净增。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.10</string>
 		<key>items</key>
 		<array>
@@ -81,25 +94,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>锁屏有通知时充电卡片自动上移到通知上方，不再遮挡通知；通知列表展开时仍自动隐藏。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>上滑输入密码时充电卡片立即隐藏，不再遮挡密码键盘。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>锁屏有通知时充电卡片自动让位，通知清空后恢复显示。</string>
 			</dict>
 		</array>
 	</dict>

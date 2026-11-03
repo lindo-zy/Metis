@@ -65,9 +65,7 @@ static const double MTChargeCoarseStep = 5.0;
     MTChargingSnapshot *s = [self new];
     s.batteryManufacturer = MTChargeIdentity(p, @"Manufacturer");
     s.batteryModel = MTChargeIdentity(p, @"Model");
-    s.sessionGainMilliampHours = NAN;
     s.trickleObservedSeconds = NAN;
-    s.connectionKnown = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class];
     s.connected = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class] ? [p[@"ExternalConnected"] boolValue] : connected;
     s.charging = s.connected && ([p[@"IsCharging"] isKindOfClass:NSNumber.class] ? [p[@"IsCharging"] boolValue] : charging);
     double current = MTChargeNumber(p, @"CurrentCapacity"), maximum = MTChargeNumber(p, @"MaxCapacity");
@@ -99,6 +97,10 @@ static const double MTChargeCoarseStep = 5.0;
     s.fullMilliampHours = NAN;
     s.designMilliampHours = MTChargeNestedNumber(p, @"DesignCapacity");
     if (s.designMilliampHours < 200 || s.designMilliampHours > 50000) s.designMilliampHours = NAN;
+    // Cycle count is a static gauge counter published by the battery service
+    // (AppleSmartBattery); some gauges keep it inside BatteryData instead.
+    double cycles = MTChargeNestedNumber(p, @"CycleCount");
+    s.cycleCount = cycles >= 0 && cycles <= 100000 ? cycles : NAN;
     if (rawCurrent >= 0 && rawCurrent <= 50000) {
         s.currentMilliampHours = rawCurrent; s.capacitySource = 1;
         if (rawMaximum >= 200 && rawMaximum <= 50000) s.fullMilliampHours = rawMaximum;
@@ -120,32 +122,6 @@ static const double MTChargeCoarseStep = 5.0;
         }
     }
     return s;
-}
-@end
-
-@interface MTChargingSession ()
-@property(nonatomic) BOOL known;
-@property(nonatomic) BOOL connected;
-@property(nonatomic) double baseline;
-@property(nonatomic) NSUInteger source;
-@end
-
-@implementation MTChargingSession
-- (void)reset { self.known = NO; self.connected = NO; self.baseline = NAN; self.source = 0; }
-- (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
-    snapshot.sessionGainMilliampHours = NAN;
-    if (!snapshot.connectionKnown) { [self reset]; return; }
-    if (!snapshot.connected) {
-        [self reset]; self.known = YES; return;
-    }
-    if (!self.known || !self.connected) {
-        self.baseline = self.known ? snapshot.currentMilliampHours : NAN;
-        self.source = snapshot.capacitySource;
-    }
-    self.known = YES; self.connected = YES;
-    if (snapshot.capacitySource != self.source) self.baseline = NAN;
-    if (isfinite(self.baseline) && isfinite(snapshot.currentMilliampHours))
-        snapshot.sessionGainMilliampHours = snapshot.currentMilliampHours - self.baseline;
 }
 @end
 

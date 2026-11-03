@@ -162,11 +162,8 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) NSTimeInterval lastProbeTime;
 @property(nonatomic, strong) MTChargingEstimator *estimator;
-@property(nonatomic, strong) MTChargingSession *session;
 @property(nonatomic) NSUInteger configurationGeneration;
 @property(nonatomic) BOOL sessionProbePending;
-@property(nonatomic) NSUInteger powerEventGeneration;
-@property(nonatomic) BOOL unverifiedDisconnect;
 @property(nonatomic) int displayToken;
 @property(nonatomic) int lockToken;
 + (instancetype)shared;
@@ -187,7 +184,6 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
     if ((self = [super init])) {
         _samplingQueue = dispatch_queue_create("com.lindo.metis.charging", DISPATCH_QUEUE_SERIAL);
         _estimator = [MTChargingEstimator new];
-        _session = [MTChargingSession new];
         _displayOn = YES; _displayToken = -1; _lockToken = -1;
         __weak typeof(self) weakSelf = self;
         _gateObserver = [MTModuleGate addObserver:dispatch_get_main_queue() block:^{ [weakSelf reloadConfiguration]; }];
@@ -211,8 +207,6 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
     BOOL enabled = [MTModuleGate globalEnabled] && MTChargingDetailsEnabled();
     if (enabled != self.enabled) {
         self.configurationGeneration++;
-        [self.session reset];
-        self.unverifiedDisconnect = NO;
         self.enabled = enabled;
         NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
         [center removeObserver:self name:UIDeviceBatteryStateDidChangeNotification object:nil];
@@ -237,18 +231,6 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
     if (!NSThread.isMainThread) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self batteryChanged:notification]; });
         return;
-    }
-    if ([notification.name isEqualToString:UIDeviceBatteryStateDidChangeNotification]) {
-        self.powerEventGeneration++;
-        if (UIDevice.currentDevice.batteryState == UIDeviceBatteryStateUnplugged) {
-            // UIKit also reports Unplugged for some connected/paused states.
-            // Give the registry probe a chance to disambiguate before reset.
-            self.unverifiedDisconnect = YES;
-        } else if (self.unverifiedDisconnect) {
-            // State reversed before we could verify power continuity. Treat
-            // this as an unknown boundary rather than merge two sessions.
-            [self.session reset]; self.unverifiedDisconnect = NO;
-        }
     }
     self.lastProbeTime = 0;
     [self sampleBattery];
@@ -299,7 +281,6 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
     self.sampling = YES;
     NSUInteger generation = self.generation;
     NSUInteger configuration = self.configurationGeneration;
-    NSUInteger powerEvent = self.powerEventGeneration;
     UIDeviceBatteryState state = UIDevice.currentDevice.batteryState;
     double level = UIDevice.currentDevice.batteryLevel;
     BOOL charging = state == UIDeviceBatteryStateCharging;
@@ -313,8 +294,6 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
             self.sessionProbePending = NO;
             if (pending && self.enabled) dispatch_async(dispatch_get_main_queue(), ^{ [self sampleBattery]; });
             if (!self.enabled || configuration != self.configurationGeneration) return;
-            if (powerEvent == self.powerEventGeneration && snapshot.connectionKnown) self.unverifiedDisconnect = NO;
-            [self.session updateSnapshot:snapshot];
             if (generation != self.generation || ![self canShow]) return;
             if (MTChargingCoverSheetYield(self.host).reason == MTChargingYieldPasscode) {
                 [self.card removeFromSuperview]; self.card = nil;

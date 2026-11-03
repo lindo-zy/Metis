@@ -16,8 +16,8 @@
 @property(nonatomic) double currentMilliampHours;
 @property(nonatomic) double designMilliampHours;
 @property(nonatomic) double fullMilliampHours;
-@property(nonatomic) double sessionGainMilliampHours;
-@property(nonatomic) BOOL connectionKnown;
+/// 电池循环次数（驱动 CycleCount）；未上报或数值不合理时为 NAN。
+@property(nonatomic) double cycleCount;
 @property(nonatomic) NSUInteger capacitySource;
 /// 启发式识别，仅表示连续观测到低电流末段，不是硬件阶段标志。
 @property(nonatomic) BOOL trickleEstimated;
@@ -33,13 +33,6 @@
 /// 当前速度下所需分钟数；调用方须先取得稳定的实测充电速度。
 /// 无法推算（容量不可得、电流低于涓流阈值、超过 1440 分钟）返回 -1。
 + (NSInteger)minutesToFullForRemainingMilliampHours:(double)remaining currentMilliamp:(double)current;
-@end
-
-// 只有观察到断电 -> 接电且起点容量有效，才计算本次净增。
-// 生命周期由功能开关/接电状态决定，不由锁屏视图的出现消失决定。
-@interface MTChargingSession : NSObject
-- (void)reset;
-- (void)updateSnapshot:(MTChargingSnapshot *)snapshot;
 @end
 
 // 有效的明确充满时间字段优先。缺失时，用至少 60 秒的容量增量和

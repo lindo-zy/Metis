@@ -51,10 +51,10 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     NSDictionary *properties = @{@"ExternalConnected": @YES, @"IsCharging": @YES,
         @"CurrentCapacity": @62, @"MaxCapacity": @100, @"Voltage": @4020,
         @"InstantAmperage": @2090, @"Temperature": @3320,
-        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033, @"DesignCapacity": @3181, @"AvgTimeToFull": @48};
+        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033, @"DesignCapacity": @3181,
+        @"CycleCount": @312, @"AvgTimeToFull": @48};
     MTChargingSnapshot *snapshot = [MTChargingSnapshot snapshotWithProperties:properties
         fallbackLevel:0.62 connected:YES charging:YES];
-    snapshot.sessionGainMilliampHours = 420; // fixed preview, never live telemetry
     [_card updateSnapshot:snapshot];
 }
 
