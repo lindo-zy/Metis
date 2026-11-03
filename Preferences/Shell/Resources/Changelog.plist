@@ -97,24 +97,5 @@
 			</dict>
 		</array>
 	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复使用景深效果壁纸时，锁屏充电卡片会被壁纸主体遮住的情况。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>锁屏充电卡片底色加深，亮色壁纸上的小字更容易看清。</string>
-			</dict>
-		</array>
-	</dict>
 </array>
 </plist>
