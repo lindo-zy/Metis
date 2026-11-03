@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.4</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>锁屏充电卡片的近 60 秒曲线不再随功率小幅波动上下跳动，曲线高度保持稳定。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.3</string>
 		<key>items</key>
 		<array>
@@ -57,19 +70,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>系统动作新增「分词面板」，点击直接打开当前剪切板内容的预览面板，无需再进入剪切板长按。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复悬浮小窗中的应用从后台恢复或再放大后，画面错乱、内容重叠的问题。</string>
 			</dict>
 		</array>
 	</dict>

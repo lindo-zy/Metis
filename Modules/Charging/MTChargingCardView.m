@@ -7,6 +7,7 @@
 @property(nonatomic, strong) MTChargingSnapshot *snapshot;
 @property(nonatomic, copy) NSArray<NSDictionary *> *history;
 @property(nonatomic) NSTimeInterval time;
+@property(nonatomic) double axisCeiling;
 @end
 
 static UIColor *MTChargeGreen(void) { return [UIColor colorWithRed:0.19 green:0.85 blue:0.32 alpha:1]; }
@@ -46,11 +47,15 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
     MTChargeText(@"近 60 秒", CGRectMake(17, 96, 90, 17), 10, UIFontWeightMedium, muted, NSTextAlignmentLeft);
 
     // Time-based X positions leave unsampled time blank, including after sleep.
-    double ceiling = 5;
+    // The scale is latched across redraws (see axisCeilingForPeak:), so a sample
+    // that merely wobbles does not move the whole trace up or down.
+    double peak = 0;
     for (NSDictionary *point in self.history) {
         double w = [point[@"w"] doubleValue];
-        if (isfinite(w)) ceiling = MAX(ceiling, w * 1.18);
+        if (isfinite(w)) peak = MAX(peak, w);
     }
+    self.axisCeiling = [MTChargingSnapshot axisCeilingForPeak:peak currentCeiling:self.axisCeiling];
+    double ceiling = self.axisCeiling;
     UIBezierPath *line = [UIBezierPath bezierPath];
     UIBezierPath *fill = [UIBezierPath bezierPath];
     BOOL previous = NO;

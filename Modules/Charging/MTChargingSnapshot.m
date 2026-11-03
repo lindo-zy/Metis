@@ -9,7 +9,29 @@ static double MTChargeNumber(NSDictionary *dict, NSString *key) {
     return isfinite(result) ? result : NAN;
 }
 
+// Chart scale. The trace is redrawn once per second, so a scale derived from the
+// live peak rescales the whole curve on every sample and reads as motion. Snap
+// to fixed steps instead and let a step hold until the peak clearly leaves it.
+static const double MTChargeAxisFloor = 5.0;
+static const double MTChargeAxisHeadroom = 1.15;
+static const double MTChargeAxisFallRatio = 1.5;
+static const double MTChargeAxisSteps[] = {5, 7.5, 10, 15, 20, 25, 30, 40};
+
 @implementation MTChargingSnapshot
++ (double)axisCeilingForPeak:(double)peak currentCeiling:(double)currentCeiling {
+    double need = isfinite(peak) && peak > 0 ? peak * MTChargeAxisHeadroom : MTChargeAxisFloor;
+    if (need < MTChargeAxisFloor) need = MTChargeAxisFloor;
+    double step = 0;
+    for (size_t i = 0; i < sizeof(MTChargeAxisSteps) / sizeof(MTChargeAxisSteps[0]); i++) {
+        if (MTChargeAxisSteps[i] >= need) { step = MTChargeAxisSteps[i]; break; }
+    }
+    if (step <= 0) step = ceil(need / 5.0) * 5.0; // Above the ladder: round up to 5 W.
+    if (!(currentCeiling > 0) || step > currentCeiling) return step;
+    // Rising is immediate so a new peak is never clipped; falling needs real
+    // headroom, otherwise the trace would oscillate across a step boundary.
+    return step * MTChargeAxisFallRatio <= currentCeiling ? step : currentCeiling;
+}
+
 + (instancetype)snapshotWithProperties:(NSDictionary *)p
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging {
     MTChargingSnapshot *s = [self new];
