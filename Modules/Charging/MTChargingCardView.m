@@ -28,7 +28,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
     CGContextRef context = UIGraphicsGetCurrentContext();
     CGContextSaveGState(context);
     CGContextScaleCTM(context, self.bounds.size.width / 361.0, self.bounds.size.height / 234.0);
-    UIColor *white = UIColor.whiteColor, *muted = [white colorWithAlphaComponent:0.52], *green = MTChargeGreen();
+    UIColor *white = UIColor.whiteColor, *muted = [white colorWithAlphaComponent:0.64], *green = MTChargeGreen();
     NSString *power = MTChargeValue(s.watts, 1, @"");
     MTChargeText(power, CGRectMake(17, 13, 210, 58), 44, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     CGFloat unitX = 21 + [power sizeWithAttributes:@{NSFontAttributeName:[UIFont monospacedDigitSystemFontOfSize:44 weight:UIFontWeightSemibold]}].width;
@@ -115,7 +115,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         blur.frame = self.bounds; blur.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [self addSubview:blur];
         self.ink = [[MTChargingCardInk alloc] initWithFrame:self.bounds];
-        self.ink.backgroundColor = [UIColor colorWithWhite:0.10 alpha:0.28]; self.ink.opaque = NO;
+        self.ink.backgroundColor = [UIColor colorWithWhite:0.10 alpha:0.42]; self.ink.opaque = NO;
         self.ink.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [self addSubview:self.ink];
         self.isAccessibilityElement = YES;

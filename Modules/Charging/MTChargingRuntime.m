@@ -50,6 +50,15 @@ static BOOL MTChargingBool(id object, NSString *name, BOOL fallback) {
     @catch (__unused NSException *exception) { return fallback; }
 }
 
+static NSString *MTChargeViewChain(UIView *view) {
+    // Bounded class-name chain: enough to tell which cover sheet container the
+    // card used to land in, short enough to stay on one syslog line.
+    NSMutableArray<NSString *> *names = [NSMutableArray array];
+    for (UIView *node = view; node && names.count < 6; node = node.superview)
+        [names addObject:NSStringFromClass(node.class)];
+    return [names componentsJoinedByString:@"<"];
+}
+
 @interface MTChargingRuntime : NSObject
 @property(nonatomic, weak) UIViewController *host;
 @property(nonatomic, strong) MTChargingCardView *card;
@@ -175,21 +184,16 @@ static BOOL MTChargingBool(id object, NSString *name, BOOL fallback) {
                 [self.history removeObjectAtIndex:0];
             if (!self.card) {
                 self.card = [[MTChargingCardView alloc] initWithFrame:CGRectZero];
-                // Keep native notification content and its hit targets above
-                // the card. No new UIWindow or changes to system list insets.
-                UIView *content = nil;
-                SEL getter = NSSelectorFromString(@"mainPageContentViewController");
-                NSMethodSignature *signature = [self.host methodSignatureForSelector:getter];
-                if (signature.numberOfArguments == 2 && !strcmp(signature.methodReturnType, "@")) {
-                    @try {
-                        id controller = ((id (*)(id, SEL))objc_msgSend)(self.host, getter);
-                        if ([controller isKindOfClass:UIViewController.class]) content = [controller viewIfLoaded];
-                    } @catch (__unused NSException *exception) {}
-                }
-                while (content.superview && content.superview != self.host.view) content = content.superview;
-                if (content.superview == self.host.view) [self.host.view insertSubview:self.card belowSubview:content];
-                else [self.host.view addSubview:self.card];
-                MTLogInfo(@"charging", @"state=card-attached telemetry=%d", isfinite(snapshot.watts));
+                // Depth-effect lock screens composite the wallpaper subject above
+                // the whole cover sheet stack, so anything inserted inside
+                // CSCoverSheetViewController gets cut by the subject outline.
+                // The window is the lowest level guaranteed to be above it; the
+                // card ignores touches, so system controls stay reachable, and
+                // no new UIWindow or list-inset changes are introduced.
+                UIView *anchor = self.host.view.window ?: self.host.view;
+                [anchor addSubview:self.card];
+                MTLogInfo(@"charging", @"state=card-attached anchor=%@ chain=%@ telemetry=%d",
+                    NSStringFromClass(anchor.class), MTChargeViewChain(self.host.view), isfinite(snapshot.watts));
             }
             [self layout];
             [self.card updateSnapshot:snapshot history:[self.history copy] time:now];
@@ -204,7 +208,12 @@ static BOOL MTChargingBool(id object, NSString *name, BOOL fallback) {
     CGFloat height = width * 234.0 / 361.0;
     CGFloat bottom = host.bounds.size.height - host.safeAreaInsets.bottom - 86;
     if (width < 250 || bottom - height < host.bounds.size.height * 0.35) { [self stop]; return; }
-    self.card.frame = CGRectMake((host.bounds.size.width - width) / 2, bottom - height, width, height);
+    CGRect rect = CGRectMake((host.bounds.size.width - width) / 2, bottom - height, width, height);
+    UIView *parent = self.card.superview;
+    self.card.frame = parent && parent != host ? [host convertRect:rect toView:parent] : rect;
+    // SpringBoard re-adds views to the window during lock transitions; keep the
+    // card on top or the subject layer covers it again until the next reload.
+    if (parent && parent.subviews.lastObject != self.card) [parent bringSubviewToFront:self.card];
 }
 - (void)dealloc {
     [_timer invalidate];
