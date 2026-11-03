@@ -53,11 +53,13 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         MTChargeText(titles[i], CGRectMake(x, 108, 90, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
         MTChargeText(values[i], CGRectMake(x, 125, 95, 24), 16, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     }
-    NSString *status = s.level >= 0.999 ? @"已充满" : (s.charging ? @"正在充电" : @"充电已暂停");
+    NSString *status = s.fullyCharged ? @"已充满" : (s.charging ? @"正在充电" : @"充电已暂停");
     CGRect badge = CGRectMake(17, 158, 88, 20);
     [[green colorWithAlphaComponent:0.14] setFill]; [[UIBezierPath bezierPathWithRoundedRect:badge cornerRadius:10] fill];
     MTChargeText(status, CGRectMake(20, 161, 82, 16), 10, UIFontWeightSemibold, green, NSTextAlignmentCenter);
-    NSString *eta = s.minutesToFull > 0 ? [NSString stringWithFormat:@"预计 %ld 分钟充满", (long)s.minutesToFull] : (s.level >= 0.999 ? @"电量已充满" : @"充满预估暂无数据");
+    NSString *eta = s.fullyCharged ? @"电量已充满" : (!s.charging ? @"充电已暂停" :
+        (s.minutesToFull > 0 ? [NSString stringWithFormat:s.rateEstimate ? @"按当前速度约 %ld 分钟" : @"预计约 %ld 分钟充满",
+            (long)s.minutesToFull] : @"正在估算充电时间"));
     MTChargeText(eta, CGRectMake(112, 161, 231, 16), 10, UIFontWeightMedium, muted, NSTextAlignmentRight);
     CGContextRestoreGState(context);
 }

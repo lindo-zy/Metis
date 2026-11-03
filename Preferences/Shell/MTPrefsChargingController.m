@@ -51,7 +51,7 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     NSDictionary *properties = @{@"ExternalConnected": @YES, @"IsCharging": @YES,
         @"CurrentCapacity": @62, @"MaxCapacity": @100, @"Voltage": @4020,
         @"InstantAmperage": @2090, @"Temperature": @3320,
-        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033};
+        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033, @"AvgTimeToFull": @48};
     MTChargingSnapshot *snapshot = [MTChargingSnapshot snapshotWithProperties:properties
         fallbackLevel:0.62 connected:YES charging:YES];
     [_card updateSnapshot:snapshot];
@@ -107,7 +107,7 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     section.footerText = @"默认关闭，开启后立即生效；也受 Metis 总开关控制。";
     MTSettingsRow *info = [MTSettingsRow linkRowWithIdentifier:@"charging-details-info" title:@"实时充电数据"];
     info.kind = MTSettingsRowKindInfo;
-    info.subtitle = @"电池侧功率、电量、电压、电流、电池温度和充满预估。设备未提供的数据以 — 显示；电池侧功率不等于充电器输出功率。";
+    info.subtitle = @"电池侧功率、电量、电压、电流、电池温度和充满预估。无系统充满预估时需连续采样约一分钟，按当前速度估算；数据不足时显示正在估算。电池侧功率不等于充电器输出功率。";
     self.model = [MTSettingsPageModel new];
     self.model.sections = @[section, [MTSettingsSection sectionWithRows:@[info]]];
 }

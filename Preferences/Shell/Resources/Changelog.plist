@@ -4,6 +4,31 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>密码界面开始弹出时立即撤下充电面板，防止旧采样回调重新遮挡密码键盘。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复通知列表容器被误判为通知卡片，导致锁屏充电面板反复隐藏的问题。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>充电时间优先使用有效的系统充满预估；缺失时连续采样并交叉核对容量增量与平均电流，按当前速度估算，暂停和满电时清除旧预估。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.7</string>
 		<key>items</key>
 		<array>

@@ -44,6 +44,9 @@ static const double MTChargeCoarseStep = 5.0;
     double current = MTChargeNumber(p, @"CurrentCapacity"), maximum = MTChargeNumber(p, @"MaxCapacity");
     s.level = maximum > 0 && current >= 0 && current <= maximum ? current / maximum : level;
     if (!isfinite(s.level) || s.level < 0 || s.level > 1) s.level = NAN;
+    s.fullyCharged = [p[@"FullyCharged"] isKindOfClass:NSNumber.class] ?
+        [p[@"FullyCharged"] boolValue] : (isfinite(s.level) && s.level >= 0.999);
+    if (s.fullyCharged) s.charging = NO;
     double mv = MTChargeNumber(p, @"Voltage");
     double ma = MTChargeNumber(p, @"InstantAmperage");
     NSString *currentKey = isfinite(ma) ? @"InstantAmperage" : @"Amperage";
@@ -68,10 +71,69 @@ static const double MTChargeCoarseStep = 5.0;
     else if (maximum > 200 && current >= 0 && current <= maximum)
         s.remainingMilliampHours = maximum - current;
     else s.remainingMilliampHours = NAN;
-    // Derived here rather than read from TimeRemaining: the driver's own value
-    // is heavily damped and reports multi-hour ETAs in the constant-voltage tail.
-    s.minutesToFull = s.charging ? [self minutesToFullForRemainingMilliampHours:s.remainingMilliampHours
-        currentMilliamp:s.amps * 1000.0] : -1;
+    // TimeRemaining can also mean discharge time. Only explicitly named
+    // time-to-full fields are accepted, in minutes; 0/-1/65535 are not ETAs.
+    s.minutesToFull = -1;
+    if (s.charging && !s.fullyCharged) {
+        for (NSString *key in @[@"AvgTimeToFull", @"Time to Full Charge"]) {
+            double minutes = MTChargeNestedNumber(p, key);
+            if (minutes >= 1 && minutes <= MTChargeMaxMinutes) {
+                s.minutesToFull = (NSInteger)ceil(minutes); break;
+            }
+        }
+    }
     return s;
+}
+@end
+
+@interface MTChargingEstimator ()
+@property(nonatomic, strong) NSMutableArray<NSDictionary<NSString *, NSNumber *> *> *samples;
+@end
+
+@implementation MTChargingEstimator
+- (instancetype)init {
+    if ((self = [super init])) _samples = [NSMutableArray array];
+    return self;
+}
+- (void)reset { [self.samples removeAllObjects]; }
+- (void)updateSnapshot:(MTChargingSnapshot *)snapshot atTime:(NSTimeInterval)time {
+    BOOL hasSystemEstimate = snapshot.minutesToFull > 0 && !snapshot.rateEstimate;
+    snapshot.rateEstimate = NO;
+    if (!snapshot.connected || !snapshot.charging || snapshot.fullyCharged) {
+        snapshot.minutesToFull = -1; [self reset]; return;
+    }
+    // The battery controller's explicit full-charge model accounts for taper;
+    // don't overwrite it with a linear, instantaneous-current calculation.
+    if (hasSystemEstimate) { [self reset]; return; }
+    snapshot.minutesToFull = -1;
+    double remaining = snapshot.remainingMilliampHours, ma = snapshot.amps * 1000.0;
+    if (!isfinite(time) || !isfinite(remaining) || remaining <= 0 ||
+        !isfinite(ma) || ma < MTChargeMinCurrentMilliamp) { [self reset]; return; }
+    NSDictionary *last = self.samples.lastObject;
+    double delta = time - [last[@"time"] doubleValue];
+    if (last && (delta < 0 || delta > 10 || remaining > [last[@"remaining"] doubleValue] + 2)) {
+        [self reset]; last = nil;
+    }
+    if (last && delta < 0.8) return; // layout/reload callbacks aren't new samples
+    [self.samples addObject:@{@"time": @(time), @"remaining": @(remaining), @"ma": @(ma)}];
+    while (self.samples.count > 1 && time - [self.samples[0][@"time"] doubleValue] > 120)
+        [self.samples removeObjectAtIndex:0];
+    NSDictionary *first = self.samples.firstObject;
+    double elapsed = time - [first[@"time"] doubleValue];
+    double gained = [first[@"remaining"] doubleValue] - remaining;
+    if (elapsed < 60 || gained < 3) return; // don't amplify gauge quantisation
+    double milliampSeconds = 0;
+    for (NSUInteger i = 1; i < self.samples.count; i++) {
+        NSDictionary *a = self.samples[i - 1], *b = self.samples[i];
+        milliampSeconds += ([a[@"ma"] doubleValue] + [b[@"ma"] doubleValue]) * 0.5 *
+            ([b[@"time"] doubleValue] - [a[@"time"] doubleValue]);
+    }
+    double averageMA = milliampSeconds / elapsed, observedMA = gained * 3600.0 / elapsed;
+    // A gauge recalibration isn't charge delivered. Wait for a consistent
+    // window rather than showing a confident number based on a capacity jump.
+    if (observedMA < averageMA * 0.5 || observedMA > averageMA * 1.5) return;
+    snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
+        currentMilliamp:MIN(averageMA, observedMA)];
+    snapshot.rateEstimate = snapshot.minutesToFull > 0;
 }
 @end

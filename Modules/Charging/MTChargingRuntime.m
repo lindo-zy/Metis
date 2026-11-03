@@ -59,14 +59,17 @@ static NSString *MTChargeViewChain(UIView *view) {
     return [names componentsJoinedByString:@"<"];
 }
 
-// Yield gate: instead of hooking a single class name, walk the cover sheet's
-// window with a bounded scan and treat visible views whose class chain
-// contains Passcode / Notification as passcode keypad or notification
-// content (SBPasscodeLockView, NotificationLongLookView and CSCombinedList
-// families on iOS 16/17 all carry those markers). Notification matches only
-// count inside the cover sheet's own subtree so parked home-screen views in
-// the same window cannot trigger them; the first evaluation always logs its
-// result so a persistent false positive is visible in syslog right away.
+// Only actual notification cells/content count. NCNotificationListView is a
+// layout container rather than notification content. 1.5.7 device logs show
+// it winning the scan and the card being removed on every sampling tick.
+static BOOL MTChargingNotificationContentClass(NSString *name) {
+    static NSSet<NSString *> *classes;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ classes = [NSSet setWithArray:@[@"NCNotificationListCell",
+        @"NCNotificationShortLookView", @"NCNotificationLongLookView",
+        @"NotificationShortLookView", @"NotificationLongLookView"]]; });
+    return [classes containsObject:name];
+}
 typedef enum {
     MTChargingYieldNone = 0,
     MTChargingYieldNotifications,
@@ -90,7 +93,7 @@ static void MTChargingScanNode(UIView *node, NSUInteger depth, NSUInteger *budge
     for (Class cls = node.class; cls && !(passcodeMatch && notificationMatch); cls = class_getSuperclass(cls)) {
         NSString *name = NSStringFromClass(cls);
         if (!passcodeMatch && [name containsString:@"Passcode"]) passcodeMatch = YES;
-        if (!notificationMatch && [name containsString:@"Notification"]) notificationMatch = YES;
+        if (!notificationMatch && MTChargingNotificationContentClass(name)) notificationMatch = YES;
     }
     if (passcodeMatch || notificationMatch) {
         CGRect frame = [node convertRect:node.bounds toView:windowRoot];
@@ -147,6 +150,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 
 @interface MTChargingRuntime : NSObject
 @property(nonatomic, weak) UIViewController *host;
+@property(nonatomic, weak) UIViewController *passcodeController;
 @property(nonatomic, strong) MTChargingCardView *card;
 @property(nonatomic, strong) NSTimer *timer;
 @property(nonatomic, strong) id gateObserver;
@@ -157,7 +161,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 @property(nonatomic) BOOL sampling;
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) NSTimeInterval lastProbeTime;
-@property(nonatomic) double ampsEMA;
+@property(nonatomic, strong) MTChargingEstimator *estimator;
 @property(nonatomic) int displayToken;
 @property(nonatomic) int lockToken;
 + (instancetype)shared;
@@ -176,6 +180,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 - (instancetype)init {
     if ((self = [super init])) {
         _samplingQueue = dispatch_queue_create("com.lindo.metis.charging", DISPATCH_QUEUE_SERIAL);
+        _estimator = [MTChargingEstimator new];
         _displayOn = YES; _displayToken = -1; _lockToken = -1;
         __weak typeof(self) weakSelf = self;
         _gateObserver = [MTModuleGate addObserver:dispatch_get_main_queue() block:^{ [weakSelf reloadConfiguration]; }];
@@ -221,7 +226,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 }
 - (BOOL)canShow {
     UIView *view = self.host.viewIfLoaded;
-    return self.enabled && self.appeared && self.displayOn && view.window && !view.hidden &&
+    return self.enabled && self.appeared && self.displayOn && !self.passcodeController && view.window && !view.hidden &&
         view.bounds.size.height > view.bounds.size.width && MTChargingDeviceLocked() &&
         MTChargingBool(self.host, @"_isMainPageShowing", NO) &&
         !MTChargingBool(self.host, @"_isPageContentHidden", YES) &&
@@ -232,7 +237,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
     self.generation++;
     [self.timer invalidate]; self.timer = nil;
     [self.card removeFromSuperview]; self.card = nil;
-    self.ampsEMA = 0;
+    [self.estimator reset];
 }
 - (void)ensureTimer {
     if (self.timer) return;
@@ -273,13 +278,7 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
                 return;
             }
             if (!snapshot.connected) { [self stop]; return; }
-            // Smooth the charging current before deriving the ETA: a single noisy
-            // sample would otherwise rewrite the estimate every second.
-            if (snapshot.charging && isfinite(snapshot.amps) && snapshot.amps > 0) {
-                self.ampsEMA = self.ampsEMA > 0 ? self.ampsEMA * 0.85 + snapshot.amps * 0.15 : snapshot.amps;
-                snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:
-                    snapshot.remainingMilliampHours currentMilliamp:self.ampsEMA * 1000.0];
-            } else self.ampsEMA = 0;
+            [self.estimator updateSnapshot:snapshot atTime:NSProcessInfo.processInfo.systemUptime];
             [self ensureTimer];
             if (!self.card) {
                 self.card = [[MTChargingCardView alloc] initWithFrame:CGRectZero];
@@ -345,6 +344,25 @@ static void (*MTChargingOriginalLayout)(UIViewController *, SEL);
 static void (*MTChargingOriginalScreenOff)(UIViewController *, SEL, BOOL);
 static void (*MTChargingOriginalContentAbove)(UIViewController *, SEL, BOOL);
 static void (*MTChargingOriginalPageIndex)(UIViewController *, SEL, unsigned long long);
+static void (*MTChargingOriginalPasscodeAppear)(UIViewController *, SEL, BOOL);
+static void (*MTChargingOriginalPasscodeDisappear)(UIViewController *, SEL, BOOL);
+static void MTChargingPasscodeAppear(UIViewController *controller, SEL selector, BOOL animated) {
+    // Revoke pending samples BEFORE UIKit begins presenting the keypad. The
+    // keypad may be in a different window; a cover-sheet subtree scan is late.
+    MTChargingRuntime *runtime = MTChargingRuntime.shared;
+    runtime.passcodeController = controller;
+    [runtime stop];
+    MTChargingOriginalPasscodeAppear(controller, selector, animated);
+}
+static void MTChargingPasscodeDisappear(UIViewController *controller, SEL selector, BOOL animated) {
+    MTChargingOriginalPasscodeDisappear(controller, selector, animated);
+    MTChargingRuntime *runtime = MTChargingRuntime.shared;
+    if (runtime.passcodeController == controller) {
+        runtime.passcodeController = nil;
+        runtime.lastProbeTime = 0;
+        [runtime refresh];
+    }
+}
 static void MTChargingRefreshHost(UIViewController *controller) {
     MTChargingRuntime *runtime = MTChargingRuntime.shared;
     if (runtime.host == controller) { runtime.lastProbeTime = 0; [runtime refresh]; }
@@ -388,6 +406,13 @@ static BOOL MTChargingMethodSupported(Class cls, SEL selector, BOOL animated) {
     return !strcmp(type, "B") || !strcmp(type, "c");
 }
 void MTChargingInstall(void) {
+    Class passcode = NSClassFromString(@"CSPasscodeViewController");
+    SEL passcodeAppear = @selector(viewWillAppear:), passcodeDisappear = @selector(viewDidDisappear:);
+    if (MTChargingMethodSupported(passcode, passcodeAppear, YES) &&
+        MTChargingMethodSupported(passcode, passcodeDisappear, YES)) {
+        MSHookMessageEx(passcode, passcodeAppear, (IMP)MTChargingPasscodeAppear, (IMP *)&MTChargingOriginalPasscodeAppear);
+        MSHookMessageEx(passcode, passcodeDisappear, (IMP)MTChargingPasscodeDisappear, (IMP *)&MTChargingOriginalPasscodeDisappear);
+    } else MTLogWarn(@"charging", @"state=passcode-hooks-unavailable");
     Class cls = NSClassFromString(@"CSCoverSheetViewController");
     SEL appear = @selector(viewDidAppear:), disappear = @selector(viewWillDisappear:), layout = @selector(viewDidLayoutSubviews);
     if (!MTChargingMethodSupported(cls, appear, YES) || !MTChargingMethodSupported(cls, disappear, YES) ||
