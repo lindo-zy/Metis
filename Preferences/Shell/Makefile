@@ -19,11 +19,17 @@ MetisPrefs_FILES = MTPrefsRootModel.m \
 	MTPrefsBackupController.m \
 	MTPrefsRestoreController.m
 
+# 充电页预览复用锁屏模块的绘制层：同一份 MTChargingCardView/MTChargingSnapshot，
+# 保证设置里看到的就是锁屏实际样式（两者都只依赖 UIKit/Foundation）。
+MetisPrefs_FILES += ../../Modules/Charging/MTChargingSnapshot.m \
+	../../Modules/Charging/MTChargingCardView.m
+
 MetisPrefs_CFLAGS = -fobjc-arc
 MetisPrefs_CFLAGS += -I../../Core -I../../Core/SharedResources -I../../Core/PrefsUI
+MetisPrefs_CFLAGS += -I../../Modules/Charging
 MetisPrefs_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisPrefs_INSTALL_PATH = /Library/PreferenceBundles
-MetisPrefs_FRAMEWORKS = UIKit CoreGraphics UniformTypeIdentifiers
+MetisPrefs_FRAMEWORKS = UIKit CoreGraphics QuartzCore UniformTypeIdentifiers
 MetisPrefs_PRIVATE_FRAMEWORKS = Preferences AppSupport
 
 include $(THEOS)/makefiles/common.mk

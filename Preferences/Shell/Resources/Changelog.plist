@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.5.2</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>充电页新增锁屏效果预览，开启前就能看到功率、曲线和电量卡片的实际样式。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.5.1</string>
 		<key>items</key>
 		<array>
@@ -51,31 +64,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复快速启动面板、悬浮小窗、截图等功能反复使用后内存持续上升、可能导致设备自动重启的问题。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.4.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复悬浮应用首次打开或刷新内容时，画面被裁切、卡片内容错位重叠的问题。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>自动缩放开启时，双击悬浮小窗也可放大到预设大小，保留滚动放大。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>移除浏览器重定向功能及相关设置入口。</string>
 			</dict>
 		</array>
 	</dict>
