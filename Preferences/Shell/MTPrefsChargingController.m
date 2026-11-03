@@ -9,8 +9,6 @@
 // IOKit 注册表，也不会把一次采样误呈现成实时读数。
 static const CGFloat MTPrefsChargingPreviewSideInset = 20.0;
 static const CGFloat MTPrefsChargingPreviewMaxWidth = 430.0;
-static const CGFloat MTPrefsChargingPreviewDesignWidth = 361.0;
-static const CGFloat MTPrefsChargingPreviewDesignHeight = 234.0;
 static const CGFloat MTPrefsChargingPreviewTopInset = 10.0;
 static const CGFloat MTPrefsChargingPreviewCaptionGap = 8.0;
 static const CGFloat MTPrefsChargingPreviewCaptionHeight = 16.0;
@@ -29,8 +27,8 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
 + (CGFloat)heightForWidth:(CGFloat)width {
     CGFloat available = MAX(width - MTPrefsChargingPreviewSideInset * 2.0, 0.0);
     CGFloat cardWidth = MIN(available, MTPrefsChargingPreviewMaxWidth);
-    return MTPrefsChargingPreviewTopInset + cardWidth * MTPrefsChargingPreviewDesignHeight /
-        MTPrefsChargingPreviewDesignWidth + MTPrefsChargingPreviewCaptionGap +
+    return MTPrefsChargingPreviewTopInset + cardWidth * MTChargingCardDesignHeight /
+        MTChargingCardDesignWidth + MTPrefsChargingPreviewCaptionGap +
         MTPrefsChargingPreviewCaptionHeight + MTPrefsChargingPreviewBottomInset;
 }
 
@@ -48,7 +46,7 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     return self;
 }
 
-// 示意波形：与设备电量、充电状态无关，保证设置页在任何状态下都显示同一张卡片。
+// 示意数据：与设备电量、充电状态无关，保证设置页在任何状态下都显示同一张卡片。
 - (void)mtApplySampleData {
     NSDictionary *properties = @{@"ExternalConnected": @YES, @"IsCharging": @YES,
         @"CurrentCapacity": @62, @"MaxCapacity": @100, @"Voltage": @4020,
@@ -56,13 +54,7 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
         @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033};
     MTChargingSnapshot *snapshot = [MTChargingSnapshot snapshotWithProperties:properties
         fallbackLevel:0.62 connected:YES charging:YES];
-    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
-    NSMutableArray<NSDictionary *> *history = [NSMutableArray arrayWithCapacity:60];
-    for (NSUInteger second = 0; second < 60; second++) {
-        double wave = sin(second / 60.0 * M_PI * 2.0) * 1.05 + sin(second / 6.5) * 0.35;
-        [history addObject:@{@"t": @(now - 59 + second), @"w": @(8.4 + wave)}];
-    }
-    [_card updateSnapshot:snapshot history:history time:now];
+    [_card updateSnapshot:snapshot];
 }
 
 - (void)setPreviewEnabled:(BOOL)enabled {
@@ -75,12 +67,12 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     [super layoutSubviews];
     CGFloat available = MAX(CGRectGetWidth(self.bounds) - MTPrefsChargingPreviewSideInset * 2.0, 0.0);
     CGFloat cardWidth = MIN(available, MTPrefsChargingPreviewMaxWidth);
-    CGFloat cardHeight = cardWidth * MTPrefsChargingPreviewDesignHeight / MTPrefsChargingPreviewDesignWidth;
+    CGFloat cardHeight = cardWidth * MTChargingCardDesignHeight / MTChargingCardDesignWidth;
     CGRect cardFrame = CGRectMake((CGRectGetWidth(self.bounds) - cardWidth) / 2.0,
         MTPrefsChargingPreviewTopInset, cardWidth, cardHeight);
     _card.frame = cardFrame;
     // 卡片圆角按设计稿比例缩放，描边宽度保持 0.5pt 不随缩放变粗。
-    _card.layer.cornerRadius = 28.0 * cardWidth / MTPrefsChargingPreviewDesignWidth;
+    _card.layer.cornerRadius = 28.0 * cardWidth / MTChargingCardDesignWidth;
     _caption.frame = CGRectMake(CGRectGetMinX(cardFrame), CGRectGetMaxY(cardFrame) + MTPrefsChargingPreviewCaptionGap,
         cardWidth, MTPrefsChargingPreviewCaptionHeight);
 }
@@ -115,7 +107,7 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
     section.footerText = @"默认关闭，开启后立即生效；也受 Metis 总开关控制。";
     MTSettingsRow *info = [MTSettingsRow linkRowWithIdentifier:@"charging-details-info" title:@"实时充电数据"];
     info.kind = MTSettingsRowKindInfo;
-    info.subtitle = @"电池侧功率、近 60 秒曲线、电量、电压、电流、电池温度和充满预估。设备未提供的数据以 — 显示；电池侧功率不等于充电器输出功率。";
+    info.subtitle = @"电池侧功率、电量、电压、电流、电池温度和充满预估。设备未提供的数据以 — 显示；电池侧功率不等于充电器输出功率。";
     self.model = [MTSettingsPageModel new];
     self.model.sections = @[section, [MTSettingsSection sectionWithRows:@[info]]];
 }

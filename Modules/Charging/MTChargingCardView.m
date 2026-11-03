@@ -5,9 +5,6 @@
 
 @interface MTChargingCardInk : UIView
 @property(nonatomic, strong) MTChargingSnapshot *snapshot;
-@property(nonatomic, copy) NSArray<NSDictionary *> *history;
-@property(nonatomic) NSTimeInterval time;
-@property(nonatomic) double axisCeiling;
 @end
 
 static UIColor *MTChargeGreen(void) { return [UIColor colorWithRed:0.19 green:0.85 blue:0.32 alpha:1]; }
@@ -28,7 +25,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
     if (!s) return;
     CGContextRef context = UIGraphicsGetCurrentContext();
     CGContextSaveGState(context);
-    CGContextScaleCTM(context, self.bounds.size.width / 361.0, self.bounds.size.height / 234.0);
+    CGContextScaleCTM(context, self.bounds.size.width / MTChargingCardDesignWidth, self.bounds.size.height / MTChargingCardDesignHeight);
     UIColor *white = UIColor.whiteColor, *muted = [white colorWithAlphaComponent:0.64], *green = MTChargeGreen();
     NSString *power = MTChargeValue(s.watts, 1, @"");
     MTChargeText(power, CGRectMake(17, 13, 210, 58), 44, UIFontWeightSemibold, white, NSTextAlignmentLeft);
@@ -44,65 +41,24 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
     }
     MTChargeText(isfinite(s.level) ? [NSString stringWithFormat:@"%.0f%%", s.level * 100] : @"—", CGRectMake(280, 35, 60, 23), 16, UIFontWeightBold, white, NSTextAlignmentCenter);
     MTChargeText(@"电量", CGRectMake(280, 56, 60, 17), 9, UIFontWeightSemibold, muted, NSTextAlignmentCenter);
-    MTChargeText(@"近 60 秒", CGRectMake(17, 96, 90, 17), 10, UIFontWeightMedium, muted, NSTextAlignmentLeft);
-
-    // Time-based X positions leave unsampled time blank, including after sleep.
-    // The scale is latched across redraws (see axisCeilingForPeak:), so a sample
-    // that merely wobbles does not move the whole trace up or down.
-    double peak = 0;
-    for (NSDictionary *point in self.history) {
-        double w = [point[@"w"] doubleValue];
-        if (isfinite(w)) peak = MAX(peak, w);
-    }
-    self.axisCeiling = [MTChargingSnapshot axisCeilingForPeak:peak currentCeiling:self.axisCeiling];
-    double ceiling = self.axisCeiling;
-    UIBezierPath *line = [UIBezierPath bezierPath];
-    UIBezierPath *fill = [UIBezierPath bezierPath];
-    BOOL previous = NO;
-    CGPoint last = CGPointZero;
-    NSTimeInterval previousTime = 0;
-    for (NSDictionary *point in self.history) {
-        double t = [point[@"t"] doubleValue], w = [point[@"w"] doubleValue];
-        if (!isfinite(w) || t < self.time - 60 || t > self.time) { previous = NO; continue; }
-        CGPoint next = CGPointMake(18 + (t - self.time + 60) / 60 * 325, 135 - w / ceiling * 28);
-        if (!previous || t - previousTime > 2.5) {
-            if (previousTime) { [fill addLineToPoint:CGPointMake(last.x, 139)]; [fill closePath]; }
-            [line moveToPoint:next]; [fill moveToPoint:CGPointMake(next.x, 139)]; [fill addLineToPoint:next];
-        } else { [line addLineToPoint:next]; [fill addLineToPoint:next]; }
-        last = next; previous = YES; previousTime = t;
-    }
-    if (previousTime) {
-        [fill addLineToPoint:CGPointMake(last.x, 139)]; [fill closePath];
-        CGContextSaveGState(context); [fill addClip];
-        NSArray *colors = @[(id)[green colorWithAlphaComponent:0.32].CGColor, (id)[green colorWithAlphaComponent:0].CGColor];
-        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-        CGGradientRef gradient = CGGradientCreateWithColors(space, (__bridge CFArrayRef)colors, NULL);
-        CGContextDrawLinearGradient(context, gradient, CGPointMake(0, 106), CGPointMake(0, 140), 0);
-        CGGradientRelease(gradient); CGColorSpaceRelease(space); CGContextRestoreGState(context);
-        [green setStroke]; line.lineWidth = 1.6; line.lineJoinStyle = kCGLineJoinRound; [line stroke];
-        if (self.time - previousTime <= 2.5) {
-            [[green colorWithAlphaComponent:0.25] setFill]; [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(last.x - 6, last.y - 6, 12, 12)] fill];
-            [green setFill]; [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(last.x - 2.5, last.y - 2.5, 5, 5)] fill];
-        }
-    } else MTChargeText(@"等待功率数据", CGRectMake(220, 119, 123, 18), 10, UIFontWeightRegular, muted, NSTextAlignmentRight);
     [[white colorWithAlphaComponent:0.1] setStroke];
     UIBezierPath *dividers = [UIBezierPath bezierPath];
-    [dividers moveToPoint:CGPointMake(17, 145)]; [dividers addLineToPoint:CGPointMake(344, 145)];
-    for (NSNumber *x in @[@121, @239]) { [dividers moveToPoint:CGPointMake(x.doubleValue, 157)]; [dividers addLineToPoint:CGPointMake(x.doubleValue, 190)]; }
+    [dividers moveToPoint:CGPointMake(17, 96)]; [dividers addLineToPoint:CGPointMake(344, 96)];
+    for (NSNumber *x in @[@121, @239]) { [dividers moveToPoint:CGPointMake(x.doubleValue, 108)]; [dividers addLineToPoint:CGPointMake(x.doubleValue, 141)]; }
     dividers.lineWidth = 0.35; [dividers stroke];
     NSArray *titles = @[@"电压", @"电流", @"电池温度"];
     NSArray *values = @[MTChargeValue(s.volts, 2, @" V"), MTChargeValue(s.amps, 2, @" A"), MTChargeValue(s.celsius, 1, @" °C")];
     for (NSUInteger i = 0; i < 3; i++) {
         CGFloat x = i == 0 ? 18 : (i == 1 ? 136 : 254);
-        MTChargeText(titles[i], CGRectMake(x, 157, 90, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
-        MTChargeText(values[i], CGRectMake(x, 174, 95, 24), 16, UIFontWeightSemibold, white, NSTextAlignmentLeft);
+        MTChargeText(titles[i], CGRectMake(x, 108, 90, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
+        MTChargeText(values[i], CGRectMake(x, 125, 95, 24), 16, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     }
     NSString *status = s.level >= 0.999 ? @"已充满" : (s.charging ? @"正在充电" : @"充电已暂停");
-    CGRect badge = CGRectMake(17, 207, 88, 20);
+    CGRect badge = CGRectMake(17, 158, 88, 20);
     [[green colorWithAlphaComponent:0.14] setFill]; [[UIBezierPath bezierPathWithRoundedRect:badge cornerRadius:10] fill];
-    MTChargeText(status, CGRectMake(20, 210, 82, 16), 10, UIFontWeightSemibold, green, NSTextAlignmentCenter);
+    MTChargeText(status, CGRectMake(20, 161, 82, 16), 10, UIFontWeightSemibold, green, NSTextAlignmentCenter);
     NSString *eta = s.minutesToFull > 0 ? [NSString stringWithFormat:@"预计 %ld 分钟充满", (long)s.minutesToFull] : (s.level >= 0.999 ? @"电量已充满" : @"充满预估暂无数据");
-    MTChargeText(eta, CGRectMake(112, 210, 231, 16), 10, UIFontWeightMedium, muted, NSTextAlignmentRight);
+    MTChargeText(eta, CGRectMake(112, 161, 231, 16), 10, UIFontWeightMedium, muted, NSTextAlignmentRight);
     CGContextRestoreGState(context);
 }
 @end
@@ -127,8 +83,8 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
     }
     return self;
 }
-- (void)updateSnapshot:(MTChargingSnapshot *)snapshot history:(NSArray<NSDictionary *> *)history time:(NSTimeInterval)time {
-    self.ink.snapshot = snapshot; self.ink.history = history; self.ink.time = time; [self.ink setNeedsDisplay];
+- (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
+    self.ink.snapshot = snapshot; [self.ink setNeedsDisplay];
     self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@",
         MTChargeValue(snapshot.level * 100, 0, @"%"), MTChargeValue(snapshot.watts, 1, @"瓦"),
         MTChargeValue(snapshot.volts, 2, @"伏"), MTChargeValue(snapshot.amps, 2, @"安"), MTChargeValue(snapshot.celsius, 1, @"摄氏度")];

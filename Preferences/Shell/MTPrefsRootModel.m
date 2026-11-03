@@ -16,7 +16,7 @@ static NSArray *MTRootCategoryConfigs(void) {
           @"MetisClipboardPrefs", @"MTClipboardRootListController"],
         @[@"capture",   @"截图",   @"截取、标注与长截图", @"crop", @"purple",
           @"MetisCapturePrefs", @"MTCaptureRootListController"],
-        @[@"charging",  @"充电",   @"锁屏功率、曲线与电池详情", @"bolt.batteryblock.fill", @"green",
+        @[@"charging",  @"充电",   @"锁屏功率与电池详情", @"bolt.batteryblock.fill", @"green",
           [NSNull null], @"MTPrefsChargingController"],
     ];
 }

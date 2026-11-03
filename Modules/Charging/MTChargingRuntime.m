@@ -64,7 +64,6 @@ static NSString *MTChargeViewChain(UIView *view) {
 @property(nonatomic, strong) MTChargingCardView *card;
 @property(nonatomic, strong) NSTimer *timer;
 @property(nonatomic, strong) id gateObserver;
-@property(nonatomic, strong) NSMutableArray<NSDictionary *> *history;
 @property(nonatomic, strong) dispatch_queue_t samplingQueue;
 @property(nonatomic) BOOL appeared;
 @property(nonatomic) BOOL enabled;
@@ -90,7 +89,6 @@ static NSString *MTChargeViewChain(UIView *view) {
 }
 - (instancetype)init {
     if ((self = [super init])) {
-        _history = [NSMutableArray array];
         _samplingQueue = dispatch_queue_create("com.lindo.metis.charging", DISPATCH_QUEUE_SERIAL);
         _displayOn = YES; _displayToken = -1; _lockToken = -1;
         __weak typeof(self) weakSelf = self;
@@ -148,7 +146,6 @@ static NSString *MTChargeViewChain(UIView *view) {
     self.generation++;
     [self.timer invalidate]; self.timer = nil;
     [self.card removeFromSuperview]; self.card = nil;
-    [self.history removeAllObjects];
     self.ampsEMA = 0;
 }
 - (void)refresh {
@@ -183,14 +180,6 @@ static NSString *MTChargeViewChain(UIView *view) {
                 self.timer.tolerance = 0.15;
                 [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
             }
-            NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
-            // Notifications can arrive between timer ticks. Keep at most one
-            // sample per second and at most 61 entries for the visible minute.
-            NSDictionary *last = self.history.lastObject;
-            if (!last || now - [last[@"t"] doubleValue] >= 0.8)
-                [self.history addObject:@{@"t":@(now), @"w":@(snapshot.watts)}];
-            while (self.history.count && (now - [self.history.firstObject[@"t"] doubleValue] > 60 || self.history.count > 61))
-                [self.history removeObjectAtIndex:0];
             if (!self.card) {
                 self.card = [[MTChargingCardView alloc] initWithFrame:CGRectZero];
                 // Depth-effect lock screens composite the wallpaper subject above
@@ -205,7 +194,7 @@ static NSString *MTChargeViewChain(UIView *view) {
                     NSStringFromClass(anchor.class), MTChargeViewChain(self.host.view), isfinite(snapshot.watts));
             }
             [self layout];
-            [self.card updateSnapshot:snapshot history:[self.history copy] time:now];
+            [self.card updateSnapshot:snapshot];
         });
     });
 }
@@ -214,7 +203,7 @@ static NSString *MTChargeViewChain(UIView *view) {
     if (!host || !self.card) return;
     if (![self canShow]) { [self stop]; return; }
     CGFloat width = MIN(host.bounds.size.width - 32, 430);
-    CGFloat height = width * 234.0 / 361.0;
+    CGFloat height = width * MTChargingCardDesignHeight / MTChargingCardDesignWidth;
     CGFloat bottom = host.bounds.size.height - host.safeAreaInsets.bottom - 86;
     if (width < 250 || bottom - height < host.bounds.size.height * 0.35) { [self stop]; return; }
     CGRect rect = CGRectMake((host.bounds.size.width - width) / 2, bottom - height, width, height);
