@@ -6,6 +6,8 @@ typedef NS_ENUM(NSUInteger, MTChargeEtaSource) {
     MTChargeEtaSourceSystem,
     MTChargeEtaSourceRateWindow,
     MTChargeEtaSourceRateInstant,
+    /// 输入暂缺或窗口刚被回校清空时保持的上一次估时。
+    MTChargeEtaSourceHeld,
 };
 
 // Foundation-only decoding: no adapter rating is ever used as live power.
@@ -43,15 +45,15 @@ typedef NS_ENUM(NSUInteger, MTChargeEtaSource) {
 @property(nonatomic) NSUInteger etaSource;
 + (instancetype)snapshotWithProperties:(NSDictionary *)properties
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging;
-/// 当前速度下所需分钟数；调用方须先取得稳定的实测充电速度。
+/// 当前速度下所需分钟数；调用方须传入实时实测的充电电流。
 /// 无法推算（容量不可得、电流低于涓流阈值、超过 1440 分钟）返回 -1。
 + (NSInteger)minutesToFullForRemainingMilliampHours:(double)remaining currentMilliamp:(double)current;
 @end
 
-// 有效的明确充满时间字段优先。缺失时，连续有效充电稳定 30 秒后先按瞬时
-// 电流给出带“按当前速度”标注的估时，滑动窗实测斜率成熟后替换之。电量计
-// 数 mAh 级回校不重置窗口；暂停、断开、采样中断及大幅回校后重新积累，
-// 不沿用旧速度。涓流观测期内不显示任何估时。
+// 有效的明确充满时间字段优先。缺失时接通电源第一拍即按瞬时电流给出带
+// “按当前速度”标注的估时，滑动窗实测斜率成熟后替换之。电量计数 mAh 级
+// 回校只清观测窗口、不清估时显示；输入暂缺或窗口刚被清空时保持上一次
+// 估时，充电期间不允许出现无估时空窗。暂停、断开、充满才清空估时。
 @interface MTChargingEstimator : NSObject
 - (void)reset;
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot atTime:(NSTimeInterval)time;
