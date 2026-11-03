@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.3</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>充电卡片电池型号改为显示电池健康度百分比，按电池上报的额定满充容量与设计容量计算；无法取得时显示占位。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.2</string>
 		<key>items</key>
 		<array>
@@ -57,31 +70,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>充电卡片读取并显示电池服务上报的厂商与型号；缺失、空值或无效内容统一显示未知，不再依照容量或设备机型推断。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>锁屏充电卡片新增实时容量、设计容量与本次净增；净增基于观察到的插电起点，熄屏和密码界面切换不重置。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>连续观测高电量、较高电压和低电流后显示涓流估测与已观测时长；末段不再用恒定电流外推充满时间，缺少有效系统预估时显示余时估算中。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>按新布局扩展充电卡片，移除设置页开关下方及实时充电数据的说明文字。</string>
 			</dict>
 		</array>
 	</dict>

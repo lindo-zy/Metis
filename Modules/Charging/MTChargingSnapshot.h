@@ -15,7 +15,6 @@ typedef NS_ENUM(NSUInteger, MTChargeEtaSource) {
 @property(nonatomic, copy) NSString *batteryManufacturer;
 /// YES 表示厂商来自序列号前缀查表推断，而非驱动上报字段。
 @property(nonatomic) BOOL batteryManufacturerInferred;
-@property(nonatomic, copy) NSString *batteryModel;
 @property(nonatomic) BOOL connected;
 @property(nonatomic) BOOL charging;
 @property(nonatomic) BOOL fullyCharged;
@@ -29,6 +28,9 @@ typedef NS_ENUM(NSUInteger, MTChargeEtaSource) {
 @property(nonatomic) double fullMilliampHours;
 /// 电池循环次数（驱动 CycleCount）；未上报或数值不合理时为 NAN。
 @property(nonatomic) double cycleCount;
+/// 电池健康度（NominalChargeCapacity/DesignCapacity×100，注册表原值）；
+/// 任一容量缺失或不合理时为 NAN，由界面显示占位。
+@property(nonatomic) double healthPercent;
 @property(nonatomic) NSUInteger capacitySource;
 /// 启发式识别，仅表示连续观测到低电流末段，不是硬件阶段标志。
 @property(nonatomic) BOOL trickleEstimated;

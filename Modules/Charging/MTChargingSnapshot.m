@@ -85,7 +85,6 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging {
     MTChargingSnapshot *s = [self new];
     s.batteryManufacturer = MTChargeIdentity(p, @"Manufacturer");
-    s.batteryModel = MTChargeIdentity(p, @"Model");
     s.batteryManufacturerInferred = NO;
     if ([s.batteryManufacturer isEqualToString:@"未知"]) {
         NSString *serial = MTChargeIdentityString(p[@"Serial"]);
@@ -136,6 +135,13 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
     // (AppleSmartBattery); some gauges keep it inside BatteryData instead.
     double cycles = MTChargeNestedNumber(p, @"CycleCount");
     s.cycleCount = cycles >= 0 && cycles <= 100000 ? cycles : NAN;
+    // 健康度＝额定满充容量/设计容量（注册表原值，与 ChargeLimiter 同法）；
+    // 不回退满充容量近似值，缺任一容量或商值不合理时保持 NAN 显示占位。
+    double nominal = MTChargeNestedNumber(p, @"NominalChargeCapacity");
+    if (isfinite(s.designMilliampHours) && nominal >= 200 && nominal <= 50000) {
+        double health = nominal / s.designMilliampHours * 100.0;
+        s.healthPercent = isfinite(health) && health >= 1 && health <= 300 ? health : NAN;
+    } else s.healthPercent = NAN;
     if (rawCurrent >= 0 && rawCurrent <= 50000) {
         s.currentMilliampHours = rawCurrent; s.capacitySource = 1;
         if (rawMaximum >= 200 && rawMaximum <= 50000) s.fullMilliampHours = rawMaximum;
