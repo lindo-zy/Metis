@@ -72,6 +72,7 @@ static NSString *MTChargeViewChain(UIView *view) {
 @property(nonatomic) BOOL sampling;
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) NSTimeInterval lastProbeTime;
+@property(nonatomic) double ampsEMA;
 @property(nonatomic) int displayToken;
 @property(nonatomic) int lockToken;
 + (instancetype)shared;
@@ -148,6 +149,7 @@ static NSString *MTChargeViewChain(UIView *view) {
     [self.timer invalidate]; self.timer = nil;
     [self.card removeFromSuperview]; self.card = nil;
     [self.history removeAllObjects];
+    self.ampsEMA = 0;
 }
 - (void)refresh {
     if (![self canShow]) { [self stop]; return; }
@@ -168,6 +170,13 @@ static NSString *MTChargeViewChain(UIView *view) {
             self.sampling = NO;
             if (generation != self.generation || ![self canShow]) return;
             if (!snapshot.connected) { [self stop]; return; }
+            // Smooth the charging current before deriving the ETA: a single noisy
+            // sample would otherwise rewrite the estimate every second.
+            if (snapshot.charging && isfinite(snapshot.amps) && snapshot.amps > 0) {
+                self.ampsEMA = self.ampsEMA > 0 ? self.ampsEMA * 0.85 + snapshot.amps * 0.15 : snapshot.amps;
+                snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:
+                    snapshot.remainingMilliampHours currentMilliamp:self.ampsEMA * 1000.0];
+            } else self.ampsEMA = 0;
             if (!self.timer) {
                 __weak typeof(self) weakSelf = self;
                 self.timer = [NSTimer timerWithTimeInterval:1 repeats:YES block:^(NSTimer *timer) { [weakSelf refresh]; }];

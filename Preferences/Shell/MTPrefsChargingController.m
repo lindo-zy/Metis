@@ -52,7 +52,8 @@ static const CGFloat MTPrefsChargingPreviewBottomInset = 12.0;
 - (void)mtApplySampleData {
     NSDictionary *properties = @{@"ExternalConnected": @YES, @"IsCharging": @YES,
         @"CurrentCapacity": @62, @"MaxCapacity": @100, @"Voltage": @4020,
-        @"InstantAmperage": @2090, @"Temperature": @3320, @"TimeRemaining": @34};
+        @"InstantAmperage": @2090, @"Temperature": @3320,
+        @"AppleRawMaxCapacity": @3279, @"AppleRawCurrentCapacity": @2033};
     MTChargingSnapshot *snapshot = [MTChargingSnapshot snapshotWithProperties:properties
         fallbackLevel:0.62 connected:YES charging:YES];
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
