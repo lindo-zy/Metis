@@ -66,8 +66,7 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
         MTChargeText(capacityTitles[i], CGRectMake(x, 164, 95, 17), 10, UIFontWeightSemibold, muted, NSTextAlignmentLeft);
         MTChargeText(capacityValues[i], CGRectMake(x, 182, 95, 24), 14, UIFontWeightSemibold, white, NSTextAlignmentLeft);
     }
-    MTChargeText([NSString stringWithFormat:@"厂商：%@%@", s.batteryManufacturer ?: @"未知",
-        s.batteryManufacturerInferred ? @"（推断）" : @""],
+    MTChargeText([NSString stringWithFormat:@"厂商：%@", s.batteryManufacturer ?: @"未知"],
         CGRectMake(18, 211, 154, 17), 10, UIFontWeightMedium, muted, NSTextAlignmentLeft);
     NSString *health = isfinite(s.healthPercent) ?
         [NSString stringWithFormat:@"%.0f%%", s.healthPercent] : @"—";
@@ -115,13 +114,12 @@ static NSString *MTChargeValue(double value, NSUInteger decimals, NSString *unit
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot {
     self.ink.snapshot = snapshot; [self.ink setNeedsDisplay];
-    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，最大容量 %@，循环次数 %@，电池厂商 %@%@，电池健康度 %@%@",
+    self.accessibilityLabel = [NSString stringWithFormat:@"充电详情，电量 %@，电池侧功率 %@，电压 %@，电流 %@，温度 %@，实时容量 %@，最大容量 %@，循环次数 %@，电池厂商 %@，电池健康度 %@%@",
         MTChargeValue(snapshot.level * 100, 0, @"%"), MTChargeValue(snapshot.watts, 1, @"瓦"),
         MTChargeValue(snapshot.volts, 2, @"伏"), MTChargeValue(snapshot.amps, 2, @"安"), MTChargeValue(snapshot.celsius, 1, @"摄氏度"),
         MTChargeValue(snapshot.currentMilliampHours, 0, @"毫安时"), MTChargeValue(snapshot.fullMilliampHours, 0, @"毫安时"),
         MTChargeValue(snapshot.cycleCount, 0, @""),
         snapshot.batteryManufacturer ?: @"未知",
-        snapshot.batteryManufacturerInferred ? @"（按序列号前缀推断）" : @"",
         MTChargeValue(snapshot.healthPercent, 0, @"%"),
         snapshot.trickleEstimated ? [NSString stringWithFormat:@"，涓流阶段为估测，已连续观测 %.0f 秒", floor(snapshot.trickleObservedSeconds)] : @""];
 }

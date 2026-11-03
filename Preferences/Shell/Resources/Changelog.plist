@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.4</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>充电卡片厂商直接显示厂商名，不再附推断标注。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.3</string>
 		<key>items</key>
 		<array>
@@ -57,19 +70,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>充电卡片新增电池循环次数；电池未上报时显示占位，替换原本次净增。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>充电卡片读取并显示电池服务上报的厂商与型号；缺失、空值或无效内容统一显示未知，不再依照容量或设备机型推断。</string>
 			</dict>
 		</array>
 	</dict>

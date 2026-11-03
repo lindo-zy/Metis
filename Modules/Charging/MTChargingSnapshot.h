@@ -10,11 +10,9 @@ typedef NS_ENUM(NSUInteger, MTChargeEtaSource) {
 
 // Foundation-only decoding: no adapter rating is ever used as live power.
 @interface MTChargingSnapshot : NSObject
-/// 电池服务原始上报信息；缺失或无效时为“未知”，不通过机型/容量推断。
-/// 厂商可在无上报字段时按序列号前缀查表回退，并以推断标志区分来源。
+/// 电池厂商：优先取服务上报字段，缺失时按序列号前缀查表回退，
+/// 均未命中为“未知”。来源差异不对外区分。
 @property(nonatomic, copy) NSString *batteryManufacturer;
-/// YES 表示厂商来自序列号前缀查表推断，而非驱动上报字段。
-@property(nonatomic) BOOL batteryManufacturerInferred;
 @property(nonatomic) BOOL connected;
 @property(nonatomic) BOOL charging;
 @property(nonatomic) BOOL fullyCharged;

@@ -27,8 +27,8 @@ static NSString *MTChargeIdentity(NSDictionary *properties, NSString *key) {
 }
 
 // iOS 电池服务没有厂商明文键，序列号前缀→封装厂是电池工具的通行对照
-// （与电池助手 1.0.7 一致）。仅作上报字段缺失时的回退：命中以推断标志
-// 区分，未命中保持“未知”，不做更大表的猜测。
+// （与电池助手 1.0.7 一致）。仅作上报字段缺失时的回退：未命中保持
+// “未知”，不做更大表的猜测，来源差异不对外区分。
 static NSDictionary<NSString *, NSString *> *MTChargeVendorBySerialPrefix(void) {
     static NSDictionary<NSString *, NSString *> *vendors;
     static dispatch_once_t once;
@@ -85,7 +85,6 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
                         fallbackLevel:(double)level connected:(BOOL)connected charging:(BOOL)charging {
     MTChargingSnapshot *s = [self new];
     s.batteryManufacturer = MTChargeIdentity(p, @"Manufacturer");
-    s.batteryManufacturerInferred = NO;
     if ([s.batteryManufacturer isEqualToString:@"未知"]) {
         NSString *serial = MTChargeIdentityString(p[@"Serial"]);
         if (!serial && [p[@"BatteryData"] isKindOfClass:NSDictionary.class])
@@ -94,7 +93,6 @@ static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
         for (NSString *prefix in vendors) {
             if ([serial hasPrefix:prefix]) {
                 s.batteryManufacturer = vendors[prefix];
-                s.batteryManufacturerInferred = YES;
                 break;
             }
         }
