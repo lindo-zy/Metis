@@ -162,6 +162,9 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
 @property(nonatomic) NSUInteger generation;
 @property(nonatomic) NSTimeInterval lastProbeTime;
 @property(nonatomic, strong) MTChargingEstimator *estimator;
+@property(nonatomic) NSUInteger etaSource;
+@property(nonatomic) NSInteger etaMinutes;
+@property(nonatomic) BOOL etaLoggedOnce;
 @property(nonatomic) NSUInteger configurationGeneration;
 @property(nonatomic) BOOL sessionProbePending;
 @property(nonatomic) int displayToken;
@@ -302,6 +305,18 @@ static MTChargingYieldResult MTChargingCoverSheetYield(UIViewController *host) {
             }
             if (!snapshot.connected) { [self stop]; return; }
             [self.estimator updateSnapshot:snapshot atTime:NSProcessInfo.processInfo.systemUptime];
+            // 首评必打，其后仅来源或分钟数变化时打：真机定位“一直在预估”
+            // 卡在哪道门（source: 0 无 1 系统 2 滑动窗 3 瞬时估）。
+            NSUInteger etaSource = snapshot.etaSource;
+            NSInteger etaMinutes = snapshot.minutesToFull;
+            if (!self.etaLoggedOnce || etaSource != self.etaSource || etaMinutes != self.etaMinutes) {
+                MTLogInfo(@"charging", @"state=eta-estimate source=%lu minutes=%ld remaining=%.0f ma=%.0f level=%.2f",
+                    (unsigned long)etaSource, (long)etaMinutes, snapshot.remainingMilliampHours,
+                    snapshot.amps * 1000.0, snapshot.level);
+                self.etaLoggedOnce = YES;
+                self.etaSource = etaSource;
+                self.etaMinutes = etaMinutes;
+            }
             [self ensureTimer];
             if (!self.card) {
                 self.card = [[MTChargingCardView alloc] initWithFrame:CGRectZero];

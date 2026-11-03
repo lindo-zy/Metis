@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>充电卡片的预计充满时间不再长时间停留在估算中；接电稳定约半分钟即按当前速度给出估时，实测窗口成熟后自动替换为更准的数值。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>电池未上报厂商时，充电卡片按电池序列号前缀显示封装厂商并标注为推断。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.0</string>
 		<key>items</key>
 		<array>
@@ -75,25 +94,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>充电时间优先使用有效的系统充满预估；缺失时连续采样并交叉核对容量增量与平均电流，按当前速度估算，暂停和满电时清除旧预估。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.5.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复锁屏有通知时充电卡片完全不显示的问题。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>锁屏有通知时充电卡片自动上移到通知上方，不再遮挡通知；通知列表展开时仍自动隐藏。</string>
 			</dict>
 		</array>
 	</dict>

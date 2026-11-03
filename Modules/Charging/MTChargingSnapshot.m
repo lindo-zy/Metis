@@ -26,6 +26,18 @@ static NSString *MTChargeIdentity(NSDictionary *properties, NSString *key) {
     return value ?: @"未知";
 }
 
+// iOS 电池服务没有厂商明文键，序列号前缀→封装厂是电池工具的通行对照
+// （与电池助手 1.0.7 一致）。仅作上报字段缺失时的回退：命中以推断标志
+// 区分，未命中保持“未知”，不做更大表的猜测。
+static NSDictionary<NSString *, NSString *> *MTChargeVendorBySerialPrefix(void) {
+    static NSDictionary<NSString *, NSString *> *vendors;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        vendors = @{ @"F5D": @"德赛", @"FG9": @"新普", @"F8Y": @"欣旺达", @"PS": @"品胜" };
+    });
+    return vendors;
+}
+
 static double MTChargeNumber(NSDictionary *dict, NSString *key) {
     id value = dict[key];
     if (![value isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID()) return NAN;
@@ -49,6 +61,15 @@ static const double MTChargeMaxMinutes = 1440.0;
 // text every second; below it, single minutes still carry real information.
 static const double MTChargeCoarseMinutes = 60.0;
 static const double MTChargeCoarseStep = 5.0;
+// A few-mAh gauge recalibration is not a charge-direction reversal; absorb it
+// in the window instead of discarding it. Larger jumps restart the clock.
+static const double MTChargeGaugeJitterMilliampHours = 3.0;
+// Continuous valid charging for this long yields an instantaneous-current
+// estimate (labeled “按当前速度”) before the observed-rate window matures.
+static const NSTimeInterval MTChargeInstantEstimateStableSeconds = 30.0;
+// The window slope needs a few samples before it means anything; shorter
+// spans stay with the instant estimate (or nothing).
+static const NSTimeInterval MTChargeWindowMinSeconds = 20.0;
 
 @implementation MTChargingSnapshot
 + (NSInteger)minutesToFullForRemainingMilliampHours:(double)remaining currentMilliamp:(double)current {
@@ -65,6 +86,20 @@ static const double MTChargeCoarseStep = 5.0;
     MTChargingSnapshot *s = [self new];
     s.batteryManufacturer = MTChargeIdentity(p, @"Manufacturer");
     s.batteryModel = MTChargeIdentity(p, @"Model");
+    s.batteryManufacturerInferred = NO;
+    if ([s.batteryManufacturer isEqualToString:@"未知"]) {
+        NSString *serial = MTChargeIdentityString(p[@"Serial"]);
+        if (!serial && [p[@"BatteryData"] isKindOfClass:NSDictionary.class])
+            serial = MTChargeIdentityString(p[@"BatteryData"][@"Serial"]);
+        NSDictionary<NSString *, NSString *> *vendors = MTChargeVendorBySerialPrefix();
+        for (NSString *prefix in vendors) {
+            if ([serial hasPrefix:prefix]) {
+                s.batteryManufacturer = vendors[prefix];
+                s.batteryManufacturerInferred = YES;
+                break;
+            }
+        }
+    }
     s.trickleObservedSeconds = NAN;
     s.connected = [p[@"ExternalConnected"] isKindOfClass:NSNumber.class] ? [p[@"ExternalConnected"] boolValue] : connected;
     s.charging = s.connected && ([p[@"IsCharging"] isKindOfClass:NSNumber.class] ? [p[@"IsCharging"] boolValue] : charging);
@@ -127,6 +162,7 @@ static const double MTChargeCoarseStep = 5.0;
 
 @interface MTChargingEstimator ()
 @property(nonatomic, strong) NSMutableArray<NSDictionary<NSString *, NSNumber *> *> *samples;
+@property(nonatomic) NSTimeInterval stableSince; // 0 = 尚无连续有效充电
 @property(nonatomic) NSTimeInterval taperStart;
 @property(nonatomic) NSTimeInterval taperLast;
 @property(nonatomic) BOOL taperCandidate;
@@ -140,12 +176,14 @@ static const double MTChargeCoarseStep = 5.0;
 - (void)reset {
     [self.samples removeAllObjects];
     self.taperCandidate = NO; self.taperStart = 0; self.taperLast = 0;
+    self.stableSince = 0;
 }
 - (void)updateSnapshot:(MTChargingSnapshot *)snapshot atTime:(NSTimeInterval)time {
     BOOL hasSystemEstimate = snapshot.minutesToFull > 0 && !snapshot.rateEstimate;
     snapshot.rateEstimate = NO;
     snapshot.trickleEstimated = NO;
     snapshot.trickleObservedSeconds = NAN;
+    snapshot.etaSource = MTChargeEtaSourceNone;
     if (!snapshot.connected || !snapshot.charging || snapshot.fullyCharged) {
         snapshot.minutesToFull = -1; [self reset]; return;
     }
@@ -164,44 +202,79 @@ static const double MTChargeCoarseStep = 5.0;
         snapshot.trickleEstimated = YES;
         snapshot.trickleObservedSeconds = time - self.taperStart;
     }
+    double remaining = snapshot.remainingMilliampHours, ma = snapshot.amps * 1000.0;
     // The battery controller's explicit full-charge model accounts for taper;
     // don't overwrite it with a linear, instantaneous-current calculation.
-    if (hasSystemEstimate) { [self.samples removeAllObjects]; return; }
+    if (hasSystemEstimate) { [self.samples removeAllObjects]; snapshot.etaSource = MTChargeEtaSourceSystem; return; }
     snapshot.minutesToFull = -1;
-    // A constant-current extrapolation cannot predict the declining-current
-    // tail. Keep the observation timer but wait for an explicit system ETA.
-    if (snapshot.trickleEstimated) { [self.samples removeAllObjects]; return; }
-    double remaining = snapshot.remainingMilliampHours, ma = snapshot.amps * 1000.0;
     if (!isfinite(time) || !isfinite(remaining) || remaining <= 0 ||
         !isfinite(ma) || ma < MTChargeMinCurrentMilliamp) {
         if (candidate) [self.samples removeAllObjects]; else [self reset];
+        self.stableSince = 0;
         return;
     }
+    // 稳定时钟：只在数据持续有效时前进。快速估时、采样中断后的重新积累
+    // 都以它为界；涓流观测期内仍照常前进（数据有效即充电未中断）。
+    if (self.stableSince == 0 || time < self.stableSince) self.stableSince = time;
+    // A constant-current extrapolation cannot predict the declining-current
+    // tail. Keep the observation timer but suppress ETA while it is observed.
+    if (snapshot.trickleEstimated) { [self.samples removeAllObjects]; return; }
     NSDictionary *last = self.samples.lastObject;
-    double delta = time - [last[@"time"] doubleValue];
-    if (last && (delta < 0 || delta > 10 || remaining > [last[@"remaining"] doubleValue] + 2)) {
-        [self reset]; last = nil;
+    double delta = last ? time - [last[@"time"] doubleValue] : 0.0;
+    // 采样中断、时间回退或超过容忍带的回校（剩余电量向上跳；或下降速度
+    // 超过充电电流可能输送的两倍——都是电量计重校准而非真实充电进度）：
+    // 稳定时钟与窗口一起重来。
+    if (last && (delta < 0 || delta > 10 || remaining > [last[@"remaining"] doubleValue] + MTChargeGaugeJitterMilliampHours ||
+        [last[@"remaining"] doubleValue] - remaining > 2.0 * ma * delta / 3600.0 + MTChargeGaugeJitterMilliampHours)) {
+        [self.samples removeAllObjects];
+        self.stableSince = time;
+        last = nil;
     }
     if (last && delta < 0.8) return; // layout/reload callbacks aren't new samples
     [self.samples addObject:@{@"time": @(time), @"remaining": @(remaining), @"ma": @(ma)}];
     while (self.samples.count > 1 && time - [self.samples[0][@"time"] doubleValue] > 120)
         [self.samples removeObjectAtIndex:0];
-    NSDictionary *first = self.samples.firstObject;
-    double elapsed = time - [first[@"time"] doubleValue];
-    double gained = [first[@"remaining"] doubleValue] - remaining;
-    if (elapsed < 60 || gained < 3) return; // don't amplify gauge quantisation
-    double milliampSeconds = 0;
-    for (NSUInteger i = 1; i < self.samples.count; i++) {
-        NSDictionary *a = self.samples[i - 1], *b = self.samples[i];
-        milliampSeconds += ([a[@"ma"] doubleValue] + [b[@"ma"] doubleValue]) * 0.5 *
-            ([b[@"time"] doubleValue] - [a[@"time"] doubleValue]);
+    // 滑动窗最小二乘斜率：数 mAh 回校与量化台阶被整窗吸收，不再要求逐
+    // 样本严格单调；斜率与电流积分互检通过才采信（回校不是已充入的电）。
+    NSUInteger n = self.samples.count;
+    if (n >= 2) {
+        double t0 = [self.samples[0][@"time"] doubleValue];
+        double elapsed = time - t0;
+        if (elapsed >= MTChargeWindowMinSeconds) {
+            double sumT = 0, sumR = 0, sumTT = 0, sumTR = 0;
+            for (NSDictionary *sample in self.samples) {
+                double t = [sample[@"time"] doubleValue] - t0, r = [sample[@"remaining"] doubleValue];
+                sumT += t; sumR += r; sumTT += t * t; sumTR += t * r;
+            }
+            double denom = (double)n * sumTT - sumT * sumT;
+            if (denom > 1e-6) {
+                double rateMilliamp = -((double)n * sumTR - sumT * sumR) / denom * 3600.0; // mAh/s → mA
+                double milliampSeconds = 0;
+                for (NSUInteger i = 1; i < n; i++) {
+                    NSDictionary *a = self.samples[i - 1], *b = self.samples[i];
+                    milliampSeconds += ([a[@"ma"] doubleValue] + [b[@"ma"] doubleValue]) * 0.5 *
+                        ([b[@"time"] doubleValue] - [a[@"time"] doubleValue]);
+                }
+                double averageMA = milliampSeconds / elapsed;
+                BOOL consistent = isfinite(averageMA) && averageMA > 0 &&
+                    rateMilliamp >= MTChargeMinCurrentMilliamp &&
+                    rateMilliamp >= averageMA * 0.5 && rateMilliamp <= averageMA * 2.0;
+                if (consistent) {
+                    snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
+                        currentMilliamp:MIN(averageMA, rateMilliamp)];
+                    if (snapshot.minutesToFull > 0) snapshot.etaSource = MTChargeEtaSourceRateWindow;
+                }
+            }
+        }
     }
-    double averageMA = milliampSeconds / elapsed, observedMA = gained * 3600.0 / elapsed;
-    // A gauge recalibration isn't charge delivered. Wait for a consistent
-    // window rather than showing a confident number based on a capacity jump.
-    if (observedMA < averageMA * 0.5 || observedMA > averageMA * 1.5) return;
-    snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
-        currentMilliamp:MIN(averageMA, observedMA)];
+    // 窗口未成熟时的快速估时：连续有效充电已稳定一段时间，按瞬时电流
+    // 外推（沿用 rateEstimate 的「按当前速度」标注）。大幅回校后的静默
+    // 期由稳定时钟承担，持续回校的异常电量计永远到不了这里。
+    if (snapshot.minutesToFull <= 0 && time - self.stableSince >= MTChargeInstantEstimateStableSeconds) {
+        snapshot.minutesToFull = [MTChargingSnapshot minutesToFullForRemainingMilliampHours:remaining
+            currentMilliamp:ma];
+        if (snapshot.minutesToFull > 0) snapshot.etaSource = MTChargeEtaSourceRateInstant;
+    }
     snapshot.rateEstimate = snapshot.minutesToFull > 0;
 }
 @end
