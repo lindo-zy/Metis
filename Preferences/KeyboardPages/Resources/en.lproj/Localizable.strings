@@ -430,6 +430,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "SYSTEM_GROUP_CONTROL" = "Control Center";
 "SYSTEM_GROUP_PIXPIN" = "Screenshots";
 "SYSTEM_CAPTURE_FULL" = "Full-Screen Capture";
+"SYSTEM_CAPTURE_FRAME" = "Device Frame Capture";
 "SYSTEM_CAPTURE_AREA" = "Area Capture";
 "SYSTEM_CAPTURE_MARKUP" = "Full-Screen Markup";
 "SYSTEM_CAPTURE_LONG" = "Scrolling Capture";

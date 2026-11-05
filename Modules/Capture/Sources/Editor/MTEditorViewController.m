@@ -2,6 +2,7 @@
 #import "MTEditorCanvas.h"
 #import "MTEditorDocument.h"
 #import "MTEditorRenderer.h"
+#import "MTDeviceFrameViewController.h"
 #import "MTEditorLayout.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Common/MTConstants.h"
@@ -121,6 +122,9 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
 @property (nonatomic, strong) UIButton *closeButton;
 @property (nonatomic, strong) UIButton *cropButton;
 @property (nonatomic, strong) UIButton *rotateButton;
+@property (nonatomic, strong) UIButton *frameButton;
+@property (nonatomic, strong) MTDeviceFrameViewController *frameController;
+@property (nonatomic, assign) BOOL didOpenInitialFrame;
 @property (nonatomic, strong) UIButton *undoButton;
 @property (nonatomic, strong) UIButton *redoButton;
 @property (nonatomic, strong) UIButton *clipboardButton;
@@ -209,12 +213,23 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
 }
 
 - (void)dealloc {
+    [self.frameController invalidate];
     [self.canvas prepareForDismissal];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    if (self.startsWithDeviceFrame && !self.didOpenInitialFrame) {
+        self.didOpenInitialFrame = YES;
+        [self mtFrameTapped:nil];
+    }
 }
 
 /// 编辑器销毁前由协调器调用：断开 view→手势→self 的强引用环
 /// （UIGestureRecognizer 对 target 持强引用，不移除则整棵视图树+文档成孤岛永不释放）。
 - (void)prepareForDismissal {
+    [self.frameController invalidate];
+    self.frameController = nil;
     // arrayWithObjects 以 nil 终止：非全屏标记没有拖条/把手，nil 项自动跳过（字面量数组遇 nil 会崩）。
     NSMutableArray<UIView *> *containers = [NSMutableArray arrayWithObjects:
         self.bottomPanel, self.widthRow, self.panelDragGrip, self.collapsedHandle, nil];
@@ -271,6 +286,7 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
     _redoButton = [self mtTopIconForIdentifier:@"redo" action:@selector(mtRedoTapped:)];
     _cropButton = [self mtTopIconForIdentifier:@"crop" action:@selector(mtCropTapped:)];
     _rotateButton = [self mtTopIconForIdentifier:@"rotate" action:@selector(mtRotateTapped:)];
+    _frameButton = [self mtTopIconForIdentifier:@"frame" action:@selector(mtFrameTapped:)];
     _clipboardButton = [self mtTopIconForIdentifier:@"copy" action:@selector(mtCopyTapped:)];
     _shareButton = [self mtTopIconForIdentifier:@"share" action:@selector(mtShareTapped:)];
     _saveButton = [self mtTopIconForIdentifier:@"save" action:@selector(mtSaveTapped:)];
@@ -315,6 +331,7 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
         @"redo": self.redoButton,
         @"crop": self.cropButton,
         @"rotate": self.rotateButton,
+        @"frame": self.frameButton,
         @"copy": self.clipboardButton,
         @"share": self.shareButton,
         @"save": self.saveButton,
@@ -1024,6 +1041,10 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
 /// 复制/分享/保存/完成共用：提交进行中输入、放弃未确认裁剪后渲染当前文档（与完成同路径），
 /// 渲染期间 isExporting 锁全 UI（含画布，防止最后一笔不入图）；失败弹窗提示。then 固定主线程回调。
 - (void)mtRenderCurrentImageThen:(void (^)(UIImage *result))then {
+    [self mtRenderCurrentImageIncludingFrame:YES then:then];
+}
+
+- (void)mtRenderCurrentImageIncludingFrame:(BOOL)includingFrame then:(void (^)(UIImage *result))then {
     if (self.isExporting || !self.view.window || self.presentedViewController) return;
     [self.canvas commitActiveText];
     if (self.isCropMode) {
@@ -1033,7 +1054,7 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
     self.canvas.userInteractionEnabled = NO;
     [self mtRefreshButtons];
     __weak typeof(self) weakSelf = self;
-    [MTEditorRenderer renderDocument:self.document completion:^(UIImage *result) {
+    [MTEditorRenderer renderDocument:self.document includingFrame:includingFrame completion:^(UIImage *result) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf || !strongSelf.view.window) return;
         strongSelf.isExporting = NO;
@@ -1042,13 +1063,47 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
         if (!result) {
             MTCaptureLogError(@"editor export failed");
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"导出失败"
-                                                                           message:@"请重试或取消编辑"
+                                                                           message:@"请重试或缩小图片。套壳输出上限 24MP / 8192px，自定义素材需仍然可用。"
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
             [strongSelf presentViewController:alert animated:YES completion:nil];
             return;
         }
         then(result);
+    }];
+}
+
+- (void)mtFrameTapped:(UIButton *)sender {
+    CGSize pixels = CGSizeMake(self.document.sourceImage.size.width*self.document.sourceImage.scale,
+                               self.document.sourceImage.size.height*self.document.sourceImage.scale);
+    if (pixels.width*pixels.height > 24000000 || MAX(pixels.width,pixels.height)>8192) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"图片过大"
+            message:@"请先裁剪或缩小图片再套壳（24MP / 8192px）。" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
+        if (!self.presentedViewController) [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    __weak typeof(self) weakSelf = self;
+    [self mtRenderCurrentImageIncludingFrame:NO then:^(UIImage *image) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self || !self.view.window || self.presentedViewController) return;
+        MTDeviceFrameViewController *frame = [[MTDeviceFrameViewController alloc] initWithImage:image
+            configuration:self.document.frameConfiguration completion:^(BOOL completed, MTDeviceFrameConfiguration *configuration, MTOutputAction action) {
+                __strong typeof(weakSelf) self = weakSelf;
+                // fullScreen 模态期间 UIKit 会摘下宿主 view；用当前模态身份判断会话有效性。
+                if (!self || !self.frameController || self.presentedViewController != self.frameController) return;
+                if (completed) self.document.frameConfiguration = configuration;
+                self.frameController = nil;
+                [self mtRefreshButtons];
+                [self dismissViewControllerAnimated:YES completion:^{
+                    __strong typeof(weakSelf) self = weakSelf;
+                    if (!self || !self.view.window || !completed) return;
+                    if (action == MTOutputActionShare) [self mtShareTapped:nil];
+                    else if (action != MTOutputActionPreviewOnly) [self mtFinishWithAction:action];
+                }];
+            }];
+        self.frameController = frame;
+        [self presentViewController:frame animated:YES completion:nil];
     }];
 }
 
@@ -1363,6 +1418,9 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
     self.shareButton.enabled = !exporting;
     self.cropButton.enabled = !exporting;
     self.rotateButton.enabled = !exporting;
+    self.frameButton.enabled = !exporting;
+    self.frameButton.tintColor = self.document.frameConfiguration ? MTEditorAccentColor() : UIColor.whiteColor;
+    self.frameButton.accessibilityValue = self.document.frameConfiguration ? @"已启用，导出时应用；点按调整" : @"未启用";
     self.doneButton.enabled = !exporting;
     self.doneButton.alpha = exporting ? 0.4 : 1.0;
     self.saveButton.enabled = !exporting;

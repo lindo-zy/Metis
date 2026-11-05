@@ -1,5 +1,7 @@
 #import "MTEditorRenderer.h"
 #import "MTEditorDocument.h"
+#import "MTDeviceFrameRenderer.h"
+#import "MTDeviceFrameTemplateStore.h"
 #import "../Common/MTCaptureLog.h"
 
 @implementation MTEditorRenderer
@@ -182,11 +184,16 @@
 #pragma mark - 导出
 
 + (void)renderDocument:(MTEditorDocument *)document completion:(void (^)(UIImage *))completion {
+    [self renderDocument:document includingFrame:YES completion:completion];
+}
+
++ (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame completion:(void (^)(UIImage *))completion {
     NSParameterAssert(completion);
     // 进入导出前在调用线程（主线程）对文档做快照，杜绝后台渲染与继续绘制的竞态。
     UIImage *source = document.sourceImage;
     UIColor *background = document.backgroundColor;
     NSArray<MTAnnotation *> *annotations = [document.annotations copy];
+    MTDeviceFrameConfiguration *frameStyle = includingFrame ? [document.frameConfiguration copy] : nil;
     if (!source.CGImage) {
         dispatch_async(dispatch_get_main_queue(), ^{ completion(nil); });
         return;
@@ -197,6 +204,10 @@
             UIImage *result = [self mtRenderSynchronouslyWithSource:source
                                                         annotations:annotations
                                                     backgroundColor:background];
+            if (frameStyle && result) {
+                result = [MTDeviceFrameRenderer renderImage:result configuration:frameStyle
+                    template:[MTDeviceFrameTemplateStore templateForIdentifier:frameStyle.templateIdentifier] previewEdge:0];
+            }
             dispatch_async(dispatch_get_main_queue(), ^{ completion(result); });
         }
     });

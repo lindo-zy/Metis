@@ -27,6 +27,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 后台合成导出图（源图 + 背景 + 标注），主线程回调。失败回调 nil。
 + (void)renderDocument:(MTEditorDocument *)document
             completion:(void (^)(UIImage *result))completion;
+/// 套壳面板预览内容时传 NO，避免把已经套壳的输出再次嵌套。
++ (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame
+            completion:(void (^)(UIImage * _Nullable result))completion;
 
 #pragma mark - 裁剪 / 旋转烘焙
 

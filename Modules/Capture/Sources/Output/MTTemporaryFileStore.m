@@ -1,4 +1,5 @@
 #import "MTTemporaryFileStore.h"
+#import "MTImageEncoding.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTCaptureLog.h"
 #import "../Capture/MTCaptureProvider.h"
@@ -32,9 +33,11 @@
         return nil;
     }
 
+    BOOL png = MTImageRequiresPNG(image) || [name.pathExtension.lowercaseString isEqualToString:@"png"];
+    if (png) name = [name.stringByDeletingPathExtension stringByAppendingPathExtension:@"png"];
     NSString *path = [directory stringByAppendingPathComponent:name];
     // JPEG 0.92 在保持截图可读性的同时控制临时文件体积。
-    NSData *data = UIImageJPEGRepresentation(image, 0.92);
+    NSData *data = png ? UIImagePNGRepresentation(image) : UIImageJPEGRepresentation(image, 0.92);
     if (!data) {
         data = UIImagePNGRepresentation(image);
     }

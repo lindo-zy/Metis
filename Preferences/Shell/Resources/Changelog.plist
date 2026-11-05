@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.6</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>新增套壳截图与编辑器套壳面板：内置灵动岛、刘海和经典机壳，支持机身颜色、背景、留白、阴影、自动横屏、随机素材及自定义四角素材导入；透明背景以 PNG 输出。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.5</string>
 		<key>items</key>
 		<array>
@@ -51,25 +64,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>充电卡片容量区改为显示电池最大容量，替代原设计容量；百分比电量计上无法取得时显示占位。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.1</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>充电卡片的预计充满时间不再长时间停留在估算中；接电稳定约半分钟即按当前速度给出估时，实测窗口成熟后自动替换为更准的数值。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>电池未上报厂商时，充电卡片按电池序列号前缀显示封装厂商并标注为推断。</string>
 			</dict>
 		</array>
 	</dict>

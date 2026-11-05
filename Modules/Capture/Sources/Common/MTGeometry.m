@@ -151,6 +151,7 @@ NSString *MTStringFromCaptureMode(MTCaptureMode mode) {
         case MTCaptureModeMarkup: return @"markup";
         case MTCaptureModeInstant: return @"instant";
         case MTCaptureModeLong: return @"long";
+        case MTCaptureModeFrame: return @"frame";
     }
     return @"unknown";
 }

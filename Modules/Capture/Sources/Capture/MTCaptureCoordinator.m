@@ -138,6 +138,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
     MTCaptureMode mode = -1;
     if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFull]) mode = MTCaptureModeFull;
+    else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFrame]) mode = MTCaptureModeFrame;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureArea]) mode = MTCaptureModeArea;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFreeze]) mode = MTCaptureModeFreeze;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureInstant]) mode = MTCaptureModeInstant;
@@ -154,7 +155,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinShellXOpenInstant]) mode = MTCaptureModeInstant;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinShellXOpenFreeze]) mode = MTCaptureModeFreeze;
 
-    if (mode >= MTCaptureModeFull && mode <= MTCaptureModeLong) {
+    if (mode >= MTCaptureModeFull && mode <= MTCaptureModeFrame) {
         [self requestCapture:mode];
     }
 }
@@ -259,9 +260,9 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             }
             if (![task transitionToState:MTCaptureStateCaptured]) return;
 
-            if (task.mode == MTCaptureModeMarkup) {
+            if (task.mode == MTCaptureModeMarkup || task.mode == MTCaptureModeFrame) {
                 if (isPartial) {
-                    [self mtFailTask:task code:@"partial-capture" message:@"当前抓取接口无法取得完整屏幕，不能开始全屏标记"];
+                    [self mtFailTask:task code:@"partial-capture" message:@"当前抓取接口无法取得完整屏幕，不能开始标记或套壳"];
                     return;
                 }
                 task.resultImage = image;
@@ -849,6 +850,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtDestroyEditorWindow];
     MTEditorViewController *editor = [[MTEditorViewController alloc] initWithImage:task.resultImage delegate:self];
     editor.fullscreenMarkup = (task.mode == MTCaptureModeMarkup);
+    editor.startsWithDeviceFrame = (task.mode == MTCaptureModeFrame);
     editor.backdropImage = task.baseImage;
     MTCaptureWindow *window = [MTCaptureWindow mtCaptureWindow];
     window.rootViewController = editor;
@@ -944,6 +946,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
     task.resultImage = image;
     [self.editingFloatingSnap updateImage:image];
+    // 标注/套壳已经改变内容，原长图文件不能再作为当前结果输出。
+    task.resultFilePath = nil;
     if (![task transitionToState:MTCaptureStatePresenting]) return;
     MTOutputAction output = (action == MTOutputActionPreviewOnly) ? task.configSnapshot.defaultResultAction : action;
     [self mtExecuteOutput:output forTask:task presentingWindow:nil];
