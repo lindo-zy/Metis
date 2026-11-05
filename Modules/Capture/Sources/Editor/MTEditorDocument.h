@@ -3,6 +3,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class MTDeviceFrameConfiguration;
+
 /// 非破坏式编辑文档（DEVELOPMENT.md 5.6）：
 /// - sourceImage 只被整体替换（裁剪/旋转烘焙时），单笔标注永不修改底图；
 /// - 标注数组的插入/删除/替换通过显式接口提供，撤销由画布层 MTUndoManager 管理。
@@ -13,6 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// 预留的裁剪变换记录（裁剪以烘焙方式实现，此字段仅作元数据记录）。
 @property (nonatomic, assign, readonly) CGRect cropTransform;
 @property (nonatomic, strong) UIColor *backgroundColor;
+/// 导出时最后应用，不改变底图、标注或撤销栈。
+@property (nonatomic, copy, nullable) MTDeviceFrameConfiguration *frameConfiguration;
 
 - (instancetype)initWithSourceImage:(UIImage *)sourceImage;
 

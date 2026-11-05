@@ -1,4 +1,5 @@
 #import "MTOutputPipeline.h"
+#import "MTImageEncoding.h"
 #import "MTPhotoWriter.h"
 #import "MTClipboardWriter.h"
 #import "MTSharePresenter.h"
@@ -176,7 +177,15 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
                 [[NSFileManager defaultManager] fileExistsAtPath:stagedPath];
             if (!hasStagedFile) {
                 // 保存前先落盘临时文件：相册失败时保留可恢复副本。
-                [MTTemporaryFileStore writeImage:image taskID:task.taskID name:@"original.jpg" error:nil];
+                NSString *savedPath = [MTTemporaryFileStore writeImage:image taskID:task.taskID name:@"original.jpg" error:nil];
+                if (MTImageRequiresPNG(image) && savedPath) {
+                    stagedPath = savedPath;
+                    hasStagedFile = YES;
+                } else if (MTImageRequiresPNG(image)) {
+                    [task unclaimOutputAction:MTOutputActionSave];
+                    dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, @"透明 PNG 写入失败，请重试"); });
+                    return;
+                }
             }
 
             // 授权回调在 SpringBoard 内不保证到达（DEVELOPMENT.md 11.4）：超时兜底为失败并

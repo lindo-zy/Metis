@@ -14,6 +14,7 @@ FOUNDATION_EXPORT NSString * const MTCapturePreferencesDomain;
 
 FOUNDATION_EXPORT CFStringRef const MTDarwinActivate;          // com.lindo.metis.capture/activate（区域截图）
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFull;        // com.lindo.metis.capture/full
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFrame;       // com.lindo.metis.capture/frame
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureArea;        // com.lindo.metis.capture/area
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureFreeze;      // com.lindo.metis.capture/freeze
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureInstant;     // com.lindo.metis.capture/instant
@@ -74,6 +75,7 @@ FOUNDATION_EXPORT CFStringRef const MTShellXRouteScan;      // prefs://root=shel
 /// URL 入口仅暴露全屏、区域、标记、长截图和剪贴板编辑，命中后不打开设置页。
 FOUNDATION_EXPORT CFStringRef const MTURLRoutePrefix;         // metis_
 FOUNDATION_EXPORT CFStringRef const MTURLRouteFull;           // prefs://root=metis_full → 全屏截图
+FOUNDATION_EXPORT CFStringRef const MTURLRouteFrame;          // prefs://root=metis_frame → 套壳截图
 FOUNDATION_EXPORT CFStringRef const MTURLRouteArea;           // prefs://root=metis_area → 区域截图
 FOUNDATION_EXPORT CFStringRef const MTURLRouteMarkup;         // prefs://root=metis_markup → 全屏标记
 FOUNDATION_EXPORT CFStringRef const MTURLRouteLong;           // prefs://root=metis_long → 滚动长截图

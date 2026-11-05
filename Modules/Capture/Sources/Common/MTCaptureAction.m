@@ -21,6 +21,8 @@ NSArray<MTCaptureAction *> *MTCaptureActions(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         actions = @[
+            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.frame" title:@"套壳截图"
+                notification:MTDarwinCaptureFrame URLRoute:MTURLRouteFrame],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.full" title:@"全屏截图"
                 notification:MTDarwinCaptureFull URLRoute:MTURLRouteFull],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.area" title:@"区域截图"

@@ -59,6 +59,7 @@ static CFNotificationCenterRef MTDistributedCenter(void) {
             CFStringRef names[] = {
                 MTDarwinActivate,
                 MTDarwinCaptureFull,
+                MTDarwinCaptureFrame,
                 MTDarwinCaptureArea,
                 MTDarwinCaptureFreeze,
                 MTDarwinCaptureInstant,

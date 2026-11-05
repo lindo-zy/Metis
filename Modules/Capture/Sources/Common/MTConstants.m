@@ -8,6 +8,7 @@ NSString * const MTCapturePreferencesDomain = @"com.lindo.metis.capture";
 
 CFStringRef const MTDarwinActivate = CFSTR("com.lindo.metis.capture/activate");
 CFStringRef const MTDarwinCaptureFull = CFSTR("com.lindo.metis.capture/full");
+CFStringRef const MTDarwinCaptureFrame = CFSTR("com.lindo.metis.capture/frame");
 CFStringRef const MTDarwinCaptureArea = CFSTR("com.lindo.metis.capture/area");
 CFStringRef const MTDarwinCaptureFreeze = CFSTR("com.lindo.metis.capture/freeze");
 CFStringRef const MTDarwinCaptureInstant = CFSTR("com.lindo.metis.capture/instant");
@@ -46,6 +47,7 @@ CFStringRef const MTShellXRouteScan = CFSTR("prefs://root=shellx_scan");
 
 CFStringRef const MTURLRoutePrefix = CFSTR("metis_");
 CFStringRef const MTURLRouteFull = CFSTR("prefs://root=metis_full");
+CFStringRef const MTURLRouteFrame = CFSTR("prefs://root=metis_frame");
 CFStringRef const MTURLRouteArea = CFSTR("prefs://root=metis_area");
 CFStringRef const MTURLRouteMarkup = CFSTR("prefs://root=metis_markup");
 CFStringRef const MTURLRouteLong = CFSTR("prefs://root=metis_long");

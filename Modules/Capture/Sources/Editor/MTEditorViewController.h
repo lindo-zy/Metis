@@ -19,6 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 在加载 view 前设置。
 @property (nonatomic, assign) BOOL fullscreenMarkup;
+/// 独立套壳截图入口：首次出现时自动展开套壳面板。
+@property (nonatomic, assign) BOOL startsWithDeviceFrame;
 @property (nonatomic, strong, nullable) UIImage *backdropImage;
 
 - (instancetype)initWithImage:(UIImage *)sourceImage

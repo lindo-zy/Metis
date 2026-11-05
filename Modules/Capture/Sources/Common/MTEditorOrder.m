@@ -27,7 +27,7 @@
     static NSArray<NSString *> *identifiers;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        identifiers = @[@"close", @"undo", @"redo", @"crop", @"rotate",
+        identifiers = @[@"close", @"undo", @"redo", @"crop", @"rotate", @"frame",
                         @"copy", @"share", @"save", @"fit", @"delete",
                         @"front", @"dock", @"collapse", @"done"];
     });
@@ -124,6 +124,7 @@
                   @"redo": @"重做",
                   @"crop": @"裁剪",
                   @"rotate": @"旋转",
+                  @"frame": @"套壳",
                   @"copy": @"复制",
                   @"share": @"分享",
                   @"save": @"保存",
@@ -224,6 +225,7 @@
                   @"redo": @"arrow.uturn.forward",
                   @"crop": @"crop.rotate",
                   @"rotate": @"rotate.right",
+                  @"frame": @"iphone",
                   @"copy": @"doc.on.doc",
                   @"share": @"square.and.arrow.up",
                   @"save": @"square.and.arrow.down",
