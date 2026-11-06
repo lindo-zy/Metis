@@ -24,6 +24,8 @@ MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	../../Modules/Capture/Sources/Editor/MTEditorLayout.m \
 	../../Modules/Capture/Sources/Editor/MTDeviceFrameRenderer.m \
 	../../Modules/Capture/Sources/Editor/MTDeviceFrameTemplateStore.m \
+	../../Modules/Capture/Sources/Editor/MTDeviceFramePhotoMaterial.m \
+	../../Modules/Capture/Sources/Editor/MTDeviceFramePhotoMaterialController.m \
 	../../Modules/Capture/Sources/Editor/MTDeviceFrameViewController.m \
 	../../Modules/Capture/Sources/Editor/MTEditorViewController.m \
 	../../Modules/Capture/Sources/Editor/MTEditorCanvas.m \

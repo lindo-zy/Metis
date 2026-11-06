@@ -1,7 +1,9 @@
 #import "MTDeviceFrameViewController.h"
 #import "MTDeviceFrameRenderer.h"
 #import "MTDeviceFrameTemplateStore.h"
+#import "MTDeviceFramePhotoMaterialController.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <PhotosUI/PhotosUI.h>
 
 static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 blue:0.08 alpha:1]; }
 
@@ -18,7 +20,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 }
 @end
 
-@interface MTDeviceFrameViewController () <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate>
+@interface MTDeviceFrameViewController () <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate>
 @property (nonatomic, strong) UIImage *source;
 @property (nonatomic, strong) UIImage *previewSource;
 @property (nonatomic) CGSize sourcePixels;
@@ -40,6 +42,10 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 @property (nonatomic) BOOL previewReady;
 @property (nonatomic) NSUInteger generation;
 @property (nonatomic, strong) dispatch_queue_t renderQueue;
+@property (nonatomic, strong) PHPickerViewController *photoPicker;
+@property (nonatomic, strong) NSProgress *photoLoadingProgress;
+@property (nonatomic, strong) NSProgress *photoOperation;
+@property (nonatomic, strong) MTDeviceFramePhotoMaterialController *photoMaterialController;
 @end
 
 @implementation MTDeviceFrameViewController
@@ -144,16 +150,16 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     self.detail.frame=CGRectMake(20,previewHeight+12,MAX(1,width-40),detailHeight);
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 8; }
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 9; }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     return self.configurationOnly
-        ? @"此处仅配置素材。保存配置后，触发「套壳截图」即自动合成并输出，无需再编辑。随机素材在每次截图时选择一次。导入时请选择 PNG 和配置两个文件。"
-        : @"截图等比完整显示；机壳圆角和摄像头会覆盖对应位置。自定义素材导入时请选择 PNG 和配置两个文件。";
+        ? @"此处仅配置素材。保存配置后，触发「套壳截图」即自动合成并输出，无需再编辑。相册素材选图后定位屏幕四角；文件导入选择 PNG 和配置两个文件。"
+        : @"截图等比完整显示。可从相册选图并定位屏幕四角，或从文件导入 PNG 和配置。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
     cell.backgroundColor=[UIColor colorWithWhite:0.14 alpha:1]; cell.selectionStyle=UITableViewCellSelectionStyleNone;
-    NSArray *labels=@[@"机壳",@"机身颜色",@"背景",@"留白",@"阴影",@"自动横屏",@"随机素材",@"导入自定义素材"];
+    NSArray *labels=@[@"机壳",@"机身颜色",@"背景",@"留白",@"阴影",@"自动横屏",@"随机素材",@"从相册导入素材",@"从文件导入素材"];
     UILabel *label=[UILabel new]; label.text=labels[path.row]; label.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     label.adjustsFontForContentSizeCategory=YES; label.numberOfLines=0;
     label.translatesAutoresizingMaskIntoConstraints=NO; [cell.contentView addSubview:label];
@@ -317,6 +323,10 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     [self invalidate]; if (completion) completion(NO,nil,MTOutputActionPreviewOnly);
 }
 - (void)invalidate {
+    self.photoPicker.delegate=nil;self.photoPicker=nil;
+    [self.photoLoadingProgress cancel];self.photoLoadingProgress=nil;
+    [self.photoOperation cancel];self.photoOperation=nil;
+    [self.photoMaterialController invalidate];self.photoMaterialController=nil;
     self.invalidated=YES; self.generation++; self.pendingRender=NO; self.completion=nil;
     self.source=nil; self.previewSource=nil; self.preview.image=nil;
     for (UITableViewCell *cell in self.table.visibleCells) {
@@ -328,15 +338,84 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     }
     self.table.delegate=nil; self.table.dataSource=nil;
 }
+- (void)dealloc {
+    _photoPicker.delegate=nil;[_photoLoadingProgress cancel];[_photoOperation cancel];[_photoMaterialController invalidate];
+}
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
     if (self.isBeingDismissed || self.navigationController.isBeingDismissed) [self invalidate];
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
     [tableView deselectRowAtIndexPath:path animated:YES];
-    if (path.row!=7 || self.importing || self.presentedViewController) return;
+    if (path.row<7 || self.importing || self.presentedViewController) return;
+    if(path.row==7){[self presentPhotoPicker];return;}
     UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeData] asCopy:NO];
     picker.allowsMultipleSelection=YES; picker.delegate=self; [self presentViewController:picker animated:YES completion:nil];
+}
+- (void)presentPhotoPicker {
+    if(self.invalidated || self.importing || self.presentedViewController || self.photoPicker)return;
+    PHPickerConfiguration *configuration=[[PHPickerConfiguration alloc]init];
+    configuration.filter=PHPickerFilter.imagesFilter;configuration.selectionLimit=1;
+    configuration.preferredAssetRepresentationMode=PHPickerConfigurationAssetRepresentationModeCurrent;
+    PHPickerViewController *picker=[[PHPickerViewController alloc]initWithConfiguration:configuration];
+    picker.delegate=self;picker.modalInPresentation=YES;self.photoPicker=picker;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+- (void)picker:(PHPickerViewController *)picker didFinishPicking:(NSArray<PHPickerResult *> *)results {
+    if(self.invalidated || picker!=self.photoPicker)return;
+    picker.delegate=nil;self.photoPicker=nil;
+    NSItemProvider *provider=results.firstObject.itemProvider;
+    __weak typeof(self) weakSelf=self;
+    [picker dismissViewControllerAnimated:YES completion:^{
+        __strong typeof(weakSelf) self=weakSelf;
+        if(!self || self.invalidated || !provider)return;
+        NSString *identifier=nil;
+        for(NSString *candidate in provider.registeredTypeIdentifiers) {
+            UTType *type=[UTType typeWithIdentifier:candidate];
+            if([type conformsToType:UTTypeImage]){identifier=candidate;if([type conformsToType:UTTypePNG])break;}
+        }
+        if(!identifier){[self showError:@"所选相册项目无法作为图片素材读取"];return;}
+        self.importing=YES;[self updateOutputState];[self.table reloadData];[self.spinner startAnimating];
+        NSProgress *operation=[NSProgress progressWithTotalUnitCount:1];self.photoOperation=operation;
+        self.photoLoadingProgress=[provider loadFileRepresentationForTypeIdentifier:identifier completionHandler:^(NSURL *URL,NSError *loadError) {
+            @autoreleasepool {
+                if(operation.cancelled)return;
+                NSError *error=loadError;
+                UIImage *image=URL && !error ? [MTDeviceFramePhotoMaterial imageFromPhotoURL:URL error:&error] : nil;
+                BOOL transparent=NO;
+                MTDeviceFrameQuad quad=image ? [MTDeviceFramePhotoMaterial suggestedScreenForImage:image hasTransparentScreen:&transparent] : MTDeviceFrameQuadForRect(CGRectZero);
+                UIImage *preview=image ? [MTDeviceFramePhotoMaterial previewForImage:image] : nil;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    __strong typeof(weakSelf) self=weakSelf;
+                    if(!self || self.invalidated || operation.cancelled || self.photoOperation!=operation)return;
+                    self.photoOperation=nil;self.photoLoadingProgress=nil;self.importing=NO;[self.spinner stopAnimating];
+                    [self updateOutputState];[self.table reloadData];
+                    if(!image || !preview){[self showError:error.localizedDescription ?: @"相册素材读取失败，请重试"];return;}
+                    [self presentPhotoMaterial:image preview:preview quad:quad transparent:transparent];
+                });
+            }
+        }];
+    }];
+}
+- (void)presentPhotoMaterial:(UIImage *)image preview:(UIImage *)preview quad:(MTDeviceFrameQuad)quad transparent:(BOOL)transparent {
+    if(self.invalidated || self.presentedViewController)return;
+    __weak typeof(self) weakSelf=self;
+    MTDeviceFramePhotoMaterialController *controller=[[MTDeviceFramePhotoMaterialController alloc]initWithImage:image
+        preview:preview suggestedQuad:quad transparentScreen:transparent completion:^(MTDeviceFrameTemplate *frame) {
+            __strong typeof(weakSelf) self=weakSelf;
+            if(!self || self.invalidated || !self.photoMaterialController ||
+                self.presentedViewController!=self.photoMaterialController.navigationController)return;
+            self.photoMaterialController=nil;
+            [self dismissViewControllerAnimated:YES completion:^{
+                __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
+                if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;}
+                [self.table reloadData];[self schedulePreview];
+            }];
+        }];
+    self.photoMaterialController=controller;
+    UINavigationController *navigation=[[UINavigationController alloc]initWithRootViewController:controller];
+    navigation.modalPresentationStyle=UIModalPresentationFullScreen;navigation.modalInPresentation=YES;
+    [self presentViewController:navigation animated:YES completion:nil];
 }
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)URLs {
     if (self.invalidated) return;

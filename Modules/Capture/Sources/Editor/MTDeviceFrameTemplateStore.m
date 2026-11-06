@@ -60,12 +60,20 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
         if (error) *error = MTFrameImportError(@"PNG 最大 20MB，配置文件最大 64KB"); return nil;
     }
     NSDictionary *dictionary = [MTDeviceFrameTemplate parseConfigurationData:[NSData dataWithContentsOfURL:configURL]];
+    NSData *data = [NSData dataWithContentsOfURL:pngURL options:NSDataReadingMappedIfSafe error:error];
+    return data ? [self importPNGData:data configuration:dictionary error:error] : nil;
+}
++ (MTDeviceFrameTemplate *)importPNGData:(NSData *)data configuration:(NSDictionary *)dictionary error:(NSError **)error {
+    if (!data.length || data.length > 20*1024*1024) {
+        if (error) *error = MTFrameImportError(@"素材 PNG 最大 20MB，请缩小图片后重试"); return nil;
+    }
+    NSFileManager *fm = NSFileManager.defaultManager;
     NSString *identifier = NSUUID.UUID.UUIDString;
     NSString *directory = [MTFrameStoreRoot() stringByAppendingPathComponent:identifier];
     MTDeviceFrameTemplate *t = [MTDeviceFrameTemplate customTemplateWithDictionary:dictionary identifier:identifier
         overlayPath:[directory stringByAppendingPathComponent:@"overlay.png"]];
     if (!t) { if (error) *error = MTFrameImportError(@"配置无效：请检查画布尺寸和屏幕四角坐标（左上为原点）"); return nil; }
-    CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)pngURL, NULL);
+    CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
     NSDictionary *info = source ? CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source,0,NULL)) : nil;
     CFStringRef imageType = source ? CGImageSourceGetType(source) : NULL;
     BOOL isPNG = imageType && CFEqual(imageType, CFSTR("public.png"));
@@ -80,7 +88,7 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
     if (self.templates.count >= 35) { if (error) *error = MTFrameImportError(@"自定义素材最多 32 个，请先删除不需要的素材"); return nil; }
     NSString *staging = [MTFrameStoreRoot() stringByAppendingPathComponent:[@".import-" stringByAppendingString:identifier]];
     BOOL ok = [fm createDirectoryAtPath:staging withIntermediateDirectories:YES attributes:nil error:error];
-    if (ok) ok = [fm copyItemAtURL:pngURL toURL:[NSURL fileURLWithPath:[staging stringByAppendingPathComponent:@"overlay.png"]] error:error];
+    if (ok) ok = [data writeToFile:[staging stringByAppendingPathComponent:@"overlay.png"] options:NSDataWritingAtomic error:error];
     if (ok) {
         NSData *data = [NSJSONSerialization dataWithJSONObject:t.dictionaryRepresentation options:NSJSONWritingPrettyPrinted error:error];
         ok = data && [data writeToFile:[staging stringByAppendingPathComponent:@"config.json"] options:NSDataWritingAtomic error:error];
