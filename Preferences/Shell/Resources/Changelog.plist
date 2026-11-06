@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>相册和文件导入的套壳素材支持重新定位屏幕四角，保留原坐标初始化，校准后另存并自动选中；原素材和自动截图输出流程保持不变。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.8</string>
 		<key>items</key>
 		<array>
@@ -51,19 +64,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>充电卡片接通电源立即显示预计充满时间，充电期间数值持续动态校正，不再出现估算中空窗。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>充电卡片厂商直接显示厂商名，不再附推断标注。</string>
 			</dict>
 		</array>
 	</dict>

@@ -72,6 +72,8 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 @property (nonatomic) BOOL cutout;
 @property (nonatomic) BOOL saving;
 @property (nonatomic) BOOL invalidated;
+@property (nonatomic) BOOL recalibrating;
+@property (nonatomic, copy) NSString *initialName;
 @property (nonatomic, strong) UITextField *nameField;
 @property (nonatomic, strong) NSProgress *operation;
 @property (nonatomic, copy) void (^completion)(MTDeviceFrameTemplate *);
@@ -81,19 +83,25 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 - (instancetype)initWithImage:(UIImage *)image preview:(UIImage *)preview suggestedQuad:(MTDeviceFrameQuad)quad
             transparentScreen:(BOOL)transparent completion:(void (^)(MTDeviceFrameTemplate *))completion {
     if((self=[super initWithStyle:UITableViewStyleInsetGrouped])) {
-        _source=image;_preview=preview;_initialQuad=quad;_cutout=!transparent;_completion=[completion copy];
+        _source=image;_preview=preview;_initialQuad=quad;_cutout=!transparent;_completion=[completion copy];_initialName=@"相册素材";
         self.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     }return self;
 }
+- (instancetype)initWithTemplate:(MTDeviceFrameTemplate *)frame image:(UIImage *)image preview:(UIImage *)preview
+                     completion:(void (^)(MTDeviceFrameTemplate *))completion {
+    if((self=[self initWithImage:image preview:preview suggestedQuad:frame.screenQuad transparentScreen:YES completion:completion])) {
+        _recalibrating=YES;_initialName=[frame.name stringByAppendingString:@"（校准）"];
+    }return self;
+}
 - (void)viewDidLoad {
-    [super viewDidLoad];self.title=@"校准套壳素材";self.view.tintColor=MTMaterialAccent();self.modalInPresentation=YES;
+    [super viewDidLoad];self.title=self.recalibrating ? @"定位素材四角" : @"校准套壳素材";self.view.tintColor=MTMaterialAccent();self.modalInPresentation=YES;
     self.navigationItem.leftBarButtonItem=[[UIBarButtonItem alloc]initWithTitle:@"取消" style:UIBarButtonItemStylePlain target:self action:@selector(cancel)];
-    self.navigationItem.rightBarButtonItem=[[UIBarButtonItem alloc]initWithTitle:@"导入" style:UIBarButtonItemStyleDone target:self action:@selector(save)];
+    self.navigationItem.rightBarButtonItem=[[UIBarButtonItem alloc]initWithTitle:self.recalibrating ? @"另存素材" : @"导入" style:UIBarButtonItemStyleDone target:self action:@selector(save)];
     self.canvas=[[MTFrameMaterialCanvas alloc]initWithFrame:CGRectZero];self.canvas.image=self.preview;
     self.canvas.pixelSize=CGSizeMake(CGImageGetWidth(self.source.CGImage),CGImageGetHeight(self.source.CGImage));self.canvas.quad=self.initialQuad;
     self.tableView.tableHeaderView=self.canvas;self.tableView.keyboardDismissMode=UIScrollViewKeyboardDismissModeOnDrag;
     self.tableView.rowHeight=UITableViewAutomaticDimension;self.tableView.estimatedRowHeight=56;
-    self.nameField=[UITextField new];self.nameField.text=@"相册素材";self.nameField.placeholder=@"素材名称";
+    self.nameField=[UITextField new];self.nameField.text=self.initialName;self.nameField.placeholder=@"素材名称";
     self.nameField.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];self.nameField.clearButtonMode=UITextFieldViewModeWhileEditing;
     self.nameField.returnKeyType=UIReturnKeyDone;
     [self.nameField addTarget:self.nameField action:@selector(resignFirstResponder) forControlEvents:UIControlEventEditingDidEndOnExit];
@@ -120,6 +128,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     }cell.contentView.userInteractionEnabled=!self.saving;return cell;
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if(self.recalibrating)return @"拖动四角定位屏幕：1 左上、2 右上、3 右下、4 左下。保存为新素材并自动选中，原素材保留。默认保留已有透明开孔和摄像头遮罩；开启挖空会额外清除所选区域。保存配置后，截图继续自动套壳输出。";
     return @"拖动四角对齐机壳屏幕：1 左上、2 右上、3 右下、4 左下。透明 PNG 已有屏幕开孔时可关闭挖空，保留圆角和摄像头遮罩；普通图片请开启。此步骤仅在导入素材时进行，截图后仍自动套壳输出。";
 }
 - (void)cutoutChanged:(UISwitch *)sender{self.cutout=sender.on;}

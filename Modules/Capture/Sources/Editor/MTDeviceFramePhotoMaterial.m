@@ -30,6 +30,23 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
 }
 
 @implementation MTDeviceFramePhotoMaterial
++ (UIImage *)imageForTemplate:(MTDeviceFrameTemplate *)frame error:(NSError **)error {
+    unsigned long long bytes=frame.overlayPath.length ? [[NSFileManager.defaultManager attributesOfItemAtPath:frame.overlayPath error:nil]fileSize] : 0;
+    if(frame.kind!=3 || !bytes || bytes>20*1024*1024 || !MTDeviceFrameValidCanvas(frame.canvasSize)) {
+        if(error)*error=MTPhotoMaterialError(@"素材图片不可用，请重新导入");return nil;
+    }
+    CGImageSourceRef source=CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:frame.overlayPath],NULL);
+    NSDictionary *info=source ? CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source,0,NULL)) : nil;
+    CGSize size=CGSizeMake([info[(id)kCGImagePropertyPixelWidth]doubleValue],[info[(id)kCGImagePropertyPixelHeight]doubleValue]);
+    CFStringRef type=source ? CGImageSourceGetType(source) : NULL;
+    BOOL valid=source && CGImageSourceGetCount(source)==1 && CGSizeEqualToSize(size,frame.canvasSize) &&
+        type && CFEqual(type,CFSTR("public.png"));
+    CGImageRef cg=valid ? CGImageSourceCreateImageAtIndex(source,0,(__bridge CFDictionaryRef)@{(id)kCGImageSourceShouldCacheImmediately:@YES}) : NULL;
+    if(source)CFRelease(source);
+    UIImage *image=cg ? [UIImage imageWithCGImage:cg] : nil;if(cg)CGImageRelease(cg);
+    if(!image && error)*error=MTPhotoMaterialError(@"素材图片与配置不一致，请重新导入");
+    return image;
+}
 + (UIImage *)imageFromPhotoURL:(NSURL *)URL error:(NSError **)error {
     if(!URL.isFileURL){if(error)*error=MTPhotoMaterialError(@"相册图片不可用，请重新选择");return nil;}
     unsigned long long bytes=[[NSFileManager.defaultManager attributesOfItemAtPath:URL.path error:nil] fileSize];
