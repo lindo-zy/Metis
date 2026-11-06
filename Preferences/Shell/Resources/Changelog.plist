@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>套壳素材支持从相册导入，自动识别透明屏幕区域并可拖动四角校准；普通图片可挖空屏幕，保留文件导入与截图后自动套壳输出。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.7</string>
 		<key>items</key>
 		<array>
@@ -51,19 +64,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>充电卡片厂商直接显示厂商名，不再附推断标注。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>充电卡片电池型号改为显示电池健康度百分比，按电池上报的额定满充容量与设计容量计算；无法取得时显示占位。</string>
 			</dict>
 		</array>
 	</dict>
