@@ -4,6 +4,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class MTDeviceFrameConfiguration;
+
 /// 一次截图任务的唯一载体。字段命名与 DEVELOPMENT.md 4.1 对应。
 /// 状态只允许 MTCaptureCoordinator 通过转换表修改；输出动作必须先 claim，保证幂等。
 @interface MTCaptureTask : NSObject
@@ -12,6 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) MTCaptureMode mode;
 @property (nonatomic, assign, readonly) MTCaptureState state;
 @property (nonatomic, strong, readonly) MTConfig *configSnapshot;
+/// 套壳截图接受请求时固定的样式，后台合成不重新读取偏好。
+@property (nonatomic, copy, nullable) MTDeviceFrameConfiguration *deviceFrameConfiguration;
 
 /// 任务的屏幕几何快照：实时区域抓屏前后必须与这组值一致，选区换算使用这组值。
 @property (nonatomic, assign, readonly) CGRect capturedScreenBounds;

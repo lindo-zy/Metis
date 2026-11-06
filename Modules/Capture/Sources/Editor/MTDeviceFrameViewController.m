@@ -72,8 +72,8 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     self.view.tintColor = MTFrameAccent();
     UIView *navigation = [UIView new]; navigation.translatesAutoresizingMaskIntoConstraints = NO;
     UIButton *cancel = [self button:@"取消" selector:@selector(cancel)];
-    self.applyButton = [self button:@"应用" selector:@selector(apply)];
-    UILabel *title = [UILabel new]; title.text = @"套壳截图";
+    self.applyButton = [self button:self.configurationOnly ? @"保存配置" : @"应用" selector:@selector(apply)];
+    UILabel *title = [UILabel new]; title.text = self.configurationOnly ? @"套壳素材" : @"套壳截图";
     title.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline]; title.textAlignment = NSTextAlignmentCenter;
     for (UIView *v in @[cancel,title,self.applyButton]) { v.translatesAutoresizingMaskIntoConstraints = NO; [navigation addSubview:v]; }
     [self.view addSubview:navigation];
@@ -87,6 +87,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
         [self button:@"保存" selector:@selector(saveOutput)]]];
     self.outputButtons.translatesAutoresizingMaskIntoConstraints = NO; self.outputButtons.spacing=10;
     self.outputButtons.distribution=UIStackViewDistributionFillEqually;
+    self.outputButtons.hidden=self.configurationOnly;
     for (UIButton *b in self.outputButtons.arrangedSubviews) {
         b.backgroundColor=[UIColor colorWithWhite:0.18 alpha:1]; b.layer.cornerRadius=13;
     }
@@ -99,12 +100,14 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
         [cancel.leadingAnchor constraintEqualToAnchor:navigation.leadingAnchor constant:16], [cancel.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
         [cancel.widthAnchor constraintEqualToConstant:64], [cancel.heightAnchor constraintEqualToConstant:44],
         [self.applyButton.trailingAnchor constraintEqualToAnchor:navigation.trailingAnchor constant:-16],
-        [self.applyButton.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor], [self.applyButton.widthAnchor constraintEqualToConstant:64],
+        [self.applyButton.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
+        [self.applyButton.widthAnchor constraintEqualToConstant:self.configurationOnly ? 90 : 64],
         [self.applyButton.heightAnchor constraintEqualToConstant:44],
         [title.centerXAnchor constraintEqualToAnchor:navigation.centerXAnchor], [title.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
         [self.outputButtons.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor constant:20],
         [self.outputButtons.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor constant:-20],
-        [self.outputButtons.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-8], [self.outputButtons.heightAnchor constraintEqualToConstant:48],
+        [self.outputButtons.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-8],
+        [self.outputButtons.heightAnchor constraintEqualToConstant:self.configurationOnly ? 0 : 48],
         [self.table.topAnchor constraintEqualToAnchor:navigation.bottomAnchor], [self.table.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
         [self.table.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor], [self.table.bottomAnchor constraintEqualToAnchor:self.outputButtons.topAnchor constant:-8]
     ]];
@@ -143,7 +146,9 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 8; }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return @"截图等比完整显示；机壳圆角和摄像头会覆盖对应位置。自定义素材导入时请选择 PNG 和配置两个文件。";
+    return self.configurationOnly
+        ? @"此处仅配置素材。保存配置后，触发「套壳截图」即自动合成并输出，无需再编辑。随机素材在每次截图时选择一次。导入时请选择 PNG 和配置两个文件。"
+        : @"截图等比完整显示；机壳圆角和摄像头会覆盖对应位置。自定义素材导入时请选择 PNG 和配置两个文件。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
@@ -158,6 +163,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
         UIStackView *stack=[UIStackView new]; stack.axis=UILayoutConstraintAxisHorizontal; stack.spacing=8;
         NSArray *names=[@[@"原图"] arrayByAddingObjectsFromArray:[self.templates valueForKey:@"name"]];
         for (NSUInteger i=0;i<names.count;i++) {
+            if (self.configurationOnly && i==0) continue;
             UIButton *b=[self button:names[i] selector:@selector(templateTapped:)]; b.tag=i;
             UIButtonConfiguration *configuration=[UIButtonConfiguration plainButtonConfiguration];
             configuration.contentInsets=NSDirectionalEdgeInsetsMake(8,12,8,12);
@@ -297,7 +303,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 - (void)finish:(MTOutputAction)action {
     if (!self.previewReady || self.importing || self.invalidated || self.presentedViewController) return;
     MTDeviceFrameConfiguration *style=self.original ? nil : [self.style copy];
-    if (style) [style remember];
+    if (style && self.configurationOnly) [style remember];
     void (^completion)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction)=self.completion;
     [self invalidate];
     if (completion) completion(YES,style,action);

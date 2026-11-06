@@ -1,5 +1,7 @@
 #import <objc/message.h>
 #import "MTCaptureCoordinator.h"
+#import "../Editor/MTDeviceFrameRenderer.h"
+#import "../Editor/MTDeviceFrameTemplateStore.h"
 #import "MTCaptureTask.h"
 #import "MTCaptureProvider.h"
 #import "MTPhotoImportSession.h"
@@ -186,6 +188,9 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
     task.outputActionOverride = action;
+    if (mode == MTCaptureModeFrame) {
+        task.deviceFrameConfiguration = [MTDeviceFrameConfiguration rememberedConfiguration];
+    }
 
     MTCaptureLogInfo(@"capture request accepted (mode %@, task %@)", MTStringFromCaptureMode(mode), task.taskID);
     [self mtRunCaptureForTask:task];
@@ -260,7 +265,9 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             }
             if (![task transitionToState:MTCaptureStateCaptured]) return;
 
-            if (task.mode == MTCaptureModeMarkup || task.mode == MTCaptureModeFrame) {
+            if (task.mode == MTCaptureModeFrame) {
+                [self mtHandleDeviceFrameResult:task];
+            } else if (task.mode == MTCaptureModeMarkup) {
                 if (isPartial) {
                     [self mtFailTask:task code:@"partial-capture" message:@"当前抓取接口无法取得完整屏幕，不能开始标记或套壳"];
                     return;
@@ -281,6 +288,43 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
                 [self mtPresentSelectionForTask:task];
             }
         }];
+    });
+}
+
+- (void)mtHandleDeviceFrameResult:(MTCaptureTask *)task {
+    if (task.isPartialCapture) {
+        [self mtFailTask:task code:@"partial-capture" message:@"无法取得完整屏幕，不能输出套壳截图"];
+        return;
+    }
+    UIImage *source = task.baseImage;
+    MTDeviceFrameConfiguration *style = [task.deviceFrameConfiguration copy];
+    if (!source || !style) {
+        [self mtFailTask:task code:@"frame-config" message:@"套壳截图配置不可用，请先在设置中配置素材"];
+        return;
+    }
+    static dispatch_queue_t frameQueue;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ frameQueue = dispatch_queue_create("com.lindo.metis.capture.frame.output", DISPATCH_QUEUE_SERIAL); });
+    dispatch_async(frameQueue, ^{
+        @autoreleasepool {
+            if ([task currentState] != MTCaptureStateCaptured) return;
+            NSArray<MTDeviceFrameTemplate *> *templates = [MTDeviceFrameTemplateStore templates];
+            MTDeviceFrameTemplate *frame = [MTDeviceFrameTemplateStore resolveTemplateForConfiguration:style templates:templates];
+            UIImage *result = frame ? [MTDeviceFrameRenderer renderImage:source configuration:style template:frame previewEdge:0] : nil;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStateCaptured) return;
+                if (!result) {
+                    [self mtFailTask:task code:@"frame-render" message:@"套壳合成失败：请检查素材是否存在、画布配置与图片尺寸"];
+                    return;
+                }
+                task.resultImage = result;
+                task.resultFilePath = nil;
+                if (![task transitionToState:MTCaptureStatePresenting]) return;
+                MTOutputAction action = task.outputActionOverride != MTOutputActionPreviewOnly
+                    ? task.outputActionOverride : task.configSnapshot.defaultResultAction;
+                [self mtExecuteOutput:action forTask:task presentingWindow:nil];
+            });
+        }
     });
 }
 
@@ -738,6 +782,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         [task unclaimOutputAction:MTOutputActionCopy];
         [task unclaimOutputAction:MTOutputActionShare];
         MTCaptureLogWarn(@"output failed, temp files kept for retry (task %@)", task.taskID);
+        if (task.mode == MTCaptureModeFrame) [self.completionToast showErrorMessage:@"套壳截图输出失败，请检查权限或重试"];
     }
 
     // 输出成功不再需要重试，任务临时目录立即回收（失败路径保留供诊断）。
@@ -850,7 +895,6 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtDestroyEditorWindow];
     MTEditorViewController *editor = [[MTEditorViewController alloc] initWithImage:task.resultImage delegate:self];
     editor.fullscreenMarkup = (task.mode == MTCaptureModeMarkup);
-    editor.startsWithDeviceFrame = (task.mode == MTCaptureModeFrame);
     editor.backdropImage = task.baseImage;
     MTCaptureWindow *window = [MTCaptureWindow mtCaptureWindow];
     window.rootViewController = editor;
@@ -1015,6 +1059,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtClearSlotIfCurrent:task];
     self.editingFloatingSnap = nil;
     [self mtRestoreFloatingSnaps];
+    if (task.mode == MTCaptureModeFrame) [self.completionToast showErrorMessage:message];
 }
 
 - (void)mtHideOwnOverlays {

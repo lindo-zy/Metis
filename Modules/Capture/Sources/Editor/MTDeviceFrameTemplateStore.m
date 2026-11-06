@@ -34,6 +34,13 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
     for (MTDeviceFrameTemplate *t in self.templates) if ([t.identifier isEqualToString:identifier]) return t;
     return nil;
 }
++ (MTDeviceFrameTemplate *)resolveTemplateForConfiguration:(MTDeviceFrameConfiguration *)configuration
+                                               templates:(NSArray<MTDeviceFrameTemplate *> *)templates {
+    if (configuration.randomize && templates.count) return templates[arc4random_uniform((uint32_t)templates.count)];
+    for (MTDeviceFrameTemplate *frame in templates)
+        if ([frame.identifier isEqualToString:configuration.templateIdentifier]) return frame;
+    return nil;
+}
 + (MTDeviceFrameTemplate *)importFiles:(NSArray<NSURL *> *)URLs error:(NSError **)error {
     NSString *failure = @"请选择一个 PNG 和一个 JSON、plist 或 cfg 配置文件";
     NSURL *pngURL = nil, *configURL = nil;
