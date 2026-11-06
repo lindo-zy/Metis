@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>截图按钮新增原生「套壳截图」，支持排序、显隐和图标名称自定义；支持保存多个素材，手动选择或每次截图随机选择已保存素材。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>自定义套壳按素材原尺寸铺满输出，移除外部留白与阴影，完整截图贴合四角并保留原有圆角和装饰。素材编辑预览铺满页面宽度。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.9</string>
 		<key>items</key>
 		<array>
@@ -51,19 +70,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>新增套壳截图与编辑器套壳面板：内置灵动岛、刘海和经典机壳，支持机身颜色、背景、留白、阴影、自动横屏、随机素材及自定义四角素材导入；透明背景以 PNG 输出。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.5</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>充电卡片接通电源立即显示预计充满时间，充电期间数值持续动态校正，不再出现估算中空窗。</string>
 			</dict>
 		</array>
 	</dict>

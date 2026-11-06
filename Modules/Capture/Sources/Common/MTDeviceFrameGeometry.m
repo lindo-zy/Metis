@@ -74,3 +74,10 @@ CGSize MTDeviceFrameOutputSize(CGSize source, CGSize canvas, CGSize screen, CGFl
     if (output.width > 8192 || output.height > 8192 || output.width*output.height > 24000000) return CGSizeZero;
     return output;
 }
+
+CGSize MTDeviceFrameCanvasOutputSize(CGSize canvas, CGFloat edge) {
+    if (!MTDeviceFrameValidCanvas(canvas) || !isfinite(edge) || edge < 0) return CGSizeZero;
+    CGFloat scale = edge > 0 ? MIN(1,edge/MAX(canvas.width,canvas.height)) : 1;
+    CGSize output = CGSizeMake(floor(canvas.width*scale),floor(canvas.height*scale));
+    return MTFramePositiveSize(output) ? output : CGSizeZero;
+}

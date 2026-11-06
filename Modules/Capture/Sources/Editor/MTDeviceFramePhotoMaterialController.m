@@ -122,14 +122,14 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
             [self.nameField.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12],
             [self.nameField.heightAnchor constraintGreaterThanOrEqualToConstant:32]]];
     }else{
-        cell.textLabel.text=@"挖空所选屏幕区域";cell.textLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];cell.textLabel.numberOfLines=0;
+        cell.textLabel.text=@"普通图片挖空屏幕";cell.textLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];cell.textLabel.numberOfLines=0;
         UISwitch *toggle=[UISwitch new];toggle.on=self.cutout;toggle.onTintColor=MTMaterialAccent();
         [toggle addTarget:self action:@selector(cutoutChanged:) forControlEvents:UIControlEventValueChanged];cell.accessoryView=toggle;
     }cell.contentView.userInteractionEnabled=!self.saving;return cell;
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if(self.recalibrating)return @"拖动四角定位屏幕：1 左上、2 右上、3 右下、4 左下。保存为新素材并自动选中，原素材保留。默认保留已有透明开孔和摄像头遮罩；开启挖空会额外清除所选区域。保存配置后，截图继续自动套壳输出。";
-    return @"拖动四角对齐机壳屏幕：1 左上、2 右上、3 右下、4 左下。透明 PNG 已有屏幕开孔时可关闭挖空，保留圆角和摄像头遮罩；普通图片请开启。此步骤仅在导入素材时进行，截图后仍自动套壳输出。";
+    if(self.recalibrating)return @"拖动四角定位屏幕：1 左上、2 右上、3 右下、4 左下。保存为新素材并自动选中，原素材保留。已有透明开孔始终保留圆角、摄像头和装饰；普通图片可开启挖空。保存配置后，截图继续自动套壳输出。";
+    return @"拖动四角对齐机壳屏幕：1 左上、2 右上、3 右下、4 左下。透明 PNG 已有屏幕开孔时自动保留圆角、摄像头和装饰；普通图片可开启挖空。此步骤仅在导入素材时进行，截图后仍自动套壳输出。";
 }
 - (void)cutoutChanged:(UISwitch *)sender{self.cutout=sender.on;}
 - (void)save {

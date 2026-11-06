@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// 识别最大封闭透明区，忽略连接画布边缘的透明背景；未识别时给出可手动调整的初始区域。
 + (MTDeviceFrameQuad)suggestedScreenForImage:(UIImage *)image hasTransparentScreen:(BOOL *)transparent;
 + (nullable UIImage *)previewForImage:(UIImage *)image;
-/// cutout=YES 时清除选中屏幕四边形；NO 保留原 PNG 的圆角/摄像头透明遮罩。
+/// 已有透明开孔始终保留遮罩；普通图片 cutout=YES 时清除所选屏幕四边形。
 + (nullable MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
                                    screenQuad:(MTDeviceFrameQuad)quad cutout:(BOOL)cutout error:(NSError **)error;
 @end

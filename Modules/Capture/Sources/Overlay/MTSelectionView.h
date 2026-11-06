@@ -25,6 +25,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)selectionViewDidRequestFullscreenMarkup:(MTSelectionView *)view;
 /// 工具栏“全屏截图”按钮：无视当前框选内容，直接全屏抓屏并保存＋复制（不进选区后续流程）。
 - (void)selectionViewDidRequestFullscreenShot:(MTSelectionView *)view;
+/// 工具栏“套壳截图”按钮：收起选区后重新抓取整屏，按已保存素材自动合成并输出。
+- (void)selectionViewDidRequestDeviceFrameShot:(MTSelectionView *)view;
 /// 自定义 URL 按钮点击：url 来自 SelectionCustomButtons 记录，由协调器收掉选区后打开。
 - (void)selectionView:(MTSelectionView *)view didRequestCustomURL:(NSURL *)url;
 @end

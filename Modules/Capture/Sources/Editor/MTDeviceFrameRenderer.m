@@ -10,7 +10,7 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
     if (!source) return nil;
     CGImageRef image = CGImageSourceCreateThumbnailAtIndex(source,0,(__bridge CFDictionaryRef)@{
         (id)kCGImageSourceCreateThumbnailFromImageAlways:@YES, (id)kCGImageSourceThumbnailMaxPixelSize:@(ceil(edge)),
-        (id)kCGImageSourceCreateThumbnailWithTransform:@YES, (id)kCGImageSourceShouldCacheImmediately:@YES});
+        (id)kCGImageSourceCreateThumbnailWithTransform:@NO, (id)kCGImageSourceShouldCacheImmediately:@YES});
     CFRelease(source);
     UIImage *result = image ? [UIImage imageWithCGImage:image] : nil;
     if (image) CGImageRelease(image);
@@ -34,15 +34,17 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
     CGSize canvas = landscape ? CGSizeMake(frame.canvasSize.height,frame.canvasSize.width) : frame.canvasSize;
     MTDeviceFrameQuad q = landscape ? MTDeviceFrameLandscapeQuad(frame.screenQuad,frame.canvasSize) : frame.screenQuad;
     CGSize screen = MTDeviceFrameScreenSize(q);
-    CGSize output = MTDeviceFrameOutputSize(pixels,canvas,screen,c.paddingFraction,edge);
+    BOOL custom = frame.kind == 3;
+    CGSize output = custom ? MTDeviceFrameCanvasOutputSize(canvas,edge)
+        : MTDeviceFrameOutputSize(pixels,canvas,screen,c.paddingFraction,edge);
     if (CGSizeEqualToSize(output,CGSizeZero)) return nil;
-    CGFloat margin = MIN(canvas.width,canvas.height)*c.paddingFraction;
+    CGFloat margin = custom ? 0 : MIN(canvas.width,canvas.height)*c.paddingFraction;
     CGFloat density = output.width/(canvas.width+2*margin);
     UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat new];
     format.scale = 1; format.opaque = c.background != 0;
     format.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
 
-    // 自定义素材先把完整截图铺在屏幕平面上，再通过四点透视变换映射。
+    // 自定义素材用原画布尺寸输出；完整截图直接贴合四角，不扩边或额外加阴影。
     UIImage *warped = nil, *overlay = nil;
     if (frame.kind == 3) {
         overlay = MTFrameLoadOverlay(frame.overlayPath,MAX(canvas.width,canvas.height)*density);
@@ -53,7 +55,7 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
         UIImage *plate = [[[UIGraphicsImageRenderer alloc] initWithSize:plateSize format:plateFormat]
             imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
                 [UIColor.blackColor setFill]; UIRectFill((CGRect){CGPointZero,plateSize});
-                [source drawInRect:MTDeviceFrameAspectFit(source.size,(CGRect){CGPointZero,plateSize})];
+                [source drawInRect:(CGRect){CGPointZero,plateSize}];
             }];
         CIFilter *filter = [CIFilter filterWithName:@"CIPerspectiveTransform"];
         [filter setValue:[CIImage imageWithCGImage:plate.CGImage] forKey:kCIInputImageKey];
@@ -75,7 +77,8 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
     return [[[UIGraphicsImageRenderer alloc] initWithSize:output format:format]
         imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
             CGContextRef context = ctx.CGContext;
-            [[self backgroundColor:c.background] setFill]; UIRectFill((CGRect){CGPointZero,output});
+            UIColor *background = custom && c.background != 0 ? [UIColor colorWithWhite:1 alpha:1] : [self backgroundColor:c.background];
+            [background setFill]; UIRectFill((CGRect){CGPointZero,output});
             if (warped) [warped drawInRect:(CGRect){CGPointZero,output}];
             CGContextSaveGState(context);
             CGContextScaleCTM(context,density,density);
@@ -86,7 +89,6 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
             }
             CGRect body = CGRectInset((CGRect){CGPointZero,frame.canvasSize},3,3);
             if (frame.kind == 3) {
-                if (c.shadow) CGContextSetShadowWithColor(context,CGSizeMake(0,7),12,[UIColor colorWithWhite:0 alpha:0.3].CGColor);
                 [overlay drawInRect:(CGRect){CGPointZero,frame.canvasSize}];
             } else {
                 if (c.shadow) {

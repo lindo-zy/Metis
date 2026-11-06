@@ -34,6 +34,8 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 @property (nonatomic, strong) UIButton *applyButton;
 @property (nonatomic, strong) UIStackView *outputButtons;
 @property (nonatomic, strong) UIScrollView *templateScroll;
+@property (nonatomic, weak) UIButton *selectedTemplateButton;
+@property (nonatomic) BOOL revealSelectedTemplate;
 @property (nonatomic) BOOL original;
 @property (nonatomic) BOOL invalidated;
 @property (nonatomic) BOOL rendering;
@@ -70,7 +72,8 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     return nil;
 }
 - (void)randomizeTemplate {
-    if (self.templates.count) self.style.templateIdentifier = self.templates[arc4random_uniform((uint32_t)self.templates.count)].identifier;
+    MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];
+    if(frame)self.style.templateIdentifier=frame.identifier;
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -139,33 +142,56 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     [super viewDidLayoutSubviews];
     UIView *header=self.table.tableHeaderView;
     CGFloat width=self.table.bounds.size.width;
+    MTDeviceFrameTemplate *frame=[self frame];
+    BOOL fullCanvas=!self.original && frame.kind==3;
     CGFloat previewHeight=MAX(180,MIN(380,self.view.bounds.size.height*0.40));
+    if(fullCanvas) {
+        CGSize canvas=frame.canvasSize;
+        if(self.style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width)
+            canvas=CGSizeMake(canvas.height,canvas.width);
+        previewHeight=width*canvas.height/canvas.width;
+    }
     CGFloat detailHeight=MAX(44,[self.detail sizeThatFits:CGSizeMake(MAX(1,width-40),CGFLOAT_MAX)].height+12);
     CGFloat height=previewHeight+detailHeight+16;
     if (header.frame.size.width!=width || header.frame.size.height!=height) {
         header.frame=CGRectMake(0,0,width,height); self.table.tableHeaderView=header;
     }
-    UIView *checker=[header viewWithTag:200]; checker.frame=CGRectMake(20,8,MAX(1,width-40),previewHeight);
+    UIView *checker=[header viewWithTag:200];
+    checker.layer.cornerRadius=fullCanvas ? 0 : 16;
+    checker.frame=CGRectMake(fullCanvas ? 0 : 20,fullCanvas ? 0 : 8,MAX(1,fullCanvas ? width : width-40),previewHeight);
     self.preview.frame=checker.bounds; self.spinner.center=CGPointMake(checker.bounds.size.width/2,previewHeight/2);
     self.detail.frame=CGRectMake(20,previewHeight+12,MAX(1,width-40),detailHeight);
+    if(self.revealSelectedTemplate && self.selectedTemplateButton) {
+        [self.templateScroll layoutIfNeeded];
+        [self.templateScroll scrollRectToVisible:[self.selectedTemplateButton convertRect:self.selectedTemplateButton.bounds toView:self.templateScroll] animated:NO];
+        self.revealSelectedTemplate=NO;
+    }
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 10; }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     return self.configurationOnly
-        ? @"此处仅配置素材。保存配置后，触发「套壳截图」即自动合成并输出，无需再编辑。相册素材选图后定位屏幕四角；文件导入选择 PNG 和配置两个文件。选中已导入素材可重新定位四角并另存。"
-        : @"截图等比完整显示。可从相册选图，或从文件导入 PNG 和配置。选中已导入素材可重新定位屏幕四角。";
+        ? @"可保存最多 32 个自定义素材。左右滑动选择固定素材；开启随机后，每次截图从已保存素材中选择一个（没有自定义素材时使用内置）。自定义素材按原画布铺满输出，保留圆角和装饰。保存配置后自动套壳输出。选中已导入素材可重新定位四角并另存。"
+        : @"自定义素材铺满原画布，截图贴合四角；内置机壳等比完整显示。可从相册或文件导入，选中已导入素材可重新定位四角。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
     cell.backgroundColor=[UIColor colorWithWhite:0.14 alpha:1]; cell.selectionStyle=UITableViewCellSelectionStyleNone;
     NSArray *labels=@[@"机壳",@"机身颜色",@"背景",@"留白",@"阴影",@"自动横屏",@"随机素材",@"从相册导入素材",@"从文件导入素材",@"定位素材四角"];
     UILabel *label=[UILabel new]; label.text=labels[path.row]; label.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    BOOL custom=!self.original && [self frame].kind==3;
+    if(path.row==0) {
+        NSUInteger saved=0;for(MTDeviceFrameTemplate *frame in self.templates)if(frame.kind==3)saved++;
+        label.text=[NSString stringWithFormat:@"素材库 · 已保存 %lu 个\n%@：%@",(unsigned long)saved,
+            self.style.randomize ? @"随机预览" : @"当前",self.original ? @"原图" : [self frame].name];
+    } else if(custom && path.row==2) label.text=@"透明区域底色";
+    else if(custom && (path.row==1 || path.row==3 || path.row==4))label.textColor=UIColor.secondaryLabelColor;
     label.adjustsFontForContentSizeCategory=YES; label.numberOfLines=0;
     label.translatesAutoresizingMaskIntoConstraints=NO; [cell.contentView addSubview:label];
     UIView *control=nil;
     if (path.row==0) {
         UIScrollView *scroll=[UIScrollView new]; scroll.showsHorizontalScrollIndicator=YES;
+        self.selectedTemplateButton=nil;self.revealSelectedTemplate=YES;
         UIStackView *stack=[UIStackView new]; stack.axis=UILayoutConstraintAxisHorizontal; stack.spacing=8;
         NSArray *names=[@[@"原图"] arrayByAddingObjectsFromArray:[self.templates valueForKey:@"name"]];
         for (NSUInteger i=0;i<names.count;i++) {
@@ -178,6 +204,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
             b.backgroundColor=selected ? MTFrameAccent() : [UIColor colorWithWhite:0.22 alpha:1];
             [b setTitleColor:selected ? UIColor.blackColor : UIColor.whiteColor forState:UIControlStateNormal];
             b.accessibilityTraits=UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
+            if(selected)self.selectedTemplateButton=b;
             if (i>3) [b addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(deleteTemplate:)]];
             [stack addArrangedSubview:b];
         }
@@ -189,8 +216,9 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
             [stack.heightAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.heightAnchor]]];
         control=scroll; self.templateScroll=scroll;
     } else if (path.row==1 || path.row==2) {
-        UISegmentedControl *segments=[[UISegmentedControl alloc] initWithItems:path.row==1 ? @[@"石墨",@"银白",@"原色",@"蓝"] : @[@"透明",@"雾白",@"深灰",@"浅紫"]];
-        segments.selectedSegmentIndex=path.row==1 ? self.style.bodyColor : self.style.background;
+        NSArray *items=path.row==1 ? @[@"石墨",@"银白",@"原色",@"蓝"] : (custom ? @[@"透明",@"白色"] : @[@"透明",@"雾白",@"深灰",@"浅紫"]);
+        UISegmentedControl *segments=[[UISegmentedControl alloc] initWithItems:items];
+        segments.selectedSegmentIndex=path.row==1 ? self.style.bodyColor : (custom ? (self.style.background!=0) : self.style.background);
         segments.selectedSegmentTintColor=MTFrameAccent();
         [segments setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.blackColor} forState:UIControlStateSelected];
         segments.tag=path.row; segments.accessibilityLabel=labels[path.row];
@@ -198,11 +226,13 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
         segments.enabled=!(path.row==1 && [self frame].kind==3); control=segments;
     } else if (path.row==3) {
         UISlider *slider=[UISlider new]; slider.minimumValue=0; slider.maximumValue=0.25; slider.value=self.style.paddingFraction;
+        if(custom){slider.value=0;slider.enabled=NO;}
         slider.accessibilityLabel=@"留白比例"; slider.accessibilityValue=[NSString stringWithFormat:@"%.0f%%",slider.value*100];
         [slider addTarget:self action:@selector(paddingChanged:) forControlEvents:UIControlEventValueChanged]; control=slider;
     } else if (path.row<7) {
         UISwitch *toggle=[UISwitch new]; toggle.onTintColor=MTFrameAccent(); toggle.tag=path.row;
         toggle.on=path.row==4 ? self.style.shadow : (path.row==5 ? self.style.autoLandscape : self.style.randomize);
+        if(custom && path.row==4){toggle.on=NO;toggle.enabled=NO;}
         toggle.accessibilityLabel=labels[path.row]; [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged]; control=toggle;
     } else {
         cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator; cell.selectionStyle=UITableViewCellSelectionStyleDefault;
@@ -239,6 +269,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 }
 - (void)templateTapped:(UIButton *)sender {
     self.original=sender.tag==0;
+    self.style.randomize=NO;
     if (!self.original) self.style.templateIdentifier=self.templates[sender.tag-1].identifier;
     [self.table reloadData]; [self schedulePreview];
 }
@@ -294,11 +325,13 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
                     if (style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width) {
                         quad=MTDeviceFrameLandscapeQuad(quad,canvas); canvas=CGSizeMake(canvas.height,canvas.width);
                     }
-                    CGSize output=original ? self.sourcePixels : MTDeviceFrameOutputSize(self.sourcePixels,canvas,MTDeviceFrameScreenSize(quad),style.paddingFraction,0);
+                    CGSize output=original ? self.sourcePixels : (frame.kind==3 ? MTDeviceFrameCanvasOutputSize(canvas,0)
+                        : MTDeviceFrameOutputSize(self.sourcePixels,canvas,MTDeviceFrameScreenSize(quad),style.paddingFraction,0));
                     if (CGSizeEqualToSize(output,CGSizeZero)) self.previewReady=NO;
                     self.detail.text=self.previewReady ? [NSString stringWithFormat:@"%@ · %.0f × %.0f px · %@",
                         original ? @"原图" : frame.name,output.width,output.height,
-                        !original && style.background==0 ? @"透明 PNG" : @"完整显示"] : @"无法合成：请缩小原图或更换素材（输出上限 24MP / 8192px）";
+                        !original && frame.kind==3 ? (style.background==0 ? @"铺满画布 · 透明 PNG" : @"铺满画布")
+                        : (!original && style.background==0 ? @"透明 PNG" : @"完整显示")] : @"无法合成：请缩小原图或更换素材（输出上限 24MP / 8192px）";
                     [self updateOutputState]; [self.view setNeedsLayout];
                 }
                 [self renderNextPreview];
@@ -442,7 +475,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     __weak typeof(self) weakSelf=self;
     [self dismissViewControllerAnimated:YES completion:^{
         __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
-        if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;}
+        if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;self.style.randomize=NO;}
         [self.table reloadData];[self schedulePreview];
     }];
 }
@@ -468,7 +501,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
                 __strong typeof(weakSelf) self=weakSelf;
                 if (!self || self.invalidated) return;
                 self.importing=NO; self.templates=templates;
-                if (frame) { self.style.templateIdentifier=frame.identifier; self.original=NO; }
+                if (frame) { self.style.templateIdentifier=frame.identifier; self.original=NO; self.style.randomize=NO; }
                 else [self showError:error.localizedDescription ?: @"素材导入失败"];
                 [self.table reloadData]; [self schedulePreview];
             });

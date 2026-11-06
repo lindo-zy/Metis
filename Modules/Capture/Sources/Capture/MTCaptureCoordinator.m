@@ -410,6 +410,16 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     [self mtRequestCapture:MTCaptureModeFull outputAction:MTOutputActionSaveAndCopy];
 }
 
+- (void)selectionViewDidRequestDeviceFrameShot:(MTSelectionView *)view {
+    MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
+    if (!task || view != self.selectionView || !view.userInteractionEnabled ||
+        (task.mode != MTCaptureModeArea && task.mode != MTCaptureModeFreeze)) return;
+    // 先释放选区任务和窗口，再走原生套壳入口，读取配置并等待覆盖层退出后重抓整屏。
+    [self selectionViewDidCancel:view];
+    MTCaptureLogInfo(@"selection toolbar requested automatic device frame shot");
+    [self requestCapture:MTCaptureModeFrame];
+}
+
 - (void)selectionView:(MTSelectionView *)view didRequestCustomURL:(NSURL *)url {
     // 自定义 URL 按钮：选区会话到此结束（不产出图片），再交给系统 URL 分发层。
     // openURL 的完成回调线程不确定，只记日志；打开失败时目标 App 未注册该 scheme。

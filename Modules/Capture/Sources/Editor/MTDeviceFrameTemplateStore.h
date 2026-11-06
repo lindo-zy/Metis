@@ -5,7 +5,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface MTDeviceFrameTemplateStore : NSObject
 + (NSArray<MTDeviceFrameTemplate *> *)templates;
 + (nullable MTDeviceFrameTemplate *)templateForIdentifier:(NSString *)identifier;
-/// 每个请求只选择一次；失效素材明确失败，不静默替换用户配置。
+/// 每个请求只选择一次；随机优先从已保存自定义素材选择，无自定义时使用内置。固定素材失效明确失败。
 + (nullable MTDeviceFrameTemplate *)resolveTemplateForConfiguration:(MTDeviceFrameConfiguration *)configuration
                                                         templates:(NSArray<MTDeviceFrameTemplate *> *)templates;
 /// 在后台队列调用。传入已获取 security-scope 的 URL，只接受一份 PNG 和一份配置。
