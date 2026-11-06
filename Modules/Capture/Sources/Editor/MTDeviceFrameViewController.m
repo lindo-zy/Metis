@@ -161,11 +161,14 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     checker.frame=CGRectMake(fullCanvas ? 0 : 20,fullCanvas ? 0 : 8,MAX(1,fullCanvas ? width : width-40),previewHeight);
     self.preview.frame=checker.bounds; self.spinner.center=CGPointMake(checker.bounds.size.width/2,previewHeight/2);
     self.detail.frame=CGRectMake(20,previewHeight+12,MAX(1,width-40),detailHeight);
-    if(self.revealSelectedTemplate && self.selectedTemplateButton) {
-        [self.templateScroll layoutIfNeeded];
-        [self.templateScroll scrollRectToVisible:[self.selectedTemplateButton convertRect:self.selectedTemplateButton.bounds toView:self.templateScroll] animated:NO];
-        self.revealSelectedTemplate=NO;
-    }
+    [self revealCurrentTemplate];
+}
+- (void)revealCurrentTemplate {
+    if(self.invalidated || !self.revealSelectedTemplate || !self.selectedTemplateButton || self.templateScroll.bounds.size.width<=0)return;
+    [self.templateScroll layoutIfNeeded];
+    CGRect selected=[self.selectedTemplateButton convertRect:self.selectedTemplateButton.bounds toView:self.templateScroll];
+    if(CGRectIsEmpty(selected))return;
+    [self.templateScroll scrollRectToVisible:selected animated:NO];self.revealSelectedTemplate=NO;
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 10; }
@@ -215,6 +218,13 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
             [stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor],
             [stack.heightAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.heightAnchor]]];
         control=scroll; self.templateScroll=scroll;
+        // 素材行可能在长预览下面，首次滚入屏幕后再用实际布局定位选中项。
+        __weak typeof(self) weakSelf=self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf) self=weakSelf;
+            if(!self || self.invalidated || self.templateScroll!=scroll)return;
+            [self.table layoutIfNeeded];[self revealCurrentTemplate];
+        });
     } else if (path.row==1 || path.row==2) {
         NSArray *items=path.row==1 ? @[@"石墨",@"银白",@"原色",@"蓝"] : (custom ? @[@"透明",@"白色"] : @[@"透明",@"雾白",@"深灰",@"浅紫"]);
         UISegmentedControl *segments=[[UISegmentedControl alloc] initWithItems:items];
