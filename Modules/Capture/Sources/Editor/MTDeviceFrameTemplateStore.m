@@ -36,7 +36,12 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
 }
 + (MTDeviceFrameTemplate *)resolveTemplateForConfiguration:(MTDeviceFrameConfiguration *)configuration
                                                templates:(NSArray<MTDeviceFrameTemplate *> *)templates {
-    if (configuration.randomize && templates.count) return templates[arc4random_uniform((uint32_t)templates.count)];
+    if (configuration.randomize && templates.count) {
+        NSMutableArray<MTDeviceFrameTemplate *> *saved = [NSMutableArray new];
+        for (MTDeviceFrameTemplate *frame in templates) if (frame.kind == 3) [saved addObject:frame];
+        NSArray<MTDeviceFrameTemplate *> *pool = saved.count ? saved : templates;
+        return pool[arc4random_uniform((uint32_t)pool.count)];
+    }
     for (MTDeviceFrameTemplate *frame in templates)
         if ([frame.identifier isEqualToString:configuration.templateIdentifier]) return frame;
     return nil;

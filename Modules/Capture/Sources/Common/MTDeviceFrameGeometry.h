@@ -21,6 +21,8 @@ CGRect MTDeviceFrameAspectFit(CGSize content, CGRect bounds);
 /// 正式输出超过 24MP/8192px 返回 CGSizeZero，不静默降质。
 CGSize MTDeviceFrameOutputSize(CGSize sourcePixels, CGSize canvas, CGSize screen,
                              CGFloat paddingFraction, CGFloat previewEdge);
+/// 自定义素材以原画布像素完整输出，不扩边；预览按原比例缩小。
+CGSize MTDeviceFrameCanvasOutputSize(CGSize canvas, CGFloat previewEdge);
 
 #ifdef __cplusplus
 }

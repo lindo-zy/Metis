@@ -558,6 +558,12 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         }
         return;
     }
+    if ([identifier isEqualToString:@"frameshot"]) {
+        if (!self.isInstantMode && [self.delegate respondsToSelector:@selector(selectionViewDidRequestDeviceFrameShot:)]) {
+            [self.delegate selectionViewDidRequestDeviceFrameShot:self];
+        }
+        return;
+    }
     // 自定义 URL 按钮：id 存在于 SelectionCustomButtons 记录时交给协调器打开。
     NSString *customURLString = [MTEditorOrder customURLForSelectionIdentifier:identifier];
     if (customURLString.length > 0) {

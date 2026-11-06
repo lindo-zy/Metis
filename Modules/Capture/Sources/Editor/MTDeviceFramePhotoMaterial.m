@@ -108,6 +108,9 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
     }
     free(seen);free(queue);CGContextRelease(context);
     if(bestCount<count*0.02)return fallback;
+    // 低分辨率检测边缘向外覆盖一个采样像素，避免开孔边缘露出底色；原 PNG 遮罩裁出真实轮廓。
+    bestX=bestX>0 ? bestX-1 : 0;bestY=bestY>0 ? bestY-1 : 0;
+    bestRight=MIN(width,bestRight+1);bestBottom=MIN(height,bestBottom+1);
     CGRect rect=CGRectMake(bestX*size.width/width,bestY*size.height/height,
         (bestRight-bestX)*size.width/width,(bestBottom-bestY)*size.height/height);
     MTDeviceFrameQuad result=MTDeviceFrameQuadForRect(rect);
@@ -131,13 +134,15 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
     if(!MTDeviceFrameValidQuad(q,size)) {
         if(error)*error=MTPhotoMaterialError(@"屏幕四角无效，请按左上、右上、右下、左下顺序调整");return nil;
     }
-    if(!cutout && !MTPhotoMaterialHasOpening(image.CGImage,q)) {
-        if(error)*error=MTPhotoMaterialError(@"所选屏幕区域没有透明开孔，请开启「挖空所选屏幕区域」");return nil;
+    BOOL hasOpening=MTPhotoMaterialHasOpening(image.CGImage,q);
+    if(!cutout && !hasOpening) {
+        if(error)*error=MTPhotoMaterialError(@"所选屏幕区域没有透明开孔，请开启「普通图片挖空屏幕」");return nil;
     }
     CGContextRef context=MTPhotoMaterialContext((size_t)size.width,(size_t)size.height);
     if(!context){if(error)*error=MTPhotoMaterialError(@"无法处理素材，请缩小图片后重试");return nil;}
     CGContextDrawImage(context,(CGRect){CGPointZero,size},image.CGImage);
-    if(cutout) {
+    // 已有透明屏幕的素材保留整张遮罩，避免四边形挖空破坏圆角和叠在屏幕上的装饰。
+    if(cutout && !hasOpening) {
         CGPoint points[]={q.topLeft,q.topRight,q.bottomRight,q.bottomLeft};
         CGContextSetBlendMode(context,kCGBlendModeClear);
         CGContextMoveToPoint(context,points[0].x,size.height-points[0].y);

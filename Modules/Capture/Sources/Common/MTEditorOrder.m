@@ -60,7 +60,7 @@
     static NSArray<NSString *> *identifiers;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        identifiers = @[@"cancel", @"selectall", @"fullshot", @"markup", @"freeze", @"editor", @"float", @"long",
+        identifiers = @[@"cancel", @"selectall", @"fullshot", @"frameshot", @"markup", @"freeze", @"editor", @"float", @"long",
                         @"save", @"copy",
                         @"shellxarea", @"shellxinstant", @"shellxfreeze",
                         @"shellxshot", @"shellxclose",
@@ -168,6 +168,7 @@
         names = @{@"cancel": @"取消",
                   @"selectall": @"全屏",
                   @"fullshot": @"全屏截图",
+                  @"frameshot": @"套壳截图",
                   @"markup": @"全屏标记",
                   @"freeze": @"冻结",
                   @"editor": @"编辑",
@@ -283,6 +284,7 @@
         icons = @{@"cancel": @"xmark.circle",
                   @"selectall": @"viewfinder",
                   @"fullshot": @"camera",
+                  @"frameshot": @"iphone",
                   @"markup": @"checkmark.rectangle",
                   @"freeze": @"snowflake",
                   @"editor": @"pencil.and.outline",
