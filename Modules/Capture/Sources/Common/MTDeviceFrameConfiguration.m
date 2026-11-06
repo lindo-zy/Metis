@@ -11,6 +11,8 @@
     return self;
 }
 + (instancetype)rememberedConfiguration {
+    // 配置由 Preferences 写入，常驻 SpringBoard 每次新任务都同步后读取。
+    CFPreferencesAppSynchronize((__bridge CFStringRef)MTCapturePreferencesDomain);
     CFPropertyListRef value = CFPreferencesCopyAppValue(CFSTR("DeviceFrameStyle"),
                                                        (__bridge CFStringRef)MTCapturePreferencesDomain);
     id dictionary = CFBridgingRelease(value);

@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.6.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>套壳截图改为预先配置素材、截图后自动合成并直接保存或复制；新增套壳设置入口，截图完成不再进入编辑器。编辑器内的临时调整不再覆盖全局套壳素材。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.6.6</string>
 		<key>items</key>
 		<array>
@@ -51,19 +64,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>充电卡片电池型号改为显示电池健康度百分比，按电池上报的额定满充容量与设计容量计算；无法取得时显示占位。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>充电卡片容量区改为显示电池最大容量，替代原设计容量；百分比电量计上无法取得时显示占位。</string>
 			</dict>
 		</array>
 	</dict>

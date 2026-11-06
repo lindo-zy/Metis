@@ -38,6 +38,10 @@ static const NSTimeInterval MTCompletionToastDuration = 2.0;
     [self mtShowMessage:@"截图已复制" assetIdentifier:nil opensPhoto:NO];
 }
 
+- (void)showErrorMessage:(NSString *)message {
+    [self mtShowMessage:message assetIdentifier:nil opensPhoto:NO];
+}
+
 - (void)showSavedAssetIdentifier:(NSString *)identifier {
     [self mtShowMessage:@"截图已保存，点击查看" assetIdentifier:identifier opensPhoto:YES];
 }

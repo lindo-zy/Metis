@@ -124,7 +124,6 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
 @property (nonatomic, strong) UIButton *rotateButton;
 @property (nonatomic, strong) UIButton *frameButton;
 @property (nonatomic, strong) MTDeviceFrameViewController *frameController;
-@property (nonatomic, assign) BOOL didOpenInitialFrame;
 @property (nonatomic, strong) UIButton *undoButton;
 @property (nonatomic, strong) UIButton *redoButton;
 @property (nonatomic, strong) UIButton *clipboardButton;
@@ -215,14 +214,6 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
 - (void)dealloc {
     [self.frameController invalidate];
     [self.canvas prepareForDismissal];
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-    [super viewDidAppear:animated];
-    if (self.startsWithDeviceFrame && !self.didOpenInitialFrame) {
-        self.didOpenInitialFrame = YES;
-        [self mtFrameTapped:nil];
-    }
 }
 
 /// 编辑器销毁前由协调器调用：断开 view→手势→self 的强引用环
