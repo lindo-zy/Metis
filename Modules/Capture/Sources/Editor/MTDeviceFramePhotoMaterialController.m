@@ -140,7 +140,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     self.zoomTools.frame=CGRectMake(MAX(0,self.bounds.size.width-188),1,180,44);
     CGPoint points[]={self.quad.topLeft,self.quad.topRight,self.quad.bottomRight,self.quad.bottomLeft};
     for(NSInteger i=0;i<4;i++){self.handles[i].bounds=CGRectMake(0,0,44,44);self.handles[i].center=[self displayPoint:points[i]];
-        self.handles[i].hidden=!CGRectContainsPoint(area,self.handles[i].center);}
+        self.handles[i].hidden=!CGRectContainsPoint(CGRectInset(area,-0.5,-0.5),self.handles[i].center);}
     [self setNeedsDisplay];
 }
 - (void)drawRect:(CGRect)rect {
@@ -153,7 +153,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     [MTMaterialAccent()setStroke];path.lineWidth=1.5;[path stroke];
     CGContextRestoreGState(context);
     for(NSUInteger i=0;i<4;i++) {
-        CGPoint center=[self displayPoint:p[i]];if(!CGRectContainsPoint([self viewport],center))continue;
+        CGPoint center=[self displayPoint:p[i]];if(!CGRectContainsPoint(CGRectInset([self viewport],-0.5,-0.5),center))continue;
         CGFloat radius=(NSInteger)i==self.selectedCorner ? 11 : 9;
         UIBezierPath *dot=[UIBezierPath bezierPathWithOvalInRect:CGRectMake(center.x-radius,center.y-radius,2*radius,2*radius)];
         [MTMaterialAccent()setFill];[dot fill];[UIColor.whiteColor setStroke];dot.lineWidth=1;[dot stroke];
