@@ -126,10 +126,12 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
     if(!MTDeviceFrameValidQuad(result,size))return fallback;
     if(transparent)*transparent=YES;return result;
 }
-+ (UIImage *)previewForImage:(UIImage *)image {
-    if(!image.CGImage)return nil;
++ (UIImage *)previewForImage:(UIImage *)image { return [self previewForImage:image maximumEdge:1200]; }
++ (UIImage *)previewForImage:(UIImage *)image maximumEdge:(CGFloat)edge {
+    if(!image.CGImage || !isfinite(edge) || edge<16)return nil;
+    edge=MIN(2400,edge);
     CGSize size=CGSizeMake(CGImageGetWidth(image.CGImage),CGImageGetHeight(image.CGImage));
-    CGFloat factor=MIN(1,1200.0/MAX(size.width,size.height));
+    CGFloat factor=MIN(1,edge/MAX(size.width,size.height));
     CGContextRef context=MTPhotoMaterialContext(MAX(1,floor(size.width*factor)),MAX(1,floor(size.height*factor)));
     if(!context)return nil;
     CGContextDrawImage(context,CGRectMake(0,0,CGBitmapContextGetWidth(context),CGBitmapContextGetHeight(context)),image.CGImage);

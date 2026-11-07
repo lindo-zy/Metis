@@ -17,6 +17,11 @@ MTDeviceFrameQuad MTDeviceFrameQuadForRect(CGRect rect);
 MTDeviceFrameQuad MTDeviceFrameLandscapeQuad(MTDeviceFrameQuad quad, CGSize portraitCanvas);
 CGSize MTDeviceFrameScreenSize(MTDeviceFrameQuad quad);
 CGRect MTDeviceFrameAspectFit(CGSize content, CGRect bounds);
+/// 素材画布的查看变换；只作用于显示，不改原始四角。缩放限于 1…8，平移受画布边界约束。
+CGRect MTDeviceFrameZoomRect(CGSize content, CGRect viewport, CGFloat zoom, CGPoint offset);
+/// 保持手势锚点对应的原图像素，允许捏合中心在缩放过程中移动。
+CGPoint MTDeviceFrameZoomOffset(CGSize content, CGRect viewport, CGFloat oldZoom, CGPoint oldOffset,
+                               CGFloat newZoom, CGPoint oldAnchor, CGPoint newAnchor);
 /// 按源图与屏幕等比完整显示确定密度；previewEdge>0 时允许预览降采样。
 /// 正式输出超过 24MP/8192px 返回 CGSizeZero，不静默降质。
 CGSize MTDeviceFrameOutputSize(CGSize sourcePixels, CGSize canvas, CGSize screen,

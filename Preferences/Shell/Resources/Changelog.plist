@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.1</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>套壳素材编辑支持双指缩放、拖动画布、双击放大与一键适应；放大后加载更清晰预览，四角拖动和像素微调仍按原图坐标定位。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.0</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>套壳素材支持从相册导入，自动识别透明屏幕区域并可拖动四角校准；普通图片可挖空屏幕，保留文件导入与截图后自动套壳输出。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.7</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>套壳截图改为预先配置素材、截图后自动合成并直接保存或复制；新增套壳设置入口，截图完成不再进入编辑器。编辑器内的临时调整不再覆盖全局套壳素材。</string>
 			</dict>
 		</array>
 	</dict>

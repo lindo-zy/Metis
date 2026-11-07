@@ -54,6 +54,29 @@ CGRect MTDeviceFrameAspectFit(CGSize content, CGRect b) {
                       result.width, result.height);
 }
 
+CGRect MTDeviceFrameZoomRect(CGSize content, CGRect viewport, CGFloat zoom, CGPoint offset) {
+    CGRect fit=MTDeviceFrameAspectFit(content,viewport);
+    if (CGRectIsEmpty(fit) || !isfinite(zoom) || !isfinite(offset.x) || !isfinite(offset.y)) return CGRectZero;
+    zoom=MAX(1,MIN(8,zoom));
+    CGSize size=CGSizeMake(fit.size.width*zoom,fit.size.height*zoom);
+    CGFloat maxX=MAX(0,(size.width-viewport.size.width)/2),maxY=MAX(0,(size.height-viewport.size.height)/2);
+    offset.x=MAX(-maxX,MIN(maxX,offset.x));offset.y=MAX(-maxY,MIN(maxY,offset.y));
+    return CGRectMake(CGRectGetMidX(viewport)+offset.x-size.width/2,
+                      CGRectGetMidY(viewport)+offset.y-size.height/2,size.width,size.height);
+}
+CGPoint MTDeviceFrameZoomOffset(CGSize content, CGRect viewport, CGFloat oldZoom, CGPoint oldOffset,
+                               CGFloat newZoom, CGPoint oldAnchor, CGPoint newAnchor) {
+    CGRect old=MTDeviceFrameZoomRect(content,viewport,oldZoom,oldOffset);
+    CGRect next=MTDeviceFrameZoomRect(content,viewport,newZoom,CGPointZero);
+    if (CGRectIsEmpty(old) || CGRectIsEmpty(next) || !isfinite(oldAnchor.x) || !isfinite(oldAnchor.y) ||
+        !isfinite(newAnchor.x) || !isfinite(newAnchor.y)) return CGPointZero;
+    CGFloat x=(oldAnchor.x-old.origin.x)/old.size.width,y=(oldAnchor.y-old.origin.y)/old.size.height;
+    CGPoint offset=CGPointMake(newAnchor.x-(next.origin.x+x*next.size.width),
+                               newAnchor.y-(next.origin.y+y*next.size.height));
+    CGRect clamped=MTDeviceFrameZoomRect(content,viewport,newZoom,offset);
+    return CGPointMake(CGRectGetMidX(clamped)-CGRectGetMidX(viewport),CGRectGetMidY(clamped)-CGRectGetMidY(viewport));
+}
+
 CGSize MTDeviceFrameOutputSize(CGSize source, CGSize canvas, CGSize screen, CGFloat padding, CGFloat edge) {
     if (!MTFramePositiveSize(source) || !MTDeviceFrameValidCanvas(canvas) || !MTFramePositiveSize(screen) ||
         !isfinite(padding) || padding < 0 || padding > 0.25 || !isfinite(edge) || edge < 0) return CGSizeZero;
