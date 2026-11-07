@@ -1,33 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>title</key>
-	<string>套壳设置</string>
-	<key>items</key>
-	<array>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>预先配置套壳素材</string>
-			<key>footerText</key>
-			<string>先选择素材，或从相册选图并定位屏幕四角，也可从文件导入 PNG＋配置。选中已导入素材可点「定位素材四角」重新校准并另存。调整外观后点击「保存配置」。以后触发「套壳截图」即自动套壳并直接输出，无需进入编辑器。可保存多个素材，手动选择会关闭随机。随机模式每次从已保存的自定义素材中选择一次，没有自定义素材时使用内置。自定义素材按原画布铺满输出。</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>素材与外观</string>
-			<key>action</key>
-			<string>configureFrame</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>输出遵循截图页的「默认结果动作」和「保存同时复制」。可通过截图页的套壳截图、系统动作或快捷指令 prefs://root=metis_frame 触发。</string>
-		</dict>
-	</array>
-</dict>
-</plist>
+<plist version="1.0"><dict><key>title</key><string>套壳设置</string><key>items</key><array/></dict></plist>

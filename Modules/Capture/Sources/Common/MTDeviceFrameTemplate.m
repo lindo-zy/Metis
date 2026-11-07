@@ -67,11 +67,14 @@
     name = [name stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     if (!name.length) name = @"自定义机壳";
     t->_name = [name substringToIndex:MIN(name.length,32)];
+    id radius = d[@"screen_corner_radius"];
+    if ([radius isKindOfClass:NSNumber.class] && isfinite([radius doubleValue]))
+        t->_screenCornerRadius = MAX(0,MIN(100,[radius doubleValue]));
     return t;
 }
 - (NSDictionary *)dictionaryRepresentation {
     MTDeviceFrameQuad q = self.screenQuad;
-    return @{@"name":self.name,@"template_width":@(self.canvasSize.width),@"template_height":@(self.canvasSize.height),
+    return @{@"screen_corner_radius":@(self.screenCornerRadius),@"name":self.name,@"template_width":@(self.canvasSize.width),@"template_height":@(self.canvasSize.height),
         @"left_top_x":@(q.topLeft.x),@"left_top_y":@(q.topLeft.y),@"right_top_x":@(q.topRight.x),@"right_top_y":@(q.topRight.y),
         @"right_bottom_x":@(q.bottomRight.x),@"right_bottom_y":@(q.bottomRight.y),
         @"left_bottom_x":@(q.bottomLeft.x),@"left_bottom_y":@(q.bottomLeft.y)};

@@ -4,38 +4,41 @@
 #import "MTDeviceFramePhotoMaterialController.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <PhotosUI/PhotosUI.h>
+#import <ImageIO/ImageIO.h>
 
 static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 blue:0.08 alpha:1]; }
+static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alpha:1]; }
 
-@interface MTFrameCheckerView : UIView
-@end
-@implementation MTFrameCheckerView
-- (void)drawRect:(CGRect)rect {
-    for (NSInteger y=0;y<ceil(self.bounds.size.height/14);y++) {
-        for (NSInteger x=0;x<ceil(self.bounds.size.width/14);x++) {
-            [[UIColor colorWithWhite:(x+y)%2 ? 0.28 : 0.23 alpha:1] setFill];
-            UIRectFill(CGRectMake(x*14,y*14,14,14));
-        }
-    }
-}
-@end
-
-@interface MTDeviceFrameViewController () <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate>
+@interface MTDeviceFrameViewController () <PHPickerViewControllerDelegate>
 @property (nonatomic, strong) UIImage *source;
 @property (nonatomic, strong) UIImage *previewSource;
 @property (nonatomic) CGSize sourcePixels;
 @property (nonatomic, strong) MTDeviceFrameConfiguration *style;
 @property (nonatomic, copy) NSArray<MTDeviceFrameTemplate *> *templates;
 @property (nonatomic, copy) void (^completion)(BOOL, MTDeviceFrameConfiguration *, MTOutputAction);
-@property (nonatomic, strong) UITableView *table;
+@property (nonatomic, strong) UIView *navigation;
+@property (nonatomic, strong) UIView *previewCard;
 @property (nonatomic, strong) UIImageView *preview;
+@property (nonatomic, strong) UILabel *previewTitle;
+@property (nonatomic, strong) UILabel *emptyLabel;
 @property (nonatomic, strong) UILabel *detail;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UIButton *applyButton;
+@property (nonatomic, strong) UIButton *editButton;
 @property (nonatomic, strong) UIStackView *outputButtons;
-@property (nonatomic, strong) UIScrollView *templateScroll;
-@property (nonatomic, weak) UIButton *selectedTemplateButton;
-@property (nonatomic) BOOL revealSelectedTemplate;
+@property (nonatomic, strong) UIView *library;
+@property (nonatomic, strong) UILabel *libraryTitle;
+@property (nonatomic, strong) UILabel *libraryEmpty;
+@property (nonatomic, strong) UIButton *importButton;
+@property (nonatomic, strong) NSArray<UIButton *> *materialButtons;
+@property (nonatomic, strong) UIPageControl *pages;
+@property (nonatomic, strong) UIView *options;
+@property (nonatomic, strong) UILabel *randomLabel;
+@property (nonatomic, strong) UILabel *landscapeLabel;
+@property (nonatomic, strong) UISwitch *randomSwitch;
+@property (nonatomic, strong) UISwitch *landscapeSwitch;
+@property (nonatomic, strong) UILabel *helper;
+@property (nonatomic, strong) NSCache<NSString *,UIImage *> *thumbnailCache;
 @property (nonatomic) BOOL original;
 @property (nonatomic) BOOL invalidated;
 @property (nonatomic) BOOL rendering;
@@ -51,355 +54,263 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 @end
 
 @implementation MTDeviceFrameViewController
++ (UIImage *)exampleImage {
+    CGSize size=CGSizeMake(393,852);
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat new];format.scale=1;format.opaque=YES;
+    return [[[UIGraphicsImageRenderer alloc]initWithSize:size format:format]imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        [[UIColor colorWithWhite:0.96 alpha:1]setFill];UIRectFill((CGRect){CGPointZero,size});
+        [@"9:41" drawAtPoint:CGPointMake(28,24) withAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightSemibold],NSForegroundColorAttributeName:UIColor.blackColor}];
+        [@"Metis" drawAtPoint:CGPointMake(28,110) withAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:38 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.blackColor}];
+        [@"套壳素材预览" drawAtPoint:CGPointMake(28,164) withAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:18],NSForegroundColorAttributeName:UIColor.darkGrayColor}];
+        NSArray *rows=@[@"截图",@"套壳设置",@"素材编辑",@"自动合成并输出"];
+        for (NSUInteger i=0;i<rows.count;i++) {
+            CGRect row=CGRectMake(24,230+i*78,345,64);[UIColor.whiteColor setFill];
+            [[UIBezierPath bezierPathWithRoundedRect:row cornerRadius:14]fill];
+            [rows[i]drawAtPoint:CGPointMake(42,row.origin.y+22)withAttributes:@{NSFontAttributeName:[UIFont systemFontOfSize:17],NSForegroundColorAttributeName:UIColor.blackColor}];
+        }
+    }];
+}
+
 - (instancetype)initWithImage:(UIImage *)image configuration:(MTDeviceFrameConfiguration *)configuration
                    completion:(void (^)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction))completion {
-    if ((self = [super initWithNibName:nil bundle:nil])) {
-        _source = image;
-        _sourcePixels = CGSizeMake(image.size.width*image.scale,image.size.height*image.scale);
-        _style = [configuration copy] ?: [MTDeviceFrameConfiguration rememberedConfiguration];
-        _completion = [completion copy];
-        _templates = [MTDeviceFrameTemplateStore templates];
-        _renderQueue = dispatch_queue_create("com.lindo.metis.capture.frame.preview", DISPATCH_QUEUE_SERIAL);
-        if (![self frame]) _style.templateIdentifier = @"island";
-        if (!configuration && _style.randomize) [self randomizeTemplate];
-        self.modalPresentationStyle = UIModalPresentationFullScreen;
-        self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-    }
-    return self;
+    if ((self=[super initWithNibName:nil bundle:nil])) {
+        _source=image;_sourcePixels=CGSizeMake(image.size.width*image.scale,image.size.height*image.scale);
+        _style=[configuration copy] ?: [MTDeviceFrameConfiguration rememberedConfiguration];
+        _style.background=0;_style.paddingFraction=0;_style.shadow=NO;
+        _completion=[completion copy];_templates=[MTDeviceFrameTemplateStore templates];
+        _renderQueue=dispatch_queue_create("com.lindo.metis.capture.frame.preview",DISPATCH_QUEUE_SERIAL);
+        _thumbnailCache=[NSCache new];_thumbnailCache.totalCostLimit=4*1024*1024;
+        MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:_style templates:_templates];
+        _style.templateIdentifier=(frame ?: _templates.firstObject).identifier ?: @"";
+        self.modalPresentationStyle=UIModalPresentationFullScreen;self.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    }return self;
 }
 - (MTDeviceFrameTemplate *)frame {
-    for (MTDeviceFrameTemplate *t in self.templates) if ([t.identifier isEqualToString:self.style.templateIdentifier]) return t;
+    for (MTDeviceFrameTemplate *frame in self.templates) if ([frame.identifier isEqualToString:self.style.templateIdentifier]) return frame;
     return nil;
 }
-- (void)randomizeTemplate {
-    MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];
-    if(frame)self.style.templateIdentifier=frame.identifier;
-}
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.view.backgroundColor = [UIColor colorWithWhite:0.08 alpha:1];
-    self.view.tintColor = MTFrameAccent();
-    UIView *navigation = [UIView new]; navigation.translatesAutoresizingMaskIntoConstraints = NO;
-    UIButton *cancel = [self button:@"取消" selector:@selector(cancel)];
-    self.applyButton = [self button:self.configurationOnly ? @"保存配置" : @"应用" selector:@selector(apply)];
-    UILabel *title = [UILabel new]; title.text = self.configurationOnly ? @"套壳素材" : @"套壳截图";
-    title.font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline]; title.textAlignment = NSTextAlignmentCenter;
-    for (UIView *v in @[cancel,title,self.applyButton]) { v.translatesAutoresizingMaskIntoConstraints = NO; [navigation addSubview:v]; }
-    [self.view addSubview:navigation];
-    self.table = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
-    self.table.translatesAutoresizingMaskIntoConstraints = NO; self.table.backgroundColor = UIColor.clearColor;
-    self.table.delegate = self; self.table.dataSource = self; self.table.separatorColor = [UIColor colorWithWhite:0.24 alpha:1];
-    self.table.estimatedRowHeight = 56; self.table.rowHeight = UITableViewAutomaticDimension;
-    [self.view addSubview:self.table];
-    self.outputButtons = [[UIStackView alloc] initWithArrangedSubviews:@[
-        [self button:@"复制" selector:@selector(copyOutput)], [self button:@"分享" selector:@selector(shareOutput)],
-        [self button:@"保存" selector:@selector(saveOutput)]]];
-    self.outputButtons.translatesAutoresizingMaskIntoConstraints = NO; self.outputButtons.spacing=10;
-    self.outputButtons.distribution=UIStackViewDistributionFillEqually;
-    self.outputButtons.hidden=self.configurationOnly;
-    for (UIButton *b in self.outputButtons.arrangedSubviews) {
-        b.backgroundColor=[UIColor colorWithWhite:0.18 alpha:1]; b.layer.cornerRadius=13;
-    }
-    UIButton *save = self.outputButtons.arrangedSubviews.lastObject; save.backgroundColor=MTFrameAccent(); [save setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
-    [self.view addSubview:self.outputButtons];
-    UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
-    [NSLayoutConstraint activateConstraints:@[
-        [navigation.topAnchor constraintEqualToAnchor:safe.topAnchor], [navigation.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
-        [navigation.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor], [navigation.heightAnchor constraintEqualToConstant:52],
-        [cancel.leadingAnchor constraintEqualToAnchor:navigation.leadingAnchor constant:16], [cancel.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
-        [cancel.widthAnchor constraintEqualToConstant:64], [cancel.heightAnchor constraintEqualToConstant:44],
-        [self.applyButton.trailingAnchor constraintEqualToAnchor:navigation.trailingAnchor constant:-16],
-        [self.applyButton.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
-        [self.applyButton.widthAnchor constraintEqualToConstant:self.configurationOnly ? 90 : 64],
-        [self.applyButton.heightAnchor constraintEqualToConstant:44],
-        [title.centerXAnchor constraintEqualToAnchor:navigation.centerXAnchor], [title.centerYAnchor constraintEqualToAnchor:navigation.centerYAnchor],
-        [self.outputButtons.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor constant:20],
-        [self.outputButtons.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor constant:-20],
-        [self.outputButtons.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-8],
-        [self.outputButtons.heightAnchor constraintEqualToConstant:self.configurationOnly ? 0 : 48],
-        [self.table.topAnchor constraintEqualToAnchor:navigation.bottomAnchor], [self.table.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
-        [self.table.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor], [self.table.bottomAnchor constraintEqualToAnchor:self.outputButtons.topAnchor constant:-8]
-    ]];
-    UIView *header = [UIView new];
-    MTFrameCheckerView *checker = [MTFrameCheckerView new]; checker.tag=200; checker.layer.cornerRadius=16; checker.clipsToBounds=YES;
-    [header addSubview:checker];
-    self.preview = [UIImageView new]; self.preview.contentMode=UIViewContentModeScaleAspectFit;
-    self.preview.accessibilityLabel=@"套壳截图预览"; self.preview.isAccessibilityElement=YES; [checker addSubview:self.preview];
-    self.detail = [UILabel new]; self.detail.numberOfLines=0; self.detail.textAlignment=NSTextAlignmentCenter;
-    self.detail.font=[UIFont preferredFontForTextStyle:UIFontTextStyleFootnote]; self.detail.textColor=UIColor.secondaryLabelColor;
-    [header addSubview:self.detail];
-    self.spinner=[[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-    self.spinner.hidesWhenStopped=YES; [checker addSubview:self.spinner];
-    self.table.tableHeaderView=header;
-    [self schedulePreview];
+- (UILabel *)label:(NSString *)text size:(CGFloat)size color:(UIColor *)color {
+    UILabel *label=[UILabel new];label.text=text;label.font=[UIFont systemFontOfSize:size];label.textColor=color;
+    label.adjustsFontSizeToFitWidth=YES;label.minimumScaleFactor=0.75;return label;
 }
 - (UIButton *)button:(NSString *)title selector:(SEL)selector {
-    UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];
-    [b setTitle:title forState:UIControlStateNormal]; b.titleLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    b.accessibilityLabel=title; [b addTarget:self action:selector forControlEvents:UIControlEventTouchUpInside]; return b;
+    UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem];[button setTitle:title forState:UIControlStateNormal];
+    button.titleLabel.font=[UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    [button addTarget:self action:selector forControlEvents:UIControlEventTouchUpInside];return button;
+}
+- (UIView *)card {
+    UIView *view=[UIView new];view.backgroundColor=MTFrameCardColor();view.layer.cornerRadius=16;return view;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];self.view.backgroundColor=[UIColor colorWithWhite:0.06 alpha:1];self.view.tintColor=MTFrameAccent();
+    self.title=self.configurationOnly ? @"套壳设置" : @"套壳截图";
+    self.navigationItem.rightBarButtonItem=[[UIBarButtonItem alloc]initWithTitle:@"保存" style:UIBarButtonItemStyleDone target:self action:@selector(apply)];
+    self.navigationItem.rightBarButtonItem.tintColor=MTFrameAccent();
+    self.navigation=[UIView new];[self.view addSubview:self.navigation];self.navigation.hidden=self.configurationOnly;
+    UIButton *cancel=[self button:@"取消" selector:@selector(cancel)];cancel.tag=1;[self.navigation addSubview:cancel];
+    UILabel *title=[self label:self.title size:17 color:UIColor.whiteColor];title.font=[UIFont boldSystemFontOfSize:17];title.textAlignment=NSTextAlignmentCenter;
+    title.tag=2;[self.navigation addSubview:title];
+    self.applyButton=[self button:@"应用" selector:@selector(apply)];self.applyButton.tag=3;[self.navigation addSubview:self.applyButton];
+    self.previewCard=[self card];[self.view addSubview:self.previewCard];
+    self.previewTitle=[self label:@"实时预览" size:13 color:UIColor.secondaryLabelColor];[self.previewCard addSubview:self.previewTitle];
+    self.preview=[UIImageView new];self.preview.contentMode=UIViewContentModeScaleAspectFit;
+    self.preview.accessibilityLabel=@"完整套壳效果预览";self.preview.isAccessibilityElement=YES;[self.previewCard addSubview:self.preview];
+    self.emptyLabel=[self label:@"从相册导入第一份素材\n选择图片后即可定位屏幕四角" size:15 color:UIColor.secondaryLabelColor];
+    self.emptyLabel.numberOfLines=2;self.emptyLabel.textAlignment=NSTextAlignmentCenter;[self.previewCard addSubview:self.emptyLabel];
+    self.detail=[self label:@"" size:11 color:UIColor.secondaryLabelColor];[self.previewCard addSubview:self.detail];
+    self.editButton=[self button:@"编辑素材" selector:@selector(calibrateSelectedTemplate)];
+    [self.editButton setImage:[UIImage systemImageNamed:@"pencil"]forState:UIControlStateNormal];
+    self.editButton.layer.cornerRadius=12;self.editButton.layer.borderWidth=1;self.editButton.layer.borderColor=MTFrameAccent().CGColor;
+    [self.previewCard addSubview:self.editButton];
+    self.spinner=[[UIActivityIndicatorView alloc]initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+    self.spinner.hidesWhenStopped=YES;[self.previewCard addSubview:self.spinner];
+    self.library=[UIView new];[self.view addSubview:self.library];
+    self.libraryTitle=[self label:@"我的素材" size:18 color:UIColor.whiteColor];self.libraryTitle.font=[UIFont boldSystemFontOfSize:18];[self.library addSubview:self.libraryTitle];
+    self.importButton=[self button:@" 相册导入" selector:@selector(presentPhotoPicker)];self.importButton.backgroundColor=MTFrameAccent();self.importButton.tintColor=UIColor.blackColor;
+    [self.importButton setTitleColor:UIColor.blackColor forState:UIControlStateNormal];[self.importButton setImage:[UIImage systemImageNamed:@"photo"]forState:UIControlStateNormal];
+    self.importButton.layer.cornerRadius=12;[self.library addSubview:self.importButton];
+    self.libraryEmpty=[self label:@"仅支持相册图片素材" size:14 color:UIColor.secondaryLabelColor];self.libraryEmpty.textAlignment=NSTextAlignmentCenter;[self.library addSubview:self.libraryEmpty];
+    NSMutableArray *buttons=[NSMutableArray new];
+    for (NSInteger i=0;i<3;i++) {
+        UIButton *button=[self button:@"" selector:@selector(templateTapped:)];button.backgroundColor=MTFrameCardColor();button.layer.cornerRadius=12;
+        UIImageView *image=[UIImageView new];image.tag=101;image.contentMode=UIViewContentModeScaleAspectFit;image.userInteractionEnabled=NO;[button addSubview:image];
+        UILabel *name=[self label:@"" size:12 color:UIColor.whiteColor];name.tag=102;name.textAlignment=NSTextAlignmentCenter;[button addSubview:name];
+        UIImageView *check=[[UIImageView alloc]initWithImage:[UIImage systemImageNamed:@"checkmark.circle.fill"]];check.tag=103;check.tintColor=MTFrameAccent();[button addSubview:check];
+        [button addGestureRecognizer:[[UILongPressGestureRecognizer alloc]initWithTarget:self action:@selector(deleteTemplate:)]];
+        [self.library addSubview:button];[buttons addObject:button];
+    }
+    self.materialButtons=buttons;self.pages=[UIPageControl new];self.pages.currentPageIndicatorTintColor=MTFrameAccent();
+    self.pages.pageIndicatorTintColor=UIColor.darkGrayColor;[self.pages addTarget:self action:@selector(pageChanged:)forControlEvents:UIControlEventValueChanged];[self.library addSubview:self.pages];
+    self.options=[self card];[self.view addSubview:self.options];
+    self.randomLabel=[self label:@"随机素材" size:16 color:UIColor.whiteColor];[self.options addSubview:self.randomLabel];
+    self.landscapeLabel=[self label:@"自动适配横屏" size:16 color:UIColor.whiteColor];[self.options addSubview:self.landscapeLabel];
+    self.randomSwitch=[UISwitch new];self.randomSwitch.onTintColor=MTFrameAccent();self.randomSwitch.tag=6;self.randomSwitch.accessibilityLabel=@"随机素材";
+    self.landscapeSwitch=[UISwitch new];self.landscapeSwitch.onTintColor=MTFrameAccent();self.landscapeSwitch.tag=5;self.landscapeSwitch.accessibilityLabel=@"自动适配横屏";
+    for (UISwitch *toggle in @[self.randomSwitch,self.landscapeSwitch]) {[toggle addTarget:self action:@selector(switchChanged:)forControlEvents:UIControlEventValueChanged];[self.options addSubview:toggle];}
+    self.helper=[self label:@"保存后，套壳截图自动使用当前配置" size:11 color:UIColor.secondaryLabelColor];self.helper.textAlignment=NSTextAlignmentCenter;[self.view addSubview:self.helper];
+    self.outputButtons=[[UIStackView alloc]initWithArrangedSubviews:@[[self button:@"复制" selector:@selector(copyOutput)],[self button:@"分享" selector:@selector(shareOutput)],[self button:@"保存" selector:@selector(saveOutput)]]];
+    self.outputButtons.spacing=10;self.outputButtons.distribution=UIStackViewDistributionFillEqually;self.outputButtons.hidden=self.configurationOnly;
+    for (UIButton *b in self.outputButtons.arrangedSubviews) {b.backgroundColor=MTFrameCardColor();b.layer.cornerRadius=12;}
+    UIButton *save=self.outputButtons.arrangedSubviews.lastObject;save.backgroundColor=MTFrameAccent();[save setTitleColor:UIColor.blackColor forState:UIControlStateNormal];
+    [self.view addSubview:self.outputButtons];[self revealSelectedPage];[self refreshControls];[self schedulePreview];
 }
 - (void)viewDidLayoutSubviews {
-    [super viewDidLayoutSubviews];
-    UIView *header=self.table.tableHeaderView;
-    CGFloat width=self.table.bounds.size.width;
-    MTDeviceFrameTemplate *frame=[self frame];
-    BOOL fullCanvas=!self.original && frame.kind==3;
-    CGFloat previewHeight=MAX(180,MIN(380,self.view.bounds.size.height*0.40));
-    if(fullCanvas) {
-        CGSize canvas=frame.canvasSize;
-        if(self.style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width)
-            canvas=CGSizeMake(canvas.height,canvas.width);
-        previewHeight=width*canvas.height/canvas.width;
+    [super viewDidLayoutSubviews];UIEdgeInsets safe=self.view.safeAreaInsets;
+    CGRect bounds=UIEdgeInsetsInsetRect(self.view.bounds,safe);CGFloat gap=12,inset=16;
+    CGFloat top=CGRectGetMinY(bounds),width=bounds.size.width-2*inset,left=bounds.origin.x+inset;
+    if (!self.configurationOnly) {
+        self.navigation.frame=CGRectMake(left,top,width,48);
+        [self.navigation viewWithTag:1].frame=CGRectMake(0,0,60,48);
+        [self.navigation viewWithTag:2].frame=CGRectMake(65,0,width-130,48);
+        self.applyButton.frame=CGRectMake(width-60,0,60,48);top+=48;
     }
-    CGFloat detailHeight=MAX(44,[self.detail sizeThatFits:CGSizeMake(MAX(1,width-40),CGFLOAT_MAX)].height+12);
-    CGFloat height=previewHeight+detailHeight+16;
-    if (header.frame.size.width!=width || header.frame.size.height!=height) {
-        header.frame=CGRectMake(0,0,width,height); self.table.tableHeaderView=header;
-    }
-    UIView *checker=[header viewWithTag:200];
-    checker.layer.cornerRadius=fullCanvas ? 0 : 16;
-    checker.frame=CGRectMake(fullCanvas ? 0 : 20,fullCanvas ? 0 : 8,MAX(1,fullCanvas ? width : width-40),previewHeight);
-    self.preview.frame=checker.bounds; self.spinner.center=CGPointMake(checker.bounds.size.width/2,previewHeight/2);
-    self.detail.frame=CGRectMake(20,previewHeight+12,MAX(1,width-40),detailHeight);
-    [self revealCurrentTemplate];
-}
-- (void)revealCurrentTemplate {
-    if(self.invalidated || !self.revealSelectedTemplate || !self.selectedTemplateButton || self.templateScroll.bounds.size.width<=0)return;
-    [self.templateScroll layoutIfNeeded];
-    CGRect selected=[self.selectedTemplateButton convertRect:self.selectedTemplateButton.bounds toView:self.templateScroll];
-    if(CGRectIsEmpty(selected))return;
-    [self.templateScroll scrollRectToVisible:selected animated:NO];self.revealSelectedTemplate=NO;
-}
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 10; }
-- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return self.configurationOnly
-        ? @"可保存最多 32 个自定义素材。左右滑动选择固定素材；开启随机后，每次截图从已保存素材中选择一个（没有自定义素材时使用内置）。自定义素材按原画布铺满输出，保留圆角和装饰。保存配置后自动套壳输出。选中已导入素材可重新定位四角并另存。"
-        : @"自定义素材铺满原画布，截图贴合四角；内置机壳等比完整显示。可从相册或文件导入，选中已导入素材可重新定位四角。";
-}
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
-    UITableViewCell *cell=[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
-    cell.backgroundColor=[UIColor colorWithWhite:0.14 alpha:1]; cell.selectionStyle=UITableViewCellSelectionStyleNone;
-    NSArray *labels=@[@"机壳",@"机身颜色",@"背景",@"留白",@"阴影",@"自动横屏",@"随机素材",@"从相册导入素材",@"从文件导入素材",@"定位素材四角"];
-    UILabel *label=[UILabel new]; label.text=labels[path.row]; label.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    BOOL custom=!self.original && [self frame].kind==3;
-    if(path.row==0) {
-        NSUInteger saved=0;for(MTDeviceFrameTemplate *frame in self.templates)if(frame.kind==3)saved++;
-        label.text=[NSString stringWithFormat:@"素材库 · 已保存 %lu 个\n%@：%@",(unsigned long)saved,
-            self.style.randomize ? @"随机预览" : @"当前",self.original ? @"原图" : [self frame].name];
-    } else if(custom && path.row==2) label.text=@"透明区域底色";
-    else if(custom && (path.row==1 || path.row==3 || path.row==4))label.textColor=UIColor.secondaryLabelColor;
-    label.adjustsFontForContentSizeCategory=YES; label.numberOfLines=0;
-    label.translatesAutoresizingMaskIntoConstraints=NO; [cell.contentView addSubview:label];
-    UIView *control=nil;
-    if (path.row==0) {
-        UIScrollView *scroll=[UIScrollView new]; scroll.showsHorizontalScrollIndicator=YES;
-        self.selectedTemplateButton=nil;self.revealSelectedTemplate=YES;
-        UIStackView *stack=[UIStackView new]; stack.axis=UILayoutConstraintAxisHorizontal; stack.spacing=8;
-        NSArray *names=[@[@"原图"] arrayByAddingObjectsFromArray:[self.templates valueForKey:@"name"]];
-        for (NSUInteger i=0;i<names.count;i++) {
-            if (self.configurationOnly && i==0) continue;
-            UIButton *b=[self button:names[i] selector:@selector(templateTapped:)]; b.tag=i;
-            UIButtonConfiguration *configuration=[UIButtonConfiguration plainButtonConfiguration];
-            configuration.contentInsets=NSDirectionalEdgeInsetsMake(8,12,8,12);
-            b.configuration=configuration; b.layer.cornerRadius=10;
-            BOOL selected=i==0 ? self.original : (!self.original && [self.templates[i-1].identifier isEqualToString:self.style.templateIdentifier]);
-            b.backgroundColor=selected ? MTFrameAccent() : [UIColor colorWithWhite:0.22 alpha:1];
-            [b setTitleColor:selected ? UIColor.blackColor : UIColor.whiteColor forState:UIControlStateNormal];
-            b.accessibilityTraits=UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
-            if(selected)self.selectedTemplateButton=b;
-            if (i>3) [b addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(deleteTemplate:)]];
-            [stack addArrangedSubview:b];
-        }
-        stack.translatesAutoresizingMaskIntoConstraints=NO; [scroll addSubview:stack];
-        [NSLayoutConstraint activateConstraints:@[[stack.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor],
-            [stack.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor],
-            [stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor],
-            [stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor],
-            [stack.heightAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.heightAnchor]]];
-        control=scroll; self.templateScroll=scroll;
-        // 素材行可能在长预览下面，首次滚入屏幕后再用实际布局定位选中项。
-        __weak typeof(self) weakSelf=self;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            __strong typeof(weakSelf) self=weakSelf;
-            if(!self || self.invalidated || self.templateScroll!=scroll)return;
-            [self.table layoutIfNeeded];[self revealCurrentTemplate];
-        });
-    } else if (path.row==1 || path.row==2) {
-        NSArray *items=path.row==1 ? @[@"石墨",@"银白",@"原色",@"蓝"] : (custom ? @[@"透明",@"白色"] : @[@"透明",@"雾白",@"深灰",@"浅紫"]);
-        UISegmentedControl *segments=[[UISegmentedControl alloc] initWithItems:items];
-        segments.selectedSegmentIndex=path.row==1 ? self.style.bodyColor : (custom ? (self.style.background!=0) : self.style.background);
-        segments.selectedSegmentTintColor=MTFrameAccent();
-        [segments setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.blackColor} forState:UIControlStateSelected];
-        segments.tag=path.row; segments.accessibilityLabel=labels[path.row];
-        [segments addTarget:self action:@selector(segmentChanged:) forControlEvents:UIControlEventValueChanged];
-        segments.enabled=!(path.row==1 && [self frame].kind==3); control=segments;
-    } else if (path.row==3) {
-        UISlider *slider=[UISlider new]; slider.minimumValue=0; slider.maximumValue=0.25; slider.value=self.style.paddingFraction;
-        if(custom){slider.value=0;slider.enabled=NO;}
-        slider.accessibilityLabel=@"留白比例"; slider.accessibilityValue=[NSString stringWithFormat:@"%.0f%%",slider.value*100];
-        [slider addTarget:self action:@selector(paddingChanged:) forControlEvents:UIControlEventValueChanged]; control=slider;
-    } else if (path.row<7) {
-        UISwitch *toggle=[UISwitch new]; toggle.onTintColor=MTFrameAccent(); toggle.tag=path.row;
-        toggle.on=path.row==4 ? self.style.shadow : (path.row==5 ? self.style.autoLandscape : self.style.randomize);
-        if(custom && path.row==4){toggle.on=NO;toggle.enabled=NO;}
-        toggle.accessibilityLabel=labels[path.row]; [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged]; control=toggle;
+    CGFloat bottom=CGRectGetMaxY(bounds)-8;
+    if (!self.configurationOnly) {self.outputButtons.frame=CGRectMake(left,bottom-44,width,44);bottom-=56;}
+    CGFloat available=bottom-top;BOOL wide=width>600 || (width>bounds.size.height && width>400);
+    CGFloat libraryHeight=self.templates.count>3 ? 168 : 148;
+    CGFloat optionsHeight=100;
+    if(wide && available<300){libraryHeight-=36;optionsHeight=84;}
+    if (wide) {
+        CGFloat rightWidth=MIN(340,width*0.48);CGFloat previewWidth=width-rightWidth-gap;
+        self.previewCard.frame=CGRectMake(left,top,previewWidth,available);
+        CGFloat x=left+previewWidth+gap;self.library.frame=CGRectMake(x,top,rightWidth,libraryHeight);
+        self.options.frame=CGRectMake(x,top+libraryHeight+8,rightWidth,optionsHeight);
+        self.helper.frame=CGRectMake(x,CGRectGetMaxY(self.options.frame)+8,rightWidth,18);
     } else {
-        cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator; cell.selectionStyle=UITableViewCellSelectionStyleDefault;
-        if(path.row==9 && (self.original || [self frame].kind!=3)) {
-            label.textColor=UIColor.secondaryLabelColor;cell.accessoryType=UITableViewCellAccessoryNone;
-            cell.accessibilityHint=@"请先选择一个已导入素材";
-        }
+        self.helper.frame=CGRectMake(left,bottom-18,width,18);
+        self.options.frame=CGRectMake(left,CGRectGetMinY(self.helper.frame)-gap-100,width,100);
+        self.library.frame=CGRectMake(left,CGRectGetMinY(self.options.frame)-gap-libraryHeight,width,libraryHeight);
+        self.previewCard.frame=CGRectMake(left,top,width,MAX(60,CGRectGetMinY(self.library.frame)-top-gap));
     }
-    BOOL stacked=path.row<=3;
-    [NSLayoutConstraint activateConstraints:@[[label.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:16],
-        [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12]]];
-    if (control) {
-        control.translatesAutoresizingMaskIntoConstraints=NO; [cell.contentView addSubview:control];
-        [NSLayoutConstraint activateConstraints:@[[control.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16],
-            [control.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12]]];
-        if (stacked) {
-            [NSLayoutConstraint activateConstraints:@[[control.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:8],
-                [control.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:16],
-                [control.heightAnchor constraintGreaterThanOrEqualToConstant:44],
-                [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16]]];
-        } else {
-            [NSLayoutConstraint activateConstraints:@[[control.topAnchor constraintGreaterThanOrEqualToAnchor:cell.contentView.topAnchor constant:12],
-                [label.trailingAnchor constraintLessThanOrEqualToAnchor:control.leadingAnchor constant:-12],
-                [label.bottomAnchor constraintLessThanOrEqualToAnchor:cell.contentView.bottomAnchor constant:-12]]];
-        }
-    } else {
-        [NSLayoutConstraint activateConstraints:@[[label.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-12],
-            [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16],
-            [cell.contentView.heightAnchor constraintGreaterThanOrEqualToConstant:52]]];
+    CGRect card=self.previewCard.bounds;CGFloat footer=40;
+    self.previewTitle.frame=CGRectMake(12,8,card.size.width-24,20);
+    self.preview.frame=CGRectMake(12,34,card.size.width-24,MAX(1,card.size.height-34-footer));
+    self.emptyLabel.frame=self.preview.frame;self.spinner.center=CGPointMake(CGRectGetMidX(card),CGRectGetMidY(card));
+    self.editButton.frame=CGRectMake(card.size.width-114,card.size.height-36,102,30);
+    self.detail.frame=CGRectMake(12,card.size.height-36,MAX(1,card.size.width-134),30);
+    CGFloat w=self.library.bounds.size.width;
+    self.libraryTitle.frame=CGRectMake(0,0,MAX(1,w-125),40);self.importButton.frame=CGRectMake(w-116,0,116,40);
+    CGFloat itemWidth=(w-20)/3;CGFloat itemHeight=self.library.bounds.size.height-48-(self.templates.count>3 ? 20 : 0);
+    for (NSUInteger i=0;i<3;i++) {
+        UIButton *b=self.materialButtons[i];b.frame=CGRectMake(i*(itemWidth+10),48,itemWidth,itemHeight);
+        [b viewWithTag:101].frame=CGRectMake(5,5,itemWidth-10,itemHeight-29);
+        [b viewWithTag:102].frame=CGRectMake(4,itemHeight-24,itemWidth-8,20);
+        [b viewWithTag:103].frame=CGRectMake(itemWidth-27,6,21,21);
     }
-    cell.contentView.userInteractionEnabled=!self.importing;
-    if(path.row==9)cell.userInteractionEnabled=!self.importing && !self.original && [self frame].kind==3;
-    return cell;
+    self.libraryEmpty.frame=CGRectMake(0,48,w,itemHeight);self.pages.frame=CGRectMake(0,48+itemHeight,w,20);
+    CGFloat ow=self.options.bounds.size.width;
+    CGFloat half=self.options.bounds.size.height/2;
+    self.randomLabel.frame=CGRectMake(14,0,MAX(1,ow-88),half);self.landscapeLabel.frame=CGRectMake(14,half,MAX(1,ow-88),half);
+    self.randomSwitch.frame=CGRectMake(ow-65,(half-31)/2,51,31);self.landscapeSwitch.frame=CGRectMake(ow-65,half+(half-31)/2,51,31);
 }
+- (void)revealSelectedPage {
+    for (NSUInteger i=0;i<self.templates.count;i++) if ([self.templates[i].identifier isEqualToString:self.style.templateIdentifier]) {self.pages.currentPage=i/3;break;}
+}
+- (void)refreshControls {
+    if (!self.isViewLoaded)return;
+    self.pages.numberOfPages=(self.templates.count+2)/3;self.pages.hidden=self.templates.count<=3;
+    self.libraryEmpty.hidden=self.templates.count!=0;
+    self.libraryTitle.text=self.templates.count ? [NSString stringWithFormat:@"我的素材 · %lu",(unsigned long)self.templates.count] : @"我的素材";
+    self.randomSwitch.on=self.style.randomize;self.landscapeSwitch.on=self.style.autoLandscape;
+    self.randomSwitch.enabled=self.templates.count>0 && !self.importing;
+    self.landscapeSwitch.enabled=!self.importing;self.importButton.enabled=!self.importing && self.templates.count<32;
+    for (NSUInteger i=0;i<3;i++) {
+        UIButton *button=self.materialButtons[i];NSUInteger index=self.pages.currentPage*3+i;
+        button.hidden=index>=self.templates.count;if(button.hidden)continue;
+        MTDeviceFrameTemplate *frame=self.templates[index];button.tag=index;button.enabled=!self.importing;
+        button.accessibilityIdentifier=frame.identifier;button.accessibilityLabel=frame.name;button.accessibilityHint=@"轻点选用，长按删除素材";
+        BOOL selected=[frame.identifier isEqualToString:self.style.templateIdentifier];
+        button.layer.borderWidth=selected ? 2 : 0;button.layer.borderColor=MTFrameAccent().CGColor;
+        button.accessibilityTraits=UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
+        [button viewWithTag:103].hidden=!selected;((UILabel *)[button viewWithTag:102]).text=frame.name;
+        UIImageView *image=(UIImageView *)[button viewWithTag:101];image.image=[self.thumbnailCache objectForKey:frame.identifier];
+        if (!image.image) {
+            __weak typeof(self) weakSelf=self;
+            dispatch_async(self.renderQueue,^{@autoreleasepool {
+                CGImageSourceRef source=CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:frame.overlayPath],NULL);
+                CGImageRef cg=source ? CGImageSourceCreateThumbnailAtIndex(source,0,(__bridge CFDictionaryRef)@{(id)kCGImageSourceCreateThumbnailFromImageAlways:@YES,(id)kCGImageSourceThumbnailMaxPixelSize:@240}) : NULL;
+                UIImage *thumbnail=cg ? [UIImage imageWithCGImage:cg] : nil;if(cg)CGImageRelease(cg);if(source)CFRelease(source);
+                dispatch_async(dispatch_get_main_queue(),^{
+                    __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
+                    if(thumbnail)[self.thumbnailCache setObject:thumbnail forKey:frame.identifier cost:thumbnail.size.width*thumbnail.size.height*4];
+                    if([button.accessibilityIdentifier isEqualToString:frame.identifier])image.image=thumbnail;
+                });
+            }});
+        }
+    }
+    [self updateOutputState];[self.view setNeedsLayout];
+}
+- (void)pageChanged:(UIPageControl *)sender { [self refreshControls]; }
 - (void)templateTapped:(UIButton *)sender {
-    self.original=sender.tag==0;
-    self.style.randomize=NO;
-    if (!self.original) self.style.templateIdentifier=self.templates[sender.tag-1].identifier;
-    [self.table reloadData]; [self schedulePreview];
-}
-- (void)segmentChanged:(UISegmentedControl *)sender {
-    if (sender.tag==1) self.style.bodyColor=sender.selectedSegmentIndex; else self.style.background=sender.selectedSegmentIndex;
-    [self schedulePreview];
-}
-- (void)paddingChanged:(UISlider *)sender {
-    self.style.paddingFraction=sender.value; sender.accessibilityValue=[NSString stringWithFormat:@"%.0f%%",sender.value*100]; [self schedulePreview];
+    if(self.importing || sender.tag<0 || sender.tag>=(NSInteger)self.templates.count)return;
+    self.original=NO;self.style.randomize=NO;self.style.templateIdentifier=self.templates[sender.tag].identifier;
+    [self refreshControls];[self schedulePreview];
 }
 - (void)switchChanged:(UISwitch *)sender {
-    if (sender.tag==4) self.style.shadow=sender.on;
-    else if (sender.tag==5) self.style.autoLandscape=sender.on;
-    else {
-        self.style.randomize=sender.on;
-        if (sender.on) { self.original=NO; [self randomizeTemplate]; [self.table reloadData]; }
-    }
-    [self schedulePreview];
+    if(sender.tag==5)self.style.autoLandscape=sender.on;
+    else {self.style.randomize=sender.on;if(sender.on){MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];self.style.templateIdentifier=frame.identifier ?: @"";[self revealSelectedPage];}}
+    [self refreshControls];[self schedulePreview];
 }
 - (void)schedulePreview {
-    if (self.invalidated) return;
-    self.generation++; self.pendingRender=YES; self.previewReady=NO;
-    [self updateOutputState]; [self.spinner startAnimating];
-    if (!self.rendering) [self renderNextPreview];
+    if(self.invalidated)return;
+    self.navigationItem.rightBarButtonItem.title=@"保存";
+    self.generation++;self.pendingRender=YES;self.previewReady=NO;
+    self.preview.image=nil;self.emptyLabel.hidden=[self frame]!=nil;
+    [self updateOutputState];[self.spinner startAnimating];if(!self.rendering)[self renderNextPreview];
 }
 - (void)renderNextPreview {
-    if (self.invalidated || !self.pendingRender || self.rendering) return;
-    self.pendingRender=NO; self.rendering=YES;
-    NSUInteger generation=self.generation;
-    MTDeviceFrameConfiguration *style=[self.style copy]; MTDeviceFrameTemplate *frame=[self frame];
-    BOOL original=self.original;
-    UIImage *source=self.previewSource ?: self.source;
-    __weak typeof(self) weakSelf=self;
-    dispatch_async(self.renderQueue, ^{
-        @autoreleasepool {
-            CGFloat factor=MIN(1,1200.0/MAX(source.size.width*source.scale,source.size.height*source.scale));
-            UIImage *small=source;
-            if (factor<1) {
-                UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat new]; format.scale=1; format.opaque=NO;
-                CGSize size=CGSizeMake(ceil(source.size.width*source.scale*factor),ceil(source.size.height*source.scale*factor));
-                small=[[[UIGraphicsImageRenderer alloc] initWithSize:size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-                    [source drawInRect:(CGRect){CGPointZero,size}];
-                }];
+    if(self.invalidated || !self.pendingRender || self.rendering)return;
+    self.pendingRender=NO;self.rendering=YES;NSUInteger generation=self.generation;
+    MTDeviceFrameConfiguration *style=[self.style copy];MTDeviceFrameTemplate *frame=[self frame];
+    UIImage *source=self.previewSource ?: self.source;__weak typeof(self) weakSelf=self;
+    dispatch_async(self.renderQueue,^{@autoreleasepool {
+        UIImage *small=[MTDeviceFramePhotoMaterial previewForImage:source];
+        UIImage *result=frame ? [MTDeviceFrameRenderer renderImage:small configuration:style template:frame previewEdge:1200] : nil;
+        dispatch_async(dispatch_get_main_queue(),^{
+            __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
+            self.rendering=NO;if(small){self.previewSource=small;self.source=nil;}
+            if(generation==self.generation) {
+                self.preview.image=result;self.previewReady=result!=nil;[self.spinner stopAnimating];
+                CGSize canvas=frame.canvasSize;if(style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width)canvas=CGSizeMake(canvas.height,canvas.width);
+                self.detail.text=result ? [NSString stringWithFormat:@"完整画布 · %.0f × %.0f",canvas.width,canvas.height] : (frame ? @"合成失败，请重新导入素材" : @"尚未导入素材");
+                [self updateOutputState];
             }
-            UIImage *result=original ? small : [MTDeviceFrameRenderer renderImage:small configuration:style template:frame previewEdge:1200];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                __strong typeof(weakSelf) self=weakSelf;
-                if (!self || self.invalidated) return;
-                self.rendering=NO; self.previewSource=small; self.source=nil;
-                if (generation==self.generation) {
-                    self.preview.image=result; self.previewReady=result!=nil; [self.spinner stopAnimating];
-                    CGSize canvas=frame.canvasSize; MTDeviceFrameQuad quad=frame.screenQuad;
-                    if (style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width) {
-                        quad=MTDeviceFrameLandscapeQuad(quad,canvas); canvas=CGSizeMake(canvas.height,canvas.width);
-                    }
-                    CGSize output=original ? self.sourcePixels : (frame.kind==3 ? MTDeviceFrameCanvasOutputSize(canvas,0)
-                        : MTDeviceFrameOutputSize(self.sourcePixels,canvas,MTDeviceFrameScreenSize(quad),style.paddingFraction,0));
-                    if (CGSizeEqualToSize(output,CGSizeZero)) self.previewReady=NO;
-                    self.detail.text=self.previewReady ? [NSString stringWithFormat:@"%@ · %.0f × %.0f px · %@",
-                        original ? @"原图" : frame.name,output.width,output.height,
-                        !original && frame.kind==3 ? (style.background==0 ? @"铺满画布 · 透明 PNG" : @"铺满画布")
-                        : (!original && style.background==0 ? @"透明 PNG" : @"完整显示")] : @"无法合成：请缩小原图或更换素材（输出上限 24MP / 8192px）";
-                    [self updateOutputState]; [self.view setNeedsLayout];
-                }
-                [self renderNextPreview];
-            });
-        }
-    });
+            [self renderNextPreview];
+        });
+    }});
 }
 - (void)updateOutputState {
     BOOL ready=self.previewReady && !self.importing && !self.invalidated;
-    self.applyButton.enabled=ready;
-    for (UIButton *b in self.outputButtons.arrangedSubviews) b.enabled=ready;
+    self.applyButton.enabled=ready;self.navigationItem.rightBarButtonItem.enabled=ready;
+    self.editButton.enabled=[self frame]!=nil && !self.importing && !self.invalidated;
+    for(UIButton *button in self.outputButtons.arrangedSubviews)button.enabled=ready;
 }
 - (void)finish:(MTOutputAction)action {
-    if (!self.previewReady || self.importing || self.invalidated || self.presentedViewController) return;
-    MTDeviceFrameConfiguration *style=self.original ? nil : [self.style copy];
-    if (style && self.configurationOnly) [style remember];
+    if(!self.previewReady || self.importing || self.invalidated || self.presentedViewController)return;
+    MTDeviceFrameConfiguration *style=[self.style copy];
+    if(self.configurationOnly){[style remember];self.navigationItem.rightBarButtonItem.title=@"已保存";return;}
     void (^completion)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction)=self.completion;
-    [self invalidate];
-    if (completion) completion(YES,style,action);
+    [self invalidate];if(completion)completion(YES,style,action);
 }
-- (void)apply { [self finish:MTOutputActionPreviewOnly]; }
-- (void)copyOutput { [self finish:MTOutputActionCopy]; }
-- (void)shareOutput { [self finish:MTOutputActionShare]; }
-- (void)saveOutput { [self finish:MTOutputActionSave]; }
+- (void)apply {[self finish:MTOutputActionPreviewOnly];}
+- (void)copyOutput {[self finish:MTOutputActionCopy];}
+- (void)shareOutput {[self finish:MTOutputActionShare];}
+- (void)saveOutput {[self finish:MTOutputActionSave];}
 - (void)cancel {
     void (^completion)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction)=self.completion;
-    [self invalidate]; if (completion) completion(NO,nil,MTOutputActionPreviewOnly);
+    [self invalidate];if(completion)completion(NO,nil,MTOutputActionPreviewOnly);
 }
 - (void)invalidate {
+    self.invalidated=YES;self.generation++;self.pendingRender=NO;self.completion=nil;
     self.photoPicker.delegate=nil;self.photoPicker=nil;
-    [self.photoLoadingProgress cancel];self.photoLoadingProgress=nil;
-    [self.photoOperation cancel];self.photoOperation=nil;
+    [self.photoLoadingProgress cancel];self.photoLoadingProgress=nil;[self.photoOperation cancel];self.photoOperation=nil;
     [self.photoMaterialController invalidate];self.photoMaterialController=nil;
-    self.invalidated=YES; self.generation++; self.pendingRender=NO; self.completion=nil;
-    self.source=nil; self.previewSource=nil; self.preview.image=nil;
-    for (UITableViewCell *cell in self.table.visibleCells) {
-        for (UIView *view in cell.contentView.subviews) {
-            if (![view isKindOfClass:UIScrollView.class]) continue;
-            for (UIView *stack in view.subviews) for (UIView *button in stack.subviews)
-                for (UIGestureRecognizer *gesture in [button.gestureRecognizers copy]) [button removeGestureRecognizer:gesture];
-        }
-    }
-    self.table.delegate=nil; self.table.dataSource=nil;
+    self.source=nil;self.previewSource=nil;self.preview.image=nil;[self.thumbnailCache removeAllObjects];
 }
-- (void)dealloc {
-    _photoPicker.delegate=nil;[_photoLoadingProgress cancel];[_photoOperation cancel];[_photoMaterialController invalidate];
-}
+- (void)dealloc {_photoPicker.delegate=nil;[_photoLoadingProgress cancel];[_photoOperation cancel];[_photoMaterialController invalidate];}
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
-    if (self.isBeingDismissed || self.navigationController.isBeingDismissed) [self invalidate];
-}
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
-    [tableView deselectRowAtIndexPath:path animated:YES];
-    if (path.row<7 || self.importing || self.presentedViewController) return;
-    if(path.row==7){[self presentPhotoPicker];return;}
-    if(path.row==9){[self calibrateSelectedTemplate];return;}
-    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeData] asCopy:NO];
-    picker.allowsMultipleSelection=YES; picker.delegate=self; [self presentViewController:picker animated:YES completion:nil];
+    if(self.isBeingDismissed || self.navigationController.isBeingDismissed || self.isMovingFromParentViewController)[self invalidate];
 }
 - (void)presentPhotoPicker {
     if(self.invalidated || self.importing || self.presentedViewController || self.photoPicker)return;
@@ -424,7 +335,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
             if([type conformsToType:UTTypeImage]){identifier=candidate;if([type conformsToType:UTTypePNG])break;}
         }
         if(!identifier){[self showError:@"所选相册项目无法作为图片素材读取"];return;}
-        self.importing=YES;[self updateOutputState];[self.table reloadData];[self.spinner startAnimating];
+        self.importing=YES;[self updateOutputState];[self refreshControls];[self.spinner startAnimating];
         NSProgress *operation=[NSProgress progressWithTotalUnitCount:1];self.photoOperation=operation;
         self.photoLoadingProgress=[provider loadFileRepresentationForTypeIdentifier:identifier completionHandler:^(NSURL *URL,NSError *loadError) {
             @autoreleasepool {
@@ -438,7 +349,7 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
                     __strong typeof(weakSelf) self=weakSelf;
                     if(!self || self.invalidated || operation.cancelled || self.photoOperation!=operation)return;
                     self.photoOperation=nil;self.photoLoadingProgress=nil;self.importing=NO;[self.spinner stopAnimating];
-                    [self updateOutputState];[self.table reloadData];
+                    [self updateOutputState];[self refreshControls];
                     if(!image || !preview){[self showError:error.localizedDescription ?: @"相册素材读取失败，请重试"];return;}
                     [self presentPhotoMaterial:image preview:preview quad:quad transparent:transparent];
                 });
@@ -458,18 +369,18 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
 - (void)calibrateSelectedTemplate {
     MTDeviceFrameTemplate *frame=[self frame];
     if(self.invalidated || self.original || frame.kind!=3 || self.importing || self.presentedViewController)return;
-    self.importing=YES;[self updateOutputState];[self.table reloadData];[self.spinner startAnimating];
+    self.importing=YES;[self updateOutputState];[self refreshControls];[self.spinner startAnimating];
     NSProgress *operation=[NSProgress progressWithTotalUnitCount:1];self.photoOperation=operation;
     __weak typeof(self) weakSelf=self;
     dispatch_async(self.renderQueue, ^{
         @autoreleasepool {
             if(operation.cancelled)return;
-            NSError *error=nil;UIImage *image=[MTDeviceFramePhotoMaterial imageForTemplate:frame error:&error];
+            NSError *error=nil;UIImage *image=[MTDeviceFramePhotoMaterial sourceImageForTemplate:frame error:&error];
             UIImage *preview=image ? [MTDeviceFramePhotoMaterial previewForImage:image] : nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 __strong typeof(weakSelf) self=weakSelf;
                 if(!self || self.invalidated || operation.cancelled || self.photoOperation!=operation)return;
-                self.photoOperation=nil;self.importing=NO;[self.spinner stopAnimating];[self updateOutputState];[self.table reloadData];
+                self.photoOperation=nil;self.importing=NO;[self.spinner stopAnimating];[self updateOutputState];[self refreshControls];
                 if(!image || !preview){[self showError:error.localizedDescription ?: @"素材读取失败，请重新导入"];return;}
                 MTDeviceFramePhotoMaterialController *controller=[[MTDeviceFramePhotoMaterialController alloc]initWithTemplate:frame image:image preview:preview
                     completion:^(MTDeviceFrameTemplate *result){[weakSelf materialDidFinish:result];}];
@@ -485,68 +396,37 @@ static UIColor *MTFrameAccent(void) { return [UIColor colorWithRed:1 green:0.78 
     __weak typeof(self) weakSelf=self;
     [self dismissViewControllerAnimated:YES completion:^{
         __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
-        if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;self.style.randomize=NO;}
-        [self.table reloadData];[self schedulePreview];
+        if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;self.style.randomize=NO;[self revealSelectedPage];}
+        [self refreshControls];[self schedulePreview];
     }];
 }
 - (void)presentMaterialController:(MTDeviceFramePhotoMaterialController *)controller {
     if(self.invalidated || self.presentedViewController)return;
+    controller.screenshot=self.previewSource ?: self.source;
     self.photoMaterialController=controller;
     UINavigationController *navigation=[[UINavigationController alloc]initWithRootViewController:controller];
     navigation.modalPresentationStyle=UIModalPresentationFullScreen;navigation.modalInPresentation=YES;
     [self presentViewController:navigation animated:YES completion:nil];
 }
-- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)URLs {
-    if (self.invalidated) return;
-    self.importing=YES; [self updateOutputState]; [self.table reloadData];
-    NSMutableArray *scoped=[NSMutableArray new];
-    for (NSURL *url in URLs) if ([url startAccessingSecurityScopedResource]) [scoped addObject:url];
-    __weak typeof(self) weakSelf=self;
-    dispatch_async(self.renderQueue, ^{
-        @autoreleasepool {
-            NSError *error=nil; MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore importFiles:URLs error:&error];
-            for (NSURL *url in scoped) [url stopAccessingSecurityScopedResource];
-            NSArray *templates=[MTDeviceFrameTemplateStore templates];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                __strong typeof(weakSelf) self=weakSelf;
-                if (!self || self.invalidated) return;
-                self.importing=NO; self.templates=templates;
-                if (frame) { self.style.templateIdentifier=frame.identifier; self.original=NO; self.style.randomize=NO; }
-                else [self showError:error.localizedDescription ?: @"素材导入失败"];
-                [self.table reloadData]; [self schedulePreview];
-            });
-        }
-    });
-}
 - (void)showError:(NSString *)message {
-    if (self.invalidated || !self.view.window) return;
-    if ([self.presentedViewController isKindOfClass:UIDocumentPickerViewController.class]) {
-        __weak typeof(self) weakSelf=self;
-        [self dismissViewControllerAnimated:YES completion:^{ [weakSelf showError:message]; }];
-        return;
-    }
+    if(self.invalidated || !self.view.window || self.presentedViewController)return;
     UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"套壳素材" message:message preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
-    if (!self.presentedViewController) [self presentViewController:alert animated:YES completion:nil];
+    [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];[self presentViewController:alert animated:YES completion:nil];
 }
 - (void)deleteTemplate:(UILongPressGestureRecognizer *)gesture {
-    if (gesture.state!=UIGestureRecognizerStateBegan || self.importing || self.presentedViewController) return;
-    NSInteger index=gesture.view.tag-1;
-    if (index<0 || index>=(NSInteger)self.templates.count) return;
+    if(gesture.state!=UIGestureRecognizerStateBegan || self.importing || self.presentedViewController)return;
+    NSInteger index=gesture.view.tag;if(index<0 || index>=(NSInteger)self.templates.count)return;
     MTDeviceFrameTemplate *frame=self.templates[index];
-    if (frame.kind!=3) return;
     UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"删除素材？" message:frame.name preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     __weak typeof(self) weakSelf=self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"删除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-        __strong typeof(weakSelf) self=weakSelf;
-        if (!self || self.invalidated) return;
-        NSError *error=nil;
-        if (![MTDeviceFrameTemplateStore removeTemplate:frame error:&error]) { [self showError:error.localizedDescription ?: @"删除失败"]; return; }
+    [alert addAction:[UIAlertAction actionWithTitle:@"删除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action){
+        __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
+        NSError *error=nil;if(![MTDeviceFrameTemplateStore removeTemplate:frame error:&error]){[self showError:error.localizedDescription ?: @"删除失败"];return;}
         self.templates=[MTDeviceFrameTemplateStore templates];
-        if (![self frame]) self.style.templateIdentifier=@"island";
-        [self.table reloadData]; [self schedulePreview];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
+        if(![self frame])self.style.templateIdentifier=self.templates.firstObject.identifier ?: @"";
+        if(!self.templates.count)self.style.randomize=NO;
+        [self revealSelectedPage];[self refreshControls];[self schedulePreview];
+    }]];[self presentViewController:alert animated:YES completion:nil];
 }
 @end

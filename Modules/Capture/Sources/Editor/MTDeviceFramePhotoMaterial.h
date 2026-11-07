@@ -3,6 +3,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 @interface MTDeviceFramePhotoMaterial : NSObject
++ (nullable UIImage *)sourceImageForTemplate:(MTDeviceFrameTemplate *)frame error:(NSError **)error;
+/// 预览与最终导入共用开孔逻辑；透明素材保留原遮罩。
++ (nullable UIImage *)overlayForImage:(UIImage *)image screenQuad:(MTDeviceFrameQuad)quad
+                              cutout:(BOOL)cutout cornerRadius:(CGFloat)radius error:(NSError **)error;
++ (nullable MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
+                                   screenQuad:(MTDeviceFrameQuad)quad cornerRadius:(CGFloat)radius error:(NSError **)error;
 /// 在文件提供者回调内调用；先检查体积/像素，再解码并烘焙 EXIF 方向，保持实际分辨率。
 + (nullable UIImage *)imageFromPhotoURL:(NSURL *)URL error:(NSError **)error;
 /// 重新定位已有素材时保持 PNG 的原始像素坐标，不应用 EXIF 旋转。

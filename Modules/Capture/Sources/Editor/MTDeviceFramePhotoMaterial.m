@@ -1,5 +1,6 @@
 #import "MTDeviceFramePhotoMaterial.h"
 #import <ImageIO/ImageIO.h>
+#import <math.h>
 
 static NSError *MTPhotoMaterialError(NSString *message) {
     return [NSError errorWithDomain:@"com.lindo.metis.capture.frame.photo" code:1
@@ -9,6 +10,14 @@ static CGContextRef MTPhotoMaterialContext(size_t width, size_t height) {
     CGColorSpaceRef space=CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     CGContextRef context=CGBitmapContextCreate(NULL,width,height,8,0,space,kCGBitmapByteOrder32Big|kCGImageAlphaPremultipliedLast);
     CGColorSpaceRelease(space); return context;
+}
+static NSData *MTPhotoMaterialPNGData(UIImage *image) {
+    if (!image.CGImage) return nil;
+    NSMutableData *data=[NSMutableData new];
+    CGImageDestinationRef destination=CGImageDestinationCreateWithData((__bridge CFMutableDataRef)data,CFSTR("public.png"),1,NULL);
+    if (!destination) return nil;
+    CGImageDestinationAddImage(destination,image.CGImage,NULL);BOOL ok=CGImageDestinationFinalize(destination);CFRelease(destination);
+    return ok ? data : nil;
 }
 static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
     CGFloat originalWidth=CGImageGetWidth(image),originalHeight=CGImageGetHeight(image);
@@ -32,7 +41,7 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
 @implementation MTDeviceFramePhotoMaterial
 + (UIImage *)imageForTemplate:(MTDeviceFrameTemplate *)frame error:(NSError **)error {
     unsigned long long bytes=frame.overlayPath.length ? [[NSFileManager.defaultManager attributesOfItemAtPath:frame.overlayPath error:nil]fileSize] : 0;
-    if(frame.kind!=3 || !bytes || bytes>20*1024*1024 || !MTDeviceFrameValidCanvas(frame.canvasSize)) {
+    if(frame.kind!=3 || !bytes || bytes>40*1024*1024 || !MTDeviceFrameValidCanvas(frame.canvasSize)) {
         if(error)*error=MTPhotoMaterialError(@"素材图片不可用，请重新导入");return nil;
     }
     CGImageSourceRef source=CGImageSourceCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:frame.overlayPath],NULL);
@@ -128,38 +137,74 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
     UIImage *result=cg ? [UIImage imageWithCGImage:cg] : nil;
     if(cg)CGImageRelease(cg);return result;
 }
+// 兼容旧素材调用方，保持原遮罩语义。
 + (MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
                            screenQuad:(MTDeviceFrameQuad)q cutout:(BOOL)cutout error:(NSError **)error {
+    return [self storeImage:image name:name screenQuad:q cutout:cutout cornerRadius:0 preserveSource:NO error:error];
+}
++ (UIImage *)sourceImageForTemplate:(MTDeviceFrameTemplate *)frame error:(NSError **)error {
+    NSString *path=[frame.overlayPath.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"source.png"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:path]) return [self imageForTemplate:frame error:error];
+    MTDeviceFrameTemplate *source=[MTDeviceFrameTemplate customTemplateWithDictionary:frame.dictionaryRepresentation
+        identifier:frame.identifier overlayPath:path];
+    return [self imageForTemplate:source error:error];
+}
++ (UIImage *)overlayForImage:(UIImage *)image screenQuad:(MTDeviceFrameQuad)q
+                     cutout:(BOOL)cutout cornerRadius:(CGFloat)radius error:(NSError **)error {
     CGSize size=image.CGImage ? CGSizeMake(CGImageGetWidth(image.CGImage),CGImageGetHeight(image.CGImage)) : CGSizeZero;
-    if(!MTDeviceFrameValidQuad(q,size)) {
+    if (!MTDeviceFrameValidQuad(q,size) || !isfinite(radius) || radius<0 || radius>100) {
         if(error)*error=MTPhotoMaterialError(@"屏幕四角无效，请按左上、右上、右下、左下顺序调整");return nil;
     }
     BOOL hasOpening=MTPhotoMaterialHasOpening(image.CGImage,q);
-    if(!cutout && !hasOpening) {
-        if(error)*error=MTPhotoMaterialError(@"所选屏幕区域没有透明开孔，请开启「普通图片挖空屏幕」");return nil;
+    if (!cutout && !hasOpening) {
+        if(error)*error=MTPhotoMaterialError(@"所选屏幕区域没有透明开孔，请重新定位四角");return nil;
     }
     CGContextRef context=MTPhotoMaterialContext((size_t)size.width,(size_t)size.height);
     if(!context){if(error)*error=MTPhotoMaterialError(@"无法处理素材，请缩小图片后重试");return nil;}
     CGContextDrawImage(context,(CGRect){CGPointZero,size},image.CGImage);
-    // 已有透明屏幕的素材保留整张遮罩，避免四边形挖空破坏圆角和叠在屏幕上的装饰。
-    if(cutout && !hasOpening) {
-        CGPoint points[]={q.topLeft,q.topRight,q.bottomRight,q.bottomLeft};
+    if (cutout && !hasOpening) {
+        // 在原画布内清除圆角四边形；沿相邻边取切点，适用于倾斜和透视素材。
+        CGPoint p[]={q.topLeft,q.topRight,q.bottomRight,q.bottomLeft},before[4],after[4];
+        CGSize screen=MTDeviceFrameScreenSize(q);
+        CGFloat r=radius*MIN(screen.width,screen.height)/393.0;
+        for (NSUInteger i=0;i<4;i++) {
+            CGPoint prev=p[(i+3)%4],next=p[(i+1)%4];
+            CGFloat a=hypot(prev.x-p[i].x,prev.y-p[i].y),b=hypot(next.x-p[i].x,next.y-p[i].y);
+            CGFloat distance=MIN(r,MIN(a,b)*0.45);
+            before[i]=CGPointMake(p[i].x+(prev.x-p[i].x)*distance/a,p[i].y+(prev.y-p[i].y)*distance/a);
+            after[i]=CGPointMake(p[i].x+(next.x-p[i].x)*distance/b,p[i].y+(next.y-p[i].y)*distance/b);
+        }
+        CGContextTranslateCTM(context,0,size.height);CGContextScaleCTM(context,1,-1);
         CGContextSetBlendMode(context,kCGBlendModeClear);
-        CGContextMoveToPoint(context,points[0].x,size.height-points[0].y);
-        for(NSUInteger i=1;i<4;i++)CGContextAddLineToPoint(context,points[i].x,size.height-points[i].y);
+        CGContextMoveToPoint(context,after[0].x,after[0].y);
+        for (NSUInteger step=1;step<=4;step++) {
+            NSUInteger i=step%4;
+            CGContextAddLineToPoint(context,before[i].x,before[i].y);
+            CGContextAddQuadCurveToPoint(context,p[i].x,p[i].y,after[i].x,after[i].y);
+        }
         CGContextClosePath(context);CGContextFillPath(context);
     }
     CGImageRef cg=CGBitmapContextCreateImage(context);CGContextRelease(context);
-    NSMutableData *data=[NSMutableData new];
-    CGImageDestinationRef destination=cg ? CGImageDestinationCreateWithData((__bridge CFMutableDataRef)data,CFSTR("public.png"),1,NULL) : NULL;
-    BOOL ok=NO;
-    if(destination){CGImageDestinationAddImage(destination,cg,NULL);ok=CGImageDestinationFinalize(destination);CFRelease(destination);}
-    if(cg)CGImageRelease(cg);
-    if(!ok){if(error)*error=MTPhotoMaterialError(@"PNG 素材生成失败");return nil;}
-    NSDictionary *config=@{@"name":name ?: @"相册素材",@"template_width":@(size.width),@"template_height":@(size.height),
+    UIImage *result=cg ? [UIImage imageWithCGImage:cg] : nil;if(cg)CGImageRelease(cg);
+    return result;
+}
++ (MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
+                           screenQuad:(MTDeviceFrameQuad)q cornerRadius:(CGFloat)radius error:(NSError **)error {
+    return [self storeImage:image name:name screenQuad:q cutout:YES cornerRadius:radius preserveSource:YES error:error];
+}
++ (MTDeviceFrameTemplate *)storeImage:(UIImage *)image name:(NSString *)name screenQuad:(MTDeviceFrameQuad)q
+                              cutout:(BOOL)cutout cornerRadius:(CGFloat)radius preserveSource:(BOOL)preserve error:(NSError **)error {
+    UIImage *overlay=[self overlayForImage:image screenQuad:q cutout:cutout cornerRadius:radius error:error];
+    NSData *data=overlay ? MTPhotoMaterialPNGData(overlay) : nil;
+    if(!data){if(error && !*error)*error=MTPhotoMaterialError(@"PNG 素材生成失败");return nil;}
+    CGSize size=CGSizeMake(CGImageGetWidth(image.CGImage),CGImageGetHeight(image.CGImage));
+    NSDictionary *config=@{@"name":name ?: @"相册素材",@"screen_corner_radius":@(radius),
+        @"template_width":@(size.width),@"template_height":@(size.height),
         @"left_top_x":@(q.topLeft.x),@"left_top_y":@(q.topLeft.y),@"right_top_x":@(q.topRight.x),@"right_top_y":@(q.topRight.y),
         @"right_bottom_x":@(q.bottomRight.x),@"right_bottom_y":@(q.bottomRight.y),
         @"left_bottom_x":@(q.bottomLeft.x),@"left_bottom_y":@(q.bottomLeft.y)};
-    return [MTDeviceFrameTemplateStore importPNGData:data configuration:config error:error];
+    NSData *original=preserve ? MTPhotoMaterialPNGData(image) : nil;
+    if (preserve && !original) {if(error)*error=MTPhotoMaterialError(@"原图保存失败，请重试");return nil;}
+    return [MTDeviceFrameTemplateStore importPNGData:data configuration:config sourcePNGData:original error:error];
 }
 @end

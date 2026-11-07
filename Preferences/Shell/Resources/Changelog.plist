@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <array>
+    <dict>
+        <key>version</key><string>1.7.0</string>
+        <key>items</key><array>
+            <dict><key>tag</key><string>优化</string><key>text</key><string>套壳设置进入即可编辑，完整画布与素材选择同屏显示；仅支持相册素材，移除内置机壳与文件导入入口。</string></dict>
+            <dict><key>tag</key><string>新增</string><key>text</key><string>素材编辑支持实时合成预览、四角定位、像素微调与屏幕圆角调整；新导入素材保留原图，方便再次编辑。</string></dict>
+        </array>
+    </dict>
 	<dict>
 		<key>version</key>
 		<string>1.6.10</string>

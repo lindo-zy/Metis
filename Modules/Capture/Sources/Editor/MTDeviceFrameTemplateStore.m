@@ -19,11 +19,11 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
 
 @implementation MTDeviceFrameTemplateStore
 + (NSArray<MTDeviceFrameTemplate *> *)templates {
-    NSMutableArray *result = [[MTDeviceFrameTemplate builtInTemplates] mutableCopy];
+    NSMutableArray *result = [NSMutableArray new];
     NSArray *entries = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:MTFrameStoreRoot() error:nil]
                         sortedArrayUsingSelector:@selector(compare:)];
     for (NSString *entry in entries) {
-        if (result.count >= 35) break;
+        if (result.count >= 32) break;
         if (![[NSUUID alloc] initWithUUIDString:entry]) continue;
         MTDeviceFrameTemplate *t = MTFrameLoadTemplate([MTFrameStoreRoot() stringByAppendingPathComponent:entry], entry);
         if (t) [result addObject:t];
@@ -36,16 +36,17 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
 }
 + (MTDeviceFrameTemplate *)resolveTemplateForConfiguration:(MTDeviceFrameConfiguration *)configuration
                                                templates:(NSArray<MTDeviceFrameTemplate *> *)templates {
-    if (configuration.randomize && templates.count) {
-        NSMutableArray<MTDeviceFrameTemplate *> *saved = [NSMutableArray new];
-        for (MTDeviceFrameTemplate *frame in templates) if (frame.kind == 3) [saved addObject:frame];
-        NSArray<MTDeviceFrameTemplate *> *pool = saved.count ? saved : templates;
-        return pool[arc4random_uniform((uint32_t)pool.count)];
-    }
-    for (MTDeviceFrameTemplate *frame in templates)
+    NSMutableArray<MTDeviceFrameTemplate *> *saved = [NSMutableArray new];
+    for (MTDeviceFrameTemplate *frame in templates) if (frame.kind == 3) [saved addObject:frame];
+    if (configuration.randomize && saved.count)
+        return saved[arc4random_uniform((uint32_t)saved.count)];
+    for (MTDeviceFrameTemplate *frame in saved)
         if ([frame.identifier isEqualToString:configuration.templateIdentifier]) return frame;
+    // 迁移旧内置机壳配置，只回退到相册素材；丢失的自定义素材必须报错。
+    if (!configuration.templateIdentifier.length || [@[@"island",@"notch",@"classic"] containsObject:configuration.templateIdentifier]) return saved.firstObject;
     return nil;
 }
+
 + (MTDeviceFrameTemplate *)importFiles:(NSArray<NSURL *> *)URLs error:(NSError **)error {
     NSString *failure = @"请选择一个 PNG 和一个 JSON、plist 或 cfg 配置文件";
     NSURL *pngURL = nil, *configURL = nil;
@@ -69,6 +70,10 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
     return data ? [self importPNGData:data configuration:dictionary error:error] : nil;
 }
 + (MTDeviceFrameTemplate *)importPNGData:(NSData *)data configuration:(NSDictionary *)dictionary error:(NSError **)error {
+    return [self importPNGData:data configuration:dictionary sourcePNGData:nil error:error];
+}
++ (MTDeviceFrameTemplate *)importPNGData:(NSData *)data configuration:(NSDictionary *)dictionary
+                        sourcePNGData:(NSData *)sourceData error:(NSError **)error {
     if (!data.length || data.length > 20*1024*1024) {
         if (error) *error = MTFrameImportError(@"素材 PNG 最大 20MB，请缩小图片后重试"); return nil;
     }
@@ -90,10 +95,14 @@ static MTDeviceFrameTemplate *MTFrameLoadTemplate(NSString *directory, NSString 
     if (!validImage) {
         if (error) *error = MTFrameImportError(@"需要含透明通道的单帧 PNG，像素宽高必须与配置画布一致"); return nil;
     }
-    if (self.templates.count >= 35) { if (error) *error = MTFrameImportError(@"自定义素材最多 32 个，请先删除不需要的素材"); return nil; }
+    if (self.templates.count >= 32) { if (error) *error = MTFrameImportError(@"自定义素材最多 32 个，请先删除不需要的素材"); return nil; }
+    if (sourceData && (!sourceData.length || sourceData.length > 40*1024*1024)) {
+        if (error) *error = MTFrameImportError(@"原图 PNG 最大 40MB，请缩小图片后重试"); return nil;
+    }
     NSString *staging = [MTFrameStoreRoot() stringByAppendingPathComponent:[@".import-" stringByAppendingString:identifier]];
     BOOL ok = [fm createDirectoryAtPath:staging withIntermediateDirectories:YES attributes:nil error:error];
     if (ok) ok = [data writeToFile:[staging stringByAppendingPathComponent:@"overlay.png"] options:NSDataWritingAtomic error:error];
+    if (ok && sourceData) ok = [sourceData writeToFile:[staging stringByAppendingPathComponent:@"source.png"] options:NSDataWritingAtomic error:error];
     if (ok) {
         NSData *data = [NSJSONSerialization dataWithJSONObject:t.dictionaryRepresentation options:NSJSONWritingPrettyPrinted error:error];
         ok = data && [data writeToFile:[staging stringByAppendingPathComponent:@"config.json"] options:NSDataWritingAtomic error:error];

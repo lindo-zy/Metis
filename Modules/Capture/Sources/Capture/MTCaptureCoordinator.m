@@ -314,7 +314,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStateCaptured) return;
                 if (!result) {
-                    [self mtFailTask:task code:@"frame-render" message:@"套壳合成失败：请检查素材是否存在、画布配置与图片尺寸"];
+                    [self mtFailTask:task code:@"frame-render" message:frame ? @"套壳合成失败：请检查素材图片与屏幕四角" : @"请先在套壳设置中从相册导入素材并保存"];
                     return;
                 }
                 task.resultImage = result;

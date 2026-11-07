@@ -18,6 +18,31 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
 }
 
 @implementation MTDeviceFrameRenderer
++ (UIImage *)renderImage:(UIImage *)source overlay:(UIImage *)overlay screenQuad:(MTDeviceFrameQuad)q {
+    CGSize size=overlay.CGImage ? CGSizeMake(CGImageGetWidth(overlay.CGImage),CGImageGetHeight(overlay.CGImage)) : CGSizeZero;
+    if (!source.CGImage || !MTDeviceFrameValidQuad(q,size)) return nil;
+    CGSize screen=MTDeviceFrameScreenSize(q);
+    CGSize plateSize=CGSizeMake(ceil(screen.width),ceil(screen.height));
+    if (!MTDeviceFrameValidCanvas(plateSize)) return nil;
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat new];format.scale=1;format.opaque=YES;
+    format.preferredRange=UIGraphicsImageRendererFormatRangeStandard;
+    UIImage *plate=[[[UIGraphicsImageRenderer alloc]initWithSize:plateSize format:format]imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        [UIColor.blackColor setFill];UIRectFill((CGRect){CGPointZero,plateSize});[source drawInRect:(CGRect){CGPointZero,plateSize}];
+    }];
+    CIFilter *filter=[CIFilter filterWithName:@"CIPerspectiveTransform"];
+    [filter setValue:[CIImage imageWithCGImage:plate.CGImage]forKey:kCIInputImageKey];
+    CGPoint points[]={q.topLeft,q.topRight,q.bottomRight,q.bottomLeft};
+    NSArray *keys=@[@"inputTopLeft",@"inputTopRight",@"inputBottomRight",@"inputBottomLeft"];
+    for (NSUInteger i=0;i<4;i++) [filter setValue:[CIVector vectorWithX:points[i].x Y:size.height-points[i].y]forKey:keys[i]];
+    static CIContext *context;static dispatch_once_t once;
+    dispatch_once(&once,^{context=[CIContext contextWithOptions:@{kCIContextCacheIntermediates:@NO}];});
+    CGImageRef cg=filter.outputImage ? [context createCGImage:filter.outputImage fromRect:(CGRect){CGPointZero,size}] : NULL;
+    UIImage *warped=cg ? [UIImage imageWithCGImage:cg] : nil;if(cg)CGImageRelease(cg);if(!warped)return nil;
+    format.opaque=NO;
+    return [[[UIGraphicsImageRenderer alloc]initWithSize:size format:format]imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        [warped drawInRect:(CGRect){CGPointZero,size}];[overlay drawInRect:(CGRect){CGPointZero,size}];
+    }];
+}
 + (UIColor *)backgroundColor:(NSInteger)index {
     switch (index) {
         case 0: return UIColor.clearColor;

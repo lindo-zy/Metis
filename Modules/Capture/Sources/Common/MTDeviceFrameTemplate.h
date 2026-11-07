@@ -7,6 +7,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) CGSize canvasSize;
 @property (nonatomic, readonly) MTDeviceFrameQuad screenQuad;
 @property (nonatomic, copy, readonly, nullable) NSString *overlayPath;
+@property (nonatomic, readonly) CGFloat screenCornerRadius; // 以屏幕短边 393 为基准，0…100
 @property (nonatomic, readonly) NSInteger kind; // 0 island, 1 notch, 2 home, 3 custom
 + (NSArray<MTDeviceFrameTemplate *> *)builtInTemplates;
 + (nullable NSDictionary *)parseConfigurationData:(NSData *)data;

@@ -5,8 +5,8 @@
 @implementation MTDeviceFrameConfiguration
 - (instancetype)init {
     if ((self = [super init])) {
-        _templateIdentifier = @"island";
-        _background = 3; _paddingFraction = 0.10; _shadow = YES; _autoLandscape = YES;
+        _templateIdentifier = @"";
+        _background = 0; _autoLandscape = YES;
     }
     return self;
 }
