@@ -195,8 +195,9 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
 + (MTDeviceFrameTemplate *)storeImage:(UIImage *)image name:(NSString *)name screenQuad:(MTDeviceFrameQuad)q
                               cutout:(BOOL)cutout cornerRadius:(CGFloat)radius preserveSource:(BOOL)preserve error:(NSError **)error {
     UIImage *overlay=[self overlayForImage:image screenQuad:q cutout:cutout cornerRadius:radius error:error];
-    NSData *data=overlay ? MTPhotoMaterialPNGData(overlay) : nil;
-    if(!data){if(error && !*error)*error=MTPhotoMaterialError(@"PNG 素材生成失败");return nil;}
+    if(!overlay)return nil;
+    NSData *data=MTPhotoMaterialPNGData(overlay);
+    if(!data){if(error)*error=MTPhotoMaterialError(@"PNG 素材生成失败");return nil;}
     CGSize size=CGSizeMake(CGImageGetWidth(image.CGImage),CGImageGetHeight(image.CGImage));
     NSDictionary *config=@{@"name":name ?: @"相册素材",@"screen_corner_radius":@(radius),
         @"template_width":@(size.width),@"template_height":@(size.height),

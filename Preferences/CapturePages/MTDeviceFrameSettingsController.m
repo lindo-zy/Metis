@@ -1,9 +1,9 @@
-#import <Preferences/PSListController.h>
+#import <Preferences/PSViewController.h>
 #import "../../Modules/Capture/Sources/Editor/MTDeviceFrameViewController.h"
 #import "../../Modules/Capture/Sources/Editor/MTDeviceFrameRenderer.h"
 
 /// 保留 Preferences 的路由契约，内容直接嵌入编辑器，不再展示入口列表或二次模态。
-@interface MTDeviceFrameSettingsController : PSListController
+@interface MTDeviceFrameSettingsController : PSViewController
 @property (nonatomic, strong) MTDeviceFrameViewController *frameController;
 @end
 

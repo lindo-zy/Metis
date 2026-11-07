@@ -172,6 +172,9 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     CGFloat libraryHeight=self.templates.count>3 ? 168 : 148;
     CGFloat optionsHeight=100;
     if(wide && available<300){libraryHeight-=36;optionsHeight=84;}
+    BOOL compactOptions=wide && available<250;
+    if(compactOptions){optionsHeight=44;libraryHeight=MAX(80,available-optionsHeight-8);}
+    self.helper.hidden=compactOptions;
     if (wide) {
         CGFloat rightWidth=MIN(340,width*0.48);CGFloat previewWidth=width-rightWidth-gap;
         self.previewCard.frame=CGRectMake(left,top,previewWidth,available);
@@ -202,9 +205,15 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     }
     self.libraryEmpty.frame=CGRectMake(0,48,w,itemHeight);self.pages.frame=CGRectMake(0,48+itemHeight,w,20);
     CGFloat ow=self.options.bounds.size.width;
-    CGFloat half=self.options.bounds.size.height/2;
-    self.randomLabel.frame=CGRectMake(14,0,MAX(1,ow-88),half);self.landscapeLabel.frame=CGRectMake(14,half,MAX(1,ow-88),half);
-    self.randomSwitch.frame=CGRectMake(ow-65,(half-31)/2,51,31);self.landscapeSwitch.frame=CGRectMake(ow-65,half+(half-31)/2,51,31);
+    if(compactOptions) {
+        CGFloat half=ow/2;
+        self.randomLabel.frame=CGRectMake(8,0,MAX(1,half-70),44);self.landscapeLabel.frame=CGRectMake(half+8,0,MAX(1,half-70),44);
+        self.randomSwitch.frame=CGRectMake(half-58,6,51,31);self.landscapeSwitch.frame=CGRectMake(ow-58,6,51,31);
+    } else {
+        CGFloat half=self.options.bounds.size.height/2;
+        self.randomLabel.frame=CGRectMake(14,0,MAX(1,ow-88),half);self.landscapeLabel.frame=CGRectMake(14,half,MAX(1,ow-88),half);
+        self.randomSwitch.frame=CGRectMake(ow-65,(half-31)/2,51,31);self.landscapeSwitch.frame=CGRectMake(ow-65,half+(half-31)/2,51,31);
+    }
 }
 - (void)revealSelectedPage {
     for (NSUInteger i=0;i<self.templates.count;i++) if ([self.templates[i].identifier isEqualToString:self.style.templateIdentifier]) {self.pages.currentPage=i/3;break;}
@@ -411,6 +420,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     controller.screenshot=self.previewSource ?: self.source;
     self.photoMaterialController=controller;
     UINavigationController *navigation=[[UINavigationController alloc]initWithRootViewController:controller];
+    navigation.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;navigation.navigationBar.tintColor=MTFrameAccent();
     navigation.modalPresentationStyle=UIModalPresentationFullScreen;navigation.modalInPresentation=YES;
     [self presentViewController:navigation animated:YES completion:nil];
 }
