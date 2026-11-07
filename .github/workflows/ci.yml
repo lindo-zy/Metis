@@ -8,7 +8,7 @@ on:
 jobs:
   verify:
     name: Verify build (iOS16/17)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     env:
       THEOS: /Users/runner/work/_theos
