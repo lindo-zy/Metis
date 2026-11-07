@@ -9,7 +9,7 @@
 		<array>
 			<dict>
 				<key>tag</key>
-				<string>优化</string>
+				<string>修复</string>
 				<key>text</key>
 				<string>修复截图保存后点击完成提示只能打开照片 App 的问题，现在会直接定位到刚保存的那张照片。</string>
 			</dict>
@@ -76,19 +76,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>相册和文件导入的套壳素材支持重新定位屏幕四角，保留原坐标初始化，校准后另存并自动选中；原素材和自动截图输出流程保持不变。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.8</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>套壳素材支持从相册导入，自动识别透明屏幕区域并可拖动四角校准；普通图片可挖空屏幕，保留文件导入与截图后自动套壳输出。</string>
 			</dict>
 		</array>
 	</dict>
