@@ -2,13 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <array>
-    <dict>
-        <key>version</key><string>1.7.0</string>
-        <key>items</key><array>
-            <dict><key>tag</key><string>优化</string><key>text</key><string>套壳设置进入即可编辑，完整画布与素材选择同屏显示；仅支持相册素材，移除内置机壳与文件导入入口。</string></dict>
-            <dict><key>tag</key><string>新增</string><key>text</key><string>素材编辑支持实时合成预览、四角定位、像素微调与屏幕圆角调整；新导入素材保留原图，方便再次编辑。</string></dict>
-        </array>
-    </dict>
+	<dict>
+		<key>version</key>
+		<string>1.7.0</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>套壳设置进入即可编辑，完整画布与素材选择同屏显示；仅支持相册素材，移除内置机壳与文件导入入口。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>素材编辑支持实时合成预览、四角定位、像素微调与屏幕圆角调整；新导入素材保留原图，方便再次编辑。</string>
+			</dict>
+		</array>
+	</dict>
 	<dict>
 		<key>version</key>
 		<string>1.6.10</string>
@@ -64,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>套壳截图改为预先配置素材、截图后自动合成并直接保存或复制；新增套壳设置入口，截图完成不再进入编辑器。编辑器内的临时调整不再覆盖全局套壳素材。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.6</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>新增套壳截图与编辑器套壳面板：内置灵动岛、刘海和经典机壳，支持机身颜色、背景、留白、阴影、自动横屏、随机素材及自定义四角素材导入；透明背景以 PNG 输出。</string>
 			</dict>
 		</array>
 	</dict>
