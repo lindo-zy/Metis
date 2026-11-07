@@ -5,6 +5,30 @@
 
 static const NSTimeInterval MTCompletionToastDuration = 2.0;
 
+// SpringBoard 内 UIApplication openURL 对 photos-navigation 这类非公开 scheme 可能被
+// LaunchServices 直接拒绝；敏感打开通道是特权进程的标准入口，失败后仍回落 openURL。
+@interface LSApplicationWorkspace : NSObject
++ (instancetype)defaultWorkspace;
+- (BOOL)openSensitiveURL:(NSURL *)url withOptions:(NSDictionary *)options error:(NSError **)error;
+@end
+
+static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
+    Class workspaceClass = NSClassFromString(@"LSApplicationWorkspace");
+    LSApplicationWorkspace *workspace =
+        [workspaceClass respondsToSelector:@selector(defaultWorkspace)] ? [(id)workspaceClass defaultWorkspace] : nil;
+    if ([workspace respondsToSelector:@selector(openSensitiveURL:withOptions:error:)]) {
+        NSError *error = nil;
+        if ([workspace openSensitiveURL:url withOptions:@{} error:&error]) {
+            MTCaptureLogInfo(@"completion toast sensitive route %@ accepted", url.absoluteString);
+            if (completion) completion(YES);
+            return;
+        }
+        MTCaptureLogWarn(@"completion toast sensitive route %@ rejected: %@",
+                         url.absoluteString, error.localizedDescription ?: @"(no error)");
+    }
+    [UIApplication.sharedApplication openURL:url options:@{} completionHandler:completion];
+}
+
 @interface MTCompletionToastContent : UIView
 @property (nonatomic, strong) UIButton *button;
 @end
@@ -104,6 +128,11 @@ static const NSTimeInterval MTCompletionToastDuration = 2.0;
     // PHAsset.localIdentifier 是 UUID/L0/001；照片路由需要不带库后缀的 UUID。
     NSString *uuid = [identifier componentsSeparatedByString:@"/"].firstObject;
     if (!uuid.length || ![[NSUUID alloc] initWithUUIDString:uuid]) uuid = nil;
+
+    // iOS 15 起 photos-navigation 才是有效路由：album=recents 配合 revealassetuuid
+    // 可在最近项目中直接定位资产，photos://asset 只作旧系统后备。
+    // 旧顺序把 photos://asset 放在首位，系统受理后只拉起 App 首页，成功回调又无法
+    // 区分「已定位」与「仅打开」，导致永远走不到能定位的最近项目路由。
     NSURLComponents *recent = [NSURLComponents new];
     recent.scheme = @"photos-navigation";
     recent.host = @"album";
@@ -112,35 +141,29 @@ static const NSTimeInterval MTCompletionToastDuration = 2.0;
     if (uuid) [items addObject:[NSURLQueryItem queryItemWithName:@"revealassetuuid" value:uuid]];
     recent.queryItems = items;
 
-    // SpringBoard 请求照片的单图路由；不能打开或没有资产 ID 时退到最近项目。
+    NSURL *legacy = nil;
     if (uuid) {
         NSURLComponents *asset = [NSURLComponents new];
         asset.scheme = @"photos";
         asset.host = @"asset";
         asset.queryItems = @[[NSURLQueryItem queryItemWithName:@"uuid" value:uuid]];
-        [UIApplication.sharedApplication openURL:asset.URL options:@{} completionHandler:^(BOOL success) {
-            if (!success) {
-                dispatch_async(dispatch_get_main_queue(), ^{ [self mtOpenRecentURL:recent.URL]; });
-            }
-            MTCaptureLogInfo(@"completion toast photo route accepted=%d", success);
-        }];
-    } else {
-        [self mtOpenRecentURL:recent.URL];
+        legacy = asset.URL;
     }
+
+    [self mtOpenPhotoURL:recent.URL next:legacy last:[NSURL URLWithString:@"photos-redirect://"]];
 }
 
-- (void)mtOpenRecentURL:(NSURL *)url {
-    [UIApplication.sharedApplication openURL:url options:@{} completionHandler:^(BOOL success) {
-        MTCaptureLogInfo(@"completion toast recents route accepted=%d", success);
-        if (!success) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [UIApplication.sharedApplication openURL:[NSURL URLWithString:@"photos-redirect://"]
-                                                 options:@{} completionHandler:^(BOOL opened) {
-                    MTCaptureLogInfo(@"completion toast Photos fallback accepted=%d", opened);
-                }];
-            });
-        }
-    }];
+/// 逐级回退：最近项目定位 → 旧系统单图路由 → 仅打开照片 App。
+- (void)mtOpenPhotoURL:(NSURL *)url next:(NSURL *)next last:(NSURL *)last {
+    if (!url) {
+        if (next) [self mtOpenPhotoURL:next next:last last:nil];
+        return;
+    }
+    MTOpenPhotoURL(url, ^(BOOL success) {
+        MTCaptureLogInfo(@"completion toast route %@ accepted=%d", url.absoluteString, success);
+        if (success) return;
+        dispatch_async(dispatch_get_main_queue(), ^{ [self mtOpenPhotoURL:next next:last last:nil]; });
+    });
 }
 
 @end

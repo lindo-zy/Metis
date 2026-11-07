@@ -176,12 +176,13 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
             BOOL hasStagedFile = stagedPath.length > 0 &&
                 [[NSFileManager defaultManager] fileExistsAtPath:stagedPath];
             if (!hasStagedFile) {
-                // 保存前先落盘临时文件：相册失败时保留可恢复副本。
+                // 临时副本只作失败兜底，不直接入库：PHAssetCreationRequest 走
+                // addResourceWithType:fileURL: 时 placeholderForCreatedAsset 在 SpringBoard
+                // 内可能为空，资产 ID 丢失后完成提示无法定位刚保存的照片。
+                // UIImage 直存（creationRequestForAssetFromImage:）的占位 ID 稳定，
+                // 带 alpha 的位图同样按 PNG 入库，透明不会被压掉。
                 NSString *savedPath = [MTTemporaryFileStore writeImage:image taskID:task.taskID name:@"original.jpg" error:nil];
-                if (MTImageRequiresPNG(image) && savedPath) {
-                    stagedPath = savedPath;
-                    hasStagedFile = YES;
-                } else if (MTImageRequiresPNG(image)) {
+                if (MTImageRequiresPNG(image) && !savedPath) {
                     [task unclaimOutputAction:MTOutputActionSave];
                     dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, @"透明 PNG 写入失败，请重试"); });
                     return;
