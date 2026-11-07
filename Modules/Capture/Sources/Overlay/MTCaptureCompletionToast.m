@@ -2,6 +2,7 @@
 #import "MTCaptureWindow.h"
 #import "MTCaptureBubbleStyle.h"
 #import "../Common/MTCaptureLog.h"
+#import "../Common/MTRecentPhotoShortcut.h"
 
 static const NSTimeInterval MTCompletionToastDuration = 2.0;
 
@@ -125,6 +126,13 @@ static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
     [self dismiss];
     if (!opensPhoto) return;
 
+    // 首选照片 App 自带「最近一张照片」快捷方式：照片 App 在点击时刻自行解析
+    // 最近资产，与保存期占位 ID 解耦——文件直存路径的 placeholderForCreatedAsset
+    // 在 SpringBoard 内可能为空，URL 路由又只有受理/拒绝反馈，无法证明真正
+    // 定位到了资产（1.7.2 起 photos-navigation 首位路由在真机上仍落在相册）。
+    if (MTLaunchPhotosMostRecentShortcut()) return;
+
+    // 兜底：快捷通道不可用时保留 URL 定位链，行为不劣于 1.7.2。
     // PHAsset.localIdentifier 是 UUID/L0/001；照片路由需要不带库后缀的 UUID。
     NSString *uuid = [identifier componentsSeparatedByString:@"/"].firstObject;
     if (!uuid.length || ![[NSUUID alloc] initWithUUIDString:uuid]) uuid = nil;

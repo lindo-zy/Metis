@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.4</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>修复截图完成气泡点击后只能进入相册列表的问题，现在优先直达照片 App 的最近一张照片。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.3</string>
 		<key>items</key>
 		<array>
@@ -63,25 +76,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>素材编辑支持实时合成预览、四角定位、像素微调与屏幕圆角调整；新导入素材保留原图，方便再次编辑。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.10</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>截图按钮新增原生「套壳截图」，支持排序、显隐和图标名称自定义；支持保存多个素材，手动选择或每次截图随机选择已保存素材。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>优化</string>
-				<key>text</key>
-				<string>自定义套壳按素材原尺寸铺满输出，移除外部留白与阴影，完整截图贴合四角并保留原有圆角和装饰。素材编辑预览铺满页面宽度。</string>
 			</dict>
 		</array>
 	</dict>
