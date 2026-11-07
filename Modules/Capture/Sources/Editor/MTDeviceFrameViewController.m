@@ -25,6 +25,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UIButton *applyButton;
 @property (nonatomic, strong) UIButton *editButton;
+@property (nonatomic, strong) UIButton *originalButton;
 @property (nonatomic, strong) UIStackView *outputButtons;
 @property (nonatomic, strong) UIView *library;
 @property (nonatomic, strong) UILabel *libraryTitle;
@@ -113,6 +114,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     self.applyButton=[self button:@"应用" selector:@selector(apply)];self.applyButton.tag=3;[self.navigation addSubview:self.applyButton];
     self.previewCard=[self card];[self.view addSubview:self.previewCard];
     self.previewTitle=[self label:@"实时预览" size:13 color:UIColor.secondaryLabelColor];[self.previewCard addSubview:self.previewTitle];
+    self.originalButton=[self button:@"恢复原图" selector:@selector(restoreOriginal)];self.originalButton.hidden=self.configurationOnly;[self.previewCard addSubview:self.originalButton];
     self.preview=[UIImageView new];self.preview.contentMode=UIViewContentModeScaleAspectFit;
     self.preview.accessibilityLabel=@"完整套壳效果预览";self.preview.isAccessibilityElement=YES;[self.previewCard addSubview:self.preview];
     self.emptyLabel=[self label:@"从相册导入第一份素材\n选择图片后即可定位屏幕四角" size:15 color:UIColor.secondaryLabelColor];
@@ -183,7 +185,8 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
         self.previewCard.frame=CGRectMake(left,top,width,MAX(60,CGRectGetMinY(self.library.frame)-top-gap));
     }
     CGRect card=self.previewCard.bounds;CGFloat footer=40;
-    self.previewTitle.frame=CGRectMake(12,8,card.size.width-24,20);
+    self.previewTitle.frame=CGRectMake(12,8,card.size.width-(self.configurationOnly ? 24 : 110),20);
+    self.originalButton.frame=CGRectMake(card.size.width-100,0,88,36);
     self.preview.frame=CGRectMake(12,34,card.size.width-24,MAX(1,card.size.height-34-footer));
     self.emptyLabel.frame=self.preview.frame;self.spinner.center=CGPointMake(CGRectGetMidX(card),CGRectGetMidY(card));
     self.editButton.frame=CGRectMake(card.size.width-114,card.size.height-36,102,30);
@@ -219,7 +222,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
         button.hidden=index>=self.templates.count;if(button.hidden)continue;
         MTDeviceFrameTemplate *frame=self.templates[index];button.tag=index;button.enabled=!self.importing;
         button.accessibilityIdentifier=frame.identifier;button.accessibilityLabel=frame.name;button.accessibilityHint=@"轻点选用，长按删除素材";
-        BOOL selected=[frame.identifier isEqualToString:self.style.templateIdentifier];
+        BOOL selected=!self.original && [frame.identifier isEqualToString:self.style.templateIdentifier];
         button.layer.borderWidth=selected ? 2 : 0;button.layer.borderColor=MTFrameAccent().CGColor;
         button.accessibilityTraits=UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
         [button viewWithTag:103].hidden=!selected;((UILabel *)[button viewWithTag:102]).text=frame.name;
@@ -246,33 +249,35 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     self.original=NO;self.style.randomize=NO;self.style.templateIdentifier=self.templates[sender.tag].identifier;
     [self refreshControls];[self schedulePreview];
 }
+- (void)restoreOriginal {if(self.configurationOnly || self.importing)return;self.original=YES;self.style.randomize=NO;[self refreshControls];[self schedulePreview];}
 - (void)switchChanged:(UISwitch *)sender {
     if(sender.tag==5)self.style.autoLandscape=sender.on;
-    else {self.style.randomize=sender.on;if(sender.on){MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];self.style.templateIdentifier=frame.identifier ?: @"";[self revealSelectedPage];}}
+    else {self.style.randomize=sender.on;if(sender.on){self.original=NO;MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];self.style.templateIdentifier=frame.identifier ?: @"";[self revealSelectedPage];}}
     [self refreshControls];[self schedulePreview];
 }
 - (void)schedulePreview {
     if(self.invalidated)return;
     self.navigationItem.rightBarButtonItem.title=@"保存";
     self.generation++;self.pendingRender=YES;self.previewReady=NO;
-    self.preview.image=nil;self.emptyLabel.hidden=[self frame]!=nil;
+    self.preview.image=nil;self.emptyLabel.hidden=self.original || [self frame]!=nil;
     [self updateOutputState];[self.spinner startAnimating];if(!self.rendering)[self renderNextPreview];
 }
 - (void)renderNextPreview {
     if(self.invalidated || !self.pendingRender || self.rendering)return;
     self.pendingRender=NO;self.rendering=YES;NSUInteger generation=self.generation;
     MTDeviceFrameConfiguration *style=[self.style copy];MTDeviceFrameTemplate *frame=[self frame];
-    UIImage *source=self.previewSource ?: self.source;__weak typeof(self) weakSelf=self;
+    UIImage *source=self.previewSource ?: self.source;BOOL original=self.original;__weak typeof(self) weakSelf=self;
     dispatch_async(self.renderQueue,^{@autoreleasepool {
         UIImage *small=[MTDeviceFramePhotoMaterial previewForImage:source];
-        UIImage *result=frame ? [MTDeviceFrameRenderer renderImage:small configuration:style template:frame previewEdge:1200] : nil;
+        UIImage *result=original ? small : (frame ? [MTDeviceFrameRenderer renderImage:small configuration:style template:frame previewEdge:1200] : nil);
         dispatch_async(dispatch_get_main_queue(),^{
             __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
             self.rendering=NO;if(small){self.previewSource=small;self.source=nil;}
             if(generation==self.generation) {
                 self.preview.image=result;self.previewReady=result!=nil;[self.spinner stopAnimating];
                 CGSize canvas=frame.canvasSize;if(style.autoLandscape && self.sourcePixels.width>self.sourcePixels.height && canvas.height>canvas.width)canvas=CGSizeMake(canvas.height,canvas.width);
-                self.detail.text=result ? [NSString stringWithFormat:@"完整画布 · %.0f × %.0f",canvas.width,canvas.height] : (frame ? @"合成失败，请重新导入素材" : @"尚未导入素材");
+                if(original)canvas=self.sourcePixels;
+                self.detail.text=result ? [NSString stringWithFormat:@"%@ · %.0f × %.0f",original ? @"原图" : @"完整画布",canvas.width,canvas.height] : (frame ? @"合成失败，请重新导入素材" : @"尚未导入素材");
                 [self updateOutputState];
             }
             [self renderNextPreview];
@@ -282,12 +287,13 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
 - (void)updateOutputState {
     BOOL ready=self.previewReady && !self.importing && !self.invalidated;
     self.applyButton.enabled=ready;self.navigationItem.rightBarButtonItem.enabled=ready;
-    self.editButton.enabled=[self frame]!=nil && !self.importing && !self.invalidated;
+    self.editButton.enabled=!self.original && [self frame]!=nil && !self.importing && !self.invalidated;
+    self.originalButton.enabled=!self.importing && !self.invalidated;
     for(UIButton *button in self.outputButtons.arrangedSubviews)button.enabled=ready;
 }
 - (void)finish:(MTOutputAction)action {
     if(!self.previewReady || self.importing || self.invalidated || self.presentedViewController)return;
-    MTDeviceFrameConfiguration *style=[self.style copy];
+    MTDeviceFrameConfiguration *style=self.original ? nil : [self.style copy];
     if(self.configurationOnly){[style remember];self.navigationItem.rightBarButtonItem.title=@"已保存";return;}
     void (^completion)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction)=self.completion;
     [self invalidate];if(completion)completion(YES,style,action);
