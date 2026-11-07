@@ -188,6 +188,8 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 @property (nonatomic, strong) MTFrameMaterialCanvas *canvas;
 @property (nonatomic) MTDeviceFrameQuad initialQuad;
 @property (nonatomic) CGFloat initialRadius;
+@property (nonatomic) BOOL initialManualRadius;
+@property (nonatomic) BOOL manualRadius;
 @property (nonatomic) BOOL transparent;
 @property (nonatomic) BOOL saving;
 @property (nonatomic) BOOL invalidated;
@@ -208,6 +210,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 @property (nonatomic, strong) UILabel *radiusLabel;
 @property (nonatomic, strong) UILabel *radiusValue;
 @property (nonatomic, strong) UISlider *radiusSlider;
+@property (nonatomic, strong) UISegmentedControl *radiusMode;
 @property (nonatomic, strong) UIButton *saveButton;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) NSProgress *operation;
@@ -230,6 +233,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     BOOL transparent=NO;[MTDeviceFramePhotoMaterial suggestedScreenForImage:image hasTransparentScreen:&transparent];
     if((self=[self initWithImage:image preview:preview suggestedQuad:frame.screenQuad transparentScreen:transparent completion:completion])) {
         _initialName=frame.name;_initialRadius=frame.screenCornerRadius;
+        _manualRadius=frame.adjustsTransparentCorners;_initialManualRadius=_manualRadius;
     }return self;
 }
 - (UILabel *)label:(NSString *)text size:(CGFloat)size {
@@ -270,7 +274,12 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     self.radiusLabel=[self label:@"屏幕圆角" size:14];self.radiusLabel.textColor=UIColor.whiteColor;[self.radiusCard addSubview:self.radiusLabel];
     self.radiusValue=[self label:@"" size:14];self.radiusValue.textAlignment=NSTextAlignmentRight;[self.radiusCard addSubview:self.radiusValue];
     self.radiusSlider=[UISlider new];self.radiusSlider.minimumValue=0;self.radiusSlider.maximumValue=100;self.radiusSlider.value=self.initialRadius;
-    self.radiusSlider.enabled=!self.transparent;self.radiusSlider.accessibilityLabel=@"屏幕圆角";
+    self.radiusSlider.accessibilityLabel=@"屏幕圆角";
+    self.radiusMode=[[UISegmentedControl alloc]initWithItems:@[@"原遮罩",@"手动圆角"]];self.radiusMode.hidden=!self.transparent;
+    self.radiusMode.selectedSegmentIndex=self.manualRadius ? 1 : 0;self.radiusMode.selectedSegmentTintColor=MTMaterialAccent();
+    [self.radiusMode setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.blackColor}forState:UIControlStateSelected];
+    self.radiusMode.accessibilityLabel=@"圆角模式";[self.radiusMode addTarget:self action:@selector(radiusModeChanged:)forControlEvents:UIControlEventValueChanged];
+    [self.radiusCard addSubview:self.radiusMode];
     [self.radiusSlider addTarget:self action:@selector(radiusChanged:)forControlEvents:UIControlEventValueChanged];[self.radiusCard addSubview:self.radiusSlider];
     self.saveButton=[self button:@"保存素材" selector:@selector(save)];self.saveButton.backgroundColor=MTMaterialAccent();self.saveButton.layer.cornerRadius=14;
     self.saveButton.titleLabel.font=[UIFont boldSystemFontOfSize:17];[self.saveButton setTitleColor:UIColor.blackColor forState:UIControlStateNormal];[self.view addSubview:self.saveButton];
@@ -294,13 +303,22 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     if(wide){controlWidth=MIN(340,w*0.48);controlLeft=left+w-controlWidth;self.canvas.frame=CGRectMake(left,top,w-controlWidth-12,bottom-top);}
     BOOL compact=wide && bottom-top<310;
     CGFloat nameHeight=compact ? 36 : 48,saveHeight=compact ? 40 : 48;
-    CGFloat radiusHeight=compact ? 44 : 52,arrowHeight=compact ? 40 : 44,cornerHeight=compact ? 32 : 36,gap=compact ? 6 : 8;
+    CGFloat radiusHeight=(compact ? 44 : 52)+(self.transparent ? 36 : 0),arrowHeight=compact ? 40 : 44,cornerHeight=compact ? 32 : 36,gap=compact ? 6 : 8;
+    BOOL tight=compact && self.transparent;
+    if(tight){nameHeight=28;saveHeight=36;radiusHeight=64;arrowHeight=36;cornerHeight=28;gap=3;}
     self.nameCard.frame=CGRectMake(controlLeft,top,controlWidth,nameHeight);
     self.nameLabel.frame=CGRectMake(12,0,74,nameHeight);self.nameField.frame=CGRectMake(94,0,MAX(1,controlWidth-106),nameHeight);
     self.saveButton.frame=CGRectMake(controlLeft,bottom-saveHeight,controlWidth,saveHeight);
     self.radiusCard.frame=CGRectMake(controlLeft,CGRectGetMinY(self.saveButton.frame)-gap-radiusHeight,controlWidth,radiusHeight);
-    self.radiusLabel.frame=CGRectMake(12,0,72,radiusHeight);self.radiusValue.frame=CGRectMake(controlWidth-62,0,50,radiusHeight);
-    self.radiusSlider.frame=CGRectMake(90,0,MAX(1,controlWidth-160),radiusHeight);
+    if(self.transparent) {
+        CGFloat row=tight ? 30 : 40;
+        self.radiusLabel.frame=CGRectMake(12,0,72,row);self.radiusMode.frame=CGRectMake(88,2,MAX(1,controlWidth-100),row-4);
+        self.radiusSlider.frame=CGRectMake(12,row,MAX(1,controlWidth-82),radiusHeight-row);
+        self.radiusValue.frame=CGRectMake(controlWidth-62,row,50,radiusHeight-row);
+    } else {
+        self.radiusLabel.frame=CGRectMake(12,0,72,radiusHeight);self.radiusValue.frame=CGRectMake(controlWidth-62,0,50,radiusHeight);
+        self.radiusSlider.frame=CGRectMake(90,0,MAX(1,controlWidth-160),radiusHeight);
+    }
     self.arrows.frame=CGRectMake(controlLeft,CGRectGetMinY(self.radiusCard.frame)-gap-arrowHeight,controlWidth,arrowHeight);
     self.corners.frame=CGRectMake(controlLeft,CGRectGetMinY(self.arrows.frame)-gap-cornerHeight,controlWidth,cornerHeight);
     self.hint.frame=CGRectMake(controlLeft,CGRectGetMinY(self.corners.frame)-gap-18,controlWidth,18);
@@ -318,15 +336,21 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     CGPoint delta[]={CGPointMake(-1,0),CGPointMake(0,-1),CGPointMake(0,1),CGPointMake(1,0)};
     if(sender.tag>=0 && sender.tag<4)[self.canvas moveCorner:delta[sender.tag]];
 }
-- (void)reset {self.canvas.quad=self.initialQuad;self.radiusSlider.value=self.initialRadius;[self.canvas setNeedsLayout];[self schedulePreview];}
-- (void)radiusChanged:(UISlider *)sender {sender.value=round(sender.value);[self schedulePreview];}
+- (void)reset {self.canvas.quad=self.initialQuad;self.radiusSlider.value=self.initialRadius;self.manualRadius=self.initialManualRadius;[self.canvas setNeedsLayout];[self schedulePreview];}
+- (void)radiusChanged:(UISlider *)sender {sender.value=round(sender.value);if(self.transparent)self.manualRadius=YES;[self schedulePreview];}
+- (void)radiusModeChanged:(UISegmentedControl *)sender {
+    self.manualRadius=sender.selectedSegmentIndex==1;
+    if(self.manualRadius && self.radiusSlider.value==0)self.radiusSlider.value=24;
+    [self schedulePreview];
+}
 - (void)updateSaveState {
     BOOL enabled=self.previewReady && !self.saving && !self.invalidated;
     self.navigationItem.rightBarButtonItem.enabled=enabled;self.saveButton.enabled=enabled;
 }
 - (void)schedulePreview {
     if(self.invalidated || self.saving)return;
-    self.radiusValue.text=self.transparent ? @"原遮罩" : [NSString stringWithFormat:@"%.0f",self.radiusSlider.value];
+    self.radiusMode.selectedSegmentIndex=self.manualRadius ? 1 : 0;
+    self.radiusValue.text=self.transparent && !self.manualRadius ? @"原遮罩" : [NSString stringWithFormat:@"%.0f",self.radiusSlider.value];
     self.radiusSlider.accessibilityValue=self.radiusValue.text;
     self.generation++;self.pendingRender=YES;self.previewReady=NO;[self updateSaveState];[self.spinner startAnimating];[self renderNextPreview];
 }
@@ -335,7 +359,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
     self.pendingRender=NO;self.rendering=YES;NSUInteger generation=self.generation;
     MTDeviceFrameQuad q=self.canvas.quad;CGSize original=self.canvas.pixelSize;
     UIImage *preview=self.highDetailPreview ? self.detailPreview : self.preview;
-    UIImage *source=self.source,*screenshot=self.screenshot;BOOL high=self.highDetailPreview;CGFloat radius=self.radiusSlider.value;
+    UIImage *source=self.source,*screenshot=self.screenshot;BOOL high=self.highDetailPreview,adjust=self.transparent && self.manualRadius;CGFloat radius=self.radiusSlider.value;
     __weak typeof(self) weakSelf=self;
     dispatch_async(self.renderQueue,^{@autoreleasepool {
         UIImage *working=preview ?: [MTDeviceFramePhotoMaterial previewForImage:source maximumEdge:high ? 2400 : 1200];
@@ -343,7 +367,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
         CGFloat sx=size.width/original.width,sy=size.height/original.height;
         MTDeviceFrameQuad scaled={CGPointMake(q.topLeft.x*sx,q.topLeft.y*sy),CGPointMake(q.topRight.x*sx,q.topRight.y*sy),CGPointMake(q.bottomRight.x*sx,q.bottomRight.y*sy),CGPointMake(q.bottomLeft.x*sx,q.bottomLeft.y*sy)};
         UIImage *overlay=[MTDeviceFramePhotoMaterial overlayForImage:working screenQuad:scaled cutout:YES cornerRadius:radius error:nil];
-        UIImage *result=overlay ? [MTDeviceFrameRenderer renderImage:screenshot overlay:overlay screenQuad:scaled] : nil;
+        UIImage *result=overlay ? [MTDeviceFrameRenderer renderImage:screenshot overlay:overlay screenQuad:scaled cornerRadius:adjust ? radius : 0] : nil;
         dispatch_async(dispatch_get_main_queue(),^{
             __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;self.rendering=NO;
             if(high && working)self.detailPreview=working;
@@ -356,17 +380,17 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 - (void)save {
     if(self.saving || self.invalidated || !self.previewReady)return;
     [self.view endEditing:YES];self.saving=YES;[self updateSaveState];
-    self.canvas.userInteractionEnabled=NO;self.corners.enabled=NO;self.arrows.userInteractionEnabled=NO;self.radiusSlider.enabled=NO;self.nameField.enabled=NO;
-    UIImage *source=self.source;MTDeviceFrameQuad q=self.canvas.quad;CGFloat radius=self.radiusSlider.value;
+    self.canvas.userInteractionEnabled=NO;self.corners.enabled=NO;self.arrows.userInteractionEnabled=NO;self.radiusSlider.enabled=NO;self.radiusMode.enabled=NO;self.nameField.enabled=NO;
+    UIImage *source=self.source;MTDeviceFrameQuad q=self.canvas.quad;CGFloat radius=self.radiusSlider.value;BOOL adjust=self.transparent && self.manualRadius;
     NSString *name=[self.nameField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];if(!name.length)name=@"相册素材";
     NSProgress *operation=[NSProgress progressWithTotalUnitCount:1];self.operation=operation;__weak typeof(self) weakSelf=self;
     dispatch_async(self.renderQueue,^{@autoreleasepool {
-        NSError *error=nil;MTDeviceFrameTemplate *frame=operation.cancelled ? nil : [MTDeviceFramePhotoMaterial importImage:source name:name screenQuad:q cornerRadius:radius error:&error];
+        NSError *error=nil;MTDeviceFrameTemplate *frame=operation.cancelled ? nil : [MTDeviceFramePhotoMaterial importImage:source name:name screenQuad:q cornerRadius:radius adjustTransparentCorners:adjust error:&error];
         dispatch_async(dispatch_get_main_queue(),^{
             __strong typeof(weakSelf) self=weakSelf;
             if(!self || self.invalidated || operation.cancelled){if(frame)dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{[MTDeviceFrameTemplateStore removeTemplate:frame error:nil];});return;}
             self.operation=nil;self.saving=NO;[self updateSaveState];
-            self.canvas.userInteractionEnabled=YES;self.corners.enabled=YES;self.arrows.userInteractionEnabled=YES;self.radiusSlider.enabled=!self.transparent;self.nameField.enabled=YES;
+            self.canvas.userInteractionEnabled=YES;self.corners.enabled=YES;self.arrows.userInteractionEnabled=YES;self.radiusSlider.enabled=YES;self.radiusMode.enabled=YES;self.nameField.enabled=YES;
             if(!frame){UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"保存失败" message:error.localizedDescription ?: @"请重试" preferredStyle:UIAlertControllerStyleAlert];
                 [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];[self presentViewController:alert animated:YES completion:nil];return;}
             [self finish:frame];

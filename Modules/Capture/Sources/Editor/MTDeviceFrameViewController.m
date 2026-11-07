@@ -149,7 +149,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     self.randomSwitch=[UISwitch new];self.randomSwitch.onTintColor=MTFrameAccent();self.randomSwitch.tag=6;self.randomSwitch.accessibilityLabel=@"随机素材";
     self.landscapeSwitch=[UISwitch new];self.landscapeSwitch.onTintColor=MTFrameAccent();self.landscapeSwitch.tag=5;self.landscapeSwitch.accessibilityLabel=@"自动适配横屏";
     for (UISwitch *toggle in @[self.randomSwitch,self.landscapeSwitch]) {[toggle addTarget:self action:@selector(switchChanged:)forControlEvents:UIControlEventValueChanged];[self.options addSubview:toggle];}
-    self.helper=[self label:@"保存后，套壳截图自动使用当前配置" size:11 color:UIColor.secondaryLabelColor];self.helper.textAlignment=NSTextAlignmentCenter;[self.view addSubview:self.helper];
+    self.helper=[self label:self.configurationOnly ? @"选中即生效，更改会自动保存" : @"点应用，将当前素材用于这张截图" size:11 color:UIColor.secondaryLabelColor];self.helper.textAlignment=NSTextAlignmentCenter;[self.view addSubview:self.helper];
     self.outputButtons=[[UIStackView alloc]initWithArrangedSubviews:@[[self button:@"复制" selector:@selector(copyOutput)],[self button:@"分享" selector:@selector(shareOutput)],[self button:@"保存" selector:@selector(saveOutput)]]];
     self.outputButtons.spacing=10;self.outputButtons.distribution=UIStackViewDistributionFillEqually;self.outputButtons.hidden=self.configurationOnly;
     for (UIButton *b in self.outputButtons.arrangedSubviews) {b.backgroundColor=MTFrameCardColor();b.layer.cornerRadius=12;}
@@ -253,16 +253,23 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     [self updateOutputState];[self.view setNeedsLayout];
 }
 - (void)pageChanged:(UIPageControl *)sender { [self refreshControls]; }
+- (void)rememberSettingsSelection {
+    if(!self.configurationOnly || self.invalidated || (![self frame] && self.templates.count))return;
+    if(![self.style remember]) {
+        self.navigationItem.rightBarButtonItem.title=@"重试";self.helper.text=@"配置保存失败，请点保存重试";return;
+    }
+    self.navigationItem.rightBarButtonItem.title=@"已保存";self.helper.text=@"选中即生效，更改会自动保存";
+}
 - (void)templateTapped:(UIButton *)sender {
     if(self.importing || sender.tag<0 || sender.tag>=(NSInteger)self.templates.count)return;
     self.original=NO;self.style.randomize=NO;self.style.templateIdentifier=self.templates[sender.tag].identifier;
-    [self refreshControls];[self schedulePreview];
+    [self refreshControls];[self schedulePreview];[self rememberSettingsSelection];
 }
 - (void)restoreOriginal {if(self.configurationOnly || self.importing)return;self.original=YES;self.style.randomize=NO;[self refreshControls];[self schedulePreview];}
 - (void)switchChanged:(UISwitch *)sender {
     if(sender.tag==5)self.style.autoLandscape=sender.on;
     else {self.style.randomize=sender.on;if(sender.on){self.original=NO;MTDeviceFrameTemplate *frame=[MTDeviceFrameTemplateStore resolveTemplateForConfiguration:self.style templates:self.templates];self.style.templateIdentifier=frame.identifier ?: @"";[self revealSelectedPage];}}
-    [self refreshControls];[self schedulePreview];
+    [self refreshControls];[self schedulePreview];[self rememberSettingsSelection];
 }
 - (void)schedulePreview {
     if(self.invalidated)return;
@@ -303,7 +310,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
 - (void)finish:(MTOutputAction)action {
     if(!self.previewReady || self.importing || self.invalidated || self.presentedViewController)return;
     MTDeviceFrameConfiguration *style=self.original ? nil : [self.style copy];
-    if(self.configurationOnly){[style remember];self.navigationItem.rightBarButtonItem.title=@"已保存";return;}
+    if(self.configurationOnly){[self rememberSettingsSelection];return;}
     void (^completion)(BOOL,MTDeviceFrameConfiguration *,MTOutputAction)=self.completion;
     [self invalidate];if(completion)completion(YES,style,action);
 }
@@ -412,7 +419,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
     [self dismissViewControllerAnimated:YES completion:^{
         __strong typeof(weakSelf) self=weakSelf;if(!self || self.invalidated)return;
         if(frame){self.templates=[MTDeviceFrameTemplateStore templates];self.style.templateIdentifier=frame.identifier;self.original=NO;self.style.randomize=NO;[self revealSelectedPage];}
-        [self refreshControls];[self schedulePreview];
+        [self refreshControls];[self schedulePreview];if(frame)[self rememberSettingsSelection];
     }];
 }
 - (void)presentMaterialController:(MTDeviceFramePhotoMaterialController *)controller {
@@ -442,7 +449,7 @@ static UIColor *MTFrameCardColor(void) { return [UIColor colorWithWhite:0.14 alp
         self.templates=[MTDeviceFrameTemplateStore templates];
         if(![self frame])self.style.templateIdentifier=self.templates.firstObject.identifier ?: @"";
         if(!self.templates.count)self.style.randomize=NO;
-        [self revealSelectedPage];[self refreshControls];[self schedulePreview];
+        [self revealSelectedPage];[self refreshControls];[self schedulePreview];[self rememberSettingsSelection];
     }]];[self presentViewController:alert animated:YES completion:nil];
 }
 @end

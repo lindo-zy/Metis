@@ -41,9 +41,9 @@
         @"padding":@(self.paddingFraction), @"shadow":@(self.shadow), @"landscape":@(self.autoLandscape), @"random":@(self.randomize)};
 }
 - (id)copyWithZone:(NSZone *)zone { return [MTDeviceFrameConfiguration configurationWithDictionary:self.dictionaryRepresentation]; }
-- (void)remember {
+- (BOOL)remember {
     CFPreferencesSetAppValue(CFSTR("DeviceFrameStyle"), (__bridge CFPropertyListRef)self.dictionaryRepresentation,
                              (__bridge CFStringRef)MTCapturePreferencesDomain);
-    CFPreferencesAppSynchronize((__bridge CFStringRef)MTCapturePreferencesDomain);
+    return CFPreferencesAppSynchronize((__bridge CFStringRef)MTCapturePreferencesDomain);
 }
 @end

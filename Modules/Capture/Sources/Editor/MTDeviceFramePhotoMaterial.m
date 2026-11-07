@@ -142,7 +142,7 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
 // 兼容旧素材调用方，保持原遮罩语义。
 + (MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
                            screenQuad:(MTDeviceFrameQuad)q cutout:(BOOL)cutout error:(NSError **)error {
-    return [self storeImage:image name:name screenQuad:q cutout:cutout cornerRadius:0 preserveSource:NO error:error];
+    return [self storeImage:image name:name screenQuad:q cutout:cutout cornerRadius:0 preserveSource:NO adjustTransparentCorners:NO error:error];
 }
 + (UIImage *)sourceImageForTemplate:(MTDeviceFrameTemplate *)frame error:(NSError **)error {
     NSString *path=[frame.overlayPath.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"source.png"];
@@ -158,6 +158,10 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
         if(error)*error=MTPhotoMaterialError(@"屏幕四角无效，请按左上、右上、右下、左下顺序调整");return nil;
     }
     BOOL hasOpening=MTPhotoMaterialHasOpening(image.CGImage,q);
+    if(!hasOpening) {
+        // 校准四角移出原开孔时也不重新挖空原遮罩。
+        BOOL originalOpening=NO;[self suggestedScreenForImage:image hasTransparentScreen:&originalOpening];hasOpening=originalOpening;
+    }
     if (!cutout && !hasOpening) {
         if(error)*error=MTPhotoMaterialError(@"所选屏幕区域没有透明开孔，请重新定位四角");return nil;
     }
@@ -192,16 +196,20 @@ static BOOL MTPhotoMaterialHasOpening(CGImageRef image,MTDeviceFrameQuad q) {
 }
 + (MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
                            screenQuad:(MTDeviceFrameQuad)q cornerRadius:(CGFloat)radius error:(NSError **)error {
-    return [self storeImage:image name:name screenQuad:q cutout:YES cornerRadius:radius preserveSource:YES error:error];
+    return [self importImage:image name:name screenQuad:q cornerRadius:radius adjustTransparentCorners:NO error:error];
+}
++ (MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name screenQuad:(MTDeviceFrameQuad)q
+                         cornerRadius:(CGFloat)radius adjustTransparentCorners:(BOOL)adjust error:(NSError **)error {
+    return [self storeImage:image name:name screenQuad:q cutout:YES cornerRadius:radius preserveSource:YES adjustTransparentCorners:adjust error:error];
 }
 + (MTDeviceFrameTemplate *)storeImage:(UIImage *)image name:(NSString *)name screenQuad:(MTDeviceFrameQuad)q
-                              cutout:(BOOL)cutout cornerRadius:(CGFloat)radius preserveSource:(BOOL)preserve error:(NSError **)error {
+                              cutout:(BOOL)cutout cornerRadius:(CGFloat)radius preserveSource:(BOOL)preserve adjustTransparentCorners:(BOOL)adjust error:(NSError **)error {
     UIImage *overlay=[self overlayForImage:image screenQuad:q cutout:cutout cornerRadius:radius error:error];
     if(!overlay)return nil;
     NSData *data=MTPhotoMaterialPNGData(overlay);
     if(!data){if(error)*error=MTPhotoMaterialError(@"PNG 素材生成失败");return nil;}
     CGSize size=CGSizeMake(CGImageGetWidth(image.CGImage),CGImageGetHeight(image.CGImage));
-    NSDictionary *config=@{@"name":name ?: @"相册素材",@"screen_corner_radius":@(radius),
+    NSDictionary *config=@{@"name":name ?: @"相册素材",@"screen_corner_radius":@(radius),@"adjust_transparent_corners":@(adjust),
         @"template_width":@(size.width),@"template_height":@(size.height),
         @"left_top_x":@(q.topLeft.x),@"left_top_y":@(q.topLeft.y),@"right_top_x":@(q.topRight.x),@"right_top_y":@(q.topRight.y),
         @"right_bottom_x":@(q.bottomRight.x),@"right_bottom_y":@(q.bottomRight.y),

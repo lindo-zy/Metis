@@ -9,6 +9,10 @@ NS_ASSUME_NONNULL_BEGIN
                               cutout:(BOOL)cutout cornerRadius:(CGFloat)radius error:(NSError **)error;
 + (nullable MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
                                    screenQuad:(MTDeviceFrameQuad)quad cornerRadius:(CGFloat)radius error:(NSError **)error;
+/// 透明素材保留原图遮罩；手动圆角只作用于截图，标志随素材配置持久化。
++ (nullable MTDeviceFrameTemplate *)importImage:(UIImage *)image name:(NSString *)name
+                                   screenQuad:(MTDeviceFrameQuad)quad cornerRadius:(CGFloat)radius
+                     adjustTransparentCorners:(BOOL)adjust error:(NSError **)error;
 /// 在文件提供者回调内调用；先检查体积/像素，再解码并烘焙 EXIF 方向，保持实际分辨率。
 + (nullable UIImage *)imageFromPhotoURL:(NSURL *)URL error:(NSError **)error;
 /// 重新定位已有素材时保持 PNG 的原始像素坐标，不应用 EXIF 旋转。

@@ -12,6 +12,6 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)rememberedConfiguration;
 + (instancetype)configurationWithDictionary:(nullable NSDictionary *)dictionary;
 - (NSDictionary *)dictionaryRepresentation;
-- (void)remember;
+- (BOOL)remember;
 @end
 NS_ASSUME_NONNULL_END

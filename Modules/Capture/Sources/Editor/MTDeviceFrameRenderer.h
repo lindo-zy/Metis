@@ -11,6 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
                      previewEdge:(CGFloat)previewEdge;
 /// 素材编辑实时预览，overlay 已包含屏幕开孔，四角使用 overlay 的像素坐标。
 + (nullable UIImage *)renderImage:(UIImage *)source overlay:(UIImage *)overlay screenQuad:(MTDeviceFrameQuad)quad;
+/// 在原遮罩下对截图叠加圆角，0 为矩形截图；不修改素材本身的透明/装饰像素。
++ (nullable UIImage *)renderImage:(UIImage *)source overlay:(UIImage *)overlay
+                      screenQuad:(MTDeviceFrameQuad)quad cornerRadius:(CGFloat)radius;
 + (UIColor *)backgroundColor:(NSInteger)index;
 @end
 NS_ASSUME_NONNULL_END

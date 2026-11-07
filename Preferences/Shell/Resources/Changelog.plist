@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.3</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>套壳设置选中素材后立即保存并关闭随机，导入或编辑完成后自动使用当前素材，避免仍使用上一份素材。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>透明素材默认保留原遮罩，支持切换手动圆角并直接拖动滑块调整；实时预览、保存和自动套壳输出共用截图圆角裁剪逻辑。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.2</string>
 		<key>items</key>
 		<array>
@@ -63,19 +82,6 @@
 				<string>优化</string>
 				<key>text</key>
 				<string>自定义套壳按素材原尺寸铺满输出，移除外部留白与阴影，完整截图贴合四角并保留原有圆角和装饰。素材编辑预览铺满页面宽度。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.6.9</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>相册和文件导入的套壳素材支持重新定位屏幕四角，保留原坐标初始化，校准后另存并自动选中；原素材和自动截图输出流程保持不变。</string>
 			</dict>
 		</array>
 	</dict>

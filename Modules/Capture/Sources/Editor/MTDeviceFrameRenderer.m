@@ -1,6 +1,7 @@
 #import "MTDeviceFrameRenderer.h"
 #import <CoreImage/CoreImage.h>
 #import <ImageIO/ImageIO.h>
+#import <math.h>
 
 static void MTFrameFillRound(CGRect r, CGFloat radius, UIColor *color) {
     [color setFill]; [[UIBezierPath bezierPathWithRoundedRect:r cornerRadius:radius] fill];
@@ -17,8 +18,22 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
     return result;
 }
 
+static UIImage *MTFrameScreenshotPlate(UIImage *source,CGSize size,CGFloat radius) {
+    if(!source.CGImage || !MTDeviceFrameValidCanvas(size) || !isfinite(radius) || radius<0 || radius>100)return nil;
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat new];format.scale=1;format.opaque=radius<=0;
+    format.preferredRange=UIGraphicsImageRendererFormatRangeStandard;
+    return [[[UIGraphicsImageRenderer alloc]initWithSize:size format:format]imageWithActions:^(UIGraphicsImageRendererContext *ctx){
+        CGRect rect=(CGRect){CGPointZero,size};
+        if(radius>0)[[UIBezierPath bezierPathWithRoundedRect:rect cornerRadius:radius*MIN(size.width,size.height)/393.0]addClip];
+        [UIColor.blackColor setFill];UIRectFill(rect);[source drawInRect:rect];
+    }];
+}
+
 @implementation MTDeviceFrameRenderer
 + (UIImage *)renderImage:(UIImage *)source overlay:(UIImage *)overlay screenQuad:(MTDeviceFrameQuad)q {
+    return [self renderImage:source overlay:overlay screenQuad:q cornerRadius:0];
+}
++ (UIImage *)renderImage:(UIImage *)source overlay:(UIImage *)overlay screenQuad:(MTDeviceFrameQuad)q cornerRadius:(CGFloat)radius {
     CGSize size=overlay.CGImage ? CGSizeMake(CGImageGetWidth(overlay.CGImage),CGImageGetHeight(overlay.CGImage)) : CGSizeZero;
     if (!source.CGImage || !MTDeviceFrameValidQuad(q,size)) return nil;
     CGSize screen=MTDeviceFrameScreenSize(q);
@@ -26,9 +41,7 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
     if (!MTDeviceFrameValidCanvas(plateSize)) return nil;
     UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat new];format.scale=1;format.opaque=YES;
     format.preferredRange=UIGraphicsImageRendererFormatRangeStandard;
-    UIImage *plate=[[[UIGraphicsImageRenderer alloc]initWithSize:plateSize format:format]imageWithActions:^(UIGraphicsImageRendererContext *ctx){
-        [UIColor.blackColor setFill];UIRectFill((CGRect){CGPointZero,plateSize});[source drawInRect:(CGRect){CGPointZero,plateSize}];
-    }];
+    UIImage *plate=MTFrameScreenshotPlate(source,plateSize,radius);if(!plate)return nil;
     CIFilter *filter=[CIFilter filterWithName:@"CIPerspectiveTransform"];
     [filter setValue:[CIImage imageWithCGImage:plate.CGImage]forKey:kCIInputImageKey];
     CGPoint points[]={q.topLeft,q.topRight,q.bottomRight,q.bottomLeft};
@@ -75,13 +88,8 @@ static UIImage *MTFrameLoadOverlay(NSString *path, CGFloat edge) {
         overlay = MTFrameLoadOverlay(frame.overlayPath,MAX(canvas.width,canvas.height)*density);
         CGSize plateSize = CGSizeMake(ceil(screen.width*density),ceil(screen.height*density));
         if (!overlay || !MTDeviceFrameValidCanvas(plateSize)) return nil;
-        UIGraphicsImageRendererFormat *plateFormat = [UIGraphicsImageRendererFormat new];
-        plateFormat.scale = 1; plateFormat.opaque = YES; plateFormat.preferredRange = UIGraphicsImageRendererFormatRangeStandard;
-        UIImage *plate = [[[UIGraphicsImageRenderer alloc] initWithSize:plateSize format:plateFormat]
-            imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-                [UIColor.blackColor setFill]; UIRectFill((CGRect){CGPointZero,plateSize});
-                [source drawInRect:(CGRect){CGPointZero,plateSize}];
-            }];
+        UIImage *plate=MTFrameScreenshotPlate(source,plateSize,frame.adjustsTransparentCorners ? frame.screenCornerRadius : 0);
+        if(!plate)return nil;
         CIFilter *filter = [CIFilter filterWithName:@"CIPerspectiveTransform"];
         [filter setValue:[CIImage imageWithCGImage:plate.CGImage] forKey:kCIInputImageKey];
         CGPoint points[] = {q.topLeft,q.topRight,q.bottomRight,q.bottomLeft};
