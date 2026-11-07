@@ -19,6 +19,16 @@ jobs:
         run: |
           brew install ldid dpkg make
 
+      - name: Pin Xcode 16.2
+        run: |
+          # iOS 18.4+ SDK 的 c_standard_library.modulemap 带
+          # found_incompatible_headers__check_search_paths 守卫，会让
+          # theos 的 17.0 overlay 在 -fmodules 下编译失败；且 theos 的
+          # Darwin.mk 会把 DEVELOPER_DIR 重置为 xcode-select 路径，
+          # 所以这里必须用 xcode-select 钉到 16.2（iPhoneOS18.2.sdk，无守卫）。
+          sudo xcode-select -s /Applications/Xcode_16.2.0.app
+          xcodebuild -version
+
       - name: Set up Theos (roothide fork)
         run: |
           git clone --recursive https://github.com/roothide/theos.git "$THEOS"
