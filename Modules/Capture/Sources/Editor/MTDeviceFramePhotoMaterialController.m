@@ -123,7 +123,7 @@ static UIColor *MTMaterialAccent(void){return [UIColor colorWithRed:1 green:0.78
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch {
     if(gesture!=self.canvasPan && gesture!=self.doubleTap && gesture!=self.pinch)return YES;
     for(UIView *view=touch.view;view && view!=self;view=view.superview)
-        if([view isKindOfClass:UIControl.class])return gesture==self.pinch && [self.handles containsObject:view];
+        if([view isKindOfClass:UIControl.class])return gesture==self.pinch && [view isKindOfClass:UIButton.class] && [self.handles containsObject:(UIButton *)view];
     return CGRectContainsPoint([self viewport],[touch locationInView:self]);
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
