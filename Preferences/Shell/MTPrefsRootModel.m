@@ -1,8 +1,8 @@
 #import "MTPrefsRootModel.h"
 #import "MTCore.h"
 
-// 分类固定顺序与摘要（原「其他」分类内容已并入全局）；新增充电入口。
-// 全局在 Shell 内，键盘/剪切板/截图直达各子包根控制器。行元组：[id, 标题,
+// 分类固定顺序与摘要（原「其他」分类内容已并入全局）；新增充电与相册增强入口。
+// 全局/充电/相册增强在 Shell 内，键盘/剪切板/截图直达各子包根控制器。行元组：[id, 标题,
 // 摘要, SF Symbol, 色token, 子包(NSNull 或字符串), 控制器类名]。控制器一律
 // 字符串引用：模型不链接子包/壳控制器类，宿主测试只编译模型不编译控制器。
 // configs 供 Tests/Host/run-prefs-shell-tests.sh 的结构检查解析，勿改元组形态。
@@ -18,6 +18,8 @@ static NSArray *MTRootCategoryConfigs(void) {
           @"MetisCapturePrefs", @"MTCaptureRootListController"],
         @[@"charging",  @"充电",   @"锁屏功率与电池详情", @"bolt.batteryblock.fill", @"green",
           [NSNull null], @"MTPrefsChargingController"],
+        @[@"photos",    @"相册增强", @"照片最大缩放、跳过删除确认", @"photo.on.rectangle.angled", @"orange",
+          [NSNull null], @"MTPrefsPhotosController"],
     ];
 }
 

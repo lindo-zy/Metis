@@ -6,6 +6,7 @@
 #import "MTCore.h"
 #import "common.h"
 #import "MTStatusBarGestures.h"
+#import "MTPhotosHooks.h"
 
 // Metis 门控变化 → 走 MetisKeyboard 既有 prefschanged 重载链（幂等 reload）。
 static void MTUIKitPostPrefsChanged(void) {
@@ -36,6 +37,11 @@ static void MTUIKitPostPrefsChanged(void) {
     // 触发经 MetisCore SystemOpenBroker 转发 SpringBoard 执行。
     // 内部宿主门（MTStatusBarHostAllowed）只放行 .app，键盘扩展安全跳过。
     MTStartStatusBarGestures();
+    // 相册增强只在照片 App 进程安装（03-architecture 不新增注入目标，复用
+    // 本镜像；其他 UIKit App 不调用 MTPhotosInstall，零开销）。
+    if ([context.bundleIdentifier isEqualToString:@"com.apple.mobileslideshow"]) {
+        MTPhotosInstall();
+    }
     MTLogInfo(MTLogModuleCore,
               @"state=uikit-loaded version=%@ kind=%lu bundle=%@",
               MTCoreVersionString,

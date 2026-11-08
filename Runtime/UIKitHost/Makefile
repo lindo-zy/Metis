@@ -9,10 +9,12 @@ TWEAK_NAME = MetisUIKit
 MetisUIKit_FILES = MTUIKitEntry.xm \
 	$(THEOS_PROJECT_DIR)/Modules/Keyboard/Sources/MTKeyboardHooks.xm \
 	../../Modules/Keyboard/Sources/MTPasteChip.m \
+	../../Modules/Photos/Sources/MTPhotosHooks.m \
 
 MetisUIKit_CFLAGS = -fobjc-arc
 MetisUIKit_CFLAGS += -I../../Core
 MetisUIKit_CFLAGS += -I../../Modules/Keyboard/Sources
+MetisUIKit_CFLAGS += -I../../Modules/Photos/Sources
 MetisUIKit_LDFLAGS += $(THEOS_OBJ_DIR)/MetisCore.dylib
 MetisUIKit_FRAMEWORKS = UIKit CoreGraphics QuartzCore ImageIO SafariServices PhotosUI UniformTypeIdentifiers JavaScriptCore
 MetisUIKit_PRIVATE_FRAMEWORKS = AppSupport Preferences FrontBoardServices SpringBoardServices
