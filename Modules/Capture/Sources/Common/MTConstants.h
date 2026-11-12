@@ -21,6 +21,9 @@ FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureInstant;     // com.lindo.met
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureMarkup;      // com.lindo.metis.capture/markup
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureLong;        // com.lindo.metis.capture/long（全屏自动滚动，可切换手动）
 FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureCancel;      // com.lindo.metis.capture/cancel
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureOCR;
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureScan;
+FOUNDATION_EXPORT CFStringRef const MTDarwinCaptureImageAI;
 FOUNDATION_EXPORT CFStringRef const MTDarwinEditClipboard;     // com.lindo.metis.capture/edit-clipboard（编辑剪贴板图片，不抓屏）
 FOUNDATION_EXPORT CFStringRef const MTDarwinPreferencesReload;  // com.lindo.metis.capture/preferences/reload
 
@@ -79,6 +82,9 @@ FOUNDATION_EXPORT CFStringRef const MTURLRouteFrame;          // prefs://root=me
 FOUNDATION_EXPORT CFStringRef const MTURLRouteArea;           // prefs://root=metis_area → 区域截图
 FOUNDATION_EXPORT CFStringRef const MTURLRouteMarkup;         // prefs://root=metis_markup → 全屏标记
 FOUNDATION_EXPORT CFStringRef const MTURLRouteLong;           // prefs://root=metis_long → 滚动长截图
+FOUNDATION_EXPORT CFStringRef const MTURLRouteOCR;
+FOUNDATION_EXPORT CFStringRef const MTURLRouteScan;
+FOUNDATION_EXPORT CFStringRef const MTURLRouteImageAI;
 FOUNDATION_EXPORT CFStringRef const MTURLRouteEditClipboard;  // prefs://root=metis_edit → 编辑剪贴板图片（不抓屏）
 
 // MARK: - 进程内通知名（同样不携带图片对象，只提示协调器刷新）

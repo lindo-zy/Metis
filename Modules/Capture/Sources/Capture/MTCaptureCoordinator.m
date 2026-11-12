@@ -144,6 +144,15 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
 
+    if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureOCR] ||
+        [name isEqualToString:(__bridge NSString *)MTDarwinCaptureScan] ||
+        [name isEqualToString:(__bridge NSString *)MTDarwinCaptureImageAI]) {
+        NSString *action = [name isEqualToString:(__bridge NSString *)MTDarwinCaptureOCR] ? @"ocr" :
+            ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureScan] ? @"scan" : @"imageai");
+        [self mtRequestCapture:[action isEqualToString:@"scan"] ? MTCaptureModeFull : MTCaptureModeArea
+                 outputAction:MTOutputActionPreviewOnly recognitionAction:action];
+        return;
+    }
     MTCaptureMode mode = -1;
     if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFull]) mode = MTCaptureModeFull;
     else if ([name isEqualToString:(__bridge NSString *)MTDarwinCaptureFrame]) mode = MTCaptureModeFrame;
@@ -175,9 +184,13 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 /// 统一请求入口。outputAction 非 PreviewOnly 时覆盖本次任务的默认输出动作
 /// （工具栏「全屏截图」固定“保存并复制”）；其余调用方传 PreviewOnly 跟随配置。
 - (void)mtRequestCapture:(MTCaptureMode)mode outputAction:(MTOutputAction)action {
+    [self mtRequestCapture:mode outputAction:action recognitionAction:nil];
+}
+
+- (void)mtRequestCapture:(MTCaptureMode)mode outputAction:(MTOutputAction)action recognitionAction:(NSString *)recognitionAction {
     if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self mtRequestCapture:mode outputAction:action];
+            [self mtRequestCapture:mode outputAction:action recognitionAction:recognitionAction];
         });
         return;
     }
@@ -194,6 +207,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
     task.outputActionOverride = action;
+    task.recognitionAction = recognitionAction;
     if (mode == MTCaptureModeFrame) {
         task.deviceFrameConfiguration = [MTDeviceFrameConfiguration rememberedConfiguration];
     }
@@ -263,6 +277,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             }
             if (!image) {
                 [self mtFailTask:task code:@"capture" message:(error.localizedDescription ?: @"屏幕抓取失败")];
+                if ([task.recognitionAction isEqualToString:@"scan"]) [self.completionToast showErrorMessage:@"屏幕抓取失败，请重试"];
                 return;
             }
             task.baseImage = image;
@@ -272,7 +287,12 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
             }
             if (![task transitionToState:MTCaptureStateCaptured]) return;
 
-            if (task.mode == MTCaptureModeFrame) {
+            if ([task.recognitionAction isEqualToString:@"scan"]) {
+                if (isPartial) {
+                    [self mtFailTask:task code:@"scan-capture" message:@"无法取得完整画面，请重试"];
+                    [self.completionToast showErrorMessage:@"无法取得完整画面，请重试"];
+                } else [self mtBeginRecognitionForTask:task image:task.baseImage scan:YES];
+            } else if (task.mode == MTCaptureModeFrame) {
                 [self mtHandleDeviceFrameResult:task];
             } else if (task.mode == MTCaptureModeMarkup) {
                 if (isPartial) {
@@ -352,6 +372,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
                                                          baseImage:task.baseImage
                                                               mode:task.mode
                                                           delegate:self];
+    if (task.recognitionAction.length) [view focusRecognitionAction:task.recognitionAction];
     [self mtApplyRememberedSelectionRect:view task:task bounds:window.bounds];
     [window hostContentView:view];
     self.captureWindow = window;

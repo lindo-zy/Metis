@@ -31,6 +31,12 @@ NSArray<MTCaptureAction *> *MTCaptureActions(void) {
                 notification:MTDarwinCaptureMarkup URLRoute:MTURLRouteMarkup],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.long" title:@"滚动截图"
                 notification:MTDarwinCaptureLong URLRoute:MTURLRouteLong],
+            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.ocr" title:@"识别文字"
+                notification:MTDarwinCaptureOCR URLRoute:MTURLRouteOCR],
+            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.scan" title:@"全图扫码"
+                notification:MTDarwinCaptureScan URLRoute:MTURLRouteScan],
+            [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.imageai" title:@"图片问答"
+                notification:MTDarwinCaptureImageAI URLRoute:MTURLRouteImageAI],
             [[MTCaptureAction alloc] initWithIdentifier:@"capture.test.edit" title:@"图片编辑"
                 notification:MTDarwinEditClipboard URLRoute:MTURLRouteEditClipboard],
         ];

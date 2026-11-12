@@ -51,7 +51,7 @@ Metis 是一款 iOS 越狱插件（RootHide Bootstrap，支持 iOS 16 / iOS 17�
 
 ### 外部调用
 
-- iOS 捷径「打开 URL」即可触发：`prefs://root=metis_full`（全屏）、`metis_frame`（套壳）、`metis_area`（区域）、`metis_markup`（全屏标记）、`metis_long`（滚动）、`metis_edit`（图片编辑）。
+- iOS 捷径「打开 URL」即可触发：`prefs://root=metis_full`（全屏）、`metis_frame`（套壳）、`metis_area`（区域）、`metis_markup`（全屏标记）、`metis_long`（滚动）、`metis_edit`（图片编辑）、`metis_ocr`（框选识别文字）、`metis_scan`（全图扫码）、`metis_imageai`（框选图片问答）。
 - 兼容 Snapper3、SHELLX 的通知入口；截图按钮工具栏可外调 SHELLX 全部功能（区域 / 即时 / 冻结 / 套壳 / 长图 / 翻译 / 扫码等，未安装 SHELLX 时按钮自动隐藏）。
 
 ## 键盘与操作

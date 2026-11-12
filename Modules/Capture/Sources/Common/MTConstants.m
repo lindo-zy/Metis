@@ -19,6 +19,9 @@ CFStringRef const MTDarwinCaptureInstant = CFSTR("com.lindo.metis.capture/instan
 CFStringRef const MTDarwinCaptureMarkup = CFSTR("com.lindo.metis.capture/markup");
 CFStringRef const MTDarwinCaptureLong = CFSTR("com.lindo.metis.capture/long");
 CFStringRef const MTDarwinCaptureCancel = CFSTR("com.lindo.metis.capture/cancel");
+CFStringRef const MTDarwinCaptureOCR = CFSTR("com.lindo.metis.capture/ocr");
+CFStringRef const MTDarwinCaptureScan = CFSTR("com.lindo.metis.capture/scan");
+CFStringRef const MTDarwinCaptureImageAI = CFSTR("com.lindo.metis.capture/image-ai");
 CFStringRef const MTDarwinEditClipboard = CFSTR("com.lindo.metis.capture/edit-clipboard");
 CFStringRef const MTDarwinPreferencesReload = CFSTR("com.lindo.metis.capture/preferences/reload");
 
@@ -55,6 +58,9 @@ CFStringRef const MTURLRouteFrame = CFSTR("prefs://root=metis_frame");
 CFStringRef const MTURLRouteArea = CFSTR("prefs://root=metis_area");
 CFStringRef const MTURLRouteMarkup = CFSTR("prefs://root=metis_markup");
 CFStringRef const MTURLRouteLong = CFSTR("prefs://root=metis_long");
+CFStringRef const MTURLRouteOCR = CFSTR("prefs://root=metis_ocr");
+CFStringRef const MTURLRouteScan = CFSTR("prefs://root=metis_scan");
+CFStringRef const MTURLRouteImageAI = CFSTR("prefs://root=metis_imageai");
 CFStringRef const MTURLRouteEditClipboard = CFSTR("prefs://root=metis_edit");
 
 NSString * const MTNotificationResultUpdated = @"com.lindo.metis.capture/result/updated";

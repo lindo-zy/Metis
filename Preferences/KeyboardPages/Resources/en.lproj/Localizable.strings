@@ -959,3 +959,7 @@ NOTE: If you experiencing any issue or shortcuts not showing correctly, please r
 "QUICK_STAGE_COLLAPSE" = "Collapse · Swipe right to return";
 "QUICK_ALL_APPS" = "All apps · T9 search";
 "QUICK_EMPTY_FAVORITES" = "Add favorites or type to search";
+
+"SYSTEM_CAPTURE_OCR" = "Recognize Text";
+"SYSTEM_CAPTURE_SCAN" = "Scan Screen";
+"SYSTEM_CAPTURE_IMAGE_AI" = "Ask About Image";

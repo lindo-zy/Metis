@@ -25,6 +25,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) UIImage *baseImage;
 /// 区域模式的“冻结”按钮已锁定 baseImage；此后裁剪不再重抓屏。仅主线程读写。
 @property (nonatomic, assign) BOOL areaFrameFrozen;
+/// 外部识别入口的本次任务动作：ocr、scan 或 imageai。
+@property (nonatomic, copy, nullable) NSString *recognitionAction;
 /// 当前结果图（裁剪/编辑后的输出源）。
 @property (nonatomic, strong, nullable) UIImage *resultImage;
 /// 结果图对应的磁盘文件（长截图为拼接产物 longshot.jpg）：输出管线优先读取落盘产物；

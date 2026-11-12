@@ -46,6 +46,7 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
 @property (nonatomic, assign) BOOL isInstantMode;
 @property (nonatomic, assign) MTCaptureMode mode;
 @property (nonatomic, assign) BOOL areaFrameFrozen;
+@property (nonatomic, copy) NSString *focusedRecognitionAction;
 @end
 
 @implementation MTSelectionView
@@ -64,6 +65,21 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
         [self mtUpdateVisuals];
     }
     return self;
+}
+
+- (void)focusRecognitionAction:(NSString *)identifier {
+    if (![@[@"ocr", @"imageai"] containsObject:identifier]) return;
+    self.focusedRecognitionAction = identifier;
+    self.floatDoubleTap.enabled = NO;
+    [self.toolbar removeFromSuperview];
+    self.toolbar = [[MTSelectionToolbar alloc] initWithIdentifiers:@[identifier, @"cancel"]
+        style:[MTEditorOrder selectionButtonStyle] iconPointSize:[MTEditorOrder buttonIconPointSize]
+        arrangement:[MTEditorOrder selectionToolbarArrangement]];
+    for (UIButton *button in self.toolbar.buttons) [button addTarget:self action:@selector(mtButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:self.toolbar];
+    self.modeLabel.text = [identifier isEqualToString:@"ocr"] ? @"识别文字" : @"图片问答";
+    [self.modeLabel sizeToFit];
+    [self mtUpdateVisuals];
 }
 
 - (void)dealloc {

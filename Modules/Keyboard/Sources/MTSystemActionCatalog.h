@@ -43,6 +43,9 @@ static inline NSArray<NSDictionary *> *MTSystemActionCatalog(void) {
             @[@"pixpin-area", @"SYSTEM_CAPTURE_AREA", @"crop", @"pixpin", @"com.lindo.metis.capture/area"],
             @[@"pixpin-markup", @"SYSTEM_CAPTURE_MARKUP", @"pencil.tip.crop.circle", @"pixpin", @"com.lindo.metis.capture/markup"],
             @[@"pixpin-long", @"SYSTEM_CAPTURE_LONG", @"rectangle.expand.vertical", @"pixpin", @"com.lindo.metis.capture/long"],
+            @[@"capture-ocr", @"SYSTEM_CAPTURE_OCR", @"text.viewfinder", @"pixpin", @"com.lindo.metis.capture/ocr"],
+            @[@"capture-scan", @"SYSTEM_CAPTURE_SCAN", @"qrcode.viewfinder", @"pixpin", @"com.lindo.metis.capture/scan"],
+            @[@"capture-image-ai", @"SYSTEM_CAPTURE_IMAGE_AI", @"sparkles", @"pixpin", @"com.lindo.metis.capture/image-ai"],
             // 图片编辑：编辑剪贴板图片，不抓屏；同样需要 MetisCapture 注入，随 pixpin 组一起显隐。
             @[@"image-edit", @"SYSTEM_IMAGE_EDIT", @"square.and.pencil", @"pixpin", @"com.lindo.metis.capture/edit-clipboard"]
         ];

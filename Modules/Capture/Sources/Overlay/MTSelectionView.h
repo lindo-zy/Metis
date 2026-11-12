@@ -48,6 +48,9 @@ NS_ASSUME_NONNULL_BEGIN
                          mode:(MTCaptureMode)mode
                      delegate:(id<MTSelectionViewDelegate>)delegate;
 
+/// 外部识别入口固定显示动作与取消，忽略用户隐藏设置。
+- (void)focusRecognitionAction:(NSString *)identifier;
+
 /// 预置选区入口（显示坐标）：激活默认空选区，「记住上次选区」开启时由协调器传入历史矩形。
 - (void)applyDefaultSelectionRect:(CGRect)rect;
 

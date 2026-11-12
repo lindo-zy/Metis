@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.9</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>系统动作和截图快捷链接新增文字识别、全图扫码与图片问答入口。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.8</string>
 		<key>items</key>
 		<array>
@@ -63,25 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复截图完成气泡点击后只能进入相册列表的问题，现在优先直达照片 App 的最近一张照片。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.7.3</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>套壳设置选中素材后立即保存并关闭随机，导入或编辑完成后自动使用当前素材，避免仍使用上一份素材。</string>
-			</dict>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>透明素材默认保留原遮罩，支持切换手动圆角并直接拖动滑块调整；实时预览、保存和自动套壳输出共用截图圆角裁剪逻辑。</string>
 			</dict>
 		</array>
 	</dict>

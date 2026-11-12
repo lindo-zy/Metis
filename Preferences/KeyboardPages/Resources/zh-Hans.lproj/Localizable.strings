@@ -959,3 +959,7 @@
 "QUICK_STAGE_COLLAPSE" = "收回竖列 · 右滑返回";
 "QUICK_ALL_APPS" = "全部应用 · 九键搜索";
 "QUICK_EMPTY_FAVORITES" = "配置常用应用或输入九键搜索";
+
+"SYSTEM_CAPTURE_OCR" = "识别文字";
+"SYSTEM_CAPTURE_SCAN" = "全图扫码";
+"SYSTEM_CAPTURE_IMAGE_AI" = "图片问答";
