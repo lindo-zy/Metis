@@ -2,6 +2,22 @@
 #import "../Common/MTCapturePreferences.h"
 #import "../Common/MTOCRResponse.h"
 #import <Vision/Vision.h>
+#import <CoreImage/CoreImage.h>
+#import <ImageIO/ImageIO.h>
+#import "../Common/MTCaptureLog.h"
+
+static CGImagePropertyOrientation MTRecognitionOrientation(UIImageOrientation orientation) {
+    switch (orientation) {
+        case UIImageOrientationDown: return kCGImagePropertyOrientationDown;
+        case UIImageOrientationLeft: return kCGImagePropertyOrientationLeft;
+        case UIImageOrientationRight: return kCGImagePropertyOrientationRight;
+        case UIImageOrientationUpMirrored: return kCGImagePropertyOrientationUpMirrored;
+        case UIImageOrientationDownMirrored: return kCGImagePropertyOrientationDownMirrored;
+        case UIImageOrientationLeftMirrored: return kCGImagePropertyOrientationLeftMirrored;
+        case UIImageOrientationRightMirrored: return kCGImagePropertyOrientationRightMirrored;
+        default: return kCGImagePropertyOrientationUp;
+    }
+}
 
 @interface MTCaptureRecognitionService () <NSURLSessionTaskDelegate>
 @property (nonatomic, strong) NSProgress *progress;
@@ -92,29 +108,37 @@
             });
             return;
         }
-        VNRecognizeTextRequest *request = [VNRecognizeTextRequest new];
-        self.visionRequest = request;
-        if (self.progress.cancelled) { [request cancel]; self.visionRequest = nil; return; }
-        request.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
-        request.usesLanguageCorrection = YES;
-        request.automaticallyDetectsLanguage = YES;
-        NSArray *supported = [request supportedRecognitionLanguagesAndReturnError:nil];
-        NSMutableArray *languages = [NSMutableArray array];
-        for (NSString *language in @[@"zh-Hans", @"zh-Hant", @"en-US"]) {
-            if ([supported containsObject:language]) [languages addObject:language];
-        }
-        if (languages.count) request.recognitionLanguages = languages;
-        NSError *error = nil;
-        BOOL ok = image.CGImage && [[[VNImageRequestHandler alloc] initWithCGImage:image.CGImage options:@{}]
-            performRequests:@[request] error:&error];
         NSMutableArray *lines = [NSMutableArray array];
-        if (ok) for (VNRecognizedTextObservation *observation in request.results) {
-            NSString *line = [observation topCandidates:1].firstObject.string;
-            if ([line stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) [lines addObject:line];
+        BOOL anySucceeded = NO;
+        // Revision 2 provides a second, explicit Chinese/English path on iOS 16.
+        for (NSUInteger pass = 0; pass < 2 && !self.progress.cancelled && !lines.count; pass++) {
+            VNRecognizeTextRequest *request = [VNRecognizeTextRequest new];
+            if (pass == 1) request.revision = VNRecognizeTextRequestRevision2;
+            self.visionRequest = request;
+            if (self.progress.cancelled) { [request cancel]; break; }
+            request.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+            request.usesLanguageCorrection = pass == 0;
+            request.automaticallyDetectsLanguage = pass == 0;
+            NSArray *supported = [request supportedRecognitionLanguagesAndReturnError:nil];
+            NSMutableArray *languages = [NSMutableArray array];
+            for (NSString *language in @[@"zh-Hans", @"zh-Hant", @"en-US"]) {
+                if ([supported containsObject:language]) [languages addObject:language];
+            }
+            if (languages.count) request.recognitionLanguages = languages;
+            NSError *error = nil;
+            BOOL ok = image.CGImage && [[[VNImageRequestHandler alloc] initWithCGImage:image.CGImage
+                orientation:MTRecognitionOrientation(image.imageOrientation) options:@{}] performRequests:@[request] error:&error];
+            anySucceeded |= ok;
+            if (!ok && !self.progress.cancelled) MTCaptureLogWarn(@"local OCR pass=%lu failed domain=%@ code=%ld", (unsigned long)pass, error.domain ?: @"image", (long)error.code);
+            if (ok) for (VNRecognizedTextObservation *observation in request.results) {
+                NSString *line = [observation topCandidates:1].firstObject.string;
+                if ([line stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) [lines addObject:line];
+            }
         }
+        self.visionRequest = nil;
         NSString *text = lines.count ? [lines componentsJoinedByString:@"\n"] : nil;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self finishText:text error:ok ? nil : @"本地文字识别失败，请重试"];
+            [self finishText:text error:anySucceeded ? nil : @"本地文字识别失败，请重试"];
         });
     }});
 }
@@ -275,17 +299,30 @@
         self.visionRequest = request;
         if (self.progress.cancelled) { [request cancel]; self.visionRequest = nil; return; }
         NSError *error = nil;
-        BOOL ok = image.CGImage && [[[VNImageRequestHandler alloc] initWithCGImage:image.CGImage options:@{}]
-            performRequests:@[request] error:&error];
+        BOOL ok = image.CGImage && [[[VNImageRequestHandler alloc] initWithCGImage:image.CGImage
+            orientation:MTRecognitionOrientation(image.imageOrientation) options:@{}] performRequests:@[request] error:&error];
         NSMutableOrderedSet<NSString *> *codes = [NSMutableOrderedSet orderedSet];
         if (ok) for (VNBarcodeObservation *observation in request.results) {
             if (observation.payloadStringValue.length) [codes addObject:observation.payloadStringValue];
         }
+        self.visionRequest = nil;
+        // Core Image supplies an independent QR decoder for cases Vision misses.
+        BOOL fallbackAvailable = NO;
+        if (!codes.count && !self.progress.cancelled && image.CGImage) {
+            CIImage *input = [[CIImage imageWithCGImage:image.CGImage] imageByApplyingOrientation:MTRecognitionOrientation(image.imageOrientation)];
+            CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeQRCode context:nil options:@{CIDetectorAccuracy: CIDetectorAccuracyHigh}];
+            fallbackAvailable = detector != nil;
+            for (CIQRCodeFeature *feature in [detector featuresInImage:input]) {
+                if (self.progress.cancelled) break;
+                if ([feature isKindOfClass:CIQRCodeFeature.class] && feature.messageString.length) [codes addObject:feature.messageString];
+            }
+        }
+        if (!ok && !self.progress.cancelled) MTCaptureLogWarn(@"barcode Vision failed domain=%@ code=%ld", error.domain ?: @"image", (long)error.code);
         dispatch_async(dispatch_get_main_queue(), ^{
             if (self.progress.cancelled) return;
             void (^done)(NSArray *, NSString *) = self.codesCompletion;
             [self cancel];
-            if (done) done(codes.array, ok ? nil : @"扫码失败，请重试");
+            if (done) done(codes.array, (ok || fallbackAvailable) ? nil : @"扫码失败，请重试");
         });
     }});
 }

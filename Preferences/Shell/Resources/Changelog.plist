@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.8</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>优化</string>
+				<key>text</key>
+				<string>改进全图扫码识别，增加二维码识别回退。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>修复</string>
+				<key>text</key>
+				<string>改进本地文字识别的兼容性，并在识别失败时自动重试。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.7</string>
 		<key>items</key>
 		<array>
@@ -63,19 +82,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>透明素材默认保留原遮罩，支持切换手动圆角并直接拖动滑块调整；实时预览、保存和自动套壳输出共用截图圆角裁剪逻辑。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.7.2</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复截图保存后点击完成提示只能打开照片 App 的问题，现在会直接定位到刚保存的那张照片。</string>
 			</dict>
 		</array>
 	</dict>
