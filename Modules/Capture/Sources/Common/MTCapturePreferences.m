@@ -8,6 +8,8 @@
 @property (nonatomic, readwrite) NSInteger ocrEngine;
 @property (nonatomic, copy, readwrite) NSString *ocrBaiduAPIKey;
 @property (nonatomic, copy, readwrite) NSString *ocrBaiduSecretKey;
+@property (nonatomic, copy, readwrite) NSString *ocrStudioToken;
+@property (nonatomic, copy, readwrite) NSString *ocrStudioModel;
 @property (nonatomic, readwrite) BOOL enabled;
 @property (nonatomic, readwrite) MTOutputAction defaultResultAction;
 @property (nonatomic, readwrite) BOOL saveAlsoCopy;
@@ -27,6 +29,8 @@
         _ocrEngine = 0;
         _ocrBaiduAPIKey = @"";
         _ocrBaiduSecretKey = @"";
+        _ocrStudioToken = @"";
+        _ocrStudioModel = @"PP-OCRv6";
         _defaultResultAction = (MTOutputAction)MTDefaultResultAction;
         _saveAlsoCopy = YES;
         _floatingSnapShadow = YES;
@@ -88,7 +92,12 @@ static MTConfig *_currentConfig = nil;
 
 + (void)reload {
     MTConfig *config = [[MTConfig alloc] initDefault];
-    config.ocrEngine = MTPrefInteger(MTKeyOCREngine, 0) == 1 ? 1 : 0;
+    NSInteger engine = MTPrefInteger(MTKeyOCREngine, 0);
+    config.ocrEngine = (engine >= 0 && engine <= 2) ? engine : 0;
+    id token = CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("OCRStudioToken"), (__bridge CFStringRef)MTCapturePreferencesDomain));
+    config.ocrStudioToken = [token isKindOfClass:NSString.class] ? [token stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : @"";
+    id model = CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("OCRStudioModel"), (__bridge CFStringRef)MTCapturePreferencesDomain));
+    config.ocrStudioModel = [model isEqual:@"PP-OCRv5"] ? @"PP-OCRv5" : @"PP-OCRv6";
     for (NSString *key in @[MTKeyOCRBaiduAPIKey, MTKeyOCRBaiduSecretKey]) {
         id value = CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key,
             (__bridge CFStringRef)MTCapturePreferencesDomain));

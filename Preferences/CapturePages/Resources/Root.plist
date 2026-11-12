@@ -24,7 +24,7 @@
 			<key>cell</key><string>PSLinkCell</string>
 			<key>detail</key><string>MTOCRSettingsController</string>
 			<key>id</key><string>ocrSettings</string>
-			<key>label</key><string>文字识别</string>
+			<key>label</key><string>OCR 设置</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>

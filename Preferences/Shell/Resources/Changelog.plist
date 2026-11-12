@@ -4,6 +4,19 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.7</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>文字识别支持百度 AI Studio，可配置 Access Token 并选择飞桨 OCR 模型。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.5</string>
 		<key>items</key>
 		<array>
@@ -63,19 +76,6 @@
 				<string>修复</string>
 				<key>text</key>
 				<string>修复截图保存后点击完成提示只能打开照片 App 的问题，现在会直接定位到刚保存的那张照片。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.7.1</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>新增</string>
-				<key>text</key>
-				<string>套壳素材编辑支持双指缩放、拖动画布、双击放大与一键适应；放大后加载更清晰预览，四角拖动和像素微调仍按原图坐标定位。</string>
 			</dict>
 		</array>
 	</dict>

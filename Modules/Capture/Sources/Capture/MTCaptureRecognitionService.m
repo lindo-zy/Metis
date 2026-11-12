@@ -3,7 +3,7 @@
 #import "../Common/MTOCRResponse.h"
 #import <Vision/Vision.h>
 
-@interface MTCaptureRecognitionService ()
+@interface MTCaptureRecognitionService () <NSURLSessionTaskDelegate>
 @property (nonatomic, strong) NSProgress *progress;
 @property (nonatomic, strong) NSURLSession *session;
 @property (atomic, strong) VNRequest *visionRequest;
@@ -43,8 +43,21 @@
         [self finishText:nil error:@"请先在截图 → 文字识别中填写百度 API Key 和 Secret Key"];
         return;
     }
+    if (config.ocrEngine == 2 && !config.ocrStudioToken.length) {
+        [self finishText:nil error:@"请先在 OCR 设置中填写 AI Studio Access Token"];
+        return;
+    }
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ @autoreleasepool {
         if (self.progress.cancelled) return;
+        if (config.ocrEngine == 2) {
+            NSData *jpeg = UIImageJPEGRepresentation(image, 0.85);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (self.progress.cancelled) return;
+                if (!jpeg || jpeg.length > 20 * 1024 * 1024) [self finishText:nil error:@"图片无法上传，请缩小选区后重试"];
+                else [self recognizeStudioImage:jpeg config:config];
+            });
+            return;
+        }
         if (config.ocrEngine == 1) {
             // 标准版限制：短边 >= 15px、长边 <= 4096px、base64 + URL 编码后 <= 8M。
             CGSize pixels = CGSizeMake(CGImageGetWidth(image.CGImage), CGImageGetHeight(image.CGImage));
@@ -158,6 +171,98 @@
             }
             [self finishText:MTOCRTextFromResponse(result) error:nil];
         }];
+    }];
+}
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+ willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request
+ completionHandler:(void (^)(NSURLRequest *))completionHandler {
+    // Never forward an API token to a redirected host.
+    completionHandler([task.originalRequest valueForHTTPHeaderField:@"Authorization"] ? nil : request);
+}
+
+// AI Studio uses an asynchronous job; the result URL is fetched without credentials.
+- (void)studioRequest:(NSMutableURLRequest *)request token:(NSString *)token completion:(void (^)(NSData *, NSString *))completion {
+    if (self.progress.cancelled) return;
+    request.timeoutInterval = 30;
+    if (token) [request setValue:[@"Bearer " stringByAppendingString:token] forHTTPHeaderField:@"Authorization"];
+    [[self.session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSInteger status = [(NSHTTPURLResponse *)response statusCode];
+        NSString *failure = error ? (error.code == NSURLErrorTimedOut ? @"AI Studio 请求超时" : @"无法连接 AI Studio，请检查网络") :
+            (status == 401 || status == 403 ? @"AI Studio 授权失败，请检查 Access Token" :
+             (status == 429 ? @"AI Studio 请求过于频繁或额度不足" : (status < 200 || status >= 300 ? @"AI Studio 服务返回异常" : nil)));
+        dispatch_async(dispatch_get_main_queue(), ^{ if (!self.progress.cancelled) completion(data, failure); });
+    }] resume];
+}
+
+- (NSDictionary *)studioResponse:(NSData *)data {
+    id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    if (![json isKindOfClass:NSDictionary.class] || (json[@"code"] && ![json[@"code"] isEqual:@0])) return nil;
+    return [json[@"data"] isKindOfClass:NSDictionary.class] ? json[@"data"] : nil;
+}
+
+- (void)recognizeStudioImage:(NSData *)jpeg config:(MTConfig *)config {
+    NSURLSessionConfiguration *sessionConfig = NSURLSessionConfiguration.ephemeralSessionConfiguration;
+    sessionConfig.URLCache = nil;
+    sessionConfig.HTTPCookieStorage = nil;
+    self.session = [NSURLSession sessionWithConfiguration:sessionConfig delegate:self delegateQueue:nil];
+    NSString *boundary = [@"Metis-" stringByAppendingString:NSUUID.UUID.UUIDString];
+    NSMutableData *body = [NSMutableData data];
+    void (^append)(NSString *) = ^(NSString *value) { [body appendData:[value dataUsingEncoding:NSUTF8StringEncoding]]; };
+    append([NSString stringWithFormat:@"--%@\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n%@\r\n", boundary, config.ocrStudioModel]);
+    append([NSString stringWithFormat:@"--%@\r\nContent-Disposition: form-data; name=\"optionalPayload\"\r\n\r\n{\"visualize\":false}\r\n", boundary]);
+    append([NSString stringWithFormat:@"--%@\r\nContent-Disposition: form-data; name=\"file\"; filename=\"capture.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n", boundary]);
+    [body appendData:jpeg];
+    append([NSString stringWithFormat:@"\r\n--%@--\r\n", boundary]);
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"]];
+    request.HTTPMethod = @"POST";
+    request.HTTPBody = body;
+    [request setValue:[@"multipart/form-data; boundary=" stringByAppendingString:boundary] forHTTPHeaderField:@"Content-Type"];
+    [self studioRequest:request token:config.ocrStudioToken completion:^(NSData *data, NSString *failure) {
+        if (failure) { [self finishText:nil error:failure]; return; }
+        id job = [self studioResponse:data][@"jobId"];
+        if (![job isKindOfClass:NSString.class] || ![job length]) { [self finishText:nil error:@"AI Studio 任务提交失败"]; return; }
+        [self pollStudioJob:job token:config.ocrStudioToken attempts:0];
+    }];
+}
+
+- (void)pollStudioJob:(NSString *)job token:(NSString *)token attempts:(NSUInteger)attempts {
+    if (self.progress.cancelled) return;
+    if (attempts >= 60) { [self finishText:nil error:@"AI Studio 识别超时，请重试"]; return; }
+    NSString *escaped = [job stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.alphanumericCharacterSet];
+    NSURL *url = [NSURL URLWithString:[@"https://paddleocr.aistudio-app.com/api/v2/ocr/jobs/" stringByAppendingString:escaped]];
+    [self studioRequest:[NSMutableURLRequest requestWithURL:url] token:token completion:^(NSData *data, NSString *failure) {
+        if (failure) { [self finishText:nil error:failure]; return; }
+        NSDictionary *result = [self studioResponse:data];
+        id state = result[@"state"];
+        if ([state isEqual:@"pending"] || [state isEqual:@"running"]) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{ [self pollStudioJob:job token:token attempts:attempts + 1]; });
+        } else if ([state isEqual:@"done"]) {
+            id resultURL = [result[@"resultUrl"] isKindOfClass:NSDictionary.class] ? result[@"resultUrl"][@"jsonUrl"] : nil;
+            NSURL *download = [resultURL isKindOfClass:NSString.class] ? [NSURL URLWithString:resultURL] : nil;
+            if (![download.scheme.lowercaseString isEqual:@"https"] || !download.host.length) { [self finishText:nil error:@"AI Studio 返回的结果地址无效"]; return; }
+            [self studioRequest:[NSMutableURLRequest requestWithURL:download] token:nil completion:^(NSData *content, NSString *err) {
+                if (err) { [self finishText:nil error:err]; return; }
+                NSString *jsonl = [[NSString alloc] initWithData:content encoding:NSUTF8StringEncoding];
+                NSMutableArray *lines = [NSMutableArray array];
+                BOOL valid = NO;
+                for (NSString *line in [jsonl componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+                    if (!line.length) continue;
+                    id obj = [NSJSONSerialization JSONObjectWithData:[line dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+                    id resultObject = [obj isKindOfClass:NSDictionary.class] ? obj[@"result"] : nil;
+                    id pages = [resultObject isKindOfClass:NSDictionary.class] ? resultObject[@"ocrResults"] : nil;
+                    if (![pages isKindOfClass:NSArray.class]) { [self finishText:nil error:@"AI Studio 结果格式异常"]; return; }
+                    valid = YES;
+                    for (id page in pages) {
+                        id pruned = [page isKindOfClass:NSDictionary.class] ? page[@"prunedResult"] : nil;
+                        id texts = [pruned isKindOfClass:NSDictionary.class] ? pruned[@"rec_texts"] : nil;
+                        if (![texts isKindOfClass:NSArray.class]) { [self finishText:nil error:@"AI Studio 结果格式异常"]; return; }
+                        for (id text in texts) if ([text isKindOfClass:NSString.class] && [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) [lines addObject:text];
+                    }
+                }
+                [self finishText:lines.count ? [lines componentsJoinedByString:@"\n"] : nil error:valid ? nil : @"AI Studio 结果格式异常"];
+            }];
+        } else [self finishText:nil error:[state isEqual:@"failed"] ? @"AI Studio 识别失败，请稍后重试" : @"AI Studio 任务状态异常"];
     }];
 }
 

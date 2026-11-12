@@ -7,10 +7,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// 配置快照对象：不可变。任务创建时整体取走一份，执行中不被偏好变更打断。
 @interface MTConfig : NSObject
 
-/// 0 = Apple Vision（本地），1 = 百度通用文字识别。
+/// 0 = Apple Vision（本地），1 = 百度通用文字识别，2 = 百度 AI Studio。
 @property (nonatomic, readonly) NSInteger ocrEngine;
 @property (nonatomic, copy, readonly) NSString *ocrBaiduAPIKey;
 @property (nonatomic, copy, readonly) NSString *ocrBaiduSecretKey;
+@property (nonatomic, copy, readonly) NSString *ocrStudioToken;
+@property (nonatomic, copy, readonly) NSString *ocrStudioModel;
 
 @property (nonatomic, readonly) BOOL enabled;
 @property (nonatomic, readonly) MTOutputAction defaultResultAction;

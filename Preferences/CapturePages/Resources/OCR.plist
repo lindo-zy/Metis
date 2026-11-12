@@ -3,16 +3,16 @@
 <plist version="1.0">
 <dict>
 	<key>title</key>
-	<string>文字识别</string>
+	<string>OCR 设置</string>
 	<key>items</key>
 	<array>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>文字识别</string>
+			<string>OCR 识别引擎</string>
 			<key>footerText</key>
-			<string>框选区域后点「识别文字」，成功后自动复制，未识别到文字时保留原剪贴板。本地识别无需网络；选择百度后仅上传框选区域。</string>
+			<string>默认使用苹果原生识别。使用在线引擎时会上传所选图片。</string>
 		</dict>
 		<dict>
 			<key>defaults</key>
@@ -24,7 +24,7 @@
 			<key>detail</key>
 			<string>PSListItemsController</string>
 			<key>label</key>
-			<string>识别引擎</string>
+			<string>当前使用的引擎</string>
 			<key>key</key>
 			<string>OCREngine</string>
 			<key>default</key>
@@ -33,12 +33,76 @@
 			<array>
 				<string>Apple Vision（本地）</string>
 				<string>百度通用文字识别</string>
+				<string>百度 AI Studio（飞桨）</string>
 			</array>
 			<key>validValues</key>
 			<array>
 				<integer>0</integer>
 				<integer>1</integer>
+				<integer>2</integer>
 			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>百度 AI Studio</string>
+			<key>footerText</key>
+			<string>请打开网页获取 Access Token。令牌仅存储在本地；识别时图片将上传至百度，调用量和费用以百度账户为准。</string>
+		</dict>
+		<dict>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>label</key>
+			<string>Access Token</string>
+			<key>key</key>
+			<string>OCRStudioToken</string>
+			<key>default</key>
+			<string></string>
+			<key>isSecure</key>
+			<true/>
+			<key>autocapitalizationType</key>
+			<integer>0</integer>
+			<key>autocorrectionType</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>label</key>
+			<string>OCR 模型</string>
+			<key>key</key>
+			<string>OCRStudioModel</string>
+			<key>default</key>
+			<string>PP-OCRv6</string>
+			<key>validTitles</key>
+			<array>
+				<string>PP-OCRv6</string>
+				<string>PP-OCRv5</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>PP-OCRv6</string>
+				<string>PP-OCRv5</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>打开获取 API 网址</string>
+			<key>action</key>
+			<string>openStudioTokenPage</string>
 		</dict>
 		<dict>
 			<key>cell</key>

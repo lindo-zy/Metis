@@ -519,7 +519,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         if ([weakSelf mtIsTaskCurrent:task]) [weakSelf mtCancelCurrentTaskClosingFloatingSnaps:NO];
     }];
     __weak MTCaptureRecognitionService *weakService = service;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    NSInteger timeout = !scan && task.configSnapshot.ocrEngine == 2 ? 180 : 60;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         MTCaptureRecognitionService *pending = weakService;
         if (pending && weakSelf.recognitionService == pending && [weakSelf mtIsTaskCurrent:task]) {
             [weakSelf mtFailTask:task code:@"recognition-timeout" message:@"识别超时，请重试"];
