@@ -20,6 +20,10 @@
 #import "../Overlay/MTSelectionView.h"
 #import "../Overlay/MTFloatingSnap.h"
 #import "../Editor/MTEditorViewController.h"
+#import "MTCaptureRecognitionService.h"
+#import "../Overlay/MTCodeResultsController.h"
+#import "../Output/MTClipboardWriter.h"
+#import "../../../Keyboard/Sources/MTAIPanel.h"
 
 static const CGFloat MTFramesToWaitBeforeCapture = 2.0;
 /// 与 MTSelectionView 的选区下限一致；恢复上次选区时钳制用。
@@ -68,6 +72,8 @@ static void MTDismissActiveKeyboardForEditor(void) {
 @property (nonatomic, strong, nullable) UIImage *preEditImage;   // 进入编辑器前的结果图（取消编辑时恢复）
 @property (nonatomic, strong, nullable) MTPhotoImportSession *photoImportSession;
 @property (nonatomic, strong) MTCaptureCompletionToast *completionToast;
+@property (nonatomic, strong, nullable) MTCaptureRecognitionService *recognitionService;
+@property (nonatomic, strong, nullable) MTCaptureWindow *codeResultsWindow;
 @end
 
 static MTCaptureCoordinator *_sharedCoordinator = nil;
@@ -207,6 +213,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 }
 
 - (void)mtCancelCurrentTaskClosingFloatingSnaps:(BOOL)closeFloating {
+    [self mtTeardownRecognition];
     MTCaptureTask *task = [self mtCurrentTask];
     if (closeFloating) {
         for (MTFloatingSnap *snap in [self.floatingSnaps copy]) [snap dismissWithCompletion:nil];
@@ -444,6 +451,146 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         [self mtDestroyCaptureWindow];
         [self mtPresentEditorForTask:task];
     }];
+}
+
+- (void)selectionViewDidRequestOCR:(MTSelectionView *)view displayRect:(CGRect)displayRect {
+    MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
+    if (!task || view != self.selectionView || !view.userInteractionEnabled) return;
+    [self mtPersistSelectionRect:displayRect config:task.configSnapshot];
+    [self mtCropInBackground:task displayRect:displayRect completion:^(UIImage *cropped) {
+        if (![self mtIsTaskCurrent:task]) return;
+        if (!cropped) {
+            [self mtFailTask:task code:@"ocr-crop" message:@"选区裁剪失败，请重试"];
+            [self.completionToast showErrorMessage:@"选区裁剪失败，请重试"];
+            return;
+        }
+        [self mtBeginRecognitionForTask:task image:cropped scan:NO];
+    }];
+}
+
+- (void)selectionViewDidRequestFullScan:(MTSelectionView *)view {
+    MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
+    if (!task || view != self.selectionView || !view.userInteractionEnabled) return;
+    [self mtPrepareSelectionSourceForTask:task keepWindowHiddenAfterCapture:YES completion:^(BOOL ready, NSError *error) {
+        if (![self mtIsTaskCurrent:task]) return;
+        if (!ready || task.isPartialCapture) {
+            [self mtFailTask:task code:@"scan-capture" message:@"无法取得完整画面，请重试"];
+            [self.completionToast showErrorMessage:@"无法取得完整画面，请重试"];
+            return;
+        }
+        [self mtBeginRecognitionForTask:task image:task.baseImage scan:YES];
+    }];
+}
+
+- (void)selectionViewDidRequestImageQuestion:(MTSelectionView *)view displayRect:(CGRect)displayRect {
+    MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStatePresenting];
+    if (!task || view != self.selectionView || !view.userInteractionEnabled) return;
+    [self mtPersistSelectionRect:displayRect config:task.configSnapshot];
+    [self mtCropInBackground:task displayRect:displayRect completion:^(UIImage *cropped) {
+        if (![self mtIsTaskCurrent:task]) return;
+        if (!cropped) {
+            [self mtFailTask:task code:@"ai-crop" message:@"选区裁剪失败，请重试"];
+            [self.completionToast showErrorMessage:@"选区裁剪失败，请重试"];
+            return;
+        }
+        if (![task transitionToState:MTCaptureStateExporting]) return;
+        [self mtDestroyCaptureWindow];
+        task.baseImage = nil;
+        MTDismissActiveKeyboardForEditor();
+        if (![MTAIPanel presentForSystemActionWithImage:cropped]) {
+            [self mtFailTask:task code:@"image-ai" message:@"暂时无法打开图片问答，请解锁后重试"];
+            [self.completionToast showErrorMessage:@"暂时无法打开图片问答，请解锁后重试"];
+            return;
+        }
+        [self mtFinishRecognitionTask:task];
+    }];
+}
+
+#pragma mark - 图片识别
+
+- (void)mtBeginRecognitionForTask:(MTCaptureTask *)task image:(UIImage *)image scan:(BOOL)scan {
+    if (![task transitionToState:MTCaptureStateExporting]) return;
+    [self mtDestroyCaptureWindow];
+    MTCaptureRecognitionService *service = [MTCaptureRecognitionService new];
+    self.recognitionService = service;
+    __weak typeof(self) weakSelf = self;
+    [self.completionToast showProcessingMessage:scan ? @"正在扫码，点击取消" : @"正在识别文字，点击取消"
+        cancellation:^{
+        if ([weakSelf mtIsTaskCurrent:task]) [weakSelf mtCancelCurrentTaskClosingFloatingSnaps:NO];
+    }];
+    __weak MTCaptureRecognitionService *weakService = service;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        MTCaptureRecognitionService *pending = weakService;
+        if (pending && weakSelf.recognitionService == pending && [weakSelf mtIsTaskCurrent:task]) {
+            [weakSelf mtFailTask:task code:@"recognition-timeout" message:@"识别超时，请重试"];
+            [weakSelf.completionToast showErrorMessage:@"识别超时，请重试"];
+        }
+    });
+    if (scan) {
+        [service recognizeCodesInImage:image completion:^(NSArray<NSString *> *codes, NSString *error) {
+            if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStateExporting) return;
+            [self mtTeardownRecognition];
+            if (error || !codes.count) {
+                [self mtFinishRecognitionTask:task];
+                [self.completionToast showErrorMessage:error ?: @"未发现二维码或条码"];
+                return;
+            }
+            [self mtPresentCodes:codes forTask:task];
+        }];
+    } else {
+        [service recognizeTextInImage:image config:task.configSnapshot completion:^(NSString *text, NSString *error) {
+            if (![self mtIsTaskCurrent:task] || task.state != MTCaptureStateExporting) return;
+            // 身份检查和剪贴板写入在同一个主线程回调中，取消后绝不写入。
+            BOOL copied = !error && text.length && [MTClipboardWriter copyRecognizedText:text];
+            [self mtFinishRecognitionTask:task];
+            if (copied) [self.completionToast showTextCopied];
+            else [self.completionToast showErrorMessage:error ?: (text.length ? @"复制失败，请重试" : @"未识别到文字")];
+        }];
+    }
+    task.baseImage = nil; // 服务已在后台块中持有识别图片，不再额外保留整屏图。
+}
+
+- (void)mtPresentCodes:(NSArray<NSString *> *)codes forTask:(MTCaptureTask *)task {
+    MTCodeResultsController *results = [[MTCodeResultsController alloc] initWithCodes:codes];
+    __weak typeof(self) weakSelf = self;
+    results.onClose = ^{ [weakSelf mtFinishRecognitionTask:task]; };
+    results.onCopy = ^(NSString *text) {
+        if (![weakSelf mtIsTaskCurrent:task]) return;
+        BOOL copied = [MTClipboardWriter copyRecognizedText:text];
+        [weakSelf.completionToast showErrorMessage:copied ? @"扫码内容已复制" : @"复制失败，请重试"];
+    };
+    results.onOpenURL = ^(NSURL *url) {
+        if (![weakSelf mtIsTaskCurrent:task]) return;
+        [weakSelf mtFinishRecognitionTask:task];
+        [UIApplication.sharedApplication openURL:url options:@{} completionHandler:^(BOOL success) {
+            if (!success) dispatch_async(dispatch_get_main_queue(), ^{
+                [weakSelf.completionToast showErrorMessage:@"无法打开该链接，请复制后使用对应应用打开"];
+            });
+        }];
+    };
+    MTDismissActiveKeyboardForEditor();
+    self.codeResultsWindow = [MTCaptureWindow mtCaptureWindow];
+    self.codeResultsWindow.rootViewController = [[UINavigationController alloc] initWithRootViewController:results];
+    [self.codeResultsWindow showAnimated:YES];
+}
+
+- (void)mtTeardownRecognition {
+    if (self.recognitionService || self.codeResultsWindow) [self.completionToast dismiss];
+    [self.recognitionService cancel];
+    self.recognitionService = nil;
+    [self.codeResultsWindow hideAndDestroyWithCompletion:nil];
+    self.codeResultsWindow = nil;
+}
+
+- (void)mtFinishRecognitionTask:(MTCaptureTask *)task {
+    if (![self mtIsTaskCurrent:task]) return;
+    [self mtTeardownRecognition];
+    [task transitionToState:MTCaptureStateFinished];
+    task.baseImage = nil;
+    task.resultImage = nil;
+    [MTTemporaryFileStore removeTaskDirectory:task.taskID];
+    [self mtClearSlotIfCurrent:task];
+    [self mtRestoreFloatingSnaps];
 }
 
 - (void)selectionViewDidRequestFloat:(MTSelectionView *)view displayRect:(CGRect)displayRect {
@@ -1059,6 +1206,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 }
 
 - (void)mtFailTask:(MTCaptureTask *)task code:(NSString *)code message:(NSString *)message {
+    [self mtTeardownRecognition];
     task.errorCode = code;
     task.errorMessage = message;
     [self mtTeardownLongShotSession];

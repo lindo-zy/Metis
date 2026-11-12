@@ -61,7 +61,7 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         identifiers = @[@"cancel", @"selectall", @"fullshot", @"frameshot", @"markup", @"freeze", @"editor", @"float", @"long",
-                        @"save", @"copy",
+                        @"save", @"copy", @"ocr", @"fullscan", @"imageai",
                         @"shellxarea", @"shellxinstant", @"shellxfreeze",
                         @"shellxshot", @"shellxclose",
                         @"shellxhistory", @"shellxopenlast",
@@ -176,6 +176,9 @@
                   @"long": @"滚动截图",
                   @"save": @"保存",
                   @"copy": @"复制",
+                  @"ocr": @"识别文字",
+                  @"fullscan": @"全图扫码",
+                  @"imageai": @"图片问答",
                   @"shellxarea": @"ShellX 区域",
                   @"shellxinstant": @"ShellX 即时",
                   @"shellxfreeze": @"ShellX 冻结",
@@ -292,6 +295,9 @@
                   @"long": @"arrow.down.to.line.compact",
                   @"save": @"square.and.arrow.down",
                   @"copy": @"doc.on.doc",
+                  @"ocr": @"text.viewfinder",
+                  @"fullscan": @"qrcode.viewfinder",
+                  @"imageai": @"bubble.left.and.bubble.right",
                   @"shellxarea": @"camera.viewfinder",
                   @"shellxinstant": @"timer",
                   @"shellxfreeze": @"snowflake",

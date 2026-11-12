@@ -15,6 +15,18 @@
 
 @implementation MTClipboardWriter
 
++ (BOOL)copyRecognizedText:(NSString *)text {
+    NSAssert(NSThread.isMainThread, @"clipboard write must run on main");
+    if (![text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].length) return NO;
+    @try {
+        UIPasteboard.generalPasteboard.string = text;
+        return YES;
+    } @catch (NSException *exception) {
+        MTCaptureLogError(@"recognized text clipboard write failed: %@", exception.name);
+        return NO;
+    }
+}
+
 + (void)copyImageFileAsync:(NSString *)path completion:(void (^)(BOOL))completion {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ @autoreleasepool {
         // The task directory is removed after output. Keep the provider's file in

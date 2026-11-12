@@ -11,6 +11,8 @@
 @interface MTAIPanel : NSObject
 // 无输入会话的系统动作入口；键盘内仍使用原有带入当前输入内容的路径。
 + (BOOL)presentForSystemAction;
+/// 区域截图直接带入图片附件，不读写剪贴板，也不自动发送。
++ (BOOL)presentForSystemActionWithImage:(UIImage *)image;
 + (void)openFromKeyboardWithSeedText:(NSString *)seedText;
 // AI 动作入口：personaID / model 为空表示取各自列表第一项（与面板缺省解析
 // 一致）；autoSend 为 YES 且 seed 非空时，面板装载完成后立即发送这一问。

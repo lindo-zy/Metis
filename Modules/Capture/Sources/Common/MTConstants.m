@@ -1,5 +1,9 @@
 #import "MTConstants.h"
 
+NSString * const MTKeyOCREngine = @"OCREngine";
+NSString * const MTKeyOCRBaiduAPIKey = @"OCRBaiduAPIKey";
+NSString * const MTKeyOCRBaiduSecretKey = @"OCRBaiduSecretKey";
+
 // MTBundleID 保留 PixPin 身份（外部 URL scheme / 错误域标识）；偏好域是
 // Metis 自有域，不读取、不迁移旧 PixPin 插件域（com.lindo.metis.capture）
 // 的任何旧值；模块启停权威在 com.lindo.metis（MTModuleGate）。

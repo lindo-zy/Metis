@@ -21,6 +21,12 @@
 			<string>套壳设置</string>
 		</dict>
 		<dict>
+			<key>cell</key><string>PSLinkCell</string>
+			<key>detail</key><string>MTOCRSettingsController</string>
+			<key>id</key><string>ocrSettings</string>
+			<key>label</key><string>文字识别</string>
+		</dict>
+		<dict>
 			<key>PostNotification</key>
 			<string>com.lindo.metis.capture/preferences/reload</string>
 			<key>cell</key>

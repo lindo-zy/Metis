@@ -55,12 +55,24 @@ static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
 @property (nonatomic, copy) NSString *assetIdentifier;
 @property (nonatomic, assign) BOOL opensPhoto;
 @property (nonatomic, assign) NSUInteger generation;
+@property (nonatomic, copy) void (^cancellationHandler)(void);
+@property (nonatomic, weak) UIButton *contentButton;
 @end
 
 @implementation MTCaptureCompletionToast
 
 - (void)showCopied {
     [self mtShowMessage:@"截图已复制" assetIdentifier:nil opensPhoto:NO];
+}
+
+- (void)showTextCopied {
+    [self mtShowMessage:@"识别文字已复制" assetIdentifier:nil opensPhoto:NO];
+}
+
+- (void)showProcessingMessage:(NSString *)message cancellation:(void (^)(void))cancellation {
+    [self mtShowMessage:message assetIdentifier:nil opensPhoto:NO];
+    self.cancellationHandler = cancellation;
+    self.contentButton.accessibilityHint = @"取消识别";
 }
 
 - (void)showErrorMessage:(NSString *)message {
@@ -93,6 +105,7 @@ static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
     button.accessibilityHint = opensPhoto ? @"打开刚保存的照片" : @"关闭提示";
     [button addTarget:self action:@selector(mtTapped) forControlEvents:UIControlEventTouchUpInside];
     content.button = button;
+    self.contentButton = button;
     [content addSubview:button];
     [window hostContentView:content];
     self.window = window;
@@ -107,7 +120,7 @@ static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(MTCompletionToastDuration * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         __strong typeof(weakSelf) self = weakSelf;
-        if (self && self.generation == generation) [self dismiss];
+        if (self && self.generation == generation && !self.cancellationHandler) [self dismiss];
     });
 }
 
@@ -118,12 +131,16 @@ static void MTOpenPhotoURL(NSURL *url, void (^completion)(BOOL)) {
     self.window = nil;
     self.assetIdentifier = nil;
     self.opensPhoto = NO;
+    self.cancellationHandler = nil;
+    self.contentButton = nil;
 }
 
 - (void)mtTapped {
+    void (^cancellation)(void) = self.cancellationHandler;
     BOOL opensPhoto = self.opensPhoto;
     NSString *identifier = self.assetIdentifier;
     [self dismiss];
+    if (cancellation) { cancellation(); return; }
     if (!opensPhoto) return;
 
     // 首选照片 App 自带「最近一张照片」快捷方式：照片 App 在点击时刻自行解析

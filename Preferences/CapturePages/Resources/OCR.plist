@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>title</key>
+	<string>文字识别</string>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>文字识别</string>
+			<key>footerText</key>
+			<string>框选区域后点「识别文字」，成功后自动复制，未识别到文字时保留原剪贴板。本地识别无需网络；选择百度后仅上传框选区域。</string>
+		</dict>
+		<dict>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>label</key>
+			<string>识别引擎</string>
+			<key>key</key>
+			<string>OCREngine</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>validTitles</key>
+			<array>
+				<string>Apple Vision（本地）</string>
+				<string>百度通用文字识别</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>百度智能云</string>
+			<key>footerText</key>
+			<string>在百度智能云创建文字识别应用并开通通用文字识别（标准版），填写对应的 API Key 和 Secret Key。调用量和费用以百度账户为准。</string>
+		</dict>
+		<dict>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>label</key>
+			<string>API Key</string>
+			<key>key</key>
+			<string>OCRBaiduAPIKey</string>
+			<key>default</key>
+			<string></string>
+			<key>isSecure</key>
+			<true/>
+			<key>autocapitalizationType</key>
+			<integer>0</integer>
+			<key>autocorrectionType</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>defaults</key>
+			<string>com.lindo.metis.capture</string>
+			<key>PostNotification</key>
+			<string>com.lindo.metis.capture/preferences/reload</string>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>label</key>
+			<string>Secret Key</string>
+			<key>key</key>
+			<string>OCRBaiduSecretKey</string>
+			<key>default</key>
+			<string></string>
+			<key>isSecure</key>
+			<true/>
+			<key>autocapitalizationType</key>
+			<integer>0</integer>
+			<key>autocorrectionType</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+</dict>
+</plist>

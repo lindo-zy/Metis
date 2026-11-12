@@ -500,6 +500,16 @@ typedef NS_ENUM(NSInteger, MTSelectionDragMode) {
 - (void)mtButtonTapped:(UIButton *)sender {
     if (!self.userInteractionEnabled || self.toolbar.hidden || !sender.enabled) return;
     NSString *identifier = sender.accessibilityIdentifier;
+    if ([identifier isEqualToString:@"fullscan"]) {
+        [self.delegate selectionViewDidRequestFullScan:self];
+        return;
+    }
+    if ([identifier isEqualToString:@"ocr"] || [identifier isEqualToString:@"imageai"]) {
+        if (CGRectIsEmpty(MTClampSelectionRect(self.selectionRect, self.bounds.size, MTSelectionMinimumSize))) return;
+        if ([identifier isEqualToString:@"ocr"]) [self.delegate selectionViewDidRequestOCR:self displayRect:self.selectionRect];
+        else [self.delegate selectionViewDidRequestImageQuestion:self displayRect:self.selectionRect];
+        return;
+    }
     if ([identifier isEqualToString:@"freeze"]) {
         if (self.mode == MTCaptureModeArea && !self.areaFrameFrozen &&
             [self.delegate respondsToSelector:@selector(selectionViewDidRequestFreeze:)]) {

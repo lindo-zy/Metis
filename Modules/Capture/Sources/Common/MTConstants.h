@@ -87,6 +87,10 @@ FOUNDATION_EXPORT NSString * const MTNotificationResultUpdated; // com.lindo.met
 
 // MARK: - 偏好键（集中定义）
 
+FOUNDATION_EXPORT NSString * const MTKeyOCREngine;
+FOUNDATION_EXPORT NSString * const MTKeyOCRBaiduAPIKey;
+FOUNDATION_EXPORT NSString * const MTKeyOCRBaiduSecretKey;
+
 FOUNDATION_EXPORT NSString * const MTKeyEnabled;
 FOUNDATION_EXPORT NSString * const MTKeyDefaultResultAction;
 FOUNDATION_EXPORT NSString * const MTKeySaveAlsoCopy;

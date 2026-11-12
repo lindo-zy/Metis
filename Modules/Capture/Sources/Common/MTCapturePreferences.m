@@ -5,6 +5,9 @@
 
 // .m 内部可写版本：加载时一次性填充，之后只读。
 @interface MTConfig ()
+@property (nonatomic, readwrite) NSInteger ocrEngine;
+@property (nonatomic, copy, readwrite) NSString *ocrBaiduAPIKey;
+@property (nonatomic, copy, readwrite) NSString *ocrBaiduSecretKey;
 @property (nonatomic, readwrite) BOOL enabled;
 @property (nonatomic, readwrite) MTOutputAction defaultResultAction;
 @property (nonatomic, readwrite) BOOL saveAlsoCopy;
@@ -21,6 +24,9 @@
 - (instancetype)initDefault {
     if (self = [super init]) {
         _enabled = YES;
+        _ocrEngine = 0;
+        _ocrBaiduAPIKey = @"";
+        _ocrBaiduSecretKey = @"";
         _defaultResultAction = (MTOutputAction)MTDefaultResultAction;
         _saveAlsoCopy = YES;
         _floatingSnapShadow = YES;
@@ -82,6 +88,15 @@ static MTConfig *_currentConfig = nil;
 
 + (void)reload {
     MTConfig *config = [[MTConfig alloc] initDefault];
+    config.ocrEngine = MTPrefInteger(MTKeyOCREngine, 0) == 1 ? 1 : 0;
+    for (NSString *key in @[MTKeyOCRBaiduAPIKey, MTKeyOCRBaiduSecretKey]) {
+        id value = CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key,
+            (__bridge CFStringRef)MTCapturePreferencesDomain));
+        NSString *credential = [value isKindOfClass:NSString.class]
+            ? [value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] : @"";
+        if ([key isEqualToString:MTKeyOCRBaiduAPIKey]) config.ocrBaiduAPIKey = credential;
+        else config.ocrBaiduSecretKey = credential;
+    }
 
     // Metis 门控桥接：唯一整体开关权威是 com.lindo.metis 域（MTModuleGate）。
     // 旧模块键（captureEnabled）已退役，截图核心能力随总开关首装默认可用。

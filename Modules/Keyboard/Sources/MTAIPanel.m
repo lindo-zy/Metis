@@ -1941,6 +1941,18 @@ static void MTAIScheduleInputFocus(MTAIChatPanelController *controller) {
     return g_aiPanelWindow && !g_aiPanelWindow.hidden && g_aiPanelWindow.rootViewController != nil;
 }
 
++ (BOOL)presentForSystemActionWithImage:(UIImage *)image {
+    if (!NSThread.isMainThread || !image || ![NSProcessInfo.processInfo.processName isEqualToString:@"SpringBoard"]) return NO;
+    if (![MTModuleGate globalEnabled] || ![MTGlobalPanel deviceUnlocked]) return NO;
+    MTAIChatPanelController *controller = [self ensurePanelController];
+    if (!controller) return NO;
+    // 新截图明确替换草稿附件；保留会话和用户已经输入的问题。
+    [controller loadViewIfNeeded];
+    [controller updateAttachedImage:image];
+    [self presentInSpringBoardWithSeedText:@"" clipboardImage:NO];
+    return g_aiPanelWindow && !g_aiPanelWindow.hidden;
+}
+
 + (void)closeAndDestroyPanel {
     if (g_aiPanelWindow) {
         g_aiPanelWindow.hidden = YES;
