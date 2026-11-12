@@ -110,6 +110,7 @@ static CGImagePropertyOrientation MTRecognitionOrientation(UIImageOrientation or
         }
         NSMutableArray *lines = [NSMutableArray array];
         BOOL anySucceeded = NO;
+        NSError *lastError = nil;
         // Revision 2 provides a second, explicit Chinese/English path on iOS 16.
         for (NSUInteger pass = 0; pass < 2 && !self.progress.cancelled && !lines.count; pass++) {
             VNRecognizeTextRequest *request = [VNRecognizeTextRequest new];
@@ -129,6 +130,7 @@ static CGImagePropertyOrientation MTRecognitionOrientation(UIImageOrientation or
             BOOL ok = image.CGImage && [[[VNImageRequestHandler alloc] initWithCGImage:image.CGImage
                 orientation:MTRecognitionOrientation(image.imageOrientation) options:@{}] performRequests:@[request] error:&error];
             anySucceeded |= ok;
+            if (!ok) lastError = error;
             if (!ok && !self.progress.cancelled) MTCaptureLogWarn(@"local OCR pass=%lu failed domain=%@ code=%ld", (unsigned long)pass, error.domain ?: @"image", (long)error.code);
             if (ok) for (VNRecognizedTextObservation *observation in request.results) {
                 NSString *line = [observation topCandidates:1].firstObject.string;
@@ -137,8 +139,9 @@ static CGImagePropertyOrientation MTRecognitionOrientation(UIImageOrientation or
         }
         self.visionRequest = nil;
         NSString *text = lines.count ? [lines componentsJoinedByString:@"\n"] : nil;
+        NSString *failure = lastError ? [NSString stringWithFormat:@"本地文字识别失败（%@ %ld）", lastError.domain, (long)lastError.code] : @"本地文字识别失败，请重试";
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self finishText:text error:anySucceeded ? nil : @"本地文字识别失败，请重试"];
+            [self finishText:text error:anySucceeded ? nil : failure];
         });
     }});
 }
