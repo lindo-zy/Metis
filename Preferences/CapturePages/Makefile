@@ -8,6 +8,9 @@ BUNDLE_NAME = MetisCapturePrefs
 MetisCapturePrefs_FILES = MTCaptureRootListController.m \
 	MTOCRSettingsController.m \
 	MTDeviceFrameSettingsController.m \
+	MTWatermarkSettingsController.m \
+	../../Modules/Capture/Sources/Common/MTWatermarkConfiguration.m \
+	../../Modules/Capture/Sources/Watermark/MTWatermarkRenderer.m \
 	MTCaptureTestCell.m \
 	MTEditorOrderController.m \
 	MTEditorButtonEditController.m \

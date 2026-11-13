@@ -1,4 +1,5 @@
 #import "MTCaptureTask.h"
+#import "../Common/MTWatermarkConfiguration.h"
 #import "../Common/MTConstants.h"
 #import "../Common/MTClaimSet.h"
 #import "../Common/MTCaptureLog.h"
@@ -24,6 +25,7 @@
     if (self = [super init]) {
         _taskID = [[NSUUID UUID] UUIDString];
         _mode = mode;
+        _watermarkConfiguration = [MTWatermarkConfiguration rememberedConfiguration];
         _configSnapshot = config;
         _capturedScreenBounds = screenBounds;
         _capturedScreenScale = screenScale;

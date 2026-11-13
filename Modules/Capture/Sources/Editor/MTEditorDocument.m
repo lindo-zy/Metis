@@ -1,4 +1,5 @@
 #import "MTEditorDocument.h"
+#import "../Common/MTWatermarkConfiguration.h"
 
 @interface MTEditorDocument ()
 @property (nonatomic, strong, readwrite) UIImage *sourceImage;
@@ -13,6 +14,7 @@
     if (self = [super init]) {
         NSParameterAssert(sourceImage);
         _sourceImage = sourceImage;
+        _watermarkConfiguration = [MTWatermarkConfiguration rememberedConfiguration];
         _mutableAnnotations = [[NSMutableArray alloc] init];
         _backgroundColor = [UIColor whiteColor];
         _stampCounter = 0;

@@ -4,6 +4,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @class MTEditorCanvas;
+@class MTWatermarkConfiguration;
 @class MTEditorViewController;
 
 @protocol MTEditorViewControllerDelegate <NSObject>
@@ -16,6 +17,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// 区域图片使用圆角卡片；全屏标记使用冻结整屏底图与悬浮多排面板。
 /// 两种布局共用完整工具、文档、撤销栈和输出流程。
 @interface MTEditorViewController : UIViewController
+
+/// 协调器负责最终水印时返回干净的编辑结果，直接复制/分享仍合成水印。
+@property (nonatomic) BOOL defersWatermarkToOutput;
+@property (nonatomic, copy) MTWatermarkConfiguration *watermarkConfiguration;
+@property (nonatomic) BOOL sourceIncludesFrame;
+@property (nonatomic, readonly) BOOL resultIncludesFrame;
 
 /// 在加载 view 前设置。
 @property (nonatomic, assign) BOOL fullscreenMarkup;

@@ -1,6 +1,7 @@
 #import "MTEditorRenderer.h"
 #import "MTEditorDocument.h"
 #import "MTDeviceFrameRenderer.h"
+#import "../Watermark/MTWatermarkRenderer.h"
 #import "MTDeviceFrameTemplateStore.h"
 #import "../Common/MTCaptureLog.h"
 
@@ -188,7 +189,14 @@
 }
 
 + (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame completion:(void (^)(UIImage *))completion {
+    [self renderDocument:document includingFrame:includingFrame includingWatermark:includingFrame completion:completion];
+}
+
++ (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame
+     includingWatermark:(BOOL)includingWatermark completion:(void (^)(UIImage *))completion {
     NSParameterAssert(completion);
+    MTWatermarkConfiguration *watermark = includingWatermark ? [document.watermarkConfiguration copy] : nil;
+    BOOL framed = document.sourceIncludesFrame || (includingFrame && document.frameConfiguration != nil);
     // 进入导出前在调用线程（主线程）对文档做快照，杜绝后台渲染与继续绘制的竞态。
     UIImage *source = document.sourceImage;
     UIColor *background = document.backgroundColor;
@@ -208,6 +216,7 @@
                 result = [MTDeviceFrameRenderer renderImage:result configuration:frameStyle
                     template:[MTDeviceFrameTemplateStore templateForIdentifier:frameStyle.templateIdentifier] previewEdge:0];
             }
+            if (result) result = [MTWatermarkRenderer renderImage:result configuration:watermark framed:framed];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(result); });
         }
     });

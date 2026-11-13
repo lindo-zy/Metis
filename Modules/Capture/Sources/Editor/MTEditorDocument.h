@@ -4,6 +4,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @class MTDeviceFrameConfiguration;
+@class MTWatermarkConfiguration;
 
 /// 非破坏式编辑文档（DEVELOPMENT.md 5.6）：
 /// - sourceImage 只被整体替换（裁剪/旋转烘焙时），单笔标注永不修改底图；
@@ -17,6 +18,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) UIColor *backgroundColor;
 /// 导出时最后应用，不改变底图、标注或撤销栈。
 @property (nonatomic, copy, nullable) MTDeviceFrameConfiguration *frameConfiguration;
+
+@property (nonatomic, copy) MTWatermarkConfiguration *watermarkConfiguration;
+@property (nonatomic) BOOL sourceIncludesFrame;
 
 - (instancetype)initWithSourceImage:(UIImage *)sourceImage;
 

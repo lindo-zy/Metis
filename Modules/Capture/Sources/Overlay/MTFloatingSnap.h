@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, weak, nullable) id<MTFloatingSnapDelegate> delegate;
 @property (nonatomic, strong, readonly) UIImage *image;
 @property (nonatomic, assign, readonly) MTCaptureMode captureMode;
+@property (nonatomic) BOOL imageIncludesFrame;
 
 + (nullable instancetype)presentWithImage:(UIImage *)image
                             mode:(MTCaptureMode)mode

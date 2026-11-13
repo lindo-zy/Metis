@@ -16,6 +16,7 @@ MetisSpringBoard_FILES += $(wildcard ../../Modules/Capture/Sources/Common/*.m) \
 	$(wildcard ../../Modules/Capture/Sources/LongCapture/*.m) \
 	$(wildcard ../../Modules/Capture/Sources/Overlay/*.m) \
 	$(wildcard ../../Modules/Capture/Sources/Editor/*.m) \
+	$(wildcard ../../Modules/Capture/Sources/Watermark/*.m) \
 	$(wildcard ../../Modules/Capture/Sources/Output/*.m) \
 	$(wildcard $(THEOS_PROJECT_DIR)/Modules/Capture/Sources/SpringBoard/*.xm)
 

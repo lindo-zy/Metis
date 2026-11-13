@@ -160,6 +160,12 @@ static NSArray<MTEditorTool *> *MTEditorToolsInPreferredOrder(BOOL fullscreen) {
 @end
 
 @implementation MTEditorViewController
+- (MTWatermarkConfiguration *)watermarkConfiguration { return self.document.watermarkConfiguration; }
+- (void)setWatermarkConfiguration:(MTWatermarkConfiguration *)style { self.document.watermarkConfiguration = style; }
+- (BOOL)sourceIncludesFrame { return self.document.sourceIncludesFrame; }
+- (void)setSourceIncludesFrame:(BOOL)framed { self.document.sourceIncludesFrame = framed; }
+- (BOOL)resultIncludesFrame { return self.sourceIncludesFrame || self.document.frameConfiguration != nil; }
+
 
 - (instancetype)initWithImage:(UIImage *)sourceImage
                      delegate:(id<MTEditorViewControllerDelegate>)delegate {
@@ -1036,6 +1042,10 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
 }
 
 - (void)mtRenderCurrentImageIncludingFrame:(BOOL)includingFrame then:(void (^)(UIImage *result))then {
+    [self mtRenderCurrentImageIncludingFrame:includingFrame watermark:includingFrame then:then];
+}
+
+- (void)mtRenderCurrentImageIncludingFrame:(BOOL)includingFrame watermark:(BOOL)watermark then:(void (^)(UIImage *))then {
     if (self.isExporting || !self.view.window || self.presentedViewController) return;
     [self.canvas commitActiveText];
     if (self.isCropMode) {
@@ -1045,7 +1055,7 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
     self.canvas.userInteractionEnabled = NO;
     [self mtRefreshButtons];
     __weak typeof(self) weakSelf = self;
-    [MTEditorRenderer renderDocument:self.document includingFrame:includingFrame completion:^(UIImage *result) {
+    [MTEditorRenderer renderDocument:self.document includingFrame:includingFrame includingWatermark:watermark completion:^(UIImage *result) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf || !strongSelf.view.window) return;
         strongSelf.isExporting = NO;
@@ -1054,7 +1064,7 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
         if (!result) {
             MTCaptureLogError(@"editor export failed");
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"导出失败"
-                                                                           message:@"请重试或缩小图片。套壳输出上限 24MP / 8192px，自定义素材需仍然可用。"
+                                                                           message:@"请检查水印或套壳素材，或缩小图片后重试。套壳输出上限 24MP / 8192px。"
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
             [strongSelf presentViewController:alert animated:YES completion:nil];
@@ -1383,7 +1393,7 @@ typedef NS_ENUM(NSInteger, MTZoomInitialMode) {
 
 - (void)mtFinishWithAction:(MTOutputAction)action {
     __weak typeof(self) weakSelf = self;
-    [self mtRenderCurrentImageThen:^(UIImage *result) {
+    [self mtRenderCurrentImageIncludingFrame:YES watermark:!self.defersWatermarkToOutput then:^(UIImage *result) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf || !strongSelf.view.window) return;
         [strongSelf.delegate editorController:strongSelf didFinishWithImage:result action:action];

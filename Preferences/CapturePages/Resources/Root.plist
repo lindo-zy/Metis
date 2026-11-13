@@ -22,6 +22,12 @@
 		</dict>
 		<dict>
 			<key>cell</key><string>PSLinkCell</string>
+			<key>detail</key><string>MTWatermarkSettingsController</string>
+			<key>id</key><string>watermarkSettings</string>
+			<key>label</key><string>水印设置</string>
+		</dict>
+		<dict>
+			<key>cell</key><string>PSLinkCell</string>
 			<key>detail</key><string>MTOCRSettingsController</string>
 			<key>id</key><string>ocrSettings</string>
 			<key>label</key><string>OCR 设置</string>

@@ -345,6 +345,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
                     return;
                 }
                 task.resultImage = result;
+                task.resultIncludesFrame = YES;
                 task.resultFilePath = nil;
                 if (![task transitionToState:MTCaptureStatePresenting]) return;
                 MTOutputAction action = task.outputActionOverride != MTOutputActionPreviewOnly
@@ -961,7 +962,7 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         [task unclaimOutputAction:MTOutputActionCopy];
         [task unclaimOutputAction:MTOutputActionShare];
         MTCaptureLogWarn(@"output failed, temp files kept for retry (task %@)", task.taskID);
-        if (task.mode == MTCaptureModeFrame) [self.completionToast showErrorMessage:@"套壳截图输出失败，请检查权限或重试"];
+        [self.completionToast showErrorMessage:message ?: @"截图输出失败，请检查权限或重试"];
     }
 
     // 输出成功不再需要重试，任务临时目录立即回收（失败路径保留供诊断）。
@@ -996,6 +997,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         [self mtFailTask:task code:@"floating-window" message:@"悬浮图片显示失败"];
         return;
     }
+    // Frame 模式免编辑直出悬浮窗时保留「含壳」标志，悬浮窗回输出/回编辑据此判定水印作用域。
+    snap.imageIncludesFrame = task.resultIncludesFrame;
     [self.floatingSnaps addObject:snap];
     [task transitionToState:MTCaptureStateFinished];
     [MTTemporaryFileStore removeTaskDirectory:task.taskID];
@@ -1019,6 +1022,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
         return;
     }
     task.isReedit = YES;
+    // 悬浮图可能是套壳结果，沿来源标志判定水印作用域。
+    task.resultIncludesFrame = snap.imageIncludesFrame;
     self.editingFloatingSnap = snap;
     [snap hideForCapture];
     [self mtBeginEditorForAcquiredTask:task image:image];
@@ -1036,6 +1041,8 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
     }
     task.baseImage = image;
     task.resultImage = image;
+    // 悬浮图可能是套壳结果（编辑后回传或 Frame 直出），沿来源标志判定水印作用域。
+    task.resultIncludesFrame = snap.imageIncludesFrame;
     [task transitionToState:MTCaptureStateCapturing];
     [task transitionToState:MTCaptureStateCaptured];
     [self mtExecuteOutput:action forTask:task presentingWindow:nil];
@@ -1073,6 +1080,9 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 
     [self mtDestroyEditorWindow];
     MTEditorViewController *editor = [[MTEditorViewController alloc] initWithImage:task.resultImage delegate:self];
+    editor.defersWatermarkToOutput = YES;
+    editor.watermarkConfiguration = task.watermarkConfiguration;
+    editor.sourceIncludesFrame = task.resultIncludesFrame;
     editor.fullscreenMarkup = (task.mode == MTCaptureModeMarkup);
     editor.backdropImage = task.baseImage;
     MTCaptureWindow *window = [MTCaptureWindow mtCaptureWindow];
@@ -1163,6 +1173,10 @@ static MTCaptureCoordinator *_sharedCoordinator = nil;
 - (void)editorController:(MTEditorViewController *)controller didFinishWithImage:(UIImage *)image action:(MTOutputAction)action {
     if (controller != self.editorController) return;
     MTCaptureTask *task = [self mtCurrentTaskIfState:MTCaptureStateEditing];
+    task.resultIncludesFrame = controller.resultIncludesFrame;
+    // 编辑器未延迟水印（独立编辑路径）时结果已含水印，管线不得二次合成。
+    task.watermarkAlreadyApplied = !controller.defersWatermarkToOutput;
+    self.editingFloatingSnap.imageIncludesFrame = controller.resultIncludesFrame;
     [self mtDestroyEditorWindow];
     self.preEditImage = nil;
     if (!task) return;

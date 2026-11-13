@@ -31,6 +31,9 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame
             completion:(void (^)(UIImage * _Nullable result))completion;
 
++ (void)renderDocument:(MTEditorDocument *)document includingFrame:(BOOL)includingFrame
+     includingWatermark:(BOOL)includingWatermark completion:(void (^)(UIImage * _Nullable result))completion;
+
 #pragma mark - 裁剪 / 旋转烘焙
 
 /// 按点空间 rect 裁剪（自动截断到图内并落像素网格）。

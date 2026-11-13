@@ -1,4 +1,5 @@
 #import "MTOutputPipeline.h"
+#import "../Watermark/MTWatermarkRenderer.h"
 #import "MTImageEncoding.h"
 #import "MTPhotoWriter.h"
 #import "MTClipboardWriter.h"
@@ -17,13 +18,44 @@
      presentingWindow:(UIWindow *)presentingWindow
            completion:(void (^)(BOOL, NSString *))completion {
     void (^runOnMain)(void) = ^{
-        [self mtPerformAction:action forTask:task presentingWindow:presentingWindow completion:completion];
+        [self mtPrepareAction:action forTask:task presentingWindow:presentingWindow completion:completion];
     };
     if ([NSThread isMainThread]) {
         runOnMain();
     } else {
         dispatch_async(dispatch_get_main_queue(), runOnMain);
     }
+}
+
+// 保持 resultImage/resultFilePath 为编辑源，每次重试均从同一原图合成一次。
+- (void)mtPrepareAction:(MTOutputAction)action forTask:(MTCaptureTask *)task
+      presentingWindow:(UIWindow *)window completion:(void (^)(BOOL, NSString *))completion {
+    if (!task || task.preparingWatermark) { completion(NO, @"输出正在处理或任务无效"); return; }
+    task.lastOutputSaved = NO; task.lastOutputCopied = NO;
+    task.outputImage = nil; task.outputFilePath = task.resultFilePath;
+    MTWatermarkConfiguration *style = [task.watermarkConfiguration copy];
+    // 长图整幅重渲且 outputFilePath 置空会触发保存期 JPEG 重编码，
+    // 是主流程刻意规避的 SpringBoard 内存尖峰；水印作用域不含长截图。
+    if (action == MTOutputActionPreviewOnly || task.watermarkAlreadyApplied || task.mode == MTCaptureModeLong ||
+        ![style appliesToFramedImage:task.resultIncludesFrame]) {
+        [self mtPerformAction:action forTask:task presentingWindow:window completion:completion];
+        return;
+    }
+    UIImage *source = task.resultImage ?: task.baseImage;
+    BOOL framed = task.resultIncludesFrame;
+    task.preparingWatermark = YES;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ @autoreleasepool {
+        UIImage *result = [MTWatermarkRenderer renderImage:source configuration:style framed:framed];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            task.preparingWatermark = NO;
+            if (!MTOutputAllowedForState([task currentState])) { completion(NO, @"任务已取消"); return; }
+            if (!result) { completion(NO, @"水印合成失败，请检查水印素材或重新导入"); return; }
+            task.outputImage = result;
+            // 原文件未包含水印，保存与复制必须使用本次合成图。
+            task.outputFilePath = nil;
+            [self mtPerformAction:action forTask:task presentingWindow:window completion:completion];
+        });
+    }});
 }
 
 #pragma mark - 动作分发
@@ -119,11 +151,11 @@
     if (action != MTOutputActionSave || !task.configSnapshot.saveAlsoCopy) {
         return action;
     }
-    UIImage *image = task.resultImage ?: task.baseImage;
+    UIImage *image = task.outputImage ?: task.resultImage ?: task.baseImage;
     if (!image) return action;   // 无图时留给保存路径报「没有可保存的结果」
     CGFloat pixelHeight = image.size.height * image.scale;
     BOOL fileCopy = task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll &&
-        [task.resultFilePath.pathExtension.lowercaseString isEqualToString:@"png"];
+        [task.outputFilePath.pathExtension.lowercaseString isEqualToString:@"png"];
     if (pixelHeight > (CGFloat)MTLongShotCopyMaxPixelHeight && !fileCopy) {
         MTCaptureLogInfo(@"save+copy skipped: %.0f px exceeds copy limit", pixelHeight);
         return action;
@@ -150,7 +182,7 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
 #pragma mark - 子动作
 
 - (void)mtRunSave:(MTCaptureTask *)task completion:(void (^)(BOOL, NSString *))completion {
-    UIImage *image = task.resultImage ?: task.baseImage;
+    UIImage *image = task.outputImage ?: task.resultImage ?: task.baseImage;
     if (!image) {
         completion(NO, @"没有可保存的结果");
         return;
@@ -172,7 +204,7 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
             }
             // 已有落盘产物（长图 longshot.jpg）时不再重复 JPEG 编码：UIImageJPEGRepresentation
             // 的整幅解码是保存期最大内存尖峰，可恢复副本本来就已存在。
-            NSString *stagedPath = task.resultFilePath;
+            NSString *stagedPath = task.outputFilePath;
             BOOL hasStagedFile = stagedPath.length > 0 &&
                 [[NSFileManager defaultManager] fileExistsAtPath:stagedPath];
             if (!hasStagedFile) {
@@ -243,7 +275,7 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
 }
 
 - (void)mtRunCopy:(MTCaptureTask *)task completion:(void (^)(BOOL, NSString *))completion {
-    UIImage *image = task.resultImage ?: task.baseImage;
+    UIImage *image = task.outputImage ?: task.resultImage ?: task.baseImage;
     if (!image) {
         completion(NO, @"没有可复制的结果");
         return;
@@ -254,8 +286,8 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
         return;
     }
     if (task.configSnapshot.longShotOptions.algorithm == MTLongShotAlgorithmQuickScroll &&
-        [task.resultFilePath.pathExtension.lowercaseString isEqualToString:@"png"]) {
-        [MTClipboardWriter copyImageFileAsync:task.resultFilePath completion:^(BOOL ok) {
+        [task.outputFilePath.pathExtension.lowercaseString isEqualToString:@"png"]) {
+        [MTClipboardWriter copyImageFileAsync:task.outputFilePath completion:^(BOOL ok) {
             task.lastOutputCopied = ok;
             completion(ok, ok ? @"已复制到剪贴板" : @"复制失败");
         }];
@@ -271,7 +303,7 @@ static BOOL MTOutputAllowedForState(MTCaptureState state) {
 - (void)mtRunShare:(MTCaptureTask *)task
    presentingWindow:(UIWindow *)presentingWindow
          completion:(void (^)(BOOL, NSString *))completion {
-    UIImage *image = task.resultImage ?: task.baseImage;
+    UIImage *image = task.outputImage ?: task.resultImage ?: task.baseImage;
     UIViewController *host = presentingWindow.rootViewController;
     if (!image || !MTOutputAllowedForState([task currentState])) {
         [task unclaimOutputAction:MTOutputActionShare];
