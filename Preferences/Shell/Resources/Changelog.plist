@@ -4,6 +4,25 @@
 <array>
 	<dict>
 		<key>version</key>
+		<string>1.7.10</string>
+		<key>items</key>
+		<array>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>截图支持自定义水印，可从相册或文件导入素材，拖动调整位置、大小与不透明度。</string>
+			</dict>
+			<dict>
+				<key>tag</key>
+				<string>新增</string>
+				<key>text</key>
+				<string>水印作用范围可选所有截图、仅普通截图或仅套壳截图，套壳时叠加覆盖机壳与背景。</string>
+			</dict>
+		</array>
+	</dict>
+	<dict>
+		<key>version</key>
 		<string>1.7.9</string>
 		<key>items</key>
 		<array>
@@ -63,19 +82,6 @@
 				<string>新增</string>
 				<key>text</key>
 				<string>支持跳过照片删除确认弹窗，删除不再二次确认，均可在相册增强中开启。</string>
-			</dict>
-		</array>
-	</dict>
-	<dict>
-		<key>version</key>
-		<string>1.7.4</string>
-		<key>items</key>
-		<array>
-			<dict>
-				<key>tag</key>
-				<string>修复</string>
-				<key>text</key>
-				<string>修复截图完成气泡点击后只能进入相册列表的问题，现在优先直达照片 App 的最近一张照片。</string>
 			</dict>
 		</array>
 	</dict>
