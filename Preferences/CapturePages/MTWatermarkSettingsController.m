@@ -13,6 +13,18 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
 @interface MTWatermarkSettingsController : PSViewController <PHPickerViewControllerDelegate, UIDocumentPickerDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, strong) MTWatermarkConfiguration *style;
 @property (nonatomic, strong) UIImageView *preview;
+@property (nonatomic, strong) UIView *previewViewport;
+@property (nonatomic, strong) UILabel *zoomLabel;
+@property (nonatomic, strong) UIButton *fitPreviewButton;
+@property (nonatomic, strong) UIPinchGestureRecognizer *previewPinch;
+@property (nonatomic, strong) UIPanGestureRecognizer *previewPan;
+@property (nonatomic, strong) UIPanGestureRecognizer *markDrag;
+@property (nonatomic) CGFloat previewZoom;
+@property (nonatomic) CGPoint previewOffset;
+@property (nonatomic) CGPoint pinchAnchor;
+@property (nonatomic) CGSize previewViewportSize;
+@property (nonatomic) BOOL previewPinching;
+@property (nonatomic) BOOL previewPanning;
 @property (nonatomic, strong) UIImageView *mark;
 @property (nonatomic, strong) UIStackView *materialsStack;
 @property (nonatomic, strong) UISwitch *enabledSwitch;
@@ -103,7 +115,7 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     self.navigationItem.standardAppearance = appearance; self.navigationItem.scrollEdgeAppearance = appearance;
 
     self.scroll = [UIScrollView new]; self.scroll.translatesAutoresizingMaskIntoConstraints = NO;
-    self.scroll.alwaysBounceVertical = YES; self.scroll.indicatorStyle = UIScrollViewIndicatorStyleWhite;
+    self.scroll.alwaysBounceVertical = YES; self.scroll.panGestureRecognizer.maximumNumberOfTouches = 1; self.scroll.indicatorStyle = UIScrollViewIndicatorStyleWhite;
     [self.view addSubview:self.scroll];
     UIStackView *stack = [self column:12]; self.contentStack = stack; stack.translatesAutoresizingMaskIntoConstraints = NO; [self.scroll addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
@@ -138,12 +150,18 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     [self.previewMode.widthAnchor constraintEqualToConstant:112].active = YES;
     [self.previewMode addTarget:self action:@selector(refreshPreview) forControlEvents:UIControlEventValueChanged];
     [previewContent addArrangedSubview:[self rowWithView:[self label:@"实时预览" size:15 secondary:NO] control:self.previewMode]];
+    self.previewViewport = [UIView new]; self.previewViewport.backgroundColor = [UIColor colorWithWhite:0.10 alpha:1];
+    self.previewViewport.layer.cornerRadius = 12; self.previewViewport.clipsToBounds = YES;
+    self.previewHeight = [self.previewViewport.heightAnchor constraintEqualToConstant:260]; self.previewHeight.active = YES;
+    [previewContent addArrangedSubview:self.previewViewport];
     self.preview = [UIImageView new]; self.preview.contentMode = UIViewContentModeScaleAspectFit;
-    self.preview.backgroundColor = [UIColor colorWithWhite:0.10 alpha:1];
-    self.preview.layer.cornerRadius = 12; self.preview.clipsToBounds = YES; self.preview.userInteractionEnabled = YES;
-    self.preview.accessibilityLabel = @"完整成图预览";
-    self.previewHeight = [self.preview.heightAnchor constraintEqualToConstant:260]; self.previewHeight.active = YES;
-    [previewContent addArrangedSubview:self.preview];
+    self.preview.userInteractionEnabled = YES; self.preview.accessibilityLabel = @"完整成图预览";
+    [self.previewViewport addSubview:self.preview]; self.previewZoom = 1;
+    self.previewPinch = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinchPreview:)];
+    self.previewPinch.delegate = self; [self.previewViewport addGestureRecognizer:self.previewPinch];
+    self.previewPan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panPreview:)];
+    self.previewPan.minimumNumberOfTouches = 2; self.previewPan.maximumNumberOfTouches = 2;
+    self.previewPan.delegate = self; [self.previewViewport addGestureRecognizer:self.previewPan];
     self.mark = [UIImageView new]; self.mark.contentMode = UIViewContentModeScaleAspectFit;
     self.mark.isAccessibilityElement = YES; self.mark.accessibilityLabel = @"水印位置预览";
     [self.preview addSubview:self.mark];
@@ -154,14 +172,20 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     }
     [self.preview addSubview:self.selection];
     self.previewEmpty = [self label:@"" size:14 secondary:YES]; self.previewEmpty.textAlignment = NSTextAlignmentCenter;
-    self.previewEmpty.translatesAutoresizingMaskIntoConstraints = NO; [self.preview addSubview:self.previewEmpty];
+    self.previewEmpty.translatesAutoresizingMaskIntoConstraints = NO; [self.previewViewport addSubview:self.previewEmpty];
     [NSLayoutConstraint activateConstraints:@[
-        [self.previewEmpty.centerYAnchor constraintEqualToAnchor:self.preview.centerYAnchor],
-        [self.previewEmpty.leadingAnchor constraintEqualToAnchor:self.preview.leadingAnchor constant:16],
-        [self.previewEmpty.trailingAnchor constraintEqualToAnchor:self.preview.trailingAnchor constant:-16]]];
+        [self.previewEmpty.centerYAnchor constraintEqualToAnchor:self.previewViewport.centerYAnchor],
+        [self.previewEmpty.leadingAnchor constraintEqualToAnchor:self.previewViewport.leadingAnchor constant:16],
+        [self.previewEmpty.trailingAnchor constraintEqualToAnchor:self.previewViewport.trailingAnchor constant:-16]]];
     UIPanGestureRecognizer *drag = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)];
-    drag.delegate = self; [self.preview addGestureRecognizer:drag];
+    drag.maximumNumberOfTouches = 1; drag.delegate = self; self.markDrag = drag;
+    [self.preview addGestureRecognizer:drag];
     [self.scroll.panGestureRecognizer requireGestureRecognizerToFail:drag];
+    self.zoomLabel = [self label:@"1.0×" size:12 secondary:YES]; self.zoomLabel.accessibilityLabel = @"预览放大倍数";
+    self.fitPreviewButton = [self button:@"复位" action:@selector(resetPreviewZoom)];
+    self.fitPreviewButton.accessibilityLabel = @"还原完整预览";
+    [previewContent addArrangedSubview:[self rowWithView:self.zoomLabel control:self.fitPreviewButton]];
+    [previewContent addArrangedSubview:[self label:@"双指缩放或平移 · 单指拖动水印" size:11 secondary:YES]];
     self.status = [self label:@"" size:11 secondary:YES]; self.status.textAlignment = NSTextAlignmentCenter;
     [previewContent addArrangedSubview:self.status]; [stack addArrangedSubview:[self cardWithContent:previewContent]];
 
@@ -261,7 +285,7 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     self.navigationController.navigationBar.tintColor = MTWatermarkAccent();
 }
 - (void)viewWillDisappear:(BOOL)animated {
-    [super viewWillDisappear:animated];
+    [super viewWillDisappear:animated]; [self cancelPreviewGestures];
     self.navigationController.navigationBar.tintColor = self.previousNavigationTint;
 }
 - (void)toggleParameters {
@@ -290,10 +314,78 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     // Keep a useful preview on small phones and in landscape without making the page excessively tall.
     CGFloat height = MIN(280, MAX(180, self.view.safeAreaLayoutGuide.layoutFrame.size.height * 0.36));
     if (fabs(self.previewHeight.constant - height) > 0.5) self.previewHeight.constant = height;
+    CGSize viewport = self.previewViewport.bounds.size;
+    if (!CGSizeEqualToSize(viewport, self.previewViewportSize)) {
+        self.previewViewportSize = viewport; [self cancelPreviewGestures]; [self resetPreviewZoom];
+    } else {
+        [self layoutPreview];
+    }
+}
+- (void)layoutPreview {
+    CGRect rect = MTDeviceFrameZoomRect(self.preview.image.size, self.previewViewport.bounds, self.previewZoom, self.previewOffset);
+    self.preview.hidden = CGRectIsEmpty(rect); self.preview.frame = rect;
     [self layoutMark];
+    self.zoomLabel.text = [NSString stringWithFormat:@"%.1f×", self.previewZoom];
+    self.zoomLabel.accessibilityValue = [NSString stringWithFormat:@"%.0f%%", self.previewZoom * 100];
+    self.fitPreviewButton.enabled = self.previewZoom > 1.001;
+}
+- (void)setPreviewZoom:(CGFloat)zoom oldAnchor:(CGPoint)oldAnchor newAnchor:(CGPoint)newAnchor {
+    if (!isfinite(zoom) || !self.preview.image) return;
+    zoom = MAX(1, MIN(8, zoom));
+    self.previewOffset = MTDeviceFrameZoomOffset(self.preview.image.size, self.previewViewport.bounds,
+        self.previewZoom, self.previewOffset, zoom, oldAnchor, newAnchor);
+    self.previewZoom = zoom; [self layoutPreview];
+}
+- (void)resetPreviewZoom {
+    self.previewZoom = 1; self.previewOffset = CGPointZero; [self layoutPreview];
+}
+- (void)updatePreviewGestureState {
+    self.scroll.scrollEnabled = !self.previewPinching && !self.previewPanning;
+}
+- (void)cancelPreviewGestures {
+    self.previewPinch.enabled = NO; self.previewPinch.enabled = YES;
+    self.previewPan.enabled = NO; self.previewPan.enabled = YES;
+    self.markDrag.enabled = NO; self.markDrag.enabled = YES;
+    self.previewPinching = NO; self.previewPanning = NO; [self updatePreviewGestureState];
+}
+- (void)pinchPreview:(UIPinchGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
+        self.previewPinching = NO; [self updatePreviewGestureState]; return;
+    }
+    if (gesture.state != UIGestureRecognizerStateBegan && gesture.state != UIGestureRecognizerStateChanged) return;
+    CGPoint anchor = [gesture locationInView:self.previewViewport];
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        self.previewPinching = YES; self.pinchAnchor = anchor;
+        // A second finger turns a watermark drag into viewport navigation, without a later position jump.
+        self.markDrag.enabled = NO; self.markDrag.enabled = YES; [self updatePreviewGestureState];
+    }
+    [self setPreviewZoom:self.previewZoom * gesture.scale oldAnchor:self.pinchAnchor newAnchor:anchor];
+    self.pinchAnchor = anchor; gesture.scale = 1;
+}
+- (void)panPreview:(UIPanGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
+        self.previewPanning = NO; [self updatePreviewGestureState]; return;
+    }
+    if (gesture.state != UIGestureRecognizerStateBegan && gesture.state != UIGestureRecognizerStateChanged) return;
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        self.previewPanning = YES; self.markDrag.enabled = NO; self.markDrag.enabled = YES; [self updatePreviewGestureState];
+    }
+    CGPoint delta = [gesture translationInView:self.previewViewport]; [gesture setTranslation:CGPointZero inView:self.previewViewport];
+    // Pinching already follows its moving centre; do not add the pan delta a second time.
+    if (self.previewPinching || gesture.numberOfTouches != 2) return;
+    CGPoint center = CGPointMake(CGRectGetMidX(self.previewViewport.bounds), CGRectGetMidY(self.previewViewport.bounds));
+    [self setPreviewZoom:self.previewZoom oldAnchor:center newAnchor:CGPointMake(center.x + delta.x, center.y + delta.y)];
+}
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
+    BOOL navigation = gesture == self.previewPinch || gesture == self.previewPan;
+    BOOL otherNavigation = other == self.previewPinch || other == self.previewPan;
+    return (navigation && (otherNavigation || other == self.markDrag || other == self.scroll.panGestureRecognizer)) ||
+        (otherNavigation && (gesture == self.markDrag || gesture == self.scroll.panGestureRecognizer));
 }
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-    if (self.mark.hidden || !self.mark.image) return NO;
+    if (gestureRecognizer == self.previewPinch) return self.preview.image != nil;
+    if (gestureRecognizer == self.previewPan) return self.preview.image != nil && self.previewZoom > 1.001;
+    if (self.previewPinching || self.previewPanning || self.mark.hidden || !self.mark.image) return NO;
     CGPoint point = [gestureRecognizer locationInView:self.preview];
     CGPoint translation = [(UIPanGestureRecognizer *)gestureRecognizer translationInView:self.preview];
     CGPoint origin = CGPointMake(point.x - translation.x, point.y - translation.y);
@@ -363,7 +455,8 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
     [self refreshControls];
 }
 - (void)drag:(UIPanGestureRecognizer *)gesture {
-    if (self.mark.hidden || !self.mark.image) return;
+    if (gesture.state != UIGestureRecognizerStateBegan && gesture.state != UIGestureRecognizerStateChanged) return;
+    if (self.previewPinching || self.previewPanning || gesture.numberOfTouches != 1 || self.mark.hidden || !self.mark.image) return;
     if (gesture.state == UIGestureRecognizerStateBegan) self.dragOrigin = CGPointMake(self.style.x, self.style.y);
     CGPoint translation = [gesture translationInView:self.preview];
     CGRect imageRect = [self imageRect];
@@ -375,7 +468,8 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
 }
 - (void)refreshPreview {
     NSUInteger generation = ++self.generation;
-    self.mark.image = nil; [self layoutMark];
+    [self cancelPreviewGestures];
+    self.mark.image = nil; [self resetPreviewZoom];
     self.status.text = @"正在生成预览…";
     BOOL framed = self.previewMode.selectedSegmentIndex == 1;
     MTDeviceFrameConfiguration *frameStyle = [MTDeviceFrameConfiguration rememberedConfiguration];
@@ -386,13 +480,14 @@ static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alph
         UIImage *base = example;
         if (framed) {
             MTDeviceFrameTemplate *frame = [MTDeviceFrameTemplateStore resolveTemplateForConfiguration:frameStyle templates:MTDeviceFrameTemplateStore.templates];
-            base = frame ? [MTDeviceFrameRenderer renderImage:example configuration:frameStyle template:frame previewEdge:900] : nil;
+            base = frame ? [MTDeviceFrameRenderer renderImage:example configuration:frameStyle template:frame previewEdge:1600] : nil;
         }
         UIImage *mark = [MTWatermarkRenderer materialForIdentifier:identifier];
         dispatch_async(dispatch_get_main_queue(), ^{
             __strong typeof(weakSelf) self = weakSelf;
             if (!self || self.generation != generation) return;
-            self.preview.image = base; self.mark.image = mark;
+            [self cancelPreviewGestures];
+            self.preview.image = base; self.mark.image = mark; [self resetPreviewZoom];
             self.previewEmpty.hidden = base != nil;
             self.previewEmpty.text = @"请先在套壳设置中\n导入并保存可用素材";
             self.status.text = !base ? @"尚无可用的套壳预览" : @"";
