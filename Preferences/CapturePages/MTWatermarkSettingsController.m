@@ -1,12 +1,16 @@
 #import <Preferences/PSViewController.h>
 #import <PhotosUI/PhotosUI.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <math.h>
 #import "../../Modules/Capture/Sources/Watermark/MTWatermarkRenderer.h"
 #import "../../Modules/Capture/Sources/Editor/MTDeviceFrameViewController.h"
 #import "../../Modules/Capture/Sources/Editor/MTDeviceFrameRenderer.h"
 #import "../../Modules/Capture/Sources/Editor/MTDeviceFrameTemplateStore.h"
 
-@interface MTWatermarkSettingsController : PSViewController <PHPickerViewControllerDelegate, UIDocumentPickerDelegate>
+static UIColor *MTWatermarkAccent(void) { return [UIColor colorWithRed:1 green:0.78 blue:0.08 alpha:1]; }
+static UIColor *MTWatermarkCard(void) { return [UIColor colorWithWhite:0.14 alpha:1]; }
+
+@interface MTWatermarkSettingsController : PSViewController <PHPickerViewControllerDelegate, UIDocumentPickerDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, strong) MTWatermarkConfiguration *style;
 @property (nonatomic, strong) UIImageView *preview;
 @property (nonatomic, strong) UIImageView *mark;
@@ -16,7 +20,19 @@
 @property (nonatomic, strong) UILabel *status;
 @property (nonatomic, strong) NSMutableArray<UISlider *> *sliders;
 @property (nonatomic, strong) NSMutableArray<UILabel *> *values;
-@property (nonatomic, strong) UIButton *deleteButton;
+@property (nonatomic, strong) UIButton *importButton;
+@property (nonatomic, strong) UILabel *libraryTitle;
+@property (nonatomic, strong) UILabel *libraryEmpty;
+@property (nonatomic, strong) UILabel *summary;
+@property (nonatomic, strong) UIButton *adjustButton;
+@property (nonatomic, strong) UIStackView *parameters;
+@property (nonatomic, strong) UIStackView *contentStack;
+@property (nonatomic, strong) UIColor *previousNavigationTint;
+@property (nonatomic, strong) NSMutableArray<UIButton *> *positionButtons;
+@property (nonatomic, strong) UIScrollView *scroll;
+@property (nonatomic, strong) UIView *selection;
+@property (nonatomic, strong) UILabel *previewEmpty;
+@property (nonatomic, strong) NSLayoutConstraint *previewHeight;
 @property (nonatomic) NSUInteger generation;
 @property (nonatomic) NSUInteger materialGeneration;
 @property (nonatomic) BOOL importing;
@@ -26,54 +42,145 @@
 
 @implementation MTWatermarkSettingsController
 - (NSArray *)specifiers { return @[]; }
+- (UILabel *)label:(NSString *)text size:(CGFloat)size secondary:(BOOL)secondary {
+    UILabel *label = [UILabel new]; label.text = text;
+    label.font = [UIFont systemFontOfSize:size];
+    label.textColor = secondary ? UIColor.secondaryLabelColor : UIColor.whiteColor;
+    label.numberOfLines = 0;
+    return label;
+}
+- (UIStackView *)column:(CGFloat)spacing {
+    UIStackView *stack = [UIStackView new]; stack.axis = UILayoutConstraintAxisVertical; stack.spacing = spacing;
+    return stack;
+}
+- (UIView *)cardWithContent:(UIView *)content {
+    UIView *card = [UIView new]; card.backgroundColor = MTWatermarkCard(); card.layer.cornerRadius = 16;
+    content.translatesAutoresizingMaskIntoConstraints = NO; [card addSubview:content];
+    [NSLayoutConstraint activateConstraints:@[
+        [content.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:14],
+        [content.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
+        [content.topAnchor constraintEqualToAnchor:card.topAnchor constant:12],
+        [content.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-12]]];
+    return card;
+}
+- (UIStackView *)rowWithView:(UIView *)view control:(UIView *)control {
+    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[view, control]];
+    row.alignment = UIStackViewAlignmentCenter; row.spacing = 10;
+    [control setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [control setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    return row;
+}
+- (UIButton *)button:(NSString *)title action:(SEL)action {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem]; [button setTitle:title forState:UIControlStateNormal];
+    button.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    [button.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
+    if (action) [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+- (void)styleSegments:(UISegmentedControl *)control accent:(BOOL)accent {
+    control.backgroundColor = [UIColor colorWithWhite:0.20 alpha:1];
+    control.selectedSegmentTintColor = accent ? MTWatermarkAccent() : [UIColor colorWithWhite:0.32 alpha:1];
+    [control setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,
+        NSFontAttributeName:[UIFont systemFontOfSize:13 weight:UIFontWeightMedium]} forState:UIControlStateNormal];
+    [control setTitleTextAttributes:@{NSForegroundColorAttributeName:accent ? UIColor.blackColor : MTWatermarkAccent(),
+        NSFontAttributeName:[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]} forState:UIControlStateSelected];
+}
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"水印设置";
+    self.title = @"水印设置"; self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     self.style = [MTWatermarkConfiguration rememberedConfiguration];
     self.renderQueue = dispatch_queue_create("com.lindo.metis.watermark.settings", DISPATCH_QUEUE_SERIAL);
-    self.sliders = [NSMutableArray new]; self.values = [NSMutableArray new];
-    self.view = [UIView new]; self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.sliders = [NSMutableArray new]; self.values = [NSMutableArray new]; self.positionButtons = [NSMutableArray new];
+    self.view = [UIView new]; self.view.backgroundColor = [UIColor colorWithWhite:0.06 alpha:1];
+    self.view.tintColor = MTWatermarkAccent();
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"保存" style:UIBarButtonItemStyleDone target:self action:@selector(save)];
-    UIScrollView *scroll = [UIScrollView new]; scroll.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:scroll];
-    UIStackView *stack = [UIStackView new]; stack.axis = UILayoutConstraintAxisVertical; stack.spacing = 14;
-    stack.translatesAutoresizingMaskIntoConstraints = NO; [scroll addSubview:stack];
+    self.navigationItem.rightBarButtonItem.tintColor = MTWatermarkAccent();
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    UINavigationBarAppearance *appearance = [UINavigationBarAppearance new]; [appearance configureWithOpaqueBackground];
+    appearance.backgroundColor = self.view.backgroundColor;
+    appearance.titleTextAttributes = @{NSForegroundColorAttributeName:UIColor.whiteColor};
+    appearance.buttonAppearance.normal.titleTextAttributes = @{NSForegroundColorAttributeName:MTWatermarkAccent()};
+    self.navigationItem.standardAppearance = appearance; self.navigationItem.scrollEdgeAppearance = appearance;
+
+    self.scroll = [UIScrollView new]; self.scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    self.scroll.alwaysBounceVertical = YES; self.scroll.indicatorStyle = UIScrollViewIndicatorStyleWhite;
+    [self.view addSubview:self.scroll];
+    UIStackView *stack = [self column:12]; self.contentStack = stack; stack.translatesAutoresizingMaskIntoConstraints = NO; [self.scroll addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
-        [scroll.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [scroll.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [scroll.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor constant:16],
-        [stack.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor constant:-16],
-        [stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor constant:12],
-        [stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor constant:-24],
-        [stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-32]]];
-    self.enabledSwitch = [UISwitch new]; self.enabledSwitch.on = self.style.enabled;
+        [self.scroll.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor],
+        [self.scroll.trailingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor],
+        [self.scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.scroll.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
+        [stack.leadingAnchor constraintEqualToAnchor:self.scroll.contentLayoutGuide.leadingAnchor constant:16],
+        [stack.trailingAnchor constraintEqualToAnchor:self.scroll.contentLayoutGuide.trailingAnchor constant:-16],
+        [stack.topAnchor constraintEqualToAnchor:self.scroll.contentLayoutGuide.topAnchor constant:8],
+        [stack.bottomAnchor constraintEqualToAnchor:self.scroll.contentLayoutGuide.bottomAnchor constant:-12],
+        [stack.widthAnchor constraintEqualToAnchor:self.scroll.frameLayoutGuide.widthAnchor constant:-32]]];
+
+    UIStackView *settings = [self column:10];
+    self.enabledSwitch = [UISwitch new]; self.enabledSwitch.on = self.style.enabled; self.enabledSwitch.onTintColor = MTWatermarkAccent();
+    self.enabledSwitch.accessibilityLabel = @"启用截图水印";
     [self.enabledSwitch addTarget:self action:@selector(enabledChanged:) forControlEvents:UIControlEventValueChanged];
-    [stack addArrangedSubview:[self rowWithTitle:@"启用截图水印" control:self.enabledSwitch]];
+    [settings addArrangedSubview:[self rowWithView:[self label:@"启用截图水印" size:16 secondary:NO] control:self.enabledSwitch]];
+    UIView *separator = [UIView new]; separator.backgroundColor = [UIColor colorWithWhite:1 alpha:0.10];
+    [separator.heightAnchor constraintEqualToConstant:0.5].active = YES; [settings addArrangedSubview:separator];
+    [settings addArrangedSubview:[self label:@"应用范围" size:12 secondary:YES]];
     UISegmentedControl *scope = [[UISegmentedControl alloc] initWithItems:@[@"所有截图", @"普通截图", @"套壳截图"]];
-    scope.selectedSegmentIndex = self.style.scope;
+    scope.selectedSegmentIndex = self.style.scope; [self styleSegments:scope accent:YES]; scope.accessibilityLabel = @"水印应用范围";
+    [scope.heightAnchor constraintEqualToConstant:34].active = YES;
     [scope addTarget:self action:@selector(scopeChanged:) forControlEvents:UIControlEventValueChanged];
-    [stack addArrangedSubview:scope];
-    self.previewMode = [[UISegmentedControl alloc] initWithItems:@[@"普通预览", @"套壳预览"]];
-    self.previewMode.selectedSegmentIndex = 0;
+    [settings addArrangedSubview:scope]; [stack addArrangedSubview:[self cardWithContent:settings]];
+
+    UIStackView *previewContent = [self column:8];
+    self.previewMode = [[UISegmentedControl alloc] initWithItems:@[@"普通", @"套壳"]];
+    self.previewMode.selectedSegmentIndex = self.style.scope == 2 ? 1 : 0;
+    [self styleSegments:self.previewMode accent:NO]; self.previewMode.accessibilityLabel = @"预览类型";
+    [self.previewMode.widthAnchor constraintEqualToConstant:112].active = YES;
     [self.previewMode addTarget:self action:@selector(refreshPreview) forControlEvents:UIControlEventValueChanged];
-    [stack addArrangedSubview:self.previewMode];
+    [previewContent addArrangedSubview:[self rowWithView:[self label:@"实时预览" size:15 secondary:NO] control:self.previewMode]];
     self.preview = [UIImageView new]; self.preview.contentMode = UIViewContentModeScaleAspectFit;
-    self.preview.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
-    self.preview.layer.cornerRadius = 12; self.preview.clipsToBounds = YES;
-    self.preview.userInteractionEnabled = YES;
-    [self.preview.heightAnchor constraintEqualToConstant:280].active = YES;
-    [stack addArrangedSubview:self.preview];
+    self.preview.backgroundColor = [UIColor colorWithWhite:0.10 alpha:1];
+    self.preview.layer.cornerRadius = 12; self.preview.clipsToBounds = YES; self.preview.userInteractionEnabled = YES;
+    self.preview.accessibilityLabel = @"完整成图预览";
+    self.previewHeight = [self.preview.heightAnchor constraintEqualToConstant:260]; self.previewHeight.active = YES;
+    [previewContent addArrangedSubview:self.preview];
     self.mark = [UIImageView new]; self.mark.contentMode = UIViewContentModeScaleAspectFit;
     self.mark.isAccessibilityElement = YES; self.mark.accessibilityLabel = @"水印位置预览";
     [self.preview addSubview:self.mark];
-    [self.preview addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)]];
-    self.status = [UILabel new]; self.status.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
-    self.status.textColor = UIColor.secondaryLabelColor; self.status.numberOfLines = 0;
-    [stack addArrangedSubview:self.status];
+    self.selection = [UIView new]; self.selection.userInteractionEnabled = NO;
+    self.selection.layer.borderColor = MTWatermarkAccent().CGColor; self.selection.layer.borderWidth = 1;
+    for (NSInteger i = 0; i < 4; i++) {
+        UIView *handle = [UIView new]; handle.backgroundColor = MTWatermarkAccent(); [self.selection addSubview:handle];
+    }
+    [self.preview addSubview:self.selection];
+    self.previewEmpty = [self label:@"" size:14 secondary:YES]; self.previewEmpty.textAlignment = NSTextAlignmentCenter;
+    self.previewEmpty.translatesAutoresizingMaskIntoConstraints = NO; [self.preview addSubview:self.previewEmpty];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.previewEmpty.centerYAnchor constraintEqualToAnchor:self.preview.centerYAnchor],
+        [self.previewEmpty.leadingAnchor constraintEqualToAnchor:self.preview.leadingAnchor constant:16],
+        [self.previewEmpty.trailingAnchor constraintEqualToAnchor:self.preview.trailingAnchor constant:-16]]];
+    UIPanGestureRecognizer *drag = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)];
+    drag.delegate = self; [self.preview addGestureRecognizer:drag];
+    [self.scroll.panGestureRecognizer requireGestureRecognizerToFail:drag];
+    self.status = [self label:@"" size:11 secondary:YES]; self.status.textAlignment = NSTextAlignmentCenter;
+    [previewContent addArrangedSubview:self.status]; [stack addArrangedSubview:[self cardWithContent:previewContent]];
+
+    UIStackView *library = [self column:8];
+    self.libraryTitle = [self label:@"我的素材" size:17 secondary:NO]; self.libraryTitle.font = [UIFont boldSystemFontOfSize:17];
+    self.importButton = [self button:@"导入素材" action:NULL];
+    UIButtonConfiguration *importStyle = [UIButtonConfiguration filledButtonConfiguration];
+    importStyle.title = @"导入素材"; importStyle.image = [UIImage systemImageNamed:@"photo"]; importStyle.imagePadding = 6;
+    importStyle.baseBackgroundColor = MTWatermarkAccent(); importStyle.baseForegroundColor = UIColor.blackColor;
+    importStyle.cornerStyle = UIButtonConfigurationCornerStyleMedium;
+    importStyle.contentInsets = NSDirectionalEdgeInsetsMake(6, 10, 6, 10); self.importButton.configuration = importStyle;
+    __weak typeof(self) weakSelf = self;
+    self.importButton.menu = [UIMenu menuWithChildren:@[
+        [UIAction actionWithTitle:@"从相册导入" image:[UIImage systemImageNamed:@"photo"] identifier:nil handler:^(UIAction *action) { [weakSelf importPhoto]; }],
+        [UIAction actionWithTitle:@"从文件导入" image:[UIImage systemImageNamed:@"doc"] identifier:nil handler:^(UIAction *action) { [weakSelf importFile]; }]]];
+    self.importButton.showsMenuAsPrimaryAction = YES;
+    [library addArrangedSubview:[self rowWithView:self.libraryTitle control:self.importButton]];
     UIScrollView *materials = [UIScrollView new]; materials.showsHorizontalScrollIndicator = NO;
-    [materials.heightAnchor constraintEqualToConstant:76].active = YES;
+    [materials.heightAnchor constraintEqualToConstant:90].active = YES;
     self.materialsStack = [UIStackView new]; self.materialsStack.spacing = 10;
     self.materialsStack.translatesAutoresizingMaskIntoConstraints = NO; [materials addSubview:self.materialsStack];
     [NSLayoutConstraint activateConstraints:@[
@@ -82,53 +189,116 @@
         [self.materialsStack.topAnchor constraintEqualToAnchor:materials.contentLayoutGuide.topAnchor],
         [self.materialsStack.bottomAnchor constraintEqualToAnchor:materials.contentLayoutGuide.bottomAnchor],
         [self.materialsStack.heightAnchor constraintEqualToAnchor:materials.frameLayoutGuide.heightAnchor]]];
-    [stack addArrangedSubview:materials];
-    UIStackView *imports = [UIStackView new]; imports.distribution = UIStackViewDistributionFillEqually; imports.spacing = 10;
-    [imports addArrangedSubview:[self button:@"从相册导入" action:@selector(importPhoto)]];
-    [imports addArrangedSubview:[self button:@"从文件导入" action:@selector(importFile)]];
-    self.deleteButton = [self button:@"删除素材" action:@selector(deleteMaterial)];
-    [imports addArrangedSubview:self.deleteButton]; [stack addArrangedSubview:imports];
-    NSArray *titles = @[@"横向位置", @"纵向位置", @"水印大小", @"不透明度"];
-    for (NSInteger index = 0; index < 4; index++) {
-        UILabel *value = [UILabel new]; value.font = [UIFont monospacedDigitSystemFontOfSize:14 weight:UIFontWeightRegular];
-        [self.values addObject:value]; [stack addArrangedSubview:[self rowWithTitle:titles[index] control:value]];
-        UISlider *slider = [UISlider new]; slider.minimumValue = index < 2 ? 0 : 0.05; slider.maximumValue = 1;
-        slider.tag = index; slider.accessibilityLabel = titles[index];
-        [slider addTarget:self action:@selector(sliderChanged:) forControlEvents:UIControlEventValueChanged];
-        [self.sliders addObject:slider]; [stack addArrangedSubview:slider];
-    }
-    UIStackView *positions = [UIStackView new]; positions.axis = UILayoutConstraintAxisVertical; positions.spacing = 6;
+    self.libraryEmpty = [self label:@"导入第一份水印素材\n支持相册图片与文件" size:13 secondary:YES];
+    self.libraryEmpty.textAlignment = NSTextAlignmentCenter; self.libraryEmpty.translatesAutoresizingMaskIntoConstraints = NO;
+    [materials addSubview:self.libraryEmpty];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.libraryEmpty.centerXAnchor constraintEqualToAnchor:materials.frameLayoutGuide.centerXAnchor],
+        [self.libraryEmpty.centerYAnchor constraintEqualToAnchor:materials.frameLayoutGuide.centerYAnchor],
+        [self.libraryEmpty.widthAnchor constraintEqualToAnchor:materials.frameLayoutGuide.widthAnchor]]];
+    [library addArrangedSubview:materials]; [library addArrangedSubview:[self label:@"支持透明 PNG · 长按可删除" size:11 secondary:YES]];
+    [stack addArrangedSubview:[self cardWithContent:library]];
+
+    UIStackView *summaryText = [self column:4];
+    [summaryText addArrangedSubview:[self label:@"位置与样式" size:16 secondary:NO]];
+    self.summary = [self label:@"" size:11 secondary:YES]; [summaryText addArrangedSubview:self.summary];
+    self.adjustButton = [self button:@"调整  ›" action:@selector(toggleParameters)];
+    [stack addArrangedSubview:[self cardWithContent:[self rowWithView:summaryText control:self.adjustButton]]];
+    UIStackView *parameters = [self column:12];
+    UILabel *parameterTitle = [self label:@"位置与样式" size:17 secondary:NO]; parameterTitle.font = [UIFont boldSystemFontOfSize:17];
+    [parameters addArrangedSubview:[self rowWithView:parameterTitle control:[self button:@"重置" action:@selector(resetParameters)]]];
+    [parameters addArrangedSubview:[self label:@"拖动预览或使用下方参数精确调整" size:12 secondary:YES]];
+    UIStackView *positions = [self column:6];
     NSArray *names = @[@"左上", @"上中", @"右上", @"左中", @"居中", @"右中", @"左下", @"下中", @"右下"];
+    NSArray *icons = @[@"arrow.up.left", @"arrow.up", @"arrow.up.right", @"arrow.left", @"dot.square", @"arrow.right", @"arrow.down.left", @"arrow.down", @"arrow.down.right"];
     for (NSInteger row = 0; row < 3; row++) {
-        UIStackView *buttons = [UIStackView new]; buttons.distribution = UIStackViewDistributionFillEqually;
+        UIStackView *buttons = [UIStackView new]; buttons.distribution = UIStackViewDistributionFillEqually; buttons.spacing = 6;
         for (NSInteger column = 0; column < 3; column++) {
-            UIButton *button = [self button:names[row * 3 + column] action:@selector(positionTapped:)];
-            button.tag = row * 3 + column; [buttons addArrangedSubview:button];
+            NSInteger index = row * 3 + column;
+            UIButton *button = [self button:names[index] action:@selector(positionTapped:)]; button.tag = index;
+            UIButtonConfiguration *configuration = [UIButtonConfiguration plainButtonConfiguration];
+            configuration.title = names[index]; configuration.image = [UIImage systemImageNamed:icons[index]];
+            configuration.imagePlacement = NSDirectionalRectEdgeTop; configuration.imagePadding = 4;
+            configuration.preferredSymbolConfigurationForImage = [UIImageSymbolConfiguration configurationWithPointSize:12];
+            configuration.titleTextAttributesTransformer = ^NSDictionary *(NSDictionary *incoming) {
+                NSMutableDictionary *attributes = incoming.mutableCopy; attributes[NSFontAttributeName] = [UIFont systemFontOfSize:12]; return attributes;
+            };
+            button.configuration = configuration; button.layer.cornerRadius = 8;
+            [button.heightAnchor constraintEqualToConstant:58].active = YES;
+            [buttons addArrangedSubview:button]; [self.positionButtons addObject:button];
         }
         [positions addArrangedSubview:buttons];
     }
-    [stack addArrangedSubview:positions];
-    UILabel *help = [UILabel new]; help.numberOfLines = 0; help.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
-    help.textColor = UIColor.secondaryLabelColor;
-    help.text = @"拖动预览或调节位置滑杆可定位水印。大小按成图短边计算。套壳时叠加到完整成图，可覆盖机壳与背景。支持透明 PNG，素材最长边保存为 2048 像素。长截图不添加水印。点击右上角保存后生效。";
-    [stack addArrangedSubview:help];
+    [parameters addArrangedSubview:positions];
+    NSArray *titles = @[@"横向位置", @"纵向位置", @"水印大小", @"不透明度"];
+    for (NSInteger index = 0; index < 4; index++) {
+        UILabel *title = [self label:titles[index] size:14 secondary:NO];
+        [title.widthAnchor constraintEqualToConstant:64].active = YES;
+        UILabel *value = [self label:@"" size:13 secondary:NO]; value.textAlignment = NSTextAlignmentRight;
+        value.font = [UIFont monospacedDigitSystemFontOfSize:13 weight:UIFontWeightRegular];
+        [value.widthAnchor constraintEqualToConstant:40].active = YES; [self.values addObject:value];
+        UISlider *slider = [UISlider new]; slider.minimumValue = index < 2 ? 0 : 0.05; slider.maximumValue = 1;
+        slider.minimumTrackTintColor = MTWatermarkAccent(); slider.maximumTrackTintColor = [UIColor colorWithWhite:0.30 alpha:1];
+        slider.tag = index; slider.accessibilityLabel = titles[index];
+        [slider addTarget:self action:@selector(sliderChanged:) forControlEvents:UIControlEventValueChanged];
+        [self.sliders addObject:slider];
+        UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[title, slider, value]];
+        row.spacing = 8; row.alignment = UIStackViewAlignmentCenter;
+        [row.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES; [parameters addArrangedSubview:row];
+    }
+    self.parameters = [self column:12];
+    [self.parameters addArrangedSubview:[self cardWithContent:parameters]];
+    UIStackView *help = [self column:8]; [help addArrangedSubview:[self label:@"使用说明" size:16 secondary:NO]];
+    [help addArrangedSubview:[self label:@"支持从相册或文件导入透明 PNG\n套壳水印叠加在完整成图上，可覆盖机壳与背景\n长截图不添加水印\n大小按成图短边计算，素材最长边保存为 2048 像素" size:12 secondary:YES]];
+    [self.parameters addArrangedSubview:[self cardWithContent:help]];
+    UILabel *footer = [self label:@"点击右上角保存后生效" size:11 secondary:YES]; footer.textAlignment = NSTextAlignmentCenter;
+    [stack addArrangedSubview:footer];
     [self refreshControls]; [self reloadMaterials]; [self refreshPreview];
 }
-- (UIView *)rowWithTitle:(NSString *)title control:(UIView *)control {
-    UILabel *label = [UILabel new]; label.text = title; label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[label, control]];
-    row.alignment = UIStackViewAlignmentCenter; row.spacing = 12;
-    [control setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
-    return row;
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    self.previousNavigationTint = self.navigationController.navigationBar.tintColor;
+    self.navigationController.navigationBar.tintColor = MTWatermarkAccent();
 }
-- (UIButton *)button:(NSString *)title action:(SEL)action {
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem]; [button setTitle:title forState:UIControlStateNormal];
-    button.titleLabel.font = [UIFont systemFontOfSize:14];
-    [button.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
-    [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
-    return button;
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    self.navigationController.navigationBar.tintColor = self.previousNavigationTint;
 }
-- (void)viewDidLayoutSubviews { [super viewDidLayoutSubviews]; [self layoutMark]; }
+- (void)toggleParameters {
+    BOOL expanded = self.parameters.superview != nil;
+    if (expanded) {
+        [self.contentStack removeArrangedSubview:self.parameters]; [self.parameters removeFromSuperview];
+    } else {
+        [self.contentStack insertArrangedSubview:self.parameters atIndex:self.contentStack.arrangedSubviews.count - 1];
+    }
+    [self.adjustButton setTitle:expanded ? @"调整  ›" : @"收起  ⌃" forState:UIControlStateNormal];
+    self.adjustButton.accessibilityValue = expanded ? @"已收起" : @"已展开";
+    if (!expanded) {
+        [self.view layoutIfNeeded];
+        CGRect rect = [self.parameters convertRect:self.parameters.bounds toView:self.scroll];
+        rect.size.height = MIN(rect.size.height, self.scroll.bounds.size.height - 12);
+        [self.scroll scrollRectToVisible:rect animated:YES];
+    }
+}
+- (void)resetParameters {
+    MTWatermarkConfiguration *defaults = [MTWatermarkConfiguration new];
+    self.style.x = defaults.x; self.style.y = defaults.y; self.style.size = defaults.size; self.style.opacity = defaults.opacity;
+    [self refreshControls];
+}
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    // Keep a useful preview on small phones and in landscape without making the page excessively tall.
+    CGFloat height = MIN(280, MAX(180, self.view.safeAreaLayoutGuide.layoutFrame.size.height * 0.36));
+    if (fabs(self.previewHeight.constant - height) > 0.5) self.previewHeight.constant = height;
+    [self layoutMark];
+}
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    if (self.mark.hidden || !self.mark.image) return NO;
+    CGPoint point = [gestureRecognizer locationInView:self.preview];
+    CGPoint translation = [(UIPanGestureRecognizer *)gestureRecognizer translationInView:self.preview];
+    CGPoint origin = CGPointMake(point.x - translation.x, point.y - translation.y);
+    return CGRectContainsPoint(CGRectInset(self.mark.frame, -22, -22), origin);
+}
 - (CGRect)imageRect {
     CGSize size = self.preview.image.size, bounds = self.preview.bounds.size;
     if (size.width <= 0 || size.height <= 0) return CGRectZero;
@@ -140,7 +310,13 @@
     CGRect rect = [self.style rectForCanvas:imageRect.size material:self.mark.image.size];
     self.mark.frame = CGRectOffset(rect, imageRect.origin.x, imageRect.origin.y);
     self.mark.alpha = self.style.opacity;
-    self.mark.hidden = CGRectIsEmpty(imageRect) || ![self.style appliesToFramedImage:self.previewMode.selectedSegmentIndex == 1];
+    self.mark.hidden = !self.mark.image || CGRectIsEmpty(imageRect) || CGRectIsEmpty(rect) ||
+        ![self.style appliesToFramedImage:self.previewMode.selectedSegmentIndex == 1];
+    self.selection.frame = self.mark.frame; self.selection.hidden = self.mark.hidden;
+    for (NSUInteger i = 0; i < self.selection.subviews.count; i++) {
+        self.selection.subviews[i].frame = CGRectMake((i % 2) ? rect.size.width - 3 : -3,
+            (i / 2) ? rect.size.height - 3 : -3, 6, 6);
+    }
 }
 - (void)refreshControls {
     double values[] = {self.style.x, self.style.y, self.style.size, self.style.opacity};
@@ -149,7 +325,25 @@
         self.values[index].text = [NSString stringWithFormat:@"%.0f%%", values[index] * 100];
     }
     self.navigationItem.rightBarButtonItem.title = @"保存";
-    self.deleteButton.enabled = self.style.materialIdentifier.length > 0 && !self.importing;
+    self.importButton.enabled = !self.importing;
+    NSArray *names = @[@"左上", @"上中", @"右上", @"左中", @"居中", @"右中", @"左下", @"下中", @"右下"];
+    NSString *position = @"自定义位置";
+    for (UIButton *button in self.positionButtons) {
+        BOOL selected = fabs(self.style.x - (0.05 + (button.tag % 3) * 0.45)) < 0.005 &&
+            fabs(self.style.y - (0.05 + (button.tag / 3) * 0.45)) < 0.005;
+        button.selected = selected; button.backgroundColor = [UIColor colorWithWhite:0.18 alpha:1];
+        button.layer.borderWidth = selected ? 2 : 0; button.layer.borderColor = MTWatermarkAccent().CGColor;
+        UIButtonConfiguration *configuration = button.configuration;
+        configuration.baseForegroundColor = selected ? MTWatermarkAccent() : UIColor.lightGrayColor;
+        button.configuration = configuration;
+        button.accessibilityValue = selected ? @"已选中" : @"未选中";
+        if (selected) position = names[button.tag];
+    }
+    self.summary.text = [NSString stringWithFormat:@"%@ · 大小 %.0f%% · 不透明度 %.0f%%", position, self.style.size * 100, self.style.opacity * 100];
+    if (!self.importing && self.preview.image) {
+        self.status.text = !self.mark.image ? @"请导入并选择水印素材" : (!self.style.enabled ? @"启用截图水印后可预览效果" :
+            (![self.style appliesToFramedImage:self.previewMode.selectedSegmentIndex == 1] ? @"当前预览类型不在应用范围内" : @"拖动水印可调整位置"));
+    }
     [self layoutMark];
 }
 - (void)enabledChanged:(UISwitch *)sender { self.style.enabled = sender.on; [self refreshControls]; }
@@ -181,7 +375,8 @@
 }
 - (void)refreshPreview {
     NSUInteger generation = ++self.generation;
-    self.mark.image = nil;
+    self.mark.image = nil; [self layoutMark];
+    self.status.text = @"正在生成预览…";
     BOOL framed = self.previewMode.selectedSegmentIndex == 1;
     MTDeviceFrameConfiguration *frameStyle = [MTDeviceFrameConfiguration rememberedConfiguration];
     UIImage *example = [MTDeviceFrameViewController exampleImage];
@@ -198,8 +393,10 @@
             __strong typeof(weakSelf) self = weakSelf;
             if (!self || self.generation != generation) return;
             self.preview.image = base; self.mark.image = mark;
-            self.status.text = !base ? @"请先在套壳设置中保存可用素材" : (!mark ? @"请导入并选择水印素材" : @"拖动预览可调整水印位置");
-            [self layoutMark];
+            self.previewEmpty.hidden = base != nil;
+            self.previewEmpty.text = @"请先在套壳设置中\n导入并保存可用素材";
+            self.status.text = !base ? @"尚无可用的套壳预览" : @"";
+            [self refreshControls];
         });
     }});
 }
@@ -207,18 +404,48 @@
     NSUInteger generation = ++self.materialGeneration;
     for (UIView *view in self.materialsStack.arrangedSubviews) { [self.materialsStack removeArrangedSubview:view]; [view removeFromSuperview]; }
     NSArray *identifiers = MTWatermarkRenderer.materials;
+    self.libraryTitle.text = identifiers.count ? [NSString stringWithFormat:@"我的素材 · %lu", (unsigned long)identifiers.count] : @"我的素材";
+    self.libraryEmpty.hidden = identifiers.count > 0;
+    NSUInteger index = 0;
     for (NSString *identifier in identifiers) {
         UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
         button.accessibilityIdentifier = identifier; button.accessibilityLabel = @"水印素材";
         button.accessibilityValue = [identifier isEqualToString:self.style.materialIdentifier] ? @"已选中" : @"未选中";
-        button.imageView.contentMode = UIViewContentModeScaleAspectFit;
-        button.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
-        button.layer.cornerRadius = 8; button.clipsToBounds = YES;
+        button.backgroundColor = [UIColor colorWithWhite:0.18 alpha:1];
+        button.layer.cornerRadius = 12; button.clipsToBounds = YES;
+        UIImageView *materialImage = [UIImageView new]; materialImage.contentMode = UIViewContentModeScaleAspectFit;
+        materialImage.translatesAutoresizingMaskIntoConstraints = NO; [button addSubview:materialImage];
+        [NSLayoutConstraint activateConstraints:@[
+            [materialImage.topAnchor constraintEqualToAnchor:button.topAnchor constant:8],
+            [materialImage.leadingAnchor constraintEqualToAnchor:button.leadingAnchor constant:8],
+            [materialImage.trailingAnchor constraintEqualToAnchor:button.trailingAnchor constant:-8],
+            [materialImage.bottomAnchor constraintEqualToAnchor:button.bottomAnchor constant:-25]]];
+        UILabel *name = [self label:[NSString stringWithFormat:@"素材 %lu", (unsigned long)++index] size:11 secondary:NO];
+        name.textAlignment = NSTextAlignmentCenter; name.translatesAutoresizingMaskIntoConstraints = NO;
+        name.userInteractionEnabled = NO; [button addSubview:name];
+        UIImageView *check = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"checkmark.circle.fill"]];
+        check.tintColor = MTWatermarkAccent(); check.backgroundColor = UIColor.blackColor; check.layer.cornerRadius = 9;
+        check.hidden = ![identifier isEqualToString:self.style.materialIdentifier]; check.translatesAutoresizingMaskIntoConstraints = NO;
+        [button addSubview:check];
+        [NSLayoutConstraint activateConstraints:@[
+            [name.leadingAnchor constraintEqualToAnchor:button.leadingAnchor constant:4],
+            [name.trailingAnchor constraintEqualToAnchor:button.trailingAnchor constant:-4],
+            [name.bottomAnchor constraintEqualToAnchor:button.bottomAnchor constant:-6],
+            [check.topAnchor constraintEqualToAnchor:button.topAnchor constant:6],
+            [check.trailingAnchor constraintEqualToAnchor:button.trailingAnchor constant:-6],
+            [check.widthAnchor constraintEqualToConstant:18], [check.heightAnchor constraintEqualToConstant:18]]];
+        [button addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(materialLongPressed:)]];
+        button.accessibilityHint = @"轻点选用，长按删除素材";
+        __weak typeof(self) weakController = self;
+        button.accessibilityCustomActions = @[[[UIAccessibilityCustomAction alloc] initWithName:@"删除素材" actionHandler:^BOOL(UIAccessibilityCustomAction *action) {
+            [weakController deleteMaterialIdentifier:identifier]; return YES;
+        }]];
         button.layer.borderWidth = [identifier isEqualToString:self.style.materialIdentifier] ? 2 : 0;
         button.layer.borderColor = self.view.tintColor.CGColor;
-        [button.widthAnchor constraintEqualToConstant:76].active = YES;
         [button addTarget:self action:@selector(selectMaterial:) forControlEvents:UIControlEventTouchUpInside];
         [self.materialsStack addArrangedSubview:button];
+        UIScrollView *materials = (UIScrollView *)self.materialsStack.superview;
+        [button.widthAnchor constraintEqualToAnchor:materials.frameLayoutGuide.widthAnchor multiplier:1.0/3.0 constant:-20.0/3.0].active = YES;
         __weak typeof(self) weakSelf = self;
         dispatch_async(self.renderQueue, ^{ @autoreleasepool {
             UIImage *image = [MTWatermarkRenderer materialForIdentifier:identifier];
@@ -231,7 +458,7 @@
                     [image drawInRect:CGRectMake((152-size.width)/2, (152-size.height)/2, size.width, size.height)];
                 }];
             dispatch_async(dispatch_get_main_queue(), ^{
-                if (weakSelf.materialGeneration == generation) [button setImage:thumbnail forState:UIControlStateNormal];
+                if (weakSelf.materialGeneration == generation) materialImage.image = thumbnail;
             });
         }});
     }
@@ -303,9 +530,12 @@
     self.style.enabled = YES; self.enabledSwitch.on = YES;
     [self refreshControls]; [self reloadMaterials]; [self refreshPreview];
 }
-- (void)deleteMaterial {
-    if (self.importing || !self.style.materialIdentifier.length) return;
-    NSString *identifier = self.style.materialIdentifier;
+- (void)materialLongPressed:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateBegan)
+        [self deleteMaterialIdentifier:gesture.view.accessibilityIdentifier];
+}
+- (void)deleteMaterialIdentifier:(NSString *)identifier {
+    if (self.importing || !identifier.length || self.presentedViewController) return;
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"删除水印素材？" message:@"删除当前使用的素材会关闭已保存的水印。" preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     [alert addAction:[UIAlertAction actionWithTitle:@"删除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
@@ -316,7 +546,9 @@
         }
         NSError *error = nil;
         if (![MTWatermarkRenderer removeMaterial:identifier error:&error]) { [self showError:error.localizedDescription]; return; }
-        self.style.materialIdentifier = @""; self.style.enabled = NO; self.enabledSwitch.on = NO;
+        if ([self.style.materialIdentifier isEqualToString:identifier]) {
+            self.style.materialIdentifier = @""; self.style.enabled = NO; self.enabledSwitch.on = NO;
+        }
         [self refreshControls]; [self reloadMaterials]; [self refreshPreview];
     }]];
     [self presentViewController:alert animated:YES completion:nil];
